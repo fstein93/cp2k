@@ -12592,6 +12592,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
-
+ 
 END MODULE rpa_ri_gpw
 
