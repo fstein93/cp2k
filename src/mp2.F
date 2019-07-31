@@ -91,7 +91,7 @@ MODULE mp2
                                               mp_sum,&
                                               mp_sync
    USE mp2_direct_method,               ONLY: mp2_canonical_direct_single_batch
-   USE mp2_gpw,                         ONLY: mp2_gpw_main
+   USE mp2_main,                        ONLY: mp2_gpw_main
    USE mp2_optimize_ri_basis,           ONLY: optimize_ri_basis_main
    USE mp2_types,                       ONLY: mp2_biel_type,&
                                               mp2_method_direct,&
@@ -311,7 +311,7 @@ CONTAINS
          mp2_env%mp2_memory = mp2_env%mp2_memory-mem_real
          IF (mp2_env%mp2_memory < 0.0_dp) mp2_env%mp2_memory = 1.0_dp
 
-         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'Available memory per MPI processes for MP2:', &
+         IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T68,F9.2,A4)') 'Available memory per MPI process for MP2:', &
             mp2_env%mp2_memory, ' MiB'
       END IF
 
