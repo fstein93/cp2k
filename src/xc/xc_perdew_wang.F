@@ -34,12 +34,10 @@ MODULE xc_perdew_wang
    IMPLICIT NONE
    PRIVATE
 
-   LOGICAL :: initialized = .FALSE.
    REAL(KIND=dp), DIMENSION(-1:1) :: A, a1, b1, b2, b3, b4
    REAL(KIND=dp), DIMENSION(-1:1) :: c0, c1, c2, c3
    REAL(KIND=dp), DIMENSION(-1:1) :: d0, d1
    REAL(KIND=dp), PARAMETER :: &
-      epsilon = 5.E-13_dp, &
       fpp = 0.584822362263464620726223866376013788782_dp ! d^2f(0)/dz^2
    REAL(KIND=dp) :: eps_rho
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_perdew_wang'
@@ -140,8 +138,6 @@ CONTAINS
 
       eps_rho = cutoff
 
-      initialized = .FALSE.
-
       ! values for -ac are the same for all methods
       A(-1) = 0.016887_dp
       a1(-1) = 0.11125_dp
@@ -190,8 +186,6 @@ CONTAINS
          d0(k) = a1(k)/b4(k)
          d1(k) = a1(k)*b3(k)/(b4(k)**2)
       END DO
-
-      initialized = .TRUE.
 
    END SUBROUTINE perdew_wang_init
 

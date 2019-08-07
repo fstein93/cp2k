@@ -431,7 +431,7 @@ CONTAINS
 !> \param z ...
 !> \param order ...
 ! **************************************************************************************************
-   SUBROUTINE calc_z(a, b, z, order)
+   PURE SUBROUTINE calc_z(a, b, z, order)
 
       REAL(KIND=dp), INTENT(IN)                          :: a, b
       REAL(KIND=dp), DIMENSION(0:, 0:), INTENT(OUT)      :: z
