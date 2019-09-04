@@ -826,701 +826,914 @@ WRITE(*,*) rho, e_gg, va_gg, vb_gg, e_lda, v_lda
 
    END SUBROUTINE pw_lsd_ed_loc
 
-! **************************************************************************************************
-!> \brief ...
-!> \param x ...
-!> \param Q_ ...
-!> \param order ...
-! **************************************************************************************************
-   PURE SUBROUTINE calc_Q(x, Q_, order)
-      REAL(KIND=dp), INTENT(IN)                          :: x
-      REAL(KIND=dp), INTENT(OUT)                         :: Q_(0:2)
-      INTEGER, INTENT(IN)                                :: order
+   PURE SUBROUTINE calc_D3(rs, D3, max_deriv)
+      REAL(KIND=dp), INTENT(IN) :: rs
+      REAL(KIND=dp), INTENT(OUT) :: D3(0:)
+      INTEGER, INTENT(IN) :: max_deriv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_Q', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_D3", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp)                                      :: x0, x1, x10, x11, x12, x2, x3, x4, x5, &
-                                                            x6, x7, x8, x9
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, d3_1, d3_2
 
-      x0 = x**2
-      x1 = aa*x+1.0_dp
-      x2 = dd*x0+x1
-      x3 = 1.0_dp/x2
-      x4 = bb*x0+cc*x**3+x1
+      D3 = 0.0_dp
 
-      Q_(0) = qq*LOG(x3*x4)
+      d3_1 = 0.31_dp
+      d3_2 = 4.95_dp
 
-      IF (order >= 1) THEN
-         x5 = 2.0_dp*x
-         x6 = aa+dd*x5
-         x7 = x4*x6
-         x8 = 3.0_dp*cc
-         x9 = aa+bb*x5+x0*x8
-         x10 = x2*x9
-         x11 = -x10+x7
+      x0 = -d3_2 + rs
+      x1 = rs**(-2)
+      x2 = exp(-d3_1*rs)
+      x3 = x1*x2
+      x4 = x0*x3
+      D3(0) = x4
 
-         Q_(1) = -qq*x11*x3/x4
+      IF (max_deriv >= 1) THEN
+         x5 = x2/rs**3
+         x6 = d3_1*x1*x2
+
+         D3(1) = -x0*x6 + x3 + 2.0_dp*x5*(d3_2 - rs)
       END IF
 
-      IF (order >= 2) THEN
-         x12 = x2**2
+      IF (max_deriv >= 2) THEN
+         x7 = 4.0_dp*x5
 
-         Q_(2) = qq*(x10*x11-x11*x7-2.0_dp*x4*(-x12*(bb+x*x8)+x2*(dd*x4+x6*x9) &
-                                               -x4*x6**2))/(x12*x4**2)
+         D3(2) = d3_1**2*x4 + d3_1*x0*x7 - 2.0_dp*x6 - x7 + 6.0_dp*x0*x2/rs**4
       END IF
 
-   END SUBROUTINE calc_Q
+   END SUBROUTINE calc_D3
 
-! **************************************************************************************************
-!> \brief ...
-!> \param rs ...
-!> \param g2 ...
-!> \param order ...
-! **************************************************************************************************
-   PURE SUBROUTINE calc_g2(rs, g2, order)
-      REAL(KIND=dp), INTENT(IN)                          :: rs
-      REAL(KIND=dp), INTENT(OUT)                         :: g2(0:2)
-      INTEGER, INTENT(IN)                                :: order
+   PURE SUBROUTINE calc_D2(rs, D2, max_deriv)
+      REAL(KIND=dp), INTENT(IN) :: rs
+      REAL(KIND=dp), INTENT(OUT) :: D2(0:)
+      INTEGER, INTENT(IN) :: max_deriv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_g2', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_D2", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp)                                      :: x0, x1, x10, x2, x3, x4, x5, x6, x7, x8, &
-                                                            x9
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, d2_1, d2_2, d2_3
 
-      g2 = 0.0_dp
+      d2_1 = 0.547_dp
+      d2_2 = 0.388_dp
+      d2_3 = 0.676_dp
 
-      x0 = 2.0_dp**(2.0_dp/3.0_dp)
-      x1 = 1.0_dp/alpha2
-      x2 = (2.0_dp/5.0_dp)*x0*x1
+      D2 = 0.0_dp
+
+      x0 = 1.0_dp/rs
+      x1 = exp(-d2_1*rs)
+      x2 = x1*(-d2_2 + d2_3*rs)
+      x3 = x0*x2
+      D2(0) = x3
+
+      IF (max_deriv >= 1) THEN
+         x4 = d2_3*x1
+         x5 = x0*x4
+         x6 = rs**(-2)
+
+         D2(1) = -d2_1*x3 - x2*x6 + x5
+      END IF
+
+      IF (max_deriv >= 2) THEN 
+         D2(2) = d2_1**2*x3 + 2.0_dp*(d2_1*x2*x6 - d2_1*x5 - x4*x6 + x2/rs**3)
+      END IF
+
+   END SUBROUTINE calc_D2
+
+   PURE SUBROUTINE calc_g2z_ab(rs, zeta, g2z, max_deriv)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      REAL(KIND=dp), INTENT(OUT) :: g2z(0:)
+      INTEGER, INTENT(IN) :: max_deriv
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_g2z", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31, x32, x33, x34, x35, x36, x37, x38, x39, x40, x41, x42, x43, x44, x45, x46, g2_1, g2_2, g2_3
+
+      g2_1 = 0.02267_dp
+      g2_2 = 0.4319_dp
+      g2_3 = 0.04_dp
+
+      g2z = 0.0_dp
+
+      x0 = (1.0_dp/2.0_dp)*zeta + 1.0_dp/2.0_dp
+      x1 = x0**2
+      x2 = alpha**(-2)
       x3 = rs**2
-      x4 = g2_1*rs
-      x5 = -x4+1.0_dp
-      x6 = g2_2*rs+g2_3*x3+1.0_dp
+      x4 = 1.0_dp/x3
+      x5 = zeta + 1.0_dp
+      x6 = 1.0_dp/x5
+      x7 = x6**(2.0_dp/3.0_dp)
+      x8 = 1.0_dp/x7
+      x9 = 2.0_dp**(1.0_dp/3.0_dp)
+      x10 = x6**(1.0_dp/3.0_dp)
+      x11 = -g2_1*rs*x10*x9 + 1.0_dp
+      x12 = g2_2*x10*x9
+      x13 = rs*x12
+      x14 = 2.0_dp**(2.0_dp/3.0_dp)
+      x15 = g2_3*x14*x3*x7
+      x16 = x13 + x15 + 1.0_dp
+      x17 = 1.0_dp/x16
+      x18 = (2.0_dp/5.0_dp)*x11*x17*x2*x4*x8
+      g2z(0) = x1*x18
 
-      g2(0) = x2*x5/(x3*x6)
+      IF (max_deriv >= 1) THEN
+      x19 = 1.0_dp/x10
+      x20 = (2.0_dp/5.0_dp)*g2_1*x17*x19*x2*x4*x9
+      x21 = x1*x20
+      x22 = rs**(-3)
+      x23 = x11*x17*x2*x22*x8
+      x24 = x16**(-2)
+      x25 = x1*x24
+      x26 = g2_3*rs*x14*x7
+      x27 = -x12 - 2.0_dp*x26
+      x28 = (2.0_dp/5.0_dp)*x11*x2*x27*x4*x8
+      x29 = 1.0_dp/rs
+      x30 = g2_1*x1*x17*x19*x2*x9
+      x31 = x1*x11*x17*x2*x4*x8
+      x32 = (1.0_dp/3.0_dp)*x6
+      x33 = (2.0_dp/3.0_dp)*x6
+      x34 = x13*x32 + x15*x33
+      x35 = (2.0_dp/5.0_dp)*x1*x11*x2*x24*x4*x8
 
-      IF (order >= 1) THEN
-         x7 = x6**2
-         x8 = x4-1.0_dp
-         x9 = g2_2+g2_3*2.0_dp*rs
-         x10 = x8*x9
-
-         g2(1) = x2*(rs*x10-x4*x6+2.0_dp*x6*x8)/(rs**3*x7)
+      g2z(1) = -4.0_dp/5.0_dp*x1*x23 - x21 + x25*x28
+      g2z(2) = x0*x18 + (2.0_dp/15.0_dp)*x29*x30*x6 + (4.0_dp/15.0_dp)*x31*x6 + &
+      x34*x35
       END IF
 
-      IF (order >= 2) THEN
-         g2(2) = (4.0_dp/5.0_dp)*x0*x1*(-2.0_dp*rs*x10*x6+x3*x6*(g2_1*x9+g2_3*x8) &
-                                        -x3*x8*x9**2+2.0_dp*x4*x7+3.0_dp*x5*x7)/(rs**4*x6**3)
+      IF (max_deriv >= 2) THEN
+      x36 = x16**(-3)
+      x37 = (2.0_dp/5.0_dp)*x1*x11*x2*x27*x36*x4*x8
+      x38 = (2.0_dp/5.0_dp)*zeta + 2.0_dp/5.0_dp
+      x39 = (8.0_dp/15.0_dp)*x1*x6
+      x40 = g2_1*x1*x19*x2*x24*x34*x9
+      x41 = (4.0_dp/3.0_dp)*x6
+      x42 = x34*x8
+      x43 = x13*x33 + x15*x41
+      x44 = (4.0_dp/15.0_dp)*x29*x6
+      x45 = x5**(-2)
+      x46 = x11*x2*x24*x34*x4*x8
+
+      g2z(3) = -4.0_dp/5.0_dp*g2_1*x1*x19*x2*x24*x27*x4*x9 - 4.0_dp/5.0_dp* &
+      g2_3*x1*x11*x14*x2*x24*x4 - 8.0_dp/5.0_dp*x1*x11*x2*x22*x24*x27*x8 &
+      + (8.0_dp/5.0_dp)*x22*x30 + x37*(-2.0_dp*x12 - 4.0_dp*x26) + (12.0_dp/5.0_dp)* &
+      x1*x11*x17*x2*x8/rs**4
+      g2z(4) = (2.0_dp/15.0_dp)*g2_1*x19*x2*x25*x27*x29*x6*x9 - x0*x20 + &
+      x0*x24*x28 - 4.0_dp/5.0_dp*x1*x11*x2*x22*x24*x42 + (4.0_dp/15.0_dp)* &
+      x1*x11*x2*x24*x27*x4*x6*x8 - x21*x6 - x23*x38 - x23*x39 + x35*( &
+      x12*x32 + x26*x41) + x37*x43 - 2.0_dp/5.0_dp*x4*x40
+      g2z(5) = g2_1*x0*x17*x19*x2*x44*x9 + (8.0_dp/15.0_dp)*x0*x11*x17* &
+      x2*x4*x6*x8 + (2.0_dp/5.0_dp)*x1*x11*x2*x36*x4*x42*x43 + (1.0_dp/ &
+      5.0_dp)*x11*x17*x2*x4*x8 - 4.0_dp/45.0_dp*x31*x45 + x35*(-4.0_dp/ &
+      9.0_dp*x13*x45 - 10.0_dp/9.0_dp*x15*x45) + x38*x46 + x39*x46 + x40*x44
       END IF
 
-   END SUBROUTINE calc_g2
+   END SUBROUTINE calc_g2z_ab
 
-! **************************************************************************************************
-!> \brief ...
-!> \param rs ...
-!> \param g0 ...
-!> \param order ...
-! **************************************************************************************************
-   PURE SUBROUTINE calc_g0(rs, g0, order)
-      REAL(KIND=dp), INTENT(IN)                          :: rs
-      REAL(KIND=dp), INTENT(INOUT)                       :: g0(0:2)
-      INTEGER, INTENT(IN)                                :: order
+   PURE SUBROUTINE calc_g0(rs, g0, max_deriv)
+      REAL(KIND=dp), INTENT(IN) :: rs
+      REAL(KIND=dp), INTENT(OUT) :: g0(0:)
+      INTEGER, INTENT(IN) :: max_deriv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_g0', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_g0", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp)                                      :: x0, x1, x2, x3, x4, x5, x6
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, g0_1, g0_2, g0_3, g0_4, g0_5
 
-      x0 = EXP(-g0_5*rs)
-      x1 = rs**2
-      x2 = rs*x1
-      x3 = x1**2
-      x4 = (1.0_dp/2.0_dp)*(g0_1*rs+g0_2*x1-g0_3*x2+g0_4*x3+1.0_dp)
+      g0_1 = 0.0207_dp
+      g0_2 = 0.08193_dp
+      g0_3 = 0.01277_dp
+      g0_4 = 0.001859_dp
+      g0_5 = 0.7524_dp
 
-      g0(0) = x0*x4
+      x0 = exp(-g0_5*rs)
+      x1 = (1.0_dp/2.0_dp)*g0_1
+      x2 = rs**2
+      x3 = rs**3
+      x4 = 0.5_dp*x0*(g0_2*x2 - g0_3*x3 + g0_4*rs**4 + 2.0_dp*rs*x1 + 1.0_dp)
+      x5 = x0*(g0_2*rs - 3.0_dp/2.0_dp*g0_3*x2 + 2.0_dp*g0_4*x3 + x1)
+      g0(0) = x4
 
-      IF (order >= 1) THEN
-         x5 = 3.0_dp*g0_3
-         x6 = g0_1+2.0_dp*g0_2*rs+4.0_dp*g0_4*x2-x1*x5
+      IF (max_deriv >= 1) THEN
+         x5 = x0*(g0_2*rs - 3.0_dp/2.0_dp*g0_3*x2 + 2.0_dp*g0_4*x3 + x1)
 
-         g0(1) = (1.0_dp/2.0_dp)*x0*(-g0_5*(g0_1*rs+g0_2*x1-g0_3*x2+g0_4*x3+1.0_dp)+x6)
+         g0(1) = -g0_5*x4 + x5
       END IF
 
-      IF (order >= 2) THEN
-         g0(2) = x0*(g0_2+6.0_dp*g0_4*x1+g0_5**2*x4-g0_5*x6-rs*x5)
+      IF (max_deriv >= 2) THEN
+         g0(2) = g0_5**2*x4 - 2.0_dp*g0_5*x5 + x0*(g0_2 - 3.0_dp*g0_3*rs + 6.0_dp*g0_4*x2)
       END IF
 
    END SUBROUTINE calc_g0
 
-! **************************************************************************************************
-!> \brief ...
-!> \param n ...
-!> \param zeta ...
-!> \param phin ...
-!> \param order ...
-! **************************************************************************************************
-   PURE SUBROUTINE calc_phin(n, zeta, phin, order)
-      INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=dp), INTENT(IN)                          :: zeta
-      REAL(KIND=dp), INTENT(OUT)                         :: phin(0:2)
-      INTEGER, INTENT(IN)                                :: order
+   PURE SUBROUTINE calc_phin(zeta, n, phin, max_deriv)
+      REAL(KIND=dp), INTENT(IN) :: zeta
+      INTEGER, INTENT(IN) :: n
+      REAL(KIND=dp), INTENT(OUT) :: phin(0:)
+      INTEGER, INTENT(IN) :: max_deriv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_phin', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_phin", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp)                                      :: zm3, zp3
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9
 
       phin = 0.0_dp
 
-      zp3 = (zeta+1.0_dp)**(1.0_dp/3.0_dp)
-      zm3 = (-zeta+1.0_dp)**(1.0_dp/3.0_dp)
+      IF (ABS(zeta)>=1.0_dp) THEN
+         phin(0) = 2.0_dp**(REAL(n-3, KIND=dp)/3.0_dp)
+         IF (n>2 .AND. max_deriv >=1) phin(1) = SIGN(zeta)*REAL(n, KIND=dp)/3.0_dp*2.0_dp**(REAL(n-6, KIND=dp)/3.0_dp)
+         IF (n>5 .AND. max_deriv >=2) phin(2) = REAL(n*(n-3), KIND=dp)/9.0_dp*2.0_dp**(REAL(n-9, KIND=dp)/3.0_dp)
+      ELSE
 
-      phin(0) = (1.0_dp/2.0_dp)*(zp3+zm3)
+      x0 = zeta + 1.0_dp
+      x1 = (1.0_dp/3.0_dp)*n
+      x2 = x0**x1
+      x3 = -zeta + 1.0_dp
+      x4 = x3**x1
+      phin(0) = (1.0_dp/2.0_dp)*(x2 + x4)
 
-      IF (order >= 1) THEN
-         phin(1) = (1.0_dp/6.0_dp)*REAL(n, KIND=dp)*(zp3**(n-3)-zm3**(n-3))
+      IF (max_deriv >= 1) THEN
+         x5 = (1.0_dp/6.0_dp)*n*x2
+         x6 = (1.0_dp/6.0_dp)*n*x4
+
+         phin(1) = -x6/x3 + x5/x0
       END IF
 
-      IF (order >= 2) THEN
-         phin(2) = (1.0_dp/18.0_dp)*REAL(n*(n-3), KIND=dp)*(zp3**(n-6)+zm3**(n-6))
+      IF (max_deriv >= 2) THEN
+         x7 = x0**(-2)
+         x8 = (1.0_dp/18.0_dp)*n**2
+         x9 = x3**(-2)
+
+         phin(2) = x2*x7*x8 + x4*x8*x9 - x5*x7 - x6*x9
+      END IF
       END IF
 
    END SUBROUTINE calc_phin
 
-! **************************************************************************************************
-!> \brief ...
-!> \param rhoa ...
-!> \param rhob ...
-!> \param omega ...
-!> \param ed ...
-!> \param order ...
-! **************************************************************************************************
-   SUBROUTINE ec_lsd_sr(rhoa, rhob, omega, ed, order)
-      REAL(KIND=dp), INTENT(IN)                          :: rhoa, rhob, omega
-      REAL(KIND=dp), INTENT(OUT)                         :: ed(0:5)
-      INTEGER, INTENT(IN)                                :: order
+   PURE SUBROUTINE calc_C2_ab(rs, zeta, C2, max_deriv)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      REAL(KIND=dp), INTENT(OUT) :: C2(0:)
+      INTEGER, INTENT(IN) :: max_deriv
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_lsd_sr', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_C2", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: ed0(0:5), g0(0:2), g2m(0:2), g2p(0:2), phi2(0:2), phi8(0:2), Q(0:2), rho, &
-         rs, x0, x1, x10, x100, x101, x102, x103, x104, x105, x106, x107, x108, x109, x11, x110, &
-         x111, x112, x113, x114, x115, x116, x117, x118, x119, x12, x120, x121, x122, x123, x124, &
-         x125, x126, x127, x128, x129, x13, x130, x131, x132, x133, x134, x135, x136, x137, x138, &
-         x139, x14, x140, x141, x142, x143, x144, x145, x146, x147, x148, x149, x15, x150, x151, &
-         x152, x153, x154, x155, x156, x157, x158, x159, x16, x160, x161, x162, x163, x164, x165, &
-         x166, x17, x18, x19, x2, x20, x21, x22, x23, x24, x25, x26
-      REAL(KIND=dp) :: x27, x28, x29, x3, x30, x31, x32, x33, x34, x35, x36, x37, x38, x39, x4, &
-         x40, x41, x42, x43, x44, x45, x46, x47, x48, x49, x5, x50, x51, x52, x53, x54, x55, x56, &
-         x57, x58, x59, x6, x60, x61, x62, x63, x64, x65, x66, x67, x68, x69, x7, x70, x71, x72, &
-         x73, x74, x75, x76, x77, x78, x79, x8, x80, x81, x82, x83, x84, x85, x86, x87, x88, x89, &
-         x9, x90, x91, x92, x93, x94, x95, x96, x97, x98, x99, zeta
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, g0(0:2)
 
-      rho = rhoa+rhob
-      CALL calc_rs(rho, rs)
-      zeta = MIN(MAX((rhoa-rhob)/(rhoa+rhob), -1.0_dp), 1.0_dp)
+      CALL calc_g0(rs, zeta, g0, max_deriv)
 
-      ed0 = 0.0_dp
-      CALL pw_lsd_ed_loc(rhoa, rhob, ed0, order)
+      C2 = 0.0_dp
 
-      g0 = 0.0_dp
-      CALL calc_g0(rs, g0, order)
+      x0 = g0(0) - 1.0_dp/2.0_dp
+      x1 = rs**(-3)
+      x2 = zeta**2
+      x3 = (3.0_dp/8.0_dp)*x2 - 3.0_dp/8.0_dp
+      x4 = x1*x3
+      x5 = rs**(-4)
+      x6 = x0*x5
+      x7 = (3.0_dp/4.0_dp)*x1*zeta
+      C2(0) = x0*x4
 
-      Q = 0.0_dp
-      CALL calc_Q(omega*SQRT(rs), Q, order)
+      IF (max_deriv >= 1) THEN
+         x5 = rs**(-4)
+         x6 = x0*x5
+         x7 = (3.0_dp/4.0_dp)*x1*zeta
 
-      g2p = 0.0_dp
-      IF (zeta+1.0_dp > 0.0_dp) THEN
-         CALL calc_g2((2.0_dp/(1.0_dp+zeta))**(1.0_dp/3.0_dp)*rs, g2p, order)
+         C2(1) = g0(1)*x4 - (9.0_dp/8.0_dp)*x6*(x2 - 1.0_dp)
+         C2(2) = x0*x7
       END IF
 
-      g2m = 0.0_dp
-      IF (-zeta+1.0_dp > 0.0_dp) THEN
-         CALL calc_g2((2.0_dp/(1.0_dp-zeta))**(1.0_dp/3.0_dp)*rs, g2m, order)
+      IF (max_deriv >= 2) THEN
+         C2(3) = -6.0_dp*g0(1)*x3*x5 + g0(2)*x4 + 12.0_dp*x0*x3/rs**5
+         C2(4) = g0(1)*x7 - 9.0_dp/4.0_dp*x6*zeta
+         C2(5) = x1*((3.0_dp/4.0_dp)*g0(0) - 3.0_dp/8.0_dp)
       END IF
 
-      phi2 = 0.0_dp
-      IF (ABS(zeta) >= 1.0_dp) THEN
-         phi2(0) = 2.0_dp**(1.0_dp/3.0_dp)
-      ELSE
-         CALL calc_phin(2, zeta, phi2, order)
+   END SUBROUTINE calc_C2_ab
+
+   PURE SUBROUTINE calc_C3_ab(rs, zeta, C3, max_deriv)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      REAL(KIND=dp), INTENT(OUT) :: C3(0:)
+      INTEGER, INTENT(IN) :: max_deriv
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_C3", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, g0(0:2)
+
+      CALL calc_g0(rs, zeta, g0, max_deriv)
+
+      C3 = 0.0_dp
+
+      x0 = zeta**2
+      x1 = sqrt(2.0_dp)
+      x2 = 1.0_dp/sqrt(pi)
+      x3 = rs**(-3)
+      x4 = g0(0)*x1*x2*x3
+      C3(0) = x4*((1.0_dp/2.0_dp)*x0 - 1.0_dp/2.0_dp)
+
+      IF (max_deriv >= 1) THEN
+      x5 = rs**(-4)
+      x6 = x0 - 1.0_dp
+      x7 = x1*x2*x6
+      x8 = g0(1)*x3
+      x9 = (1.0_dp/2.0_dp)*x1*x2*x6
+
+      C3(1) = -3.0_dp/2.0_dp*g0(0)*x5*x7 + x8*x9
+      C3(2) = x4*zeta
       END IF
 
-      ! Here we do not need branches because there are no divergences up to second order
-      phi8 = 0.0_dp
-      CALL calc_phin(8, zeta, phi8, order)
+      IF (max_deriv >= 3) THEN
+      C3(3) = 6.0_dp*g0(0)*x7/rs**5 - 3.0_dp*g0(1)*x5*x7 + g0(2)*x3*x9
+      C3(4) = -3.0_dp*g0(0)*x1*x2*x5*zeta + x1*x2*x8*zeta
+      C3(5) = x4
+      END IF
+
+   END SUBROUTINE calc_C3
+
+   SUBROUTINE calc_C4(rs, zeta, C4, max_deriv)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      REAL(KIND=dp), INTENT(OUT) :: C4(0:)
+      INTEGER, INTENT(IN) :: max_deriv
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_C4", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10
+
+      C4 = 0.0_dp
+
+      x0 = rs**(-3)
+      x1 = alpha**(-2)
+      x2 = rs**(-2)
+      x3 = phi8*x1*x2
+      x4 = -zeta**2 + 1
+      x5 = D2*x4
+      x6 = rs**(-4)
+      x7 = phi8*x0*x1
+      x8 = D2_rs*x4
+      x9 = (9.0_dp/32.0_dp)*D2
+      x10 = phi8_zeta*x1*x2
+      C4 = x0*(-9.0_dp/64.0_dp*g2zm - 9.0_dp/64.0_dp*g2zp + (9.0_dp/320.0_dp)*x3 - &
+      9.0_dp/64.0_dp*x5)
+      C4_rs = x0*(-9.0_dp/64.0_dp*g2zm_rs - 9.0_dp/64.0_dp*g2zp_rs - 9.0_dp/ &
+      160.0_dp*x7 - 9.0_dp/64.0_dp*x8) + x6*((27.0_dp/64.0_dp)*g2zm + ( &
+      27.0_dp/64.0_dp)*g2zp - 27.0_dp/320.0_dp*x3 + (27.0_dp/64.0_dp)*x5)
+      C4_zeta = x0*(-9.0_dp/64.0_dp*g2zm_zeta - 9.0_dp/64.0_dp*g2zp_zeta + (9.0_dp &
+      /320.0_dp)*x10 + x9*zeta)
+      C4_rs_rs = x0*(-9.0_dp/64.0_dp*D2_rs_rs*x4 - 9.0_dp/64.0_dp*g2zm_rs_rs - &
+      9.0_dp/64.0_dp*g2zp_rs_rs + (27.0_dp/160.0_dp)*phi8*x1*x6) + x6*(( &
+      27.0_dp/32.0_dp)*g2zm_rs + (27.0_dp/32.0_dp)*g2zp_rs + (27.0_dp/80.0_dp &
+      )*x7 + (27.0_dp/32.0_dp)*x8) + (-27.0_dp/16.0_dp*g2zm - 27.0_dp/16.0_dp &
+      *g2zp + (27.0_dp/80.0_dp)*x3 - 27.0_dp/16.0_dp*x5)/rs**5
+      C4_rs_zeta = x0*((9.0_dp/32.0_dp)*D2_rs*zeta - 9.0_dp/64.0_dp*g2zm_rs_zeta &
+      - 9.0_dp/64.0_dp*g2zp_rs_zeta - 9.0_dp/160.0_dp*phi8_zeta*x0*x1) + x6 &
+      *(-27.0_dp/32.0_dp*D2*zeta + (27.0_dp/64.0_dp)*g2zm_zeta + (27.0_dp/ &
+      64.0_dp)*g2zp_zeta - 27.0_dp/320.0_dp*x10)
+      C4_zeta_zeta = x0*(-9.0_dp/64.0_dp*g2zm_zeta_zeta - 9.0_dp/64.0_dp* &
+      g2zp_zeta_zeta + (9.0_dp/320.0_dp)*phi8_zeta_zeta*x1*x2 + x9)
+
+   END SUBROUTINE calc_C4
+
+   SUBROUTINE calc_C5(rs, zeta, C5, C5_rs, C5_zeta, C5_rs_rs, C5_rs_zeta, C5_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      REAL(KIND=dp), INTENT(INOUT) :: C5, C5_rs, C5_zeta, C5_rs_rs, C5_rs_zeta, C5_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_C5", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7
+
+      x0 = sqrt(2.0_dp)
+      x1 =1.0_dp/sqrt(pi)
+      x2 = x0*x1/rs**3
+      x3 = -zeta**2 + 1
+      x4 = D3*x3
+      x5 = x0*x1/rs**4
+      x6 = D3_rs*x3
+      x7 = (9.0_dp/40.0_dp)*D3
+      C5 = x2*(-9.0_dp/80.0_dp*g2zm - 9.0_dp/80.0_dp*g2zp - 9.0_dp/80.0_dp*x4)
+      C5_rs = x2*(-9.0_dp/80.0_dp*g2zm_rs - 9.0_dp/80.0_dp*g2zp_rs - 9.0_dp/80.0_dp &
+      *x6) + x5*((27.0_dp/80.0_dp)*g2zm + (27.0_dp/80.0_dp)*g2zp + (27.0_dp/ &
+      80.0_dp)*x4)
+      C5_zeta = x2*(-9.0_dp/80.0_dp*g2zm_zeta - 9.0_dp/80.0_dp*g2zp_zeta + x7* &
+      zeta)
+      C5_rs_rs = x2*(-9.0_dp/80.0_dp*D3_rs_rs*x3 - 9.0_dp/80.0_dp*g2zm_rs_rs - &
+      9.0_dp/80.0_dp*g2zp_rs_rs) + x5*((27.0_dp/40.0_dp)*g2zm_rs + (27.0_dp/ &
+      40.0_dp)*g2zp_rs + (27.0_dp/40.0_dp)*x6) + x0*x1*(-27.0_dp/20.0_dp* &
+      g2zm - 27.0_dp/20.0_dp*g2zp - 27.0_dp/20.0_dp*x4)/rs**5
+      C5_rs_zeta = x2*((9.0_dp/40.0_dp)*D3_rs*zeta - 9.0_dp/80.0_dp*g2zm_rs_zeta &
+      - 9.0_dp/80.0_dp*g2zp_rs_zeta) + x5*(-27.0_dp/40.0_dp*D3*zeta + ( &
+      27.0_dp/80.0_dp)*g2zm_zeta + (27.0_dp/80.0_dp)*g2zp_zeta)
+      C5_zeta_zeta = x2*(-9.0_dp/80.0_dp*g2zm_zeta_zeta - 9.0_dp/80.0_dp* &
+      g2zp_zeta_zeta + x7)
+
+   END SUBROUTINE calc_C5
+
+   SUBROUTINE calc_a1(rs, zeta, a1, a1_rs, a1_zeta, a1_rs_rs, a1_rs_zeta, a1_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      REAL(KIND=dp), INTENT(INOUT) :: a1, a1_rs, a1_zeta, a1_rs_rs, a1_rs_zeta, a1_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a1", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, beta
+
+      beta = 0.784949_dp
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4*x2
+      x4 = beta**6
+      x5 = C3*x4
+      x6 = rs**5
+      x7 = 24*x6
+      x8 = C3_rs*x4
+      x9 = rs**7
+      x10 = 8*x9
+      x11 = C5*x0
+      x12 = 4*x2*x4
+      a1 = C5*x1 + x3*x5
+      a1_rs = C5_rs*x1 + x10*x11 + x3*x8 + x5*x7
+      a1_zeta = C3_zeta*x12 + C5_zeta*x1
+      a1_rs_rs = C3_rs_rs*x12 + 16*C5_rs*x0*x9 + C5_rs_rs*x1 + 120*rs**4*x5 + &
+      56*x11*x2 + 48*x6*x8
+      a1_rs_zeta = C3_rs_zeta*x12 + C3_zeta*x4*x7 + C5_rs_zeta*x1 + C5_zeta* &
+      x0*x10
+      a1_zeta_zeta = C3_zeta_zeta*x12 + C5_zeta_zeta*x1
+
+   END SUBROUTINE calc_a1
+
+   SUBROUTINE calc_a2(rs, zeta, a2, a2_rs, a2_zeta, a2_rs_rs, a2_rs_zeta, a2_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      REAL(KIND=dp), INTENT(INOUT) :: a2, a2_rs, a2_zeta, a2_rs_rs, a2_rs_zeta, a2_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a2", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, beta, x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, a1_, a1__rs, a1__zeta, a1__rs_rs, a1__rs_zeta, a1__zeta_zeta
+
+      beta = 0.784949_dp
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4*x2
+      x4 = beta**6
+      x5 = C3*x4
+      x6 = rs**5
+      x7 = 24*x6
+      x8 = C3_rs*x4
+      x9 = rs**7
+      x10 = 8*x9
+      x11 = C5*x0
+      x12 = 4*x2*x4
+      a1 = C5*x1 + x3*x5
+      a1_rs = C5_rs*x1 + x10*x11 + x3*x8 + x5*x7
+      a1_zeta = C3_zeta*x12 + C5_zeta*x1
+      a1_rs_rs = C3_rs_rs*x12 + 16*C5_rs*x0*x9 + C5_rs_rs*x1 + 120*rs**4*x5 + &
+      56*x11*x2 + 48*x6*x8
+      a1_rs_zeta = C3_rs_zeta*x12 + C3_zeta*x4*x7 + C5_rs_zeta*x1 + C5_zeta* &
+      x0*x10
+      a1_zeta_zeta = C3_zeta_zeta*x12 + C5_zeta_zeta*x1
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4*x2
+      x4 = beta**6
+      x5 = C2*x4
+      x6 = rs**4
+      x7 = 6*x6
+      x8 = beta**4
+      x9 = Ec*x8
+      x10 = rs**5
+      x11 = 24*x10
+      x12 = C2_rs*x4
+      x13 = rs**7
+      x14 = 8*x13
+      x15 = C4*x0
+      x16 = rs**3
+      x17 = 24*x16
+      x18 = Ec_rs*x8
+      x19 = 4*x2*x4
+      x20 = 6*x6*x8
+      a2 = C4*x1 + x3*x5 + x7*x9
+      a2_rs = C4_rs*x1 + x11*x5 + x12*x3 + x14*x15 + x17*x9 + x18*x7
+      a2_zeta = C2_zeta*x19 + C4_zeta*x1 + Ec_zeta*x20
+      a2_rs_rs = C2_rs_rs*x19 + 16*C4_rs*x0*x13 + C4_rs_rs*x1 + Ec_rs_rs*x20 &
+      + 72*rs**2*x9 + 48*x10*x12 + 56*x15*x2 + 48*x16*x18 + 120*x5*x6
+      a2_rs_zeta = C2_rs_zeta*x19 + C2_zeta*x11*x4 + C4_rs_zeta*x1 + C4_zeta* &
+      x0*x14 + Ec_rs_zeta*x20 + Ec_zeta*x17*x8
+      a2_zeta_zeta = C2_zeta_zeta*x19 + C4_zeta_zeta*x1 + Ec_zeta_zeta*x20
+
+   END SUBROUTINE calc_a2
+
+   SUBROUTINE calc_a3(rs, zeta, a3, a3_rs, a3_zeta, a3_rs_rs, a3_rs_zeta, a3_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      REAL(KIND=dp), INTENT(INOUT) :: a3, a3_rs, a3_zeta, a3_rs_rs, a3_rs_zeta, a3_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a3", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, beta, x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, a1_, a1__rs, a1__zeta, a1__rs_rs, a1__rs_zeta, a1__zeta_zeta, x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, a2_, a2__rs, a2__zeta, a2__rs_rs, a2__rs_zeta, a2__zeta_zeta
+
+      beta = 0.784949_dp
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4*x2
+      x4 = beta**6
+      x5 = C3*x4
+      x6 = rs**5
+      x7 = 24*x6
+      x8 = C3_rs*x4
+      x9 = rs**7
+      x10 = 8*x9
+      x11 = C5*x0
+      x12 = 4*x2*x4
+      a1 = C5*x1 + x3*x5
+      a1_rs = C5_rs*x1 + x10*x11 + x3*x8 + x5*x7
+      a1_zeta = C3_zeta*x12 + C5_zeta*x1
+      a1_rs_rs = C3_rs_rs*x12 + 16*C5_rs*x0*x9 + C5_rs_rs*x1 + 120*rs**4*x5 + &
+      56*x11*x2 + 48*x6*x8
+      a1_rs_zeta = C3_rs_zeta*x12 + C3_zeta*x4*x7 + C5_rs_zeta*x1 + C5_zeta* &
+      x0*x10
+      a1_zeta_zeta = C3_zeta_zeta*x12 + C5_zeta_zeta*x1
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4*x2
+      x4 = beta**6
+      x5 = C2*x4
+      x6 = rs**4
+      x7 = 6*x6
+      x8 = beta**4
+      x9 = Ec*x8
+      x10 = rs**5
+      x11 = 24*x10
+      x12 = C2_rs*x4
+      x13 = rs**7
+      x14 = 8*x13
+      x15 = C4*x0
+      x16 = rs**3
+      x17 = 24*x16
+      x18 = Ec_rs*x8
+      x19 = 4*x2*x4
+      x20 = 6*x6*x8
+      a2 = C4*x1 + x3*x5 + x7*x9
+      a2_rs = C4_rs*x1 + x11*x5 + x12*x3 + x14*x15 + x17*x9 + x18*x7
+      a2_zeta = C2_zeta*x19 + C4_zeta*x1 + Ec_zeta*x20
+      a2_rs_rs = C2_rs_rs*x19 + 16*C4_rs*x0*x13 + C4_rs_rs*x1 + Ec_rs_rs*x20 &
+      + 72*rs**2*x9 + 48*x10*x12 + 56*x15*x2 + 48*x16*x18 + 120*x5*x6
+      a2_rs_zeta = C2_rs_zeta*x19 + C2_zeta*x11*x4 + C4_rs_zeta*x1 + C4_zeta* &
+      x0*x14 + Ec_rs_zeta*x20 + Ec_zeta*x17*x8
+      a2_zeta_zeta = C2_zeta_zeta*x19 + C4_zeta_zeta*x1 + Ec_zeta_zeta*x20
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**7
+      x3 = 8*x2
+      x4 = C3*x0
+      a3 = C3*x1
+      a3_rs = C3_rs*x1 + x3*x4
+      a3_zeta = C3_zeta*x1
+      a3_rs_rs = 16*C3_rs*x0*x2 + C3_rs_rs*x1 + 56*rs**6*x4
+      a3_rs_zeta = C3_rs_zeta*x1 + C3_zeta*x0*x3
+      a3_zeta_zeta = C3_zeta_zeta*x1
+
+   END SUBROUTINE calc_a3
+
+   SUBROUTINE calc_a4(rs, zeta, a4, a4_rs, a4_zeta, a4_rs_rs, a4_rs_zeta, a4_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      REAL(KIND=dp), INTENT(INOUT) :: a4, a4_rs, a4_zeta, a4_rs_rs, a4_rs_zeta, a4_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a4", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, beta, x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, a1_, a1__rs, a1__zeta, a1__rs_rs, a1__rs_zeta, a1__zeta_zeta, x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, a2_, a2__rs, a2__zeta, a2__rs_rs, a2__rs_zeta, a2__zeta_zeta, x0, x1, x2, x3, x4, a3_, a3__rs, a3__zeta, a3__rs_rs, a3__rs_zeta, a3__zeta_zeta
+
+      beta = 0.784949_dp
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4*x2
+      x4 = beta**6
+      x5 = C3*x4
+      x6 = rs**5
+      x7 = 24*x6
+      x8 = C3_rs*x4
+      x9 = rs**7
+      x10 = 8*x9
+      x11 = C5*x0
+      x12 = 4*x2*x4
+      a1 = C5*x1 + x3*x5
+      a1_rs = C5_rs*x1 + x10*x11 + x3*x8 + x5*x7
+      a1_zeta = C3_zeta*x12 + C5_zeta*x1
+      a1_rs_rs = C3_rs_rs*x12 + 16*C5_rs*x0*x9 + C5_rs_rs*x1 + 120*rs**4*x5 + &
+      56*x11*x2 + 48*x6*x8
+      a1_rs_zeta = C3_rs_zeta*x12 + C3_zeta*x4*x7 + C5_rs_zeta*x1 + C5_zeta* &
+      x0*x10
+      a1_zeta_zeta = C3_zeta_zeta*x12 + C5_zeta_zeta*x1
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4*x2
+      x4 = beta**6
+      x5 = C2*x4
+      x6 = rs**4
+      x7 = 6*x6
+      x8 = beta**4
+      x9 = Ec*x8
+      x10 = rs**5
+      x11 = 24*x10
+      x12 = C2_rs*x4
+      x13 = rs**7
+      x14 = 8*x13
+      x15 = C4*x0
+      x16 = rs**3
+      x17 = 24*x16
+      x18 = Ec_rs*x8
+      x19 = 4*x2*x4
+      x20 = 6*x6*x8
+      a2 = C4*x1 + x3*x5 + x7*x9
+      a2_rs = C4_rs*x1 + x11*x5 + x12*x3 + x14*x15 + x17*x9 + x18*x7
+      a2_zeta = C2_zeta*x19 + C4_zeta*x1 + Ec_zeta*x20
+      a2_rs_rs = C2_rs_rs*x19 + 16*C4_rs*x0*x13 + C4_rs_rs*x1 + Ec_rs_rs*x20 &
+      + 72*rs**2*x9 + 48*x10*x12 + 56*x15*x2 + 48*x16*x18 + 120*x5*x6
+      a2_rs_zeta = C2_rs_zeta*x19 + C2_zeta*x11*x4 + C4_rs_zeta*x1 + C4_zeta* &
+      x0*x14 + Ec_rs_zeta*x20 + Ec_zeta*x17*x8
+      a2_zeta_zeta = C2_zeta_zeta*x19 + C4_zeta_zeta*x1 + Ec_zeta_zeta*x20
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**7
+      x3 = 8*x2
+      x4 = C3*x0
+      a3 = C3*x1
+      a3_rs = C3_rs*x1 + x3*x4
+      a3_zeta = C3_zeta*x1
+      a3_rs_rs = 16*C3_rs*x0*x2 + C3_rs_rs*x1 + 56*rs**6*x4
+      a3_rs_zeta = C3_rs_zeta*x1 + C3_zeta*x0*x3
+      a3_zeta_zeta = C3_zeta_zeta*x1
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4*x2
+      x4 = beta**6
+      x5 = Ec*x4
+      x6 = rs**7
+      x7 = 8*x6
+      x8 = C2*x0
+      x9 = rs**5
+      x10 = 24*x9
+      x11 = Ec_rs*x4
+      x12 = 4*x2*x4
+      a4 = C2*x1 + x3*x5
+      a4_rs = C2_rs*x1 + x10*x5 + x11*x3 + x7*x8
+      a4_zeta = C2_zeta*x1 + Ec_zeta*x12
+      a4_rs_rs = 16*C2_rs*x0*x6 + C2_rs_rs*x1 + Ec_rs_rs*x12 + 120*rs**4*x5 + &
+      48*x11*x9 + 56*x2*x8
+      a4_rs_zeta = C2_rs_zeta*x1 + C2_zeta*x0*x7 + Ec_rs_zeta*x12 + Ec_zeta* &
+      x10*x4
+      a4_zeta_zeta = C2_zeta_zeta*x1 + Ec_zeta_zeta*x12
+
+   END SUBROUTINE calc_a4
+
+   SUBROUTINE calc_a5(rs, zeta, a5, a5_rs, a5_zeta, a5_rs_rs, a5_rs_zeta, a5_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      REAL(KIND=dp), INTENT(INOUT) :: a5, a5_rs, a5_zeta, a5_rs_rs, a5_rs_zeta, a5_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a5", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, beta, x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, a1_, a1__rs, a1__zeta, a1__rs_rs, a1__rs_zeta, a1__zeta_zeta, x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, a2_, a2__rs, a2__zeta, a2__rs_rs, a2__rs_zeta, a2__zeta_zeta, x0, x1, x2, x3, x4, a3_, a3__rs, a3__zeta, a3__rs_rs, a3__rs_zeta, a3__zeta_zeta, x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, a4_, a4__rs, a4__zeta, a4__rs_rs, a4__rs_zeta, a4__zeta_zeta
+
+      beta = 0.784949_dp
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4*x2
+      x4 = beta**6
+      x5 = C3*x4
+      x6 = rs**5
+      x7 = 24*x6
+      x8 = C3_rs*x4
+      x9 = rs**7
+      x10 = 8*x9
+      x11 = C5*x0
+      x12 = 4*x2*x4
+      a1 = C5*x1 + x3*x5
+      a1_rs = C5_rs*x1 + x10*x11 + x3*x8 + x5*x7
+      a1_zeta = C3_zeta*x12 + C5_zeta*x1
+      a1_rs_rs = C3_rs_rs*x12 + 16*C5_rs*x0*x9 + C5_rs_rs*x1 + 120*rs**4*x5 + &
+      56*x11*x2 + 48*x6*x8
+      a1_rs_zeta = C3_rs_zeta*x12 + C3_zeta*x4*x7 + C5_rs_zeta*x1 + C5_zeta* &
+      x0*x10
+      a1_zeta_zeta = C3_zeta_zeta*x12 + C5_zeta_zeta*x1
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4*x2
+      x4 = beta**6
+      x5 = C2*x4
+      x6 = rs**4
+      x7 = 6*x6
+      x8 = beta**4
+      x9 = Ec*x8
+      x10 = rs**5
+      x11 = 24*x10
+      x12 = C2_rs*x4
+      x13 = rs**7
+      x14 = 8*x13
+      x15 = C4*x0
+      x16 = rs**3
+      x17 = 24*x16
+      x18 = Ec_rs*x8
+      x19 = 4*x2*x4
+      x20 = 6*x6*x8
+      a2 = C4*x1 + x3*x5 + x7*x9
+      a2_rs = C4_rs*x1 + x11*x5 + x12*x3 + x14*x15 + x17*x9 + x18*x7
+      a2_zeta = C2_zeta*x19 + C4_zeta*x1 + Ec_zeta*x20
+      a2_rs_rs = C2_rs_rs*x19 + 16*C4_rs*x0*x13 + C4_rs_rs*x1 + Ec_rs_rs*x20 &
+      + 72*rs**2*x9 + 48*x10*x12 + 56*x15*x2 + 48*x16*x18 + 120*x5*x6
+      a2_rs_zeta = C2_rs_zeta*x19 + C2_zeta*x11*x4 + C4_rs_zeta*x1 + C4_zeta* &
+      x0*x14 + Ec_rs_zeta*x20 + Ec_zeta*x17*x8
+      a2_zeta_zeta = C2_zeta_zeta*x19 + C4_zeta_zeta*x1 + Ec_zeta_zeta*x20
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**7
+      x3 = 8*x2
+      x4 = C3*x0
+      a3 = C3*x1
+      a3_rs = C3_rs*x1 + x3*x4
+      a3_zeta = C3_zeta*x1
+      a3_rs_rs = 16*C3_rs*x0*x2 + C3_rs_rs*x1 + 56*rs**6*x4
+      a3_rs_zeta = C3_rs_zeta*x1 + C3_zeta*x0*x3
+      a3_zeta_zeta = C3_zeta_zeta*x1
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4*x2
+      x4 = beta**6
+      x5 = Ec*x4
+      x6 = rs**7
+      x7 = 8*x6
+      x8 = C2*x0
+      x9 = rs**5
+      x10 = 24*x9
+      x11 = Ec_rs*x4
+      x12 = 4*x2*x4
+      a4 = C2*x1 + x3*x5
+      a4_rs = C2_rs*x1 + x10*x5 + x11*x3 + x7*x8
+      a4_zeta = C2_zeta*x1 + Ec_zeta*x12
+      a4_rs_rs = 16*C2_rs*x0*x6 + C2_rs_rs*x1 + Ec_rs_rs*x12 + 120*rs**4*x5 + &
+      48*x11*x9 + 56*x2*x8
+      a4_rs_zeta = C2_rs_zeta*x1 + C2_zeta*x0*x7 + Ec_rs_zeta*x12 + Ec_zeta* &
+      x10*x4
+      a4_zeta_zeta = C2_zeta_zeta*x1 + Ec_zeta_zeta*x12
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**7
+      x3 = 8*x2
+      x4 = Ec*x0
+      a5 = Ec*x1
+      a5_rs = Ec_rs*x1 + x3*x4
+      a5_zeta = Ec_zeta*x1
+      a5_rs_rs = 16*Ec_rs*x0*x2 + Ec_rs_rs*x1 + 56*rs**6*x4
+      a5_rs_zeta = Ec_rs_zeta*x1 + Ec_zeta*x0*x3
+      a5_zeta_zeta = Ec_zeta_zeta*x1
+
+   END SUBROUTINE calc_a5
+
+   SUBROUTINE calc_Q(rs, zeta, mu, Q, Q_rs, Q_zeta, Q_rs_rs, Q_rs_zeta, Q_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta, mu
+      REAL(KIND=dp), INTENT(INOUT) :: Q, Q_rs, Q_zeta, Q_rs_rs, Q_rs_zeta, Q_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_Q", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31, x32, x33, x34, x35, x36, x37, x38, x39, x40, x41, x42, x43, x44, x45, x46, x47, x48, x49, x50, x51, x52, x53, x54, x55, x56, x57, x58, x59, x60, x61, x62, x63, x64, x65, x66, x67, a, c, d, q, b, alpha
+
+      a = 5.84605_dp
+      c = 3.91744_dp
+      d = 3.44851_dp
+      q = (-2 + 2*0.693147180559945_dp)/pi**2
+      b = 3.44851_dp - 17.53815_dp*pi/(-4 + 4*0.693147180559945_dp)
+      alpha = (1.0_dp/3.0_dp)*2**(2.0_dp/3.0_dp)*3**(1.0_dp/3.0_dp)/pi**(1.0_dp/3.0_dp &
+      )
+      x0 = phi2**3
+      x1 = mu**2
+      x2 = phi2**2
+      x3 = 1.0_dp/x2
+      x4 = x1*x3
+      x5 = d*x4
+      x6 = sqrt(rs)
+      x7 = a*mu/phi2
+      x8 = x6*x7 + 1
+      x9 = rs*x5 + x8
+      x10 = 1.0_dp/x9
+      x11 = b*x4
+      x12 = rs**(3.0_dp/2.0_dp)
+      x13 = mu**3
+      x14 = 1.0_dp/x0
+      x15 = c*x13*x14
+      x16 = rs*x11 + x12*x15 + x8
+      x17 = log(x10*x16)
+      x18 = q*x17
+      x19 = 1.0_dp/x16
+      x20 = 1.0_dp/x6
+      x21 = x20*x7
+      x22 = (1.0_dp/2.0_dp)*x21
+      x23 = (3.0_dp/2.0_dp)*x15*x6
+      x24 = x11 + x22 + x23
+      x25 = -x22
+      x26 = x25 - x5
+      x27 = x9**(-2)
+      x28 = x16*x27
+      x29 = x10*x24 + x26*x28
+      x30 = q*x0*x19*x29
+      x31 = 3*q*x17*x2
+      x32 = a*mu*x3*x6
+      x33 = phi2_zeta*x32
+      x34 = -x33
+      x35 = 2*phi2_zeta*x1*x14
+      x36 = b*x35
+      x37 = rs*x36
+      x38 = phi2**(-4)
+      x39 = c*phi2_zeta*x13*x38
+      x40 = 3*x12*x39
+      x41 = x34 - x37 - x40
+      x42 = d*x35
+      x43 = rs*x42
+      x44 = x33 + x43
+      x45 = x10*x41 + x28*x44
+      x46 = x16**(-2)
+      x47 = q*x0*x29*x46*x9
+      x48 = q*x0*x19*x9
+      x49 = (1.0_dp/4.0_dp)*x7/x12
+      x50 = -x21 - 2*x5
+      x51 = x24*x27
+      x52 = x9**(-3)
+      x53 = x16*x26*x52
+      x54 = phi2_zeta*q*x19*x2*x9
+      x55 = x34 - x43
+      x56 = x33 + x37 + x40
+      x57 = a*mu
+      x58 = (1.0_dp/2.0_dp)*phi2_zeta*x20*x3*x57
+      x59 = x27*x41
+      x60 = 4*d*phi2_zeta*rs*x1*x14 + 2*x33
+      x61 = phi2_zeta**2
+      x62 = q*x0*x45
+      x63 = phi2_zeta_zeta*x32
+      x64 = 2*phi2_zeta_zeta*rs*x1*x14
+      x65 = 2*x14*x57*x6*x61
+      x66 = 6*rs*x1*x38*x61
+      x67 = c*x13
+      Q = x0*x18
+      Q_rs = x30*x9
+      Q_zeta = phi2_zeta*x31 + q*x0*x19*x45*x9
+      Q_rs_rs = x30*(x22 + x5) + x47*(-x11 - x23 + x25) + x48*(x10*((3.0_dp/ &
+      4.0_dp)*x15*x20 - x49) + x28*x49 + x50*x51 + x50*x53)
+      Q_rs_zeta = x30*x55 + x47*x56 + x48*(x10*(-x36 - 9.0_dp/2.0_dp*x39*x6 - &
+      x58) + x26*x59 + x28*(x42 + x58) + x44*x51 + x53*x60) + x54*(3* &
+      x10*x24 + 3*x16*x26*x27)
+      Q_zeta_zeta = 6*phi2*x18*x61 + phi2_zeta_zeta*x31 + x19*x55*x62 + x46* &
+      x56*x62*x9 + x48*(x10*(-b*x64 + b*x66 - 3*phi2_zeta_zeta*x12*x38* &
+      x67 - x63 + x65 + 12*x12*x61*x67/phi2**5) + x16*x44*x52*x60 + x28 &
+      *(d*x64 - d*x66 + x63 - x65) + x59*x60) + x54*(6*x10*x41 + 6*x16* &
+      x27*x44)
+
+   END SUBROUTINE calc_Q
+
+   SUBROUTINE ec_mu(rs, zeta, mu, ec_mu, ec_mu_rs, ec_mu_zeta, ec_mu_rs_rs, ec_mu_rs_zeta, ec_mu_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta, mu
+      REAL(KIND=dp), INTENT(INOUT) :: ec_mu, ec_mu_rs, ec_mu_zeta, ec_mu_rs_rs, ec_mu_rs_zeta, ec_mu_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "ec_mu", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22
 
       x0 = rs**2
       x1 = beta**2
-      x2 = omega**2
-      x3 = x0*x1*x2+1.0_dp
-      x4 = x3**(-4)
-      x5 = Q(0)*phi2(0)**3
-      x6 = beta**8
-      x7 = omega**8
-      x8 = rs**8*x6*x7
-      x9 = ed0(0)*x8
-      x10 = sqrt2
-      x11 = omega**5
-      x12 = oorootpi
-      x13 = rs**5
-      x14 = zeta**2
-      x15 = x14-1.0_dp
-      x16 = g0(0)*x10*x11*x12*x13*x15*x6
-      x17 = (1.0_dp/2.0_dp)*x16
-      x18 = omega**6
-      x19 = rs**6
-      x20 = 4.0_dp*x19
-      x21 = beta**6
-      x22 = ed0(0)*x21
-      x23 = g0(0)-1.0_dp/2.0_dp
-      x24 = (3.0_dp/8.0_dp)*x14-3.0_dp/8.0_dp
-      x25 = x13*x24*x6
-      x26 = x18*(x20*x22+x23*x25)
-      x27 = omega**3
-      x28 = rs**3
-      x29 = 2.0_dp*x21*x28
-      x30 = g0(0)*x10*x12*x15
-      x31 = x10*x12*x13*x6
-      x32 = (1.0_dp/2.0_dp)*zeta
-      x33 = (-x32+1.0_dp/2.0_dp)**2
-      x34 = g2m(0)*x33
-      x35 = x32+1.0_dp/2.0_dp
-      x36 = x35**2
-      x37 = g2p(0)*x36
-      x38 = 1.0_dp/x0
-      x39 = -d3_2+rs
-      x40 = EXP(-d3_1*rs)
-      x41 = -x14+1.0_dp
-      x42 = x38*x39*x40*x41
-      x43 = (9.0_dp/80.0_dp)*x42
-      x44 = x27*(x29*x30-x31*(9.0_dp/80.0_dp*(x34+x37)+x43))
-      x45 = omega**4
-      x46 = rs**4
-      x47 = 6.0_dp*x46
-      x48 = beta**4
-      x49 = ed0(0)*x48
-      x50 = 4.0_dp*x21*x24*x28
-      x51 = x13*x6
-      x52 = alpha2**(-1)
-      x53 = phi8(0)*x38*x52
-      x54 = 9.0_dp/64.0_dp*(-d2_2+d2_3*rs)
-      x55 = 1.0_dp/rs
-      x56 = EXP(-d2_1*rs)
-      x57 = x45*(x23*x50+x47*x49+x51*(-9.0_dp/64.0_dp*(x34+x37)-x41*x54*x55*x56+(9.0_dp/320.0_dp)*x53))
+      x2 = mu**2
+      x3 = x1*x2
+      x4 = x0*x3 + 1
+      x5 = x4**(-4)
+      x6 = mu**3
+      x7 = a1*x6
+      x8 = mu**4
+      x9 = a2*x8
+      x10 = mu**5
+      x11 = a3*x10
+      x12 = mu**6
+      x13 = a4*x12
+      x14 = mu**8
+      x15 = a5*x14
+      x16 = x4**(-5)
+      x17 = 8*rs*x1*x16*x2
+      x18 = a1_zeta*x6
+      x19 = a2_zeta*x8
+      x20 = a3_zeta*x10
+      x21 = a4_zeta*x12
+      x22 = a5_zeta*x14
+      ec_mu = Ec + x5*(-Q - x11 - x13 - x15 - x7 - x9)
+      ec_mu_rs = Ec_rs + x17*(Q + x11 + x13 + x15 + x7 + x9) + x5*(-Q_rs - &
+      a1_rs*x6 - a2_rs*x8 - a3_rs*x10 - a4_rs*x12 - a5_rs*x14)
+      ec_mu_zeta = Ec_zeta + x5*(-Q_zeta - x18 - x19 - x20 - x21 - x22)
+      ec_mu_rs_rs = Ec_rs_rs + beta**4*x0*x8*(-80*Q - 80*x11 - 80*x13 - 80*x15 &
+      - 80*x7 - 80*x9)/x4**6 + rs*x1*x16*x2*(16*Q_rs + 16*a1_rs*x6 + 16 &
+      *a2_rs*x8 + 16*a3_rs*x10 + 16*a4_rs*x12 + 16*a5_rs*x14) + x16*x3* &
+      (8*Q + 8*x11 + 8*x13 + 8*x15 + 8*x7 + 8*x9) + x5*(-Q_rs_rs - &
+      a1_rs_rs*x6 - a2_rs_rs*x8 - a3_rs_rs*x10 - a4_rs_rs*x12 - &
+      a5_rs_rs*x14)
+      ec_mu_rs_zeta = Ec_rs_zeta + x17*(Q_zeta + x18 + x19 + x20 + x21 + x22) &
+      + x5*(-Q_rs_zeta - a1_rs_zeta*x6 - a2_rs_zeta*x8 - a3_rs_zeta*x10 &
+      - a4_rs_zeta*x12 - a5_rs_zeta*x14)
+      ec_mu_zeta_zeta = Ec_zeta_zeta + x5*(-Q_zeta_zeta - a1_zeta_zeta*x6 - &
+      a2_zeta_zeta*x8 - a3_zeta_zeta*x10 - a4_zeta_zeta*x12 - &
+      a5_zeta_zeta*x14)
 
-      ed(0) = ed0(0)+x4*(-x17-x26-x44-x5-x57-x9)
-
-      IF (order >= 1) THEN
-         x58 = x3**(-5)
-         x59 = 8.0_dp*rs*x1*x2*x58
-         x60 = phi2(0)**2
-         x61 = Q(1)*omega/SQRT(rs)
-         x62 = (1.0_dp/2.0_dp)*x60*x61
-         x63 = rs**7
-         x64 = ed0(0)*x6*x7
-         x65 = 8.0_dp*x63*x64
-         x66 = ed0(1)*x8
-         x67 = g0(0)*x10*x11*x12*x15
-         x68 = (5.0_dp/2.0_dp)*x46*x6*x67
-         x69 = (1.0_dp/2.0_dp)*x11*x13*x6
-         x70 = g0(1)*x10*x12*x15
-         x71 = x69*x70
-         x72 = 24.0_dp*x13
-         x73 = ed0(1)*x21
-         x74 = x23*x24
-         x75 = x18*(g0(1)*x25+x20*x73+x22*x72+5*x46*x6*x74)
-         x76 = x10*x12*x46*x6
-         x77 = x38*x40
-         x78 = 2.0_dp**(1.0_dp/3.0_dp)
-         x79 = MIN(zeta+1.0_dp, 0.0_dp)
-         IF (x79 <= 0.0_dp) THEN
-            x80 = 0.0_dp
-         ELSE
-            x80 = x79**(-1.0_dp/3.0_dp)
-         END IF
-         x81 = g2m(1)*x33*x78*x80
-         x82 = g2p(1)*x36*x78*x80
-         x83 = -9.0_dp/40.0_dp*x14+9.0_dp/40.0_dp
-         x84 = 1.0_dp/x28
-         x85 = x39*x41
-         x86 = x27*(6.0_dp*x0*x21*x30+x29*x70+x31*((9.0_dp/80.0_dp)*d3_1*x38*x40*x85+x39*x40*x83*x84+x77*((9.0_dp/80.0_dp)*x14 &
-                                                                           -9.0_dp/80.0_dp)-9.0_dp/80.0_dp*x81-9.0_dp/80.0_dp*x82) &
-                    -x76*9.0_dp/16.0_dp*(x34+x37+x42))
-         x87 = 24.0_dp*x28
-         x88 = ed0(1)*x48
-         x89 = 4.0_dp*x21*x28
-         x90 = g0(1)*x24
-         x91 = 12.0_dp*x0*x21
-         x92 = x46*x6
-         x93 = d2_3*rs
-         x94 = x41*x55*x56*(-d2_2+x93)
-         x95 = phi8(0)*x52*x84
-         x96 = d2_3*x41*x55*x56
-         x97 = x38*x41*x56
-         x98 = d2_1*x41*x55*x56
-         x99 = x45*(x47*x88+x49*x87+x51*(x54*x97+x54*x98-9.0_dp/64.0_dp*(x81+x82+x96)-9.0_dp/160.0_dp*x95) &
-                    +x74*x91+x89*x90+x92 &
-                    *(-45.0_dp/64.0_dp*(x34+x37+x94)+(9.0_dp/64.0_dp)*x53))
-
-         ed(1) = ed0(1)+x4*(-x62-x65-x66-x68-x71-x75-x86-x99)+x59*(x17+x26+x44+x5+x57+x9)
-         ed(2) = ed0(2)+x4*(-x101-x102-x105-x109-x122-x130)
-      END IF
-
-      IF (order >= 2) THEN
-         x100 = 3.0_dp*Q(0)*x60
-         x101 = phi2(1)*x100
-         x102 = ed0(2)*x8
-         x103 = g0(0)*x10*x12*zeta
-         x104 = x11*x13*x6
-         x105 = x103*x104
-         x106 = 4.0_dp*x19*x21
-         x107 = x23*zeta
-         x108 = (3.0_dp/4.0_dp)*x13*x6
-         x109 = x18*(ed0(2)*x106+x107*x108)
-         x110 = g0(0)*x10*x12
-         x111 = x110*x89
-         x112 = x32-1.0_dp/2.0_dp
-         x113 = g2m(0)*x112
-         x114 = g2p(0)*x35
-         x115 = (9.0_dp/40.0_dp)*x77*zeta
-         x116 = x115*x39
-         x117 = x80**4
-         x118 = g2m(1)*x117*x33*x78
-         x119 = (3.0_dp/80.0_dp)*x118
-         x120 = g2p(1)*x117*x36*x78
-         x121 = (3.0_dp/80.0_dp)*x120
-         x122 = x27*(x111*zeta+x31*(rs*x119+rs*x121-9.0_dp/80.0_dp*x113-9.0_dp/80.0_dp*x114+x116))
-         x123 = 6.0_dp*x46*x48
-         x124 = 3.0_dp*x21*x28
-         x125 = phi8(1)*x38*x52
-         x126 = -9.0_dp/32.0_dp*d2_2+(9.0_dp/32.0_dp)*x93
-         x127 = x55*x56*zeta
-         x128 = (3.0_dp/64.0_dp)*x118
-         x129 = (3.0_dp/64.0_dp)*x120
-         x130 = x45*(ed0(2)*x123+x107*x124+x51*(rs*x128+rs*x129-9.0_dp/64.0_dp*x113-9.0_dp/64.0_dp*x114+(9.0_dp/320.0_dp)*x125 &
-                                                +x126*x127))
-         x131 = x1*x2*x58
-         x132 = x6*x7
-         x133 = 5.0_dp*x11*x46*x6
-         x134 = g0(2)*x10*x12*x15
-         x135 = x28*x6
-         x136 = (9.0_dp/4.0_dp)*x39*x41
-         x137 = x40*x84
-         x138 = (9.0_dp/8.0_dp)*x38*x40
-         x139 = d3_1*x39*x41
-         x140 = 2.0_dp**(2.0_dp/3.0_dp)
-         x141 = x80**2
-         x142 = g2m(2)*x140*x141*x33
-         x143 = g2p(2)*x140*x141*x36
-         x144 = 1.0_dp/x46
-         x145 = (9.0_dp/20.0_dp)*x40*x84
-         x146 = -45.0_dp/32.0_dp*d2_2+(45.0_dp/32.0_dp)*d2_3*rs
-         x147 = (9.0_dp/32.0_dp)*d2_3*x41
-         x148 = x126*x38*x56
-         x149 = g0(1)*x10*x12*zeta
-         x150 = g0(1)*zeta
-         x151 = x39*zeta
-         x152 = g2m(1)*rs*x117*x33*x78
-         x153 = g2p(1)*rs*x117*x36*x78
-         x154 = g2m(1)*x112*x78*x80
-         x155 = g2p(1)*x35*x78*x80
-         x156 = x80**5
-         x157 = g2m(2)*rs*x140*x156*x33
-         x158 = g2p(2)*rs*x140*x156*x36
-         x159 = g2m(1)*rs*x112*x117*x78
-         x160 = g2p(1)*rs*x117*x35*x78
-         x161 = x80**7
-         x162 = g2m(1)*rs*x161*x33*x78
-         x163 = g2p(1)*rs*x161*x36*x78
-         x164 = x80**8
-         x165 = g2m(2)*x0*x140*x164*x33
-         x166 = g2p(2)*x0*x140*x164*x36
-
-         ed(3) = ed0(3)+16.0_dp*rs*x131*(x62+x65+x66+x68+x71+x75+x86+x99)+x0*x45*x48 &
-                 *(-40.0_dp*x16-80.0_dp*(x26+x44+x5+x57+x9))/x3**6+x131*(4.0_dp*x16+8.0_dp*(x26+x44+x5+x57+x9)) &
-                 +x4*((1.0_dp/4.0_dp)*Q(1)*omega*x60/rs**(3.0_dp/2.0_dp)-1.0_dp/4.0_dp*Q(2)*phi2(0)*x2*x55 &
-                      -16.0_dp*ed0(1)*x132*x63-ed0(3)*x8-x133*x70-x134*x69-x18*(ed0(3)*x106+g0(2)*x25+48.0_dp*x13*x73+ &
-                                                             20.0_dp*x135*x23*x24+120.0_dp*x22*x46+10.0_dp*x46*x6*x90)-56.0_dp*x19 &
-                      *x64-x27*(12.0_dp*rs*x21*x30-x10*x12*x28*x6*(x136*x77+9.0_dp/4.0_dp*(x34+x37)) &
-                                +x134*x29+x31*(-d3_1**2*x43+d3_1*x38*x40*x83+x137*(-x14+1.0_dp)*9.0_dp/20.0_dp-x139*x145 &
-                                               -9.0_dp/80.0_dp*(x142+x143)-27.0_dp/40.0_dp*x144*x40*x85)+x70*x91 &
-                                +x76*(x136*x137+x138*x139+x77*(9.0_dp/8.0_dp)*(x14-1.0_dp-x81+x82))) &
-                      -10.0_dp*x28*x6*x67-x45*(ed0(3)*x123+g0(2)*x50+24.0_dp*(rs*x21*x23*x24+x0*x21*x90) &
-                                               +72.0_dp*x0*x49+x135*(-45.0_dp/16.0_dp*(x34+x37+x94) &
-                                                                     +(9.0_dp/16.0_dp)*x53) &
-                                               +48.0_dp*x28*x88+x51 &
-                                               *(-d2_1**2*x41*x54*x55*x56+d2_1*x147*x55*x56-d2_1*x148*x41 &
-                                                 +(27.0_dp/160.0_dp)*phi8(0)*x144*x52-x126*x41*x56*x84-9.0_dp/64.0_dp* &
-                                                 (x142+x143)+x147*x38*x56)+x92*(x146*x97 &
-                                                                       +x146*x98-45.0_dp/32.0_dp*(x81+x82+x96)-9.0_dp/16.0_dp*x95)))
-         ed(4) = ed0(4)+x4*(-ed0(4)*x8-8*ed0(2)*x132*x63-3.0_dp/2.0_dp*phi2(0)*phi2(1)*x61-x103*x133-x104*x149-x18* &
-                            (ed0(4)*x106+ed0(2)*x21*x72+x108*x150+(15.0_dp/4.0_dp)*x23*x92*zeta) &
-                            -x27*(x103*x91+x149*x89+x31*(-d3_1*x116+x115+x119+x121-x145*x151-9.0_dp/80.0_dp*(x154+x155) &
-                                                         +(3.0_dp/80.0_dp)*(x157+x158)) &
-                                  +x76*(-9.0_dp/16.0_dp*(x113-x114)+x138*x151+(3.0_dp/16.0_dp)*(x152+x153))) &
-                            -x45*(ed0(4)*x123+ed0(2)*x48*x87+9.0_dp*x0*x21*x23*zeta+x124*x150 &
-                                  +x51*(-d2_1*x126*x55*x56*zeta+(9.0_dp/32.0_dp)*d2_3*x127-9.0_dp/160.0_dp*phi8(1)*x52*x84+x128 &
-                                        +x129-x148*zeta-9.0_dp/64.0_dp*(x154+x155)+(3.0_dp/64.0_dp)*(x157+x158)) &
-                                  +x92*(-45.0_dp/64.0_dp*(x113+x114)+(9.0_dp/64.0_dp)*x125+x127*x146 &
-                                        +(15.0_dp/64.0_dp)*(x152+x153))))+x59*(x101+x102+x105+x109+x122+x130)
-         ed(5) = ed0(5)+x4*(-6.0_dp*Q(0)*phi2(0)*phi2(1)**2-ed0(5)*x8-phi2(2)*x100-x104*x110 &
-                            -x18*(ed0(5)*x106+x51*((3.0_dp/4.0_dp)*g0(0)-3.0_dp/8.0_dp)) &
-                            -x27*(x111+x31*(-9.0_dp/160.0_dp*(g2m(0)+g2p(0))+(3.0_dp/40.0_dp)*(x159+x160) &
-                                            -1.0_dp/20.0_dp*(x162+x163)-1.0_dp/80.0_dp*(x165+x166)+x77*9.0_dp/40.0_dp*(-d3_2+rs))) &
-                            -x45*(ed0(5)*x123+x21*x28*(3.0_dp*g0(0)-3.0_dp/2.0_dp)+x51*(-9.0_dp/128.0_dp*(g2m(0)+g2p(0)) &
-                                                                                        +(9.0_dp/320.0_dp)*phi8(2)*x38*x52 &
-                                                                                        +x126*x55*x56+(3.0_dp/32.0_dp) &
-                                                                                        *(x159+x160)-1.0_dp/16.0_dp &
-                                                                                        *(x162+x163)-1.0_dp/64.0_dp &
-                                                                                        *(x165+x166))))
-      END IF
-
-   END SUBROUTINE ec_lsd_sr
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rho ...
-!> \param omega ...
-!> \param ed ...
-!> \param order ...
-! **************************************************************************************************
-   SUBROUTINE ec_lda_sr(rho, omega, ed, order)
-      REAL(KIND=dp), INTENT(IN)                          :: rho, omega
-      REAL(KIND=dp), INTENT(OUT)                         :: ed(0:2)
-      INTEGER, INTENT(IN)                                :: order
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ec_lda_sr', routineP = moduleN//':'//routineN
-
-      REAL(KIND=dp) :: ed0(0:2), g0(0:2), g2(0:2), Q(0:2), rs, x0, x1, x10, x11, x12, x13, x14, &
-         x15, x16, x17, x18, x19, x2, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x3, x30, &
-         x31, x32, x33, x34, x35, x36, x37, x38, x39, x4, x40, x41, x42, x43, x44, x45, x46, x47, &
-         x48, x49, x5, x50, x51, x52, x53, x54, x55, x56, x57, x58, x59, x6, x60, x61, x62, x63, &
-         x64, x65, x66, x67, x68, x69, x7, x70, x71, x72, x73, x74, x75, x76, x77, x78, x79, x8, &
-         x80, x81, x82, x83, x84, x85, x86, x87, x88, x89, x9
-
-      rs = (3.0_dp/4.0_dp/pi/rho)**(1.0_dp/3.0_dp)
-
-      ed = 0.0_dp
-
-      ed0 = 0.0_dp
-      CALL pw_lda_ed_loc(rho, ed0, order)
-
-      g0 = 0.0_dp
-      CALL calc_g0(rs, g0, order)
-
-      Q = 0.0_dp
-      CALL calc_Q(omega*SQRT(rs), Q, order)
-
-      g2 = 0.0_dp
-      CALL calc_g2(2.0_dp**(1.0_dp/3.0_dp)*rs, g2, order)
-
-      x0 = rs**2
-      x1 = beta**2
-      x2 = omega**2
-      x3 = x0*x1*x2+1.0_dp
-      x4 = x3**(-4)
-      x5 = beta**8
-      x6 = omega**8
-      x7 = rs**8
-      x8 = x5*x6*x7
-      x9 = ed0(0)*x8
-      x10 = SQRT(2.0_dp)
-      x11 = omega**5
-      x12 = oorootpi
-      x13 = rs**5
-      x14 = g0(0)*x10*x11*x12*x13*x5
-      x15 = omega**6
-      x16 = rs**6
-      x17 = 4.0_dp*x16
-      x18 = beta**6
-      x19 = ed0(0)*x18
-      x20 = x13*x5
-      x21 = x15*(x17*x19+x20*(-3.0_dp/8.0_dp*g0(0)+3.0_dp/16.0_dp))
-      x22 = omega**3
-      x23 = rs**3
-      x24 = g0(0)*x10*x12
-      x25 = x10*x12*x13*x5
-      x26 = 2.0_dp**(1.0_dp/3.0_dp)
-      x27 = g2(0)
-      x28 = 1.0_dp/x0
-      x29 = EXP(-d3_1*rs)
-      x30 = x28*x29
-      x31 = x30*((9.0_dp/80.0_dp)*d3_2-9.0_dp/80.0_dp*rs)
-      x32 = x22*(-2*x18*x23*x24+x25*(-9.0_dp/160.0_dp*x27+x31))
-      x33 = omega**4
-      x34 = rs**4
-      x35 = 6.0_dp*x34
-      x36 = beta**4
-      x37 = ed0(0)*x36
-      x38 = alpha2**(-1)
-      x39 = x28*x38
-      x40 = (9.0_dp/64.0_dp)*d2_2
-      x41 = d2_3*rs
-      x42 = (9.0_dp/64.0_dp)*x41
-      x43 = 1.0_dp/rs
-      x44 = EXP(-d2_1*rs)
-      x45 = x43*x44
-      x46 = x45*(x40-x42)
-      x47 = x33*(x18*x23*(-3.0_dp/2.0_dp*g0(0)+3.0_dp/4.0_dp)+x20*(-9.0_dp/128.0_dp*x27+(9.0_dp/320.0_dp)*x39+x46)+x35*x37)
-
-      ed(0) = ed0(0)+x4*(-Q(0)+(1.0_dp/2.0_dp)*x14-x21-x32-x47-x9)
-      IF (order >= 1) THEN
-         x48 = x3**(-5)
-         x49 = rs*x1*x2*x48
-         x50 = 8.0_dp*Q(0)-4*x14+8*x21+8*x32+8*x47+8*x9
-         x51 = Q(1)*omega
-         x52 = 1.0_dp/SQRT(rs)
-         x53 = rs**7
-         x54 = ed0(0)*x5*x6
-         x55 = g0(0)*x10*x11*x12
-         x56 = g0(1)*x5
-         x57 = (1.0_dp/2.0_dp)*x10*x11*x12*x13
-         x58 = ed0(1)*x18
-         x59 = (3.0_dp/8.0_dp)*x13
-         x60 = x34*x5
-         x61 = 24.0_dp*x13*x19+x17*x58-x56*x59+x60*(-15.0_dp/8.0_dp*g0(0)+15.0_dp/16.0_dp)
-         x62 = g0(1)*x18
-         x63 = 2.0_dp*x10*x12*x23
-         x64 = x10*x12*x34*x5
-         x65 = g2(1)*x26
-         x66 = (9.0_dp/80.0_dp)*x30
-         x67 = 1.0_dp/x23
-         x68 = x29*x67
-         x69 = d3_1*(-d3_2+rs)
-         x70 = -6.0_dp*x0*x18*x24+x25*(-9.0_dp/160.0_dp*x65+x66*x69-x66+x68*(-9.0_dp/40.0_dp*d3_2+(9.0_dp/40.0_dp)*rs))-x62*x63 &
-               +x64*(-9.0_dp/32.0_dp*x27+x30*((9.0_dp/16.0_dp)*d3_2-9.0_dp/16.0_dp*rs))
-         x71 = ed0(1)*x36
-         x72 = (3.0_dp/2.0_dp)*x23
-         x73 = x38*x67
-         x74 = d2_3*x43*x44
-         x75 = x28*x44
-         x76 = -d2_2+x41
-         x77 = d2_1*x43*x44*x76
-         x78 = x0*x18*(-9.0_dp/2.0_dp*g0(0)+9.0_dp/4.0_dp)+x20*(-9.0_dp/128.0_dp*x65-9.0_dp/160.0_dp*x73-9.0_dp/64.0_dp*x74 &
-                                               +x75*(-x40+x42)+(9.0_dp/64.0_dp)*x77)+24*x23*x37+x35*x71+x60*(-45.0_dp/128.0_dp*x27 &
-                                                     +(9.0_dp/64.0_dp)*x39+x45*((45.0_dp/64.0_dp)*d2_2-45.0_dp/64.0_dp*x41))-x62*x72
-
-         ed(1) = ed0(1)+x4*(-ed0(1)*x8-x15*x61-x22*x70-x33*x78+(5.0_dp/2.0_dp)*x34*x5*x55-1.0_dp/2.0_dp*x51*x52 &
-                            -8.0_dp*x53*x54+x56*x57)+x49*x50
-      END IF
-
-      IF (order >= 2) THEN
-         x79 = g0(2)*x5
-         x80 = x23*x5
-         x81 = x10*x12
-         x82 = g0(2)*x18
-         x83 = (9.0_dp/4.0_dp)*d3_2
-         x84 = (9.0_dp/4.0_dp)*rs
-         x85 = (9.0_dp/8.0_dp)*x30
-         x86 = 2.0_dp**(2.0_dp/3.0_dp)*g2(2)
-         x87 = (9.0_dp/20.0_dp)*x68
-         x88 = 1.0_dp/x34
-         x89 = (9.0_dp/32.0_dp)*d2_3*x44
-
-         ed(2) = ed0(2)+x0*x33*x36*(40*x14-80.0_dp*(Q(0)+x21+x32+x47+x9))/x3**6+x1*x2*x48*x50 &
-                 +x4*(-1.0_dp/4.0_dp*Q(2)*x2*x43-16.0_dp*ed0(1)*x5*x53*x6-ed0(2)*x8+5.0_dp*g0(1)*x10*x11*x12*x34*x5 &
-                      -x15*(ed0(2)*x17*x18-15.0_dp/4.0_dp*g0(1)*x34*x5+48.0_dp*x13*x58+120.0_dp*x19*x34-x59*x79 &
-                            +x80*(-15.0_dp/2.0_dp*g0(0)+15.0_dp/4.0_dp))-56.0_dp*x16*x54 &
-                      -x22*(-12.0_dp*g0(1)*x0*x18*x81-12.0_dp*rs*x18*x24+x23*x5*x81*(-9.0_dp/8.0_dp*x27+x30*(x83-x84)) &
-                            +x25*(d3_1**2*x31+(9.0_dp/40.0_dp)*d3_1*x30+x29*x88*((27.0_dp/40.0_dp)*d3_2-27.0_dp/40.0_dp*rs) &
-                                  -x69*x87-9.0_dp/160.0_dp*x86+x87)-x63*x82+x64*(-9.0_dp/16.0_dp*x65+x68*(-x83+x84)+x69*x85-x85))+ &
-                      10.0_dp*x23*x5*x55-x33*(ed0(2)*x35*x36-9.0_dp*g0(1)*x0*x18-rs*x18*(9.0_dp*g0(0)-9.0_dp/2.0_dp) &
-                                              +72.0_dp*x0*x37+x20*(d2_1**2*x46+d2_1*x43*x89-9.0_dp/32.0_dp*d2_1*x75*x76+x28*x89 &
-                                                                   +(27.0_dp/160.0_dp)*x38*x88 &
-                                                                   +x44*x67*((9.0_dp/32.0_dp)*d2_2-9.0_dp/32.0_dp*x41)-9.0_dp/ &
-                                                                   128.0_dp*x86)+48.0_dp*x23*x71 &
-                                              +x60*(-45.0_dp/64.0_dp*x65-9.0_dp/16.0_dp*x73-45.0_dp/32.0_dp*x74 &
-                                                    +x75*(-45.0_dp/32.0_dp*d2_2+(45.0_dp/32.0_dp)*x41)+(45.0_dp/32.0_dp)*x77) &
-                                              -x72*x82+x80*(-45.0_dp/32.0_dp*x27+(9.0_dp/16.0_dp)*x39 &
-                                                            +x45*((45.0_dp/16.0_dp)*d2_2-45.0_dp/16.0_dp*x41))) &
-                      +x57*x79+(1.0_dp/4.0_dp)*x51/rs**(3.0_dp/2.0_dp))+x49*(8.0_dp*Q(1)*omega*x52+128.0_dp*ed0(0)*x5*x53*x6 &
-                                                                             +16.0_dp*ed0(1)*x5*x6*x7-40.0_dp*g0(0)*x10*x11*x12 &
-                                                                             *x34*x5-8.0_dp*g0(1)*x10*x11*x12*x13*x5 &
-                                                                             +16.0_dp*x15*x61+16.0_dp*x22*x70+16.0_dp*x33*x78)
-      END IF
-
-   END SUBROUTINE ec_lda_sr
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rho ...
-!> \param omega ...
-!> \param ed ...
-!> \param order ...
-! **************************************************************************************************
-   PURE SUBROUTINE ex_lda_sr(rho, omega, ed, order)
-      REAL(KIND=dp), INTENT(IN)                          :: rho, omega
-      REAL(KIND=dp), INTENT(OUT)                         :: ed(0:2)
-      INTEGER, INTENT(IN)                                :: order
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'ex_lda_sr', routineP = moduleN//':'//routineN
-
-      REAL(KIND=dp) :: rs, x0, x1, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x2, x20, x21, &
-         x22, x23, x24, x25, x26, x27, x28, x29, x3, x30, x31, x32, x33, x34, x35, x4, x5, x6, x7, &
-         x8, x9
-
-      ed = 0.0_dp
-
-      rs = (3.0_dp/4.0_dp/pi/rho)**(1.0_dp/3.0_dp)
-
-      x0 = 18.0_dp**(1.0_dp/3.0_dp)
-      x1 = pi**(5.0_dp/3.0_dp)
-      x2 = rs**4
-      x3 = x0/(x1*x2)
-      x4 = 12.0_dp**(1.0_dp/3.0_dp)
-      x5 = pi**(1.0_dp/3.0_dp)
-      x6 = 1.0_dp/x5
-      x7 = omega*rs*x4*x6
-      x8 = 1.0_dp/pi
-      x9 = omega**3
-      x10 = rs**3
-      x11 = x10*x8*x9
-      x12 = (2.0_dp/9.0_dp)*x11
-      x13 = rootpi
-      x14 = 1.0_dp/omega
-      x15 = 1.0_dp/rs
-      x16 = ERF(0.5_dp*x0*x14*x15*x5)
-      x17 = omega**(-2)
-      x18 = pi**(2.0_dp/3.0_dp)
-      x19 = rs**2
-      x20 = EXP(-0.75_dp*x17*x18*x4/x19)
-      x21 = -x12+(1.0_dp/3.0_dp)*x7
-      x22 = x12+x13*x16+x20*x21-1.0_dp/2.0_dp*x7
-      x23 = omega*rs*x22*x4*x6
-
-      ed(0) = x3*(1.0_dp/8.0_dp*x23-9.0_dp/32.0_dp)
-      IF (order >= 1) THEN
-         x24 = x0*x15/x18
-         x25 = omega*x18*x2*x22*x4
-         x26 = rs**6
-         x27 = (8.0_dp/27.0_dp)*x26*x9
-         x28 = omega*x18*x2*x4
-         x29 = pi**(4.0_dp/3.0_dp)
-         x30 = x27-4.0_dp/27.0_dp*x28
-         x31 = omega*rs*x4*x6*(-2.0_dp/3.0_dp*rs*x1*x17*x20*x21*x4+(4.0_dp/9.0_dp)*x0*x14*x19*x20*x29+x20*x30-x27&
-+(2.0_dp/9.0_dp)*x28)
-
-         ed(1) = x24*(2.0_dp/9.0_dp*x23-1.0_dp/2.0_dp)+x3*(-(1.0_dp/18.0_dp)*x25+1.0_dp/8.0_dp*x31)
-      END IF
-
-      IF (order >= 2) THEN
-         x32 = (8.0_dp/81.0_dp)*x7
-         x33 = rs**7
-         x34 = omega*x1*x33*x4
-         x35 = rs**9
-
-         ed(2) = x0*x19*x5*(x22*x32-2.0_dp/9.0_dp)+x24*(-(16.0_dp/81.0_dp)*x25+4.0_dp/9.0_dp*x31) &
-                 -x3*(x28*((2.0_dp/81.0_dp)*omega*x18*x2*x4-2.0_dp/27.0_dp*rs*x1*x17*x20*x21*x4 &
-                           +(4.0_dp/81.0_dp)*x0*x14*x19*x20*x29+(1.0_dp/9.0_dp)*x20*x30-8.0_dp/243.0_dp*x26*x9) &
-                      -x34*(-4.0_dp/81.0_dp*omega*rs*x4*x6+(16.0_dp/729.0_dp)*x10*x8*x9+(8.0_dp/81.0_dp)*x13*x16 &
-                            +(8.0_dp/81.0_dp)*x20*x21)-x7*(-4.0_dp/81.0_dp*omega*x1*x33*x4-4.0_dp/81.0_dp &
-                                                           *pi**(7.0_dp/3.0_dp)*rs**5*x0*x14*x20-1.0_dp/6.0_dp*rs*x1*x17*x20 &
-                                                           *x30*x4-2.0_dp/9.0_dp*pi**3*x10*x20/x9+(1.0_dp/8.0_dp) &
-                                                           *pi**(8.0_dp/3.0_dp)*x17*x2*x20*x4 &
-                                                           *(-16.0_dp/243.0_dp*x11+x32)+(1.0_dp/8.0_dp)*x20 &
-                                                           *((64.0_dp/243.0_dp)*x34-64.0_dp/81.0_dp*pi*x35*x9) &
-                                                           +(8.0_dp/81.0_dp)*pi*x35*x9+(1.0_dp/8.0_dp)*pi**(10.0_dp/3.0_dp) &
-                                                           *x0*x19*x20*(-16.0_dp/81.0_dp*x11+(8.0_dp/27.0_dp)*x7)/omega**4))
-      END IF
-
-   END SUBROUTINE ex_lda_sr
+   END SUBROUTINE ec_mu
 
 END MODULE xc_sr_lda
