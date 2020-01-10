@@ -27,10 +27,7 @@ def create_Routine_from_Function(func, file, max_deriv, intermediates, list_subs
     
     print('Number of common subexpressions for routine {}: {}'.format(name, len(common)))
     
-    arguments=[a for a in args]
-    arguments.extend(add_args)
-    
-    write_file(common, deriv, func, intermediates, constants, max_deriv, name, len(args), arguments, file)
+    write_file(common, deriv, func, intermediates, constants, max_deriv, name, len(args), file, add_args, *args)
 
 def get_deriv(func, max_deriv, be_verbose=True, *args):
     ''' This function calculates recursively all partial derivatives of a sympy
@@ -57,7 +54,7 @@ def get_deriv(func, max_deriv, be_verbose=True, *args):
         new_config=[]
         # Loop over the calculated derivatives of the last run
         for i, d in enumerate(deriv[offset:]):
-            # Assume continouity of all functions
+            # Assume continouity of all functions and their derivatives
             # Thus, we can take symmetries into account
             for j, arg in enumerate(args[config[i]:]):
                 deriv.append(d.diff(arg))
@@ -71,6 +68,37 @@ def get_deriv(func, max_deriv, be_verbose=True, *args):
     
     return deriv
 
+def get_deriv_symbols(func, max_deriv, *args):
+    ''' This function calculates recursively all partial derivatives of a sympy
+    function func depending on the sympy variables in list var up to order 
+    max_deriv. It assumes continouity of the function and its derivatives up 
+    to the given order.
+    '''
+    
+    # result array with already calculated derivatives
+    deriv=[[func(*args),func.name]]
+    
+    # Array with last variable w.r.t that we derived lastly to take symmetries into account
+    config=[0]
+    
+    offset=0
+    
+    # Loop over the needed derivatives
+    for i in range(1, max_deriv+1):
+        # Counter counts number of new derivatives
+        new_config=[]
+        # Loop over the calculated derivatives of the last run
+        for i, d in enumerate(deriv[offset:]):
+            # Assume continouity of all functions and their derivatives
+            # Thus, we can take symmetries into account
+            for j, arg in enumerate(args[config[i]:]):
+                deriv.append([d[0].diff(arg),d[1]+'_'+arg.name])
+                new_config.append(i+j)
+        config=new_config
+        offset=len(deriv)-len(new_config)
+    
+    return deriv
+
 def postprocessing(deriv, intermediates, list_subs, name, max_deriv):
     '''
     This function does substitutions and performs a common subexpression 
@@ -78,6 +106,7 @@ def postprocessing(deriv, intermediates, list_subs, name, max_deriv):
     the routine is very verbose.
     
     deriv               list of derivatives (sympy expressions)
+    list_subs           list of additional substitutions
     intermediates       list with intermediate functions with dependent variables
     name                name of the routine
     max_deriv           maximum needed derivative
@@ -93,9 +122,10 @@ def postprocessing(deriv, intermediates, list_subs, name, max_deriv):
         
         # Perform substitutions in sympy representation
         for func, call, *args in intermediates:
-            derivs=get_deriv(func, max_deriv, False, *args)[::-1]
-            for j, sub in enumerate(derivs):
-                d=d.subs(sub, Symbol(str(func)+'('+str(len(derivs)-j-1)+')')).doit()
+            # Invert order
+            derivs=get_deriv_symbols(func, max_deriv, *args)[::-1]
+            for sub, name in derivs:
+                d=d.subs(sub, Symbol(name)).doit()
                 d=powdenest(d, force=True)
         
         for token, sub in list_subs:
@@ -116,7 +146,7 @@ def postprocessing(deriv, intermediates, list_subs, name, max_deriv):
     # Perform a common subexpression elimination
     return cse(deriv)
     
-def write_file(common, deriv, func, intermediates, constants, max_deriv, name, nargs, arguments, file):
+def write_file(common, deriv, func, intermediates, constants, max_deriv, name, nargs, file, add_args, *args):
     '''
     This function generates the code to calculate a set of functions in 
     Fortran 2008. It uses the general format from CP2K. It does not include 
@@ -133,16 +163,25 @@ def write_file(common, deriv, func, intermediates, constants, max_deriv, name, n
     constants       list of constants of format (Symbol, value)
     name            name of the routine
     nargs           number of arguments of func
-    arguments       list with arguments
     file            File object where to write everything
+    add_args        list with additional arguments of func
+    args            list with arguments of the func object
     '''
     
     # Get string representation of the arguments
+    output_var=''
+    for subs, sname in get_deriv_symbols(func, max_deriv, *args):
+        output_var+=sname+', '
+    else:
+        output_var=output_var[:-2]
+        
+    # actual argument list
+    arguments=[a for a in args]+add_args
+    
     input_var=''
     for s in arguments:
         input_var+=str(s)+', '
-    else:
-        input_var=input_var[:-2]
+    input_var+='max_deriv'
         
     # Get a string of local variables
     local_var=''
@@ -150,37 +189,48 @@ def write_file(common, deriv, func, intermediates, constants, max_deriv, name, n
         local_var+=str(s)+', '
     for s, d in constants:
         local_var+=str(s)+', '
-    for f, call, *args in intermediates:
-        local_var+=str(f)+'(0:'+str(len(get_deriv(f, max_deriv, False, *args))-1)+'), '
+    for f, call, *sargs in intermediates:
+        for subs, sname in get_deriv_symbols(f, max_deriv, *sargs):
+            local_var+=sname+', '
     else:
+        # Remove trailing comma
         local_var=local_var[:-2]
         
     # List with all needed expressions
     expr=constants
     expr.extend(common)
-    expr.extend([(Symbol(str(func)+'('+str(i)+')'), f) for i, f in enumerate(deriv)])
+    symb=get_deriv_symbols(func, max_deriv, *args)
+    for i, f in enumerate(deriv):
+        expr+=[(Symbol(symb[i][1]), f)]
     
     print('Write file')
     
     # Write out everything
     file.write('\n')
-    file.write(('   PURE SUBROUTINE '+name+'('+input_var+', '+str(func)+', max_deriv)\n').replace('_,', ',').replace('__', '_'))
+    file.write(('   ELEMENTAL SUBROUTINE '+name+'('+input_var+', '+output_var+')\n').replace('_,', ',').replace('__', '_'))
     file.write(('      REAL(KIND=dp), INTENT(IN) :: '+input_var+'\n').replace('_,', ',').replace('__', '_'))
     file.write('      INTEGER, INTENT(IN) :: max_deriv\n')
-    file.write(('      REAL(KIND=dp), INTENT(OUT) :: '+str(func)+'(0:)\n').replace('_(', '(').replace('_,', ',').replace('__', '_'))
+    file.write(('      REAL(KIND=dp), INTENT(OUT) :: '+output_var+'\n').replace('_(', '(').replace('_,', ',').replace('__', '_'))
     file.write('\n')
     # character 34 is '"'
     file.write('      CHARACTER(LEN=*), PARAMETER :: routineN = '+chr(34)+name+chr(34)+', routineP = moduleN//'+chr(34)+':'+chr(34)+'//routineN\n')
     file.write('\n')
-    file.write('      REAL(KIND=dp) :: '+local_var+'\n')
-    file.write('\n')
-    for s, call, *args in intermediates:
+    if local_var != '':
+        file.write('      REAL(KIND=dp) :: '+local_var+'\n')
+        file.write('\n')
+    for s, call, *myargs in intermediates:
         inp_var=''
         for i in args:
             inp_var+=str(i)+', '
-        inp_var+=str(s)+', max_deriv'
-        file.write('      CALL '+call+'('+inp_var+')\n')
-    file.write('\n')
+        inp_var+='max_deriv'
+        out_var=''
+        for subs, sname in get_deriv_symbols(s, max_deriv, *myargs):
+            out_var+=sname+', '
+        else:
+            out_var=out_var[:-2]
+        file.write('      CALL '+call+'('+inp_var+', '+out_var+')\n')
+    else:
+        file.write('\n')
     for s, func in expr:
         file.write('      '+fcode(func, assign_to=s, source_format='free', standard=2008).replace('_(', '(').replace('_ ', ' ').replace('__', '_').replace('d0', '_dp').replace('1.0/', '1.0_dp/').replace(' 1/', ' 1.0_dp/').replace('parameter (pi = 3.14159265358979_dp)\n', '').replace('parameter (pi = 3.1415926535897932_dp)\n', '')+'\n')
     file.write('\n')

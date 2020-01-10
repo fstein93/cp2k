@@ -11,7 +11,7 @@ from time import time
 
 t_start=time()
 
-# The maximum requested derivative (Hint: the more derivatives requested the more it needs for creating files and the more code will be produced)
+# The maximum requested derivative (Hint: the more derivatives requested the more time it needs for creating files and the more code will be produced)
 max_deriv=2
 
 # Source file to be created
@@ -252,7 +252,7 @@ class b_T(Function):
         return Function('b_T')(mu)
 
 subs_bT=[[b_T, 'calc_b_T', mu]]
-create_Routine_from_Function(b_T_, file, 0, [], [], [], 'calc_b_T', [], mu)
+create_Routine_from_Function(b_T_, file, 0, subs_c1+subs_c2+subs_c3+subs_c4, [], [], 'calc_b_T', [], mu)
 
 class b_(Function):
     nargs=1
@@ -271,7 +271,7 @@ class b(Function):
         return Function('b')(mu)
 
 subs_b=[[b, 'calc_b', mu]]
-create_Routine_from_Function(b_, file, 0, [], [], [], 'calc_b', [], mu)
+create_Routine_from_Function(b_, file, 0, subs_bT, [], [], 'calc_b', [], mu)
 
 class Fx_(Function):
     nargs=2
