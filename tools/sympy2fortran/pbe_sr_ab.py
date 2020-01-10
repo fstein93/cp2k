@@ -57,7 +57,7 @@ Ecmu=Function('Ecmu')
 mu=Symbol('mu')
 
 # Functional specific constants
-gamma=Symbol('gamma')
+gamma=Symbol('gam') # Gamma is a Fortran-intrinsic function with Fortran 2008
 gamma_=sympify(0.031091)
 beta_PBE=Symbol('beta_PBE')
 beta_PBE_=sympify(0.066725)
@@ -71,6 +71,8 @@ b_PBE=Symbol('b_PBE')
 b_PBE_=sympify(0.21951)
 c=Symbol('c')
 c_=sympify((one+six*sqrt(three))**half)
+b_T0=Symbol('b_T0')
+b_T0_=sympify('7/81')
 
 # Correlation energy density (e.g. from PW92)
 class Ex(Function):
@@ -161,19 +163,18 @@ class c_1_(Function):
     
     @classmethod
     def eval(cls, mu):
-        nu=mu/c
-        return one+sympify(22)*nu**two+sympify(144)*nu**four
+        return one+sympify(22)*mu**two+sympify(144)*mu**four
 
 class c_1(Function):
     nargs=1
-    name='a2'
+    name='c_1'
     
     @classmethod
     def eval(cls, mu):
         return Function('c_1')(mu)
 
 subs_c1=[[c_1, 'calc_c_1', mu]]
-create_Routine_from_Function(c_1_, file, 0, [], [], [], 'calc_c_1', [], mu)
+#create_Routine_from_Function(c_1_, file, max_deriv, [], [], [], 'calc_c_1', [], mu)
 
 class c_2_(Function):
     nargs=1
@@ -181,8 +182,7 @@ class c_2_(Function):
     
     @classmethod
     def eval(cls, mu):
-        nu=mu/c
-        return two*nu**two*(-sympify(7)+sympify(72)*nu**two)
+        return two*mu**two*(-sympify(7)+sympify(72)*mu**two)
 
 class c_2(Function):
     nargs=1
@@ -193,7 +193,7 @@ class c_2(Function):
         return Function('c_2')(rs)
 
 subs_c2=[[c_2, 'calc_c_2', mu]]
-create_Routine_from_Function(c_2_, file, 0, [], [], [], 'calc_c_2', [], mu)
+#create_Routine_from_Function(c_2_, file, max_deriv, [], [], [], 'calc_c_2', [], mu)
 
 class c_3_(Function):
     nargs=1
@@ -201,8 +201,7 @@ class c_3_(Function):
     
     @classmethod
     def eval(cls, mu):
-        nu=mu/c
-        return -sympify(864)*nu**four*(two*nu**two-one)
+        return -sympify(864)*mu**four*(two*mu**two-one)
 
 class c_3(Function):
     nargs=1
@@ -213,7 +212,7 @@ class c_3(Function):
         return Function('c_3')(mu)
 
 subs_c3=[[c_3, 'calc_c_3', mu]]
-create_Routine_from_Function(c_3_, file, 0, [], [], [], 'calc_c_3', [], mu)
+#create_Routine_from_Function(c_3_, file, max_deriv, [], [], [], 'calc_c_3', [], mu)
 
 class c_4_(Function):
     nargs=1
@@ -221,8 +220,7 @@ class c_4_(Function):
     
     @classmethod
     def eval(cls, mu):
-        nu=mu/c
-        return nu**two*(-three-sympify(24)*nu**two+sympify(32)**four+eight*nu*sqrt(pi)*erf(half/nu))
+        return mu**two*(-three-sympify(24)*mu**two+sympify(32)**four+eight*mu*sqrt(pi)*erf(half/mu))
 
 class c_4(Function):
     nargs=1
@@ -233,7 +231,7 @@ class c_4(Function):
         return Function('c_4')(mu)
 
 subs_c4=[[c_4, 'calc_c_4', mu]]
-create_Routine_from_Function(c_4_, file, 0, [], [], [], 'calc_c_4', [], mu)
+#create_Routine_from_Function(c_4_, file, max_deriv, [], [], [], 'calc_c_4', [], mu)
 
 class b_T_(Function):
     nargs=1
@@ -241,7 +239,8 @@ class b_T_(Function):
     
     @classmethod
     def eval(cls, mu):
-        return (c_2(mu)*exp(one/four/mu**two)-c_1(mu))/(c_3(mu)+sympify(54)*c_4(mu)*exp(one/four/mu**two))
+        nu = mu/c
+        return (c_2_(nu)*exp(one/four/mu**two)-c_1_(nu))/(c_3_(nu)+sympify(54)*c_4_(nu)*exp(one/four/mu**two))
 
 class b_T(Function):
     nargs=1
@@ -252,26 +251,27 @@ class b_T(Function):
         return Function('b_T')(mu)
 
 subs_bT=[[b_T, 'calc_b_T', mu]]
-create_Routine_from_Function(b_T_, file, 0, subs_c1+subs_c2+subs_c3+subs_c4, [], [], 'calc_b_T', [], mu)
+#create_Routine_from_Function(b_T_, file, max_deriv, subs_c1+subs_c2+subs_c3+subs_c4, [], [(alpha_X, alpha_X_),(c, c_)], 'calc_b_T', [], mu)
 
 class b_(Function):
     nargs=1
     name='b'
     
     @classmethod
-    def eval(cls, mu):
-        return b_PBE*b_T(mu)/sympify('7/81')*exp(-alpha_X*mu**two)
+    def eval(cls, rho):
+        nu=mu/(two*kf(rho))
+        return b_PBE*b_T_(nu)/b_T0*exp(-alpha_X*nu**two)
 
 class b(Function):
     nargs=1
     name='b'
     
     @classmethod
-    def eval(cls, mu):
-        return Function('b')(mu)
+    def eval(cls, rho):
+        return Function('b')(rho)
 
-subs_b=[[b, 'calc_b', mu]]
-create_Routine_from_Function(b_, file, 0, subs_bT, [], [], 'calc_b', [], mu)
+subs_b=[[b, 'calc_b', rho]]
+create_Routine_from_Function(b_, file, max_deriv, subs_bT, [], [(b_T0, b_T0_)], 'calc_b', [mu,], rho)
 
 class Fx_(Function):
     nargs=2
@@ -279,18 +279,18 @@ class Fx_(Function):
     
     @classmethod
     def eval(cls, rho, drho):
-        return one+kappa-kappa*(one+b(mu)*s(rho, drho)**two/kappa)
+        return one+kappa-kappa*(one+b(rho)*s(rho, drho)**two/kappa)
 
 class Fx(Function):
     nargs=2
-    name='a2'
+    name='Fx'
     
     @classmethod
     def eval(cls, rho, drho):
         return Function('Fx')(rho, drho)
 
 subs_Fx=[[Fx, 'calc_Fx', rho, drho]]
-create_Routine_from_Function(Fx_, file, max_deriv, subs_b+subs_s, [], [], 'calc_Fx', [mu,], rho, drho)
+create_Routine_from_Function(Fx_, file, max_deriv, subs_b+subs_s, [], [(kappa, kappa_)], 'calc_Fx', [mu,], rho, drho)
 
 # several helper routines for the correlation part
 
@@ -356,7 +356,7 @@ class beta_ab(Function):
         return Function('beta_ab')(rho, zeta)
 
 subs_betaab=[[beta_ab, 'calc_beta_ab', rho, zeta]]
-create_Routine_from_Function(beta_ab_, file, max_deriv, subs_ecmuab+subs_ecab, [], [], 'calc_beta_ab', [mu,], rho, zeta)
+create_Routine_from_Function(beta_ab_, file, max_deriv, subs_ecmuab+subs_ecab, [], [(beta_PBE, beta_PBE_), (alpha_C, alpha_C_)], 'calc_beta_ab', [mu,], rho, zeta)
 
 class A_ab_(Function):
     nargs=2
@@ -375,7 +375,7 @@ class A_ab(Function):
         return Function('A_ab')(rho, zeta)
 
 subs_Aab=[[A_ab, 'calc_A_ab', rho, zeta]]
-create_Routine_from_Function(A_ab_, file, max_deriv, subs_ecmuab+subs_betaab+subs_phi, [], [], 'calc_A_ab', [mu,], rho, zeta)
+create_Routine_from_Function(A_ab_, file, max_deriv, subs_ecmuab+subs_betaab+subs_phi, [], [(gamma, gamma_)], 'calc_A_ab', [mu,], rho, zeta)
 
 class H_ab_(Function):
     nargs=3
@@ -395,7 +395,7 @@ class H_ab(Function):
         return Function('H_ab')(rho, zeta, drho)
 
 subs_Hab=[[H_ab, 'calc_H_ab', rho, zeta, drho]]
-create_Routine_from_Function(H_ab_, file, max_deriv, subs_betaab+subs_tab+subs_Aab+subs_phi, [], [], 'calc_H_ab', [mu,], rho, zeta, drho)
+create_Routine_from_Function(H_ab_, file, max_deriv, subs_betaab+subs_tab+subs_Aab+subs_phi, [], [(gamma, gamma_)], 'calc_H_ab', [mu,], rho, zeta, drho)
 
 # The actual energy density
 
@@ -447,7 +447,7 @@ class beta(Function):
         return Function('beta')(rho)
 
 subs_beta=[[beta, 'calc_beta', rho]]
-create_Routine_from_Function(beta_, file, max_deriv, subs_ecmu+subs_ec, [], [], 'calc_beta', [mu,], rho)
+create_Routine_from_Function(beta_, file, max_deriv, subs_ecmu+subs_ec, [], [(beta_PBE, beta_PBE_), (alpha_C, alpha_C_)], 'calc_beta', [mu,], rho)
 
 class A_(Function):
     nargs=1
@@ -466,7 +466,7 @@ class A(Function):
         return Function('a2')(rho)
 
 subs_A=[[A, 'calc_A', rho]]
-create_Routine_from_Function(A_, file, max_deriv, subs_ecmu+subs_beta, [], [], 'calc_A', [mu,], rho)
+create_Routine_from_Function(A_, file, max_deriv, subs_ecmu+subs_beta, [], [(gamma, gamma_)], 'calc_A', [mu,], rho)
 
 class H_(Function):
     nargs=2
@@ -486,7 +486,7 @@ class H(Function):
         return Function('H')(rho, drho)
 
 subs_H=[[H, 'calc_H', rho, drho]]
-create_Routine_from_Function(H_, file, max_deriv, subs_beta+subs_t+subs_A, [], [], 'calc_H', [mu,], rho, drho)
+create_Routine_from_Function(H_, file, max_deriv, subs_beta+subs_t+subs_A, [], [(gamma, gamma_)], 'calc_H', [mu,], rho, drho)
 
 # The actual energy density
 
@@ -517,6 +517,31 @@ constants.extend([(b_PBE, b_PBE_), (c, c_), (alpha_X, alpha_X_), (kappa, kappa_)
 create_Routine_from_Function(ec_pbe_mu_ab, file, max_deriv, subs_ecmuab+subs_Hab, [], [], ec_pbe_mu_ab.name, [mu,], rho, zeta, drho)
 create_Routine_from_Function(ec_pbe_mu, file, max_deriv, subs_ecmu+subs_H, [], [], ec_pbe_mu.name, [mu,], rho, drho)
 create_Routine_from_Function(ex_pbe_mu, file, max_deriv, subs_ex+subs_Fx, [], [], ex_pbe_mu.name, [mu,], rho, drho)
+
+class rz2ab_(Function):
+    nargs=2
+    name='rz2ab'
+    
+    @classmethod
+    def eval(cls, rhoa, rhob):
+        return Function('f')(rhoa+rhob, (rhoa-rhob)/(rhoa+rhob))
+
+class rz2ab(Function):
+    nargs=2
+    
+    @classmethod
+    def eval(cls, rhoa, rhob):
+        return Function('rz2ab')(rhoa, rhob)
+
+class f(Function):
+    nargs=2
+    name='f'
+    
+    @classmethod
+    def eval(cls, rho, zeta):
+        return Function('f')(rho, zeta)
+
+create_Routine_from_Function(rz2ab_, file, max_deriv, [[f, 'calc_f', rho, zeta]], [[rhoa, rho*(one+zeta)/two], [rhob, rho*(one-zeta)/two]], [], 'rz2ab', [], rhoa, rhob)
 
 file.close()
 

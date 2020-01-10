@@ -1,6 +1,6 @@
 
    ELEMENTAL SUBROUTINE calc_s(rho, drho, max_deriv, s, s_rho, s_drho, s_rho_rho, s_rho_drho, s_drho_drho)
-      REAL(KIND=dp), INTENT(IN) :: rho, drho, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, drho
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: s, s_rho, s_drho, s_rho_rho, s_rho_drho, s_drho_drho
 
@@ -21,120 +21,139 @@
 
    END SUBROUTINE calc_s
 
-   ELEMENTAL SUBROUTINE calc_c_1(mu, max_deriv, c_1)
-      REAL(KIND=dp), INTENT(IN) :: mu, max_deriv
+   ELEMENTAL SUBROUTINE calc_b(rho, mu, max_deriv, b, b_rho, b_rho_rho)
+      REAL(KIND=dp), INTENT(IN) :: rho, mu
       INTEGER, INTENT(IN) :: max_deriv
-      REAL(KIND=dp), INTENT(OUT) :: c_1
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_c_1", routineP = moduleN//":"//routineN
-
-
-      c_1 = 1 + 22*mu**2/c**2 + 144*mu**4/c**4
-
-   END SUBROUTINE calc_c_1
-
-   ELEMENTAL SUBROUTINE calc_c_2(mu, max_deriv, c_2)
-      REAL(KIND=dp), INTENT(IN) :: mu, max_deriv
-      INTEGER, INTENT(IN) :: max_deriv
-      REAL(KIND=dp), INTENT(OUT) :: c_2
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_c_2", routineP = moduleN//":"//routineN
-
-      REAL(KIND=dp) :: x0, x1
-
-
-      x0 = c**(-2)
-      x1 = mu**2
-      c_2 = x0*x1*(144*x0*x1 - 14)
-
-   END SUBROUTINE calc_c_2
-
-   ELEMENTAL SUBROUTINE calc_c_3(mu, max_deriv, c_3)
-      REAL(KIND=dp), INTENT(IN) :: mu, max_deriv
-      INTEGER, INTENT(IN) :: max_deriv
-      REAL(KIND=dp), INTENT(OUT) :: c_3
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_c_3", routineP = moduleN//":"//routineN
-
-
-      c_3 = -864*mu**4*(-1 + 2*mu**2/c**2)/c**4
-
-   END SUBROUTINE calc_c_3
-
-   ELEMENTAL SUBROUTINE calc_c_4(mu, max_deriv, c_4)
-      REAL(KIND=dp), INTENT(IN) :: mu, max_deriv
-      INTEGER, INTENT(IN) :: max_deriv
-      REAL(KIND=dp), INTENT(OUT) :: c_4
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_c_4", routineP = moduleN//":"//routineN
-
-      REAL(KIND=dp) :: x0
-
-
-      x0 = mu**2/c**2
-      c_4 = x0*(-24*x0 + 1048573 + 8*sqrt(pi)*mu*erf(0.5_dp*c/mu)/c)
-
-   END SUBROUTINE calc_c_4
-
-   ELEMENTAL SUBROUTINE calc_b_T(mu, max_deriv, b_T)
-      REAL(KIND=dp), INTENT(IN) :: mu, max_deriv
-      INTEGER, INTENT(IN) :: max_deriv
-      REAL(KIND=dp), INTENT(OUT) :: b_T
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_b_T", routineP = moduleN//":"//routineN
-
-      REAL(KIND=dp) :: x0, a2, c_2, c_3, c_4
-
-      CALL calc_c_1(mu, max_deriv, a2)
-      CALL calc_c_2(mu, max_deriv, c_2)
-      CALL calc_c_3(mu, max_deriv, c_3)
-      CALL calc_c_4(mu, max_deriv, c_4)
-
-      x0 = exp(0.25_dp/mu**2)
-      b_T = (-a2 + c_2*x0)/(c_3 + 54*c_4*x0)
-
-   END SUBROUTINE calc_b_T
-
-   ELEMENTAL SUBROUTINE calc_b(mu, max_deriv, b)
-      REAL(KIND=dp), INTENT(IN) :: mu, max_deriv
-      INTEGER, INTENT(IN) :: max_deriv
-      REAL(KIND=dp), INTENT(OUT) :: b
+      REAL(KIND=dp), INTENT(OUT) :: b, b_rho, b_rho_rho
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_b", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: b_T
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31, x32, x33, x34, x35, x36, x37, x38, x39, x40, x41, x42, x43, x44, x45, x46, x47, x48, x49, x50, x51, x52, x53, x54, x55, x56, x57, x58, x59, x60, x61, x62, x63, x64, x65, x66, b_T0, b_T, b_T_mu, b_T_mu_mu
 
-      CALL calc_b_T(mu, max_deriv, b_T)
+      CALL calc_b_T(rho, max_deriv, b_T, b_T_mu, b_T_mu_mu)
 
-      b = (81.0_dp/7.0_dp)*b_PBE*b_T*exp(-alpha_X*mu**2)
+      b_T0 = 7.0_dp/81.0_dp
+      x0 = 1.0_dp/b_T0
+      x1 = 3**(1.0_dp/3.0_dp)
+      x2 = pi**(4.0_dp/3.0_dp)
+      x3 = 1.0_dp/x2
+      x4 = mu**2
+      x5 = rho**(2.0_dp/3.0_dp)
+      x6 = 1.0_dp/x5
+      x7 = x1*x3*x4*x6
+      x8 = exp(-0.0833333333333333_dp*alpha_X*x7)
+      x9 = c**2
+      x10 = 1.0_dp/x9
+      x11 = x10*x7
+      x12 = rho**(-4.0_dp/3.0_dp)
+      x13 = 3**(2.0_dp/3.0_dp)
+      x14 = pi**(-8.0_dp/3.0_dp)
+      x15 = c**(-4)
+      x16 = mu**4
+      x17 = x12*x13*x14*x15*x16
+      x18 = 1.0_dp/x4
+      x19 = x13*x18*x2*x5
+      x20 = exp(x19)
+      x21 = x1*x10*x20*x3*x4*x6
+      x22 = -11.0_dp/6.0_dp*x11 - x17 + x21*(x11 - 7.0_dp/6.0_dp) - 1
+      x23 = pi**(-1.0_dp/6.0_dp)
+      x24 = 1.0_dp/c
+      x25 = rho**(1.0_dp/3.0_dp)
+      x26 = 1.0_dp/x25
+      x27 = erf(2.14502939711103_dp*c*x1*x25/mu)
+      x28 = -x17*(x11 - 6) + x21*(6*mu*x13*x23*x24*x26*x27 - 9*x1*x10*x3*x4*x6 &
+      + 9437157.0_dp/2.0_dp)
+      x29 = 1.0_dp/x28
+      x30 = b_PBE*x0*x22*x29*x8
+      x31 = rho**(-5.0_dp/3.0_dp)
+      x32 = x1*x10*x3*x31*x4
+      x33 = rho**(-7.0_dp/3.0_dp)
+      x34 = x13*x14*x15*x16*x33
+      x35 = 1.0_dp/rho
+      x36 = x10*x20*x35
+      x37 = x1*x10*x20*x3*x31*x4
+      x38 = -2.0_dp/3.0_dp*x20*x34 + (11.0_dp/9.0_dp)*x32 + (4.0_dp/3.0_dp)*x34 + &
+      x36*(2*x11 - 7.0_dp/3.0_dp) + x37*(-2.0_dp/3.0_dp*x11 + 7.0_dp/9.0_dp)
+      x39 = b_PBE*x0*x29*x38*x8
+      x40 = b_PBE*x0*x8
+      x41 = x28**(-2)
+      x42 = pi**(-4)
+      x43 = c**(-6)
+      x44 = mu**6
+      x45 = x42*x43*x44/rho**3
+      x46 = (4.0_dp/3.0_dp)*x11
+      x47 = mu*x13*x23*x24*x26*x27
+      x48 = exp(-x19*x9)
+      x49 = x35*x48
+      x50 = mu*x12*x13*x23*x24*x27
+      x51 = x21*(-6*x32 - 12*x49 + 2*x50) + x34*(-x46 + 8) + x36*(18*x11 - 12* &
+      x47 - 9437157) + x37*(-6*x11 + 4*x47 + 3145719) - 2*x45
+      x52 = x22*x40*x41*x51
+      x53 = rho**(-8.0_dp/3.0_dp)
+      x54 = rho**(-10.0_dp/3.0_dp)
+      x55 = (1.0_dp/9.0_dp)*alpha_X*x1*x3*x31*x4
+      x56 = x1*x10*x3*x4*x53
+      x57 = x13*x14*x15*x16*x54
+      x58 = rho**(-2)
+      x59 = x10*x20*x58
+      x60 = x1*x10*x20*x3*x4*x53
+      x61 = x10*x12*x13*x18*x2*x20
+      x62 = b_PBE*x0*x51*x8
+      x63 = 12*x11
+      x64 = 8*x47
+      x65 = 16*x48
+      x66 = (8.0_dp/3.0_dp)*mu*x13*x23*x24*x27
+      b = x30
+      b_rho = (1.0_dp/18.0_dp)*alpha_X*b_PBE*x0*x1*x22*x29*x3*x31*x4*x8 + x39 + &
+      x52
+      b_rho_rho = (1.0_dp/324.0_dp)*alpha_X**2*x13*x14*x16*x30*x54 - 5.0_dp/ &
+      54.0_dp*alpha_X*b_PBE*x0*x1*x22*x29*x3*x4*x53*x8 + x22*x40*x41*( &
+      x21*(8*x12*x13*x18*x2*x48*x9 - x33*x66 + 10*x56 + x58*x65) + x36* &
+      (-24*x32 - 48*x49 + 8*x50) + x37*(-x12*x66 + 8*x32 + x35*x65) + &
+      x57*((28.0_dp/9.0_dp)*x11 - 56.0_dp/3.0_dp) + x59*(-30*x11 + 20*x47 + &
+      15728595) + x60*(10*x11 - 20.0_dp/3.0_dp*x47 - 5242865) + x61*(x63 &
+      - x64 - 6291438) + (26.0_dp/3.0_dp)*x42*x43*x44/rho**4) + x22*x62*( &
+      x21*(-12*x32 - 24*x49 + 4*x50) + x34*(-8.0_dp/3.0_dp*x11 + 16) + &
+      x36*(36*x11 - 24*x47 - 18874314) + x37*(-x63 + x64 + 6291438) - 4 &
+      *x45)/x28**3 + x29*x40*(-8.0_dp/3.0_dp*x1*x15*x20*x3*x4*x53 + 2*x20 &
+      *x57 - 55.0_dp/27.0_dp*x56 - 28.0_dp/9.0_dp*x57 + x59*(-10.0_dp/3.0_dp* &
+      x11 + 35.0_dp/9.0_dp) + x60*((10.0_dp/9.0_dp)*x11 - 35.0_dp/27.0_dp) + &
+      x61*(x46 - 14.0_dp/9.0_dp)) + 2*x38*x41*x62 + x39*x55 + x52*x55
 
    END SUBROUTINE calc_b
 
    ELEMENTAL SUBROUTINE calc_Fx(rho, drho, mu, max_deriv, Fx, Fx_rho, Fx_drho, Fx_rho_rho, Fx_rho_drho, Fx_drho_drho)
-      REAL(KIND=dp), INTENT(IN) :: rho, drho, mu, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, drho, mu
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: Fx, Fx_rho, Fx_drho, Fx_rho_rho, Fx_rho_drho, Fx_drho_drho
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_Fx", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, b, b_mu, b_mu_mu, s, s_rho, s_drho, s_rho_rho, s_rho_drho, s_drho_drho
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, kappa, b, b_rho, b_rho_rho, s, s_rho, s_drho, s_rho_rho, s_rho_drho, s_drho_drho
 
-      CALL calc_b(rho, drho, max_deriv, b, b_mu, b_mu_mu)
+      CALL calc_b(rho, drho, max_deriv, b, b_rho, b_rho_rho)
       CALL calc_s(rho, drho, max_deriv, s, s_rho, s_drho, s_rho_rho, s_rho_drho, s_drho_drho)
 
-      x0 = 2*b*s
-      x1 = 2*b
-      Fx = -kappa*(b*s**2/kappa + 1) + kappa + 1
-      Fx_rho = -s_rho*x0
-      Fx_drho = -s_drho*x0
-      Fx_rho_rho = -s_rho**2*x1 - s_rho_rho*x0
-      Fx_rho_drho = -s_drho*s_rho*x1 - s_rho_drho*x0
-      Fx_drho_drho = -s_drho**2*x1 - s_drho_drho*x0
+      kappa = 0.84_dp
+      x0 = 1.0_dp/kappa
+      x1 = s**2*x0
+      x2 = 2*b*s*x0
+      x3 = 2*b*s
+      x4 = b_rho*s
+      x5 = 2*b
+      Fx = -kappa*(b*x1 + 1) + kappa + 1
+      Fx_rho = -kappa*(b_rho*x1 + s_rho*x2)
+      Fx_drho = -s_drho*x3
+      Fx_rho_rho = -kappa*(b_rho_rho*x1 + s_rho**2*x0*x5 + 4*s_rho*x0*x4 + &
+      s_rho_rho*x2)
+      Fx_rho_drho = -kappa*(2*b*s_drho*s_rho*x0 + 2*s_drho*x0*x4 + s_rho_drho* &
+      x2)
+      Fx_drho_drho = -s_drho**2*x5 - s_drho_drho*x3
 
    END SUBROUTINE calc_Fx
 
    ELEMENTAL SUBROUTINE calc_phi(zeta, max_deriv, phi, phi_zeta, phi_zeta_zeta)
-      REAL(KIND=dp), INTENT(IN) :: zeta, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: zeta
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: phi, phi_zeta, phi_zeta_zeta
 
@@ -154,7 +173,7 @@
    END SUBROUTINE calc_phi
 
    ELEMENTAL SUBROUTINE calc_t_ab(rho, zeta, drho, max_deriv, t_ab, t_ab_rho, t_ab_zeta, t_ab_drho, t_ab_rho_rho, t_ab_rho_zeta, t_ab_rho_drho, t_ab_zeta_zeta, t_ab_zeta_drho, t_ab_drho_drho)
-      REAL(KIND=dp), INTENT(IN) :: rho, zeta, drho, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, zeta, drho
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: t_ab, t_ab_rho, t_ab_zeta, t_ab_drho, t_ab_rho_rho, t_ab_rho_zeta, t_ab_rho_drho, t_ab_zeta_zeta, t_ab_zeta_drho, t_ab_drho_drho
 
@@ -191,17 +210,19 @@
    END SUBROUTINE calc_t_ab
 
    ELEMENTAL SUBROUTINE calc_beta_ab(rho, zeta, mu, max_deriv, beta_ab, beta_ab_rho, beta_ab_zeta, beta_ab_rho_rho, beta_ab_rho_zeta, beta_ab_zeta_zeta)
-      REAL(KIND=dp), INTENT(IN) :: rho, zeta, mu, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, zeta, mu
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: beta_ab, beta_ab_rho, beta_ab_zeta, beta_ab_rho_rho, beta_ab_rho_zeta, beta_ab_zeta_zeta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_beta_ab", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, Ecmuab, Ecmuab_rho, Ecmuab_zeta, Ecmuab_rho_rho, Ecmuab_rho_zeta, Ecmuab_zeta_zeta, Ecab, Ecab_rho, Ecab_zeta, Ecab_rho_rho, Ecab_rho_zeta, Ecab_zeta_zeta
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, beta_PBE, alpha_C, Ecmuab, Ecmuab_rho, Ecmuab_zeta, Ecmuab_rho_rho, Ecmuab_rho_zeta, Ecmuab_zeta_zeta, Ecab, Ecab_rho, Ecab_zeta, Ecab_rho_rho, Ecab_rho_zeta, Ecab_zeta_zeta
 
       CALL calc_Ecmuab(rho, zeta, max_deriv, Ecmuab, Ecmuab_rho, Ecmuab_zeta, Ecmuab_rho_rho, Ecmuab_rho_zeta, Ecmuab_zeta_zeta)
       CALL calc_Ecab(rho, zeta, max_deriv, Ecab, Ecab_rho, Ecab_zeta, Ecab_rho_rho, Ecab_rho_zeta, Ecab_zeta_zeta)
 
+      beta_PBE = 0.066725_dp
+      alpha_C = 2.78_dp
       x0 = 1.0_dp/Ecab
       x1 = (Ecmuab*x0)**alpha_C
       x2 = Ecab**2
@@ -235,26 +256,27 @@
    END SUBROUTINE calc_beta_ab
 
    ELEMENTAL SUBROUTINE calc_A_ab(rho, zeta, mu, max_deriv, A_ab, A_ab_rho, A_ab_zeta, A_ab_rho_rho, A_ab_rho_zeta, A_ab_zeta_zeta)
-      REAL(KIND=dp), INTENT(IN) :: rho, zeta, mu, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, zeta, mu
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: A_ab, A_ab_rho, A_ab_zeta, A_ab_rho_rho, A_ab_rho_zeta, A_ab_zeta_zeta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_A_ab", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, Ecmuab, Ecmuab_rho, Ecmuab_zeta, Ecmuab_rho_rho, Ecmuab_rho_zeta, Ecmuab_zeta_zeta, beta_ab, beta_ab_rho, beta_ab_zeta, beta_ab_rho_rho, beta_ab_rho_zeta, beta_ab_zeta_zeta, phi, phi_zeta, phi_zeta_zeta
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, gam, Ecmuab, Ecmuab_rho, Ecmuab_zeta, Ecmuab_rho_rho, Ecmuab_rho_zeta, Ecmuab_zeta_zeta, beta_ab, beta_ab_rho, beta_ab_zeta, beta_ab_rho_rho, beta_ab_rho_zeta, beta_ab_zeta_zeta, phi, phi_zeta, phi_zeta_zeta
 
       CALL calc_Ecmuab(rho, zeta, max_deriv, Ecmuab, Ecmuab_rho, Ecmuab_zeta, Ecmuab_rho_rho, Ecmuab_rho_zeta, Ecmuab_zeta_zeta)
       CALL calc_beta_ab(rho, zeta, max_deriv, beta_ab, beta_ab_rho, beta_ab_zeta, beta_ab_rho_rho, beta_ab_rho_zeta, beta_ab_zeta_zeta)
       CALL calc_phi(rho, zeta, max_deriv, phi, phi_zeta, phi_zeta_zeta)
 
-      x0 = 1.0_dp/gamma
+      gam = 0.031091_dp
+      x0 = 1.0_dp/gam
       x1 = phi**(-3)
       x2 = x0*x1
       x3 = Ecmuab*x2
       x4 = exp(-x3)
       x5 = x4 - 1
       x6 = x0/x5
-      x7 = gamma**(-2)
+      x7 = gam**(-2)
       x8 = x5**(-2)
       x9 = Ecmuab_rho*x1*x4*x7*x8
       x10 = beta_ab*x9
@@ -263,7 +285,7 @@
       x13 = -Ecmuab_zeta*x2 + phi_zeta*x12
       x14 = beta_ab*x4*x8
       x15 = beta_ab*x1*x4*x7*x8
-      x16 = Ecmuab_rho**2/(gamma**3*phi**6)
+      x16 = Ecmuab_rho**2/(gam**3*phi**6)
       x17 = 2*beta_ab*exp(-2.0_dp*x3)/x5**3
       x18 = x0*x13*x4*x8
       x19 = x0*x13**2
@@ -282,31 +304,32 @@
    END SUBROUTINE calc_A_ab
 
    ELEMENTAL SUBROUTINE calc_H_ab(rho, zeta, drho, mu, max_deriv, H_ab, H_ab_rho, H_ab_zeta, H_ab_drho, H_ab_rho_rho, H_ab_rho_zeta, H_ab_rho_drho, H_ab_zeta_zeta, H_ab_zeta_drho, H_ab_drho_drho)
-      REAL(KIND=dp), INTENT(IN) :: rho, zeta, drho, mu, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, zeta, drho, mu
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: H_ab, H_ab_rho, H_ab_zeta, H_ab_drho, H_ab_rho_rho, H_ab_rho_zeta, H_ab_rho_drho, H_ab_zeta_zeta, H_ab_zeta_drho, H_ab_drho_drho
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_H_ab", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31, x32, x33, x34, x35, x36, x37, x38, x39, x40, x41, x42, x43, x44, x45, x46, x47, x48, x49, x50, x51, x52, x53, x54, x55, x56, x57, x58, x59, x60, x61, x62, x63, x64, x65, x66, x67, x68, x69, x70, x71, x72, x73, x74, x75, x76, x77, x78, x79, x80, x81, x82, x83, x84, x85, x86, x87, x88, x89, x90, x91, x92, x93, x94, x95, x96, x97, x98, x99, x100, x101, x102, x103, x104, x105, x106, x107, x108, x109, x110, x111, x112, x113, x114, x115, x116, x117, x118, x119, x120, x121, x122, x123, x124, x125, x126, x127, x128, x129, beta_ab, beta_ab_rho, beta_ab_zeta, beta_ab_rho_rho, beta_ab_rho_zeta, beta_ab_zeta_zeta, tab, tab_rho, tab_zeta, tab_drho, tab_rho_rho, tab_rho_zeta, tab_rho_drho, tab_zeta_zeta, tab_zeta_drho, tab_drho_drho, A_ab, A_ab_rho, A_ab_zeta, A_ab_rho_rho, A_ab_rho_zeta, A_ab_zeta_zeta, phi, phi_zeta, phi_zeta_zeta
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31, x32, x33, x34, x35, x36, x37, x38, x39, x40, x41, x42, x43, x44, x45, x46, x47, x48, x49, x50, x51, x52, x53, x54, x55, x56, x57, x58, x59, x60, x61, x62, x63, x64, x65, x66, x67, x68, x69, x70, x71, x72, x73, x74, x75, x76, x77, x78, x79, x80, x81, x82, x83, x84, x85, x86, x87, x88, x89, x90, x91, x92, x93, x94, x95, x96, x97, x98, x99, x100, x101, x102, x103, x104, x105, x106, x107, x108, x109, x110, x111, x112, x113, x114, x115, x116, x117, x118, x119, x120, x121, x122, x123, x124, x125, x126, x127, x128, x129, gam, beta_ab, beta_ab_rho, beta_ab_zeta, beta_ab_rho_rho, beta_ab_rho_zeta, beta_ab_zeta_zeta, tab, tab_rho, tab_zeta, tab_drho, tab_rho_rho, tab_rho_zeta, tab_rho_drho, tab_zeta_zeta, tab_zeta_drho, tab_drho_drho, A_ab, A_ab_rho, A_ab_zeta, A_ab_rho_rho, A_ab_rho_zeta, A_ab_zeta_zeta, phi, phi_zeta, phi_zeta_zeta
 
       CALL calc_beta_ab(rho, zeta, drho, max_deriv, beta_ab, beta_ab_rho, beta_ab_zeta, beta_ab_rho_rho, beta_ab_rho_zeta, beta_ab_zeta_zeta)
       CALL calc_t_ab(rho, zeta, drho, max_deriv, tab, tab_rho, tab_zeta, tab_drho, tab_rho_rho, tab_rho_zeta, tab_rho_drho, tab_zeta_zeta, tab_zeta_drho, tab_drho_drho)
       CALL calc_A_ab(rho, zeta, drho, max_deriv, A_ab, A_ab_rho, A_ab_zeta, A_ab_rho_rho, A_ab_rho_zeta, A_ab_zeta_zeta)
       CALL calc_phi(rho, zeta, drho, max_deriv, phi, phi_zeta, phi_zeta_zeta)
 
+      gam = 0.031091_dp
       x0 = tab**2
       x1 = A_ab*x0 + 1
       x2 = x0*x1
-      x3 = 1.0_dp/gamma
+      x3 = 1.0_dp/gam
       x4 = A_ab**2
       x5 = tab**4
       x6 = x1 + x4*x5
       x7 = 1.0_dp/x6
       x8 = beta_ab*x2*x3*x7 + 1
-      x9 = gamma*log(x8)
+      x9 = gam*log(x8)
       x10 = 1.0_dp/x8
-      x11 = gamma*phi*x10
+      x11 = gam*phi*x10
       x12 = x0*x1*x3*x7
       x13 = beta_ab_rho*x12
       x14 = 2*tab_rho
@@ -349,9 +372,9 @@
       x51 = tab_drho*x26*x4
       x52 = -2*x50 - 4*x51
       x53 = beta_ab*x2*x29*x3*x52
-      x54 = gamma*x10*(x47 + x49 + x53)
+      x54 = gam*x10*(x47 + x49 + x53)
       x55 = x8**(-2)
-      x56 = gamma*phi*x55
+      x56 = gam*phi*x55
       x57 = 2*beta_ab*tab*x1*x3*x7
       x58 = beta_ab_rho*tab*x1*x3*x7
       x59 = tab_rho**2
@@ -377,7 +400,7 @@
       x79 = 2*x5
       x80 = 4*x26*x4
       x81 = 12*x0*x4
-      x82 = gamma*phi_zeta*x10
+      x82 = gam*phi_zeta*x10
       x83 = -x33 - x35 - x39 - x43
       x84 = beta_ab*tab_rho*x1*x3*x7
       x85 = beta_ab_zeta*tab*x1*x3*x7
@@ -400,7 +423,7 @@
       x102 = 8*A_ab*A_ab_rho*x26
       x103 = 8*A_ab_zeta*x26
       x104 = -x47 - x49 - x53
-      x105 = gamma*phi*x104*x55
+      x105 = gam*phi*x104*x55
       x106 = 2*A_ab*tab_drho*x26*x3*x7
       x107 = A_ab*beta_ab*tab_drho*x0*x3*x7
       x108 = 2*beta_ab*tab*tab_drho*x3*x7
@@ -470,7 +493,7 @@
    END SUBROUTINE calc_H_ab
 
    ELEMENTAL SUBROUTINE calc_t(rho, drho, max_deriv, t, t_rho, t_drho, t_rho_rho, t_rho_drho, t_drho_drho)
-      REAL(KIND=dp), INTENT(IN) :: rho, drho, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, drho
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: t, t_rho, t_drho, t_rho_rho, t_rho_drho, t_drho_drho
 
@@ -492,17 +515,19 @@
    END SUBROUTINE calc_t
 
    ELEMENTAL SUBROUTINE calc_beta(rho, mu, max_deriv, beta, beta_rho, beta_rho_rho)
-      REAL(KIND=dp), INTENT(IN) :: rho, mu, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, mu
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: beta, beta_rho, beta_rho_rho
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_beta", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, Ecmu, Ecmu_rho, Ecmu_rho_rho, Ec, Ec_rho, Ec_rho_rho
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, beta_PBE, alpha_C, Ecmu, Ecmu_rho, Ecmu_rho_rho, Ec, Ec_rho, Ec_rho_rho
 
       CALL calc_Ecmu(rho, max_deriv, Ecmu, Ecmu_rho, Ecmu_rho_rho)
       CALL calc_Ec(rho, max_deriv, Ec, Ec_rho, Ec_rho_rho)
 
+      beta_PBE = 0.066725_dp
+      alpha_C = 2.78_dp
       x0 = 1.0_dp/Ec
       x1 = (Ecmu*x0)**alpha_C
       x2 = 1.0_dp/Ecmu
@@ -522,27 +547,28 @@
    END SUBROUTINE calc_beta
 
    ELEMENTAL SUBROUTINE calc_A(rho, mu, max_deriv, A, A_rho, A_rho_rho)
-      REAL(KIND=dp), INTENT(IN) :: rho, mu, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, mu
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: A, A_rho, A_rho_rho
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_A", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, Ecmu, Ecmu_rho, Ecmu_rho_rho, beta, beta_rho, beta_rho_rho
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, gam, Ecmu, Ecmu_rho, Ecmu_rho_rho, beta, beta_rho, beta_rho_rho
 
       CALL calc_Ecmu(rho, max_deriv, Ecmu, Ecmu_rho, Ecmu_rho_rho)
       CALL calc_beta(rho, max_deriv, beta, beta_rho, beta_rho_rho)
 
-      x0 = 1.0_dp/gamma
+      gam = 0.031091_dp
+      x0 = 1.0_dp/gam
       x1 = Ecmu*x0
       x2 = exp(-x1)
       x3 = x2 - 1
       x4 = x0/x3
-      x5 = gamma**(-2)
+      x5 = gam**(-2)
       x6 = x3**(-2)
       x7 = beta*x2*x5*x6
       x8 = x2*x6
-      x9 = Ecmu_rho**2*beta/gamma**3
+      x9 = Ecmu_rho**2*beta/gam**3
       A = beta*x4
       A_rho = Ecmu_rho*x7 + beta_rho*x4
       A_rho_rho = 2*Ecmu_rho*beta_rho*x5*x8 + Ecmu_rho_rho*x7 + beta_rho_rho* &
@@ -551,19 +577,20 @@
    END SUBROUTINE calc_A
 
    ELEMENTAL SUBROUTINE calc_H(rho, drho, mu, max_deriv, H, H_rho, H_drho, H_rho_rho, H_rho_drho, H_drho_drho)
-      REAL(KIND=dp), INTENT(IN) :: rho, drho, mu, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, drho, mu
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: H, H_rho, H_drho, H_rho_rho, H_rho_drho, H_drho_drho
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_H", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31, x32, x33, x34, x35, x36, x37, x38, x39, x40, x41, x42, x43, x44, x45, x46, x47, x48, x49, x50, x51, x52, x53, x54, x55, x56, x57, x58, x59, x60, x61, x62, x63, x64, x65, x66, x67, x68, beta, beta_rho, beta_rho_rho, t, t_rho, t_drho, t_rho_rho, t_rho_drho, t_drho_drho, A, A_rho, A_rho_rho
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31, x32, x33, x34, x35, x36, x37, x38, x39, x40, x41, x42, x43, x44, x45, x46, x47, x48, x49, x50, x51, x52, x53, x54, x55, x56, x57, x58, x59, x60, x61, x62, x63, x64, x65, x66, x67, x68, gam, beta, beta_rho, beta_rho_rho, t, t_rho, t_drho, t_rho_rho, t_rho_drho, t_drho_drho, A, A_rho, A_rho_rho
 
       CALL calc_beta(rho, drho, max_deriv, beta, beta_rho, beta_rho_rho)
       CALL calc_t(rho, drho, max_deriv, t, t_rho, t_drho, t_rho_rho, t_rho_drho, t_drho_drho)
       CALL calc_A(rho, drho, max_deriv, A, A_rho, A_rho_rho)
 
-      x0 = 1.0_dp/gamma
+      gam = 0.031091_dp
+      x0 = 1.0_dp/gam
       x1 = t**2
       x2 = A*x1 + 1
       x3 = A**2
@@ -572,7 +599,7 @@
       x6 = 1.0_dp/x5
       x7 = x0*x1*x2*x6
       x8 = beta*x7 + 1
-      x9 = gamma/x8
+      x9 = gam/x8
       x10 = x1*x2
       x11 = beta_rho*x0*x6
       x12 = x10*x11
@@ -602,7 +629,7 @@
       x36 = -t_drho*x24 - 2*x35
       x37 = beta*x0*x27*x36
       x38 = x10*x37
-      x39 = gamma/x8**2
+      x39 = gam/x8**2
       x40 = 4*t*t_rho
       x41 = beta_rho*x0*x2*x6
       x42 = t_rho**2
@@ -632,7 +659,7 @@
       x66 = x0*x1*x2*x56*(-4*x35 - x52*x65)
       x67 = t_drho**2
       x68 = beta*t_drho*x0*x27*x36
-      H = gamma*log(x8)
+      H = gam*log(x8)
       H_rho = x29*x9
       H_drho = x9*(x31 + x34 + x38)
       H_rho_rho = -x39*(-x12 - x14 - x20 - x28)**2 + x9*(beta_rho_rho*x7 + &
@@ -653,7 +680,7 @@
    END SUBROUTINE calc_H
 
    ELEMENTAL SUBROUTINE lsd_pbe_sr_c(rho, zeta, drho, mu, max_deriv, lsd_pbe_sr_c, lsd_pbe_sr_c_rho, lsd_pbe_sr_c_zeta, lsd_pbe_sr_c_drho, lsd_pbe_sr_c_rho_rho, lsd_pbe_sr_c_rho_zeta, lsd_pbe_sr_c_rho_drho, lsd_pbe_sr_c_zeta_zeta, lsd_pbe_sr_c_zeta_drho, lsd_pbe_sr_c_drho_drho)
-      REAL(KIND=dp), INTENT(IN) :: rho, zeta, drho, mu, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, zeta, drho, mu
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: lsd_pbe_sr_c, lsd_pbe_sr_c_rho, lsd_pbe_sr_c_zeta, lsd_pbe_sr_c_drho, lsd_pbe_sr_c_rho_rho, lsd_pbe_sr_c_rho_zeta, lsd_pbe_sr_c_rho_drho, lsd_pbe_sr_c_zeta_zeta, lsd_pbe_sr_c_zeta_drho, lsd_pbe_sr_c_drho_drho
 
@@ -678,7 +705,7 @@
    END SUBROUTINE lsd_pbe_sr_c
 
    ELEMENTAL SUBROUTINE lda_pbe_sr_c(rho, drho, mu, max_deriv, lda_pbe_sr_c, lda_pbe_sr_c_rho, lda_pbe_sr_c_drho, lda_pbe_sr_c_rho_rho, lda_pbe_sr_c_rho_drho, lda_pbe_sr_c_drho_drho)
-      REAL(KIND=dp), INTENT(IN) :: rho, drho, mu, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, drho, mu
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: lda_pbe_sr_c, lda_pbe_sr_c_rho, lda_pbe_sr_c_drho, lda_pbe_sr_c_rho_rho, lda_pbe_sr_c_rho_drho, lda_pbe_sr_c_drho_drho
 
@@ -699,22 +726,54 @@
    END SUBROUTINE lda_pbe_sr_c
 
    ELEMENTAL SUBROUTINE pbe_sr_x(rho, drho, mu, max_deriv, pbe_sr_x, pbe_sr_x_rho, pbe_sr_x_drho, pbe_sr_x_rho_rho, pbe_sr_x_rho_drho, pbe_sr_x_drho_drho)
-      REAL(KIND=dp), INTENT(IN) :: rho, drho, mu, max_deriv
+      REAL(KIND=dp), INTENT(IN) :: rho, drho, mu
       INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: pbe_sr_x, pbe_sr_x_rho, pbe_sr_x_drho, pbe_sr_x_rho_rho, pbe_sr_x_rho_drho, pbe_sr_x_drho_drho
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "pbe_sr_x", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: Ex, Ex_rho, Ex_rho_rho, a2, a2_rho, a2_drho, a2_rho_rho, a2_rho_drho, a2_drho_drho
+      REAL(KIND=dp) :: Ex, Ex_rho, Ex_rho_rho, Fx, Fx_rho, Fx_drho, Fx_rho_rho, Fx_rho_drho, Fx_drho_drho
 
       CALL calc_Ex(rho, drho, max_deriv, Ex, Ex_rho, Ex_rho_rho)
-      CALL calc_Fx(rho, drho, max_deriv, a2, a2_rho, a2_drho, a2_rho_rho, a2_rho_drho, a2_drho_drho)
+      CALL calc_Fx(rho, drho, max_deriv, Fx, Fx_rho, Fx_drho, Fx_rho_rho, Fx_rho_drho, Fx_drho_drho)
 
-      pbe_sr_x = Ex*a2
-      pbe_sr_x_rho = Ex*a2_rho + Ex_rho*a2
-      pbe_sr_x_drho = Ex*a2_drho
-      pbe_sr_x_rho_rho = Ex*a2_rho_rho + 2*Ex_rho*a2_rho + Ex_rho_rho*a2
-      pbe_sr_x_rho_drho = Ex*a2_rho_drho + Ex_rho*a2_drho
-      pbe_sr_x_drho_drho = Ex*a2_drho_drho
+      pbe_sr_x = Ex*Fx
+      pbe_sr_x_rho = Ex*Fx_rho + Ex_rho*Fx
+      pbe_sr_x_drho = Ex*Fx_drho
+      pbe_sr_x_rho_rho = Ex*Fx_rho_rho + 2*Ex_rho*Fx_rho + Ex_rho_rho*Fx
+      pbe_sr_x_rho_drho = Ex*Fx_rho_drho + Ex_rho*Fx_drho
+      pbe_sr_x_drho_drho = Ex*Fx_drho_drho
 
    END SUBROUTINE pbe_sr_x
+
+   ELEMENTAL SUBROUTINE rz2ab(rhoa, rhob, max_deriv, rz2ab, rz2ab_rhoa, rz2ab_rhob, rz2ab_rhoa_rhoa, rz2ab_rhoa_rhob, rz2ab_rhob_rhob)
+      REAL(KIND=dp), INTENT(IN) :: rhoa, rhob
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: rz2ab, rz2ab_rhoa, rz2ab_rhob, rz2ab_rhoa_rhoa, rz2ab_rhoa_rhob, rz2ab_rhob_rhob
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "rz2ab", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, f, f_rho, f_zeta, f_rho_rho, f_rho_zeta, f_zeta_zeta
+
+      CALL calc_f(rhoa, rhob, max_deriv, f, f_rho, f_zeta, f_rho_rho, f_rho_zeta, f_zeta_zeta)
+
+      x0 = 1.0_dp/rho
+      x1 = f_zeta*x0
+      x2 = f_rho - x1*zeta
+      x3 = 2*f_rho_zeta*x0
+      x4 = rho**(-2)
+      x5 = 2*f_zeta*x4
+      x6 = f_zeta_zeta*x4
+      x7 = 2*x6*zeta
+      x8 = -x3*zeta
+      x9 = x5*zeta
+      x10 = x6*zeta**2
+      x11 = f_rho_rho + x10 + x6 + x8 + x9
+      rz2ab = f
+      rz2ab_rhoa = x1 + x2
+      rz2ab_rhob = -x1 + x2
+      rz2ab_rhoa_rhoa = x11 + x3 - x5 - x7
+      rz2ab_rhoa_rhob = f_rho_rho + x10 - x6 + x8 + x9
+      rz2ab_rhob_rhob = x11 - x3 + x5 + x7
+
+   END SUBROUTINE rz2ab

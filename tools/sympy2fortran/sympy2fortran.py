@@ -113,12 +113,16 @@ def postprocessing(deriv, intermediates, list_subs, name, max_deriv):
     '''
     
     print('Start postprocessing of function '+name)
+    print(len(list_subs))
     
     # Perform substitutitons and do some simplifications
     for i, d in enumerate(deriv):
         print()
         print('Substitute', i)
         print(d)
+        
+        for token, sub in list_subs:
+            d=d.subs(token, sub).expand().doit()
         
         # Perform substitutions in sympy representation
         for func, call, *args in intermediates:
@@ -127,14 +131,11 @@ def postprocessing(deriv, intermediates, list_subs, name, max_deriv):
             for sub, name in derivs:
                 d=d.subs(sub, Symbol(name)).doit()
                 d=powdenest(d, force=True)
-        
-        for token, sub in list_subs:
-            d=d.subs(token, sub)
             
         # Do some simplifications (hint: simplify is quite expensive and 
         # does strange things from time to time, if it is appropriate for your 
         # problem, decomment the following line!)
-        #d=simplify(d)
+        #d=d.simplify()
         
         # Finally copy the result
         deriv[i]=d.doit()
@@ -181,7 +182,8 @@ def write_file(common, deriv, func, intermediates, constants, max_deriv, name, n
     input_var=''
     for s in arguments:
         input_var+=str(s)+', '
-    input_var+='max_deriv'
+    else:
+        input_var=input_var[:-2]
         
     # Get a string of local variables
     local_var=''
@@ -207,7 +209,7 @@ def write_file(common, deriv, func, intermediates, constants, max_deriv, name, n
     
     # Write out everything
     file.write('\n')
-    file.write(('   ELEMENTAL SUBROUTINE '+name+'('+input_var+', '+output_var+')\n').replace('_,', ',').replace('__', '_'))
+    file.write(('   ELEMENTAL SUBROUTINE '+name+'('+input_var+', max_deriv, '+output_var+')\n').replace('_,', ',').replace('__', '_'))
     file.write(('      REAL(KIND=dp), INTENT(IN) :: '+input_var+'\n').replace('_,', ',').replace('__', '_'))
     file.write('      INTEGER, INTENT(IN) :: max_deriv\n')
     file.write(('      REAL(KIND=dp), INTENT(OUT) :: '+output_var+'\n').replace('_(', '(').replace('_,', ',').replace('__', '_'))
