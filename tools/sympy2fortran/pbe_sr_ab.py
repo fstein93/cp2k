@@ -240,7 +240,7 @@ class b_T_(Function):
     @classmethod
     def eval(cls, mu):
         nu = mu/c
-        return (c_2_(nu)*exp(one/four/mu**two)-c_1_(nu))/(c_3_(nu)+sympify(54)*c_4_(nu)*exp(one/four/mu**two))
+        return (c_2_(nu)-c_1_(nu)*exp(-one/four/mu**two))/(c_3_(nu)*exp(-one/four/mu**two)+sympify(54)*c_4_(nu))
 
 class b_T(Function):
     nargs=1
@@ -271,7 +271,7 @@ class b(Function):
         return Function('b')(rho)
 
 subs_b=[[b, 'calc_b', rho]]
-create_Routine_from_Function(b_, file, max_deriv, subs_bT, [], [(b_T0, b_T0_)], 'calc_b', [mu,], rho)
+create_Routine_from_Function(b_, file, max_deriv, [], [], [(b_T0, b_T0_)], 'calc_b', [mu,], rho)
 
 class Fx_(Function):
     nargs=2
