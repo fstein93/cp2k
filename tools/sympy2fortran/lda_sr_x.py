@@ -1,11 +1,12 @@
 # -*- coding: utf-8 -*-
 """
 Created on Tue Jul 23 17:40:26 2019
+
 @author: Standard
 """
 
-from sympy import Symbol, Function, pi, sympify, exp, sqrt, erf
-from sympy2fortran import create_Routine_from_Function
+from sympy import Symbol, pi, sympify, exp, sqrt, erf
+from sympy2fortran import create_Routine_from_Function, My_Function
 
 # The maximum requested derivative (Hint: the more derivatives requested the more it needs for creating files and the more code will be produced)
 max_deriv=2
@@ -14,12 +15,7 @@ filename='lda_sr_x.F'
 
 file=open(filename, 'w')
 
-# List with the created routines
-routines=[]
-
 # Density and its derivative (we need Rho as function for sympy and as symbol for the code)
-zeta=Symbol('zeta')
-rho=Symbol('rho')
 rs=Symbol('rs')
 
 one=sympify('1')
@@ -32,35 +28,35 @@ third=sympify('1/3')
 
 # Range-separation parameter
 mu=Symbol('mu')
+
+facx_A_=sympify('(18*pi)**(-1/3)', evaluate=False)
+facx_=sympify('(18/pi**2)**(1/3)', evaluate=False)
+
+facx_A=Symbol('facx_A')
+facx=Symbol('facx')
+
+constants_sr_x=[(facx_A, facx_A_), (facx, facx_)]
     
 # Exchange functional
 
-class A_(Function):
+class Ax(My_Function):
     nargs=1
-    name='A'
+    add_args=(mu,)
+    constants=[(facx_A, facx_A_)]
     
     @classmethod
     def eval(cls, rs):
-        return mu/((sympify('18')*pi)**third)*rs
+        return rs*facx_A*mu
 
-class A(Function):
+class ex_mu(My_Function):
     nargs=1
-    name='A'
+    add_args=(mu,)
+    constants=constants_sr_x
     
     @classmethod
     def eval(cls, rs):
-        return Function('A')(rs)
-create_Routine_from_Function(A_, file, max_deriv, [], [], 'calc_A', [mu], rs)
+        return -facx/rs*(three/eight-Ax(rs)*(sqrt(pi)*erf(half/Ax(rs))+(two*Ax(rs)-four*Ax(rs)**three)*exp(-one/four/Ax(rs)**two)-three*Ax(rs)+four*Ax(rs)**three))
 
-class ex_mu(Function):
-    nargs=1
-    name='ex_lda'
-    
-    @classmethod
-    def eval(cls, rs):
-        return -(sympify('18')/pi**2)**third/rs*(three/eight-A(rs)*(sqrt(pi)*erf(half/A(rs))+(two*A(rs)-four*A(rs)**three)*exp(-one/four/A(rs)**two)-three*A(rs)+four*A(rs)**three))
-
-create_Routine_from_Function(ex_mu, file, max_deriv, [(A(rs), A_(rs))], [], 'ex_mu', [mu,], rs)
+create_Routine_from_Function(ex_mu, file, max_deriv, [], False, rs)
 
 file.close()
-
