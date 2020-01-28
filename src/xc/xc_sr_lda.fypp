@@ -41,47 +41,27 @@
 !> \param mu ...
 !> \param excsr ...
 !> \param vxcsr ...
-!> \param sx ...
-!> \param sc ...
 ! **************************************************************************************************
-   ELEMENTAL SUBROUTINE ldasr(rs, mu, excsr, vxcsr, sx, sc)
+   ELEMENTAL SUBROUTINE ldasr(rs, mu, e_0, e_rho)
       REAL(KIND=dp), INTENT(IN)                          :: rs, mu
-      REAL(KIND=dp), INTENT(OUT)                         :: excsr, vxcsr
-      REAL(KIND=dp), INTENT(IN)                          :: sx, sc
+      REAL(KIND=dp), INTENT(OUT)                         :: e_0, e_rho
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ldasr', routineP = moduleN//':'//routineN
 
-      REAL(KIND=dp)                                      :: ec, ecd, eclr, ex, exlr, vc, vclr, vx, &
-                                                            vxlr
+      REAL(KIND=dp)                                      :: ec, ecd, eclr, ec_rho, eclr_rho, &
+                                                            vclr, rs_rho
 
-      IF (sx /= 0.0_dp) THEN
-         ex = -3._dp*cf/rs/4._dp/pi
-         vx = -(3._dp/2._dp/pi)**(2._dp/3._dp)/rs
+      ! derivative of rs wrt rho
+      rs_rho = -4.0_dp/9.0_dp*pi*rs**4
 
-         CALL exchangelr_lda(rs, mu, exlr, vxlr)
-      ELSE
-         ex = 0.0_dp
-         vx = 0.0_dp
+      CALL ecPW_lda(rs, ec, ecd)
 
-         exlr = 0.0_dp
-         vxlr = 0.0_dp
-      END IF
+      CALL ecorrlr_lda(rs, mu, eclr, vclr, ec, ecd)
+      e_rho = ecd*rs_rho
+      eclr_rho = vclr*rs_rho
 
-      IF (sc /= 0.0_dp) THEN
-         CALL ecPW_lda(rs, ec, ecd)
-         vc = ec - rs/3._dp*ecd
-
-         CALL ecorrlr_lda(rs, mu, eclr, vclr, ec, ecd)
-      ELSE
-         ec = 0.0_dp
-         vc = 0.0_dp
-
-         eclr = 0.0_dp
-         vclr = 0.0_dp
-      END IF
-
-      excsr = sx*ex + sc*ec - (sx*exlr + sc*eclr)
-      vxcsr = sx*vx + sc*vc - (sx*vxlr + sc*vclr)
+      e_0 = ec - eclr
+      e_rho = ec_rho - eclr_rho
 
    END SUBROUTINE
 
@@ -156,35 +136,7 @@
                1._dp/((1._dp + b0**2*mu**2)**4)*(mu/(2._dp*SQRT(rs))*Qrpad(x) + &
                                                  mu**3*(a1rs + mu*(a2rs + mu*(a3rs + mu*(a4rs + a5rs*mu**2)))))
 
-      vclr = eclr - rs/3._dp*eclrrs
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rs ...
-!> \param z ...
-!> \param mu ...
-!> \param vxlrup ...
-!> \param vxlrdown ...
-! **************************************************************************************************
-   ELEMENTAL SUBROUTINE exchangelr_lda(rs, mu, exlr, vxlr)
-      REAL(KIND=dp), INTENT(IN)                          :: rs, mu
-      REAL(KIND=dp), INTENT(OUT)                         :: exlr, vxlr
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'exchangelr_lda', &
-         routineP = moduleN//':'//routineN
-
-      REAL(KIND=dp)                                      :: derrs, fx, fx1, y
-
-      y = alpha/2._dp*mu*rs
-      fx = -((y*(-3._dp + 4._dp*y**2 + (2._dp - 4._dp*y**2)*EXP(-.25_dp/y**2)) + SQRT(pi)*ERF(.5_dp/y))/pi)
-      exlr = mu*fx
-      fx1 = (3._dp*(1._dp + (-4._dp + 4._dp*EXP(-.25_dp/y**2))*y**2))/pi
-      derrs = alpha/4._dp*mu**2*fx1
-      vxlr = 2._dp/3._dp*rs*derrs
-
-      vxlr = exlr - vxlr
+      vclr = eclrrs
 
    END SUBROUTINE
 
@@ -214,57 +166,25 @@
 !> \param excsr ...
 !> \param vxcsrup ...
 !> \param vxcsrdown ...
-!> \param sx ...
-!> \param sc ...
 ! **************************************************************************************************
-   ELEMENTAL SUBROUTINE lsdsr(rs, z, mu, excsr, vxcsrup, vxcsrdown, sx, sc)
+   ELEMENTAL SUBROUTINE lsdsr(rs, z, mu, excsr, vxcsrup, vxcsrdown)
       REAL(KIND=dp), INTENT(IN)                          :: rs, z, mu
       REAL(KIND=dp), INTENT(OUT)                         :: excsr, vxcsrup, vxcsrdown
-      REAL(KIND=dp), INTENT(IN)                          :: sx, sc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'lsdsr', routineP = moduleN//':'//routineN
 
-      REAL(KIND=dp)                                      :: ec, ecd, eclr, ecz, ex, exlr, vcdown, &
-                                                            vclrdown, vclrup, vcup, vxdown, &
-                                                            vxlrdown, vxlrup, vxup
+      REAL(KIND=dp)                                      :: ec, ecd, eclr, ecz, vcdown, &
+                                                            vclrdown, vclrup, vcup
 
-      IF (sx /= 0.0_dp) THEN
-         ex = -3._dp*cf/rs/8._dp/pi*((1._dp + z)**(4._dp/3._dp) + &
-                                     (1._dp - z)**(4._dp/3._dp))
+      CALL ecPW_lsd(rs, z, ec, ecd, ecz)
+      vcup = ec - rs/3._dp*ecd - (z - 1._dp)*ecz
+      vcdown = ec - rs/3._dp*ecd - (z + 1._dp)*ecz
 
-         vxup = -(1._dp + z)**(1._dp/3._dp)*(3._dp/2._dp/pi)**(2._dp/3._dp)/rs
-         vxdown = -(1._dp - z)**(1._dp/3._dp)*(3._dp/2._dp/pi)**(2._dp/3._dp)/rs
+      CALL ecorrlr_lsd(rs, z, mu, eclr, vclrup, vclrdown, ec, ecd, ecz)
 
-         CALL exchangelr_lsd(rs, z, mu, exlr, vxlrup, vxlrdown)
-      ELSE
-         ex = 0.0_dp
-         vxup = 0.0_dp
-         vxdown = 0.0_dp
-
-         exlr = 0.0_dp
-         vxlrup = 0.0_dp
-         vxlrdown = 0.0_dp
-      END IF
-
-      IF (sc /= 0.0_dp) THEN
-         CALL ecPW_lsd(rs, z, ec, ecd, ecz)
-         vcup = ec - rs/3._dp*ecd - (z - 1._dp)*ecz
-         vcdown = ec - rs/3._dp*ecd - (z + 1._dp)*ecz
-
-         CALL ecorrlr_lsd(rs, z, mu, eclr, vclrup, vclrdown, ec, ecd, ecz)
-      ELSE
-         ec = 0.0_dp
-         vcup = 0.0_dp
-         vcdown = 0.0_dp
-
-         eclr = 0.0_dp
-         vclrup = 0.0_dp
-         vclrdown = 0.0_dp
-      END IF
-
-      excsr = sx*ex + sc*ec - (sx*exlr + sc*eclr)
-      vxcsrup = sx*vxup + sc*vcup - (sx*vxlrup + sc*vclrup)
-      vxcsrdown = sx*vxdown + sc*vcdown - (sx*vxlrdown + sc*vclrdown)
+      excsr = ec - eclr
+      vxcsrup = vcup - vclrup
+      vxcsrdown = vcdown - vclrdown
 
    END SUBROUTINE
 
@@ -485,64 +405,88 @@
 ! **************************************************************************************************
 !> \brief ...
 !> \param rs ...
-!> \param z ...
-!> \param mu ...
-!> \param vxlrup ...
-!> \param vxlrdown ...
+!> \param max_deriv ...
+!> \param ex_mu ...
+!> \param ex_mu_rho ...
+!> \param ex_mu_rho_rho ...
 ! **************************************************************************************************
-   ELEMENTAL SUBROUTINE exchangelr_lsd(rs, z, mu, exlr, vxlrup, vxlrdown)
-      REAL(KIND=dp), INTENT(IN)                          :: rs, z, mu
-      REAL(KIND=dp), INTENT(OUT)                         :: exlr, vxlrup, vxlrdown
+   ELEMENTAL SUBROUTINE calc_sr_lda_ex(rs, mu, max_deriv, ex_mu, ex_mu_rho, ex_mu_rho_rho)
+      REAL(KIND=dp), INTENT(IN) :: rs, mu
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: ex_mu, ex_mu_rho, ex_mu_rho_rho
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'exchangelr_lsd', &
-         routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_sr_lda_ex", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp)                                      :: derrs, derz, fx, fx1, x, y
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, &
+         x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, facx_A, facx, ex_mu_rs, ex_mu_rs_rs
 
-      IF (z >= 1._dp) THEN
-         x = rs*alpha*mu
-         y = .5_dp**(4._dp/3._dp)*x
-         fx = -((y*(-3._dp + 4._dp*y**2 + (2._dp - 4._dp*y**2)*EXP(-.25/y**2)) + SQRT(pi)*ERF(.5_dp/y))/pi)
-         exlr = mu*fx
-         vxlrup = mu*(x/(2._dp**(1._dp/3._dp)*pi) - x/(2._dp**(1._dp/3._dp)*pi)* &
-                  EXP(-2._dp**(2._dp/3._dp)/x**2) - &
-                  ERF(2._dp**(1._dp/3._dp)/x)/SQRT(pi))
-         vxlrdown = 0._dp
-      ELSE IF (z <= -1._dp) THEN
-         x = rs*alpha*mu
-         y = .5_dp**(4._dp/3._dp)*x
-         fx = -((y*(-3._dp + 4._dp*y**2 + (2._dp - 4._dp*y**2)*EXP(-.25/y**2)) + SQRT(pi)*ERF(.5_dp/y))/pi)
-         exlr = mu*fx
-         vxlrdown = mu*(x/(2._dp**(1._dp/3._dp)*pi) - x/(2._dp**(1._dp/3._dp)*pi)* &
-                    EXP(-2._dp**(2._dp/3._dp)/x**2) - &
-                    ERF(2._dp**(1._dp/3._dp)/x)/SQRT(pi))
-         vxlrup = 0._dp
-      ELSE
-         y = alpha/2._dp/(1.+z)**(1._dp/3._dp)*mu*rs
-         fx = -((y*(-3._dp + 4._dp*y**2 + (2._dp - 4._dp*y**2)*EXP(-.25_dp/y**2)) + &
-                 SQRT(pi)*ERF(.5_dp/y))/pi)
-         exlr = (1._dp + z)*mu*fx/2._dp
-         fx1 = (3._dp*(1._dp + (-4._dp + 4._dp*EXP(-.25_dp/y**2))*y**2))/pi
-         derrs = alpha/4._dp*(1._dp + z)**(2._dp/3._dp)*mu**2*fx1
-         derz = 1._dp/2._dp*mu*fx - 1._dp/6._dp*fx1*mu*y
-         vxlrup = rs/3._dp*derrs + (z - 1._dp)*derz
-         vxlrdown = rs/3._dp*derrs + (z + 1._dp)*derz
+      MARK_USED(max_deriv)
 
-         y = alpha/2._dp/(1.-z)**(1._dp/3._dp)*mu*rs
-         fx = -((y*(-3._dp + 4._dp*y**2 + (2._dp - 4._dp*y**2)*EXP(-.25_dp/y**2)) + &
-                 SQRT(pi)*ERF(.5_dp/y))/pi)
-         exlr = exlr + (1._dp - z)*mu*fx/2._dp
-         fx1 = (3._dp*(1._dp + (-4._dp + 4._dp*EXP(-.25_dp/y**2))*y**2))/pi
-         derrs = alpha/4._dp*(1._dp - z)**(2._dp/3._dp)*mu**2*fx1
-         derz = -1._dp/2._dp*mu*fx + 1._dp/6._dp*fx1*mu*y
-         vxlrup = vxlrup + rs/3._dp*derrs + (z - 1._dp)*derz
-         vxlrdown = vxlrdown + rs/3._dp*derrs + (z + 1._dp)*derz
+      facx_A = (18.0_dp*pi)**(-1.0_dp/3.0_dp)
+      facx = (18.0_dp/pi**2)**(1.0_dp/3.0_dp)
+      x0 = 1.0_dp/rs
+      x1 = facx_A*mu
+      x2 = 3.0_dp*x1
+      x3 = rs**3
+      x4 = facx_A**3
+      x5 = mu**3
+      x6 = x4*x5
+      x7 = 4.0_dp*x3*x6
+      x8 = 1.0_dp/facx_A
+      x9 = 1.0_dp/mu
+      x10 = rs**2
+      x11 = 1.0_dp/x10
+      x12 = facx_A**(-2)
+      x13 = mu**(-2)
+      x14 = exp(-0.25_dp*x11*x12*x13)
+      x15 = 2.0_dp*x1
+      x16 = rs*x15 - x7
+      x17 = x14*x16
+      x18 = x1*(-rs*x2 + x17 + x7 + sqrt(pi)*erf(0.5_dp*x0*x8*x9))
+      x19 = facx*(-rs*x18 + 3.0_dp/8.0_dp)
+      x20 = facx_A*mu*rs
+      x21 = 12.0_dp*x10*x6
+      x22 = x14*x8*x9
+      x23 = x14*(x15 - x21)
+      x24 = 1.0_dp/x3
+      x25 = x12*x13*x24
+      x26 = -x11*x22 + (1.0_dp/2.0_dp)*x14*x16*x25 - x2 + x21 + x23
+      x27 = facx*(-x18 - x20*x26)
+      x28 = 2.0_dp*x24
+      x29 = 24.0_dp*rs*x6
+      ex_mu = -x0*x19
+      ex_mu_rs = -x0*x27 + x11*x19
+      ex_mu_rs_rs = -facx*x0*(-x15*x26 - x20*(-x14*x29 + x22*x28 + x23*x25 + &
+      x29 - 3.0_dp/2.0_dp*x12*x13*x17/rs**4 - 1.0_dp/2.0_dp*x14/(rs**5*x4* &
+      x5) + (1.0_dp/4.0_dp)*x17/(facx_A**4*mu**4*rs**6))) + 2.0_dp*x11*x27 - &
+      x19*x28
 
-         vxlrup = exlr - vxlrup
-         vxlrdown = exlr - vxlrdown
-      ENDIF
+      CALL calc_rs2rho(rs, ex_mu_rs, ex_mu_rs_rs, ex_mu_rho, ex_mu_rho_rho)
 
-   END SUBROUTINE
+   END SUBROUTINE calc_sr_lda_ex
+
+! **************************************************************************************************
+!> \brief Transform derivatives wrt rs to derivatives wrt rho
+!> \param rs ...
+!> \param e_rs ...
+!> \param e_rs_rs ...
+!> \param e_rho ...
+!> \param e_rho_rho ...
+! **************************************************************************************************
+   ELEMENTAL SUBROUTINE calc_rs2rho(rs, e_rs, e_rs_rs, e_rho, e_rho_rho)
+      REAL(KIND=dp), INTENT(IN) :: rs, e_rs, e_rs_rs
+      REAL(KIND=dp), INTENT(OUT) :: e_rho, e_rho_rho
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_rs2rho", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: rs_rho, rs_rho_rho
+
+      rs_rho = -4.0_dp/9.0_dp*pi*rs**4
+      rs_rho_rho = 4.0_dp*rs_rho**2/rs
+      e_rho = e_rs*rs_rho
+      e_rho_rho = e_rs_rs*rs_rho**2+e_rs*rs_rho_rho
+
+   END SUBROUTINE calc_rs2rho
 
 ! **************************************************************************************************
 !> \brief PW92 energy functional
