@@ -4,10 +4,11 @@
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
-!> \brief Calculates the short range correlation LDA energy (Improved version of Paola Gori-Giorgi's Code
+!> \brief Calculates the short range correlation LDA energy
 !> \par History
-!>      18-MAR-2002, TCH, working version
-!>      fawzi (04.2004)  : adapted to the new xc interface
+!>      12.2019  created
+!>      02.2020  moved routines to fypp file
+!>               reimplemented functional (see sympy2fortran)
 !> \see functionals_utilities
 ! **************************************************************************************************
 MODULE xc_sr_lda
@@ -30,7 +31,10 @@ MODULE xc_sr_lda
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_get,&
                                               xc_rho_set_type
-   USE xc_functionals_utilities,        ONLY: set_util
+   USE xc_functionals_utilities,        ONLY: calc_fx,&
+                                              calc_rs,&
+                                              calc_z,&
+                                              set_util
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -199,13 +203,16 @@ CONTAINS
                rs = (3.0_dp/4.0_dp/pi/my_rho)**(1.0_dp/3.0_dp)
 
                IF (sc /= 0.0_dp) THEN
-                  CALL ldasr(rs, omega, e, e_r)
+                  CALL calc_sr_lda_ec(rs, omega, order_, e, e_r, e_r_r)
 
                   IF (order >= 0) THEN
                      e_0(k) = e_0(k) + sc*e*my_rho
                   END IF
                   IF (order >= 1 .OR. order == -1) THEN
-                     e_rho(k) = e_rho(k) + sc*e_r
+                     e_rho(k) = e_rho(k) + sc*(e_r*my_rho+e)
+                  END IF
+                  IF (order >= 2 .OR. order == -2) THEN
+                     e_rho(k) = e_rho(k) + sc*(e_r_r*my_rho+2.0_dp*e_r)
                   END IF
                END IF
 
@@ -219,7 +226,7 @@ CONTAINS
                      e_rho(k) = e_rho(k) + sx*(e_r*my_rho+e)
                   END IF
                   IF (order >= 2 .OR. order == -2) THEN
-                     e_rho_rho(k) = e_rho_rho(k) + sx*(e_r_r*my_rho+e_r)
+                     e_rho_rho(k) = e_rho_rho(k) + sx*(e_r_r*my_rho+2.0_dp*e_r)
                   END IF
                END IF
             END IF
@@ -353,8 +360,6 @@ CONTAINS
       REAL(KIND=dp)                                      :: my_rhoa, my_rhob, rho, rs, zeta, e, e_ra, e_rb, &
          e_ra_ra, e_ra_rb, e_rb_rb
 
-      MARK_USED(e_ra_rb)
-
       CALL timeset(routineN, handle)
 
       order_ = ABS(order)
@@ -372,13 +377,18 @@ CONTAINS
                rs = (3.0_dp/4.0_dp/pi/rho)**(1.0_dp/3.0_dp)
                zeta = (my_rhoa - my_rhob)/rho
 
-               CALL lsdsr(rs, zeta, omega, e, e_ra, e_rb)
+               CALL calc_sr_lsd_ec(rs, zeta, omega, order_, e, e_ra, e_rb, e_ra_ra, e_ra_rb, e_rb_rb)
                IF (order >= 0) THEN
                   e_0(k) = e_0(k) + sc*e*rho
                END IF
                IF (order >= 1 .OR. order == -1) THEN
-                  ea(k) = ea(k) + sc*e_ra
-                  eb(k) = eb(k) + sc*e_rb
+                  ea(k) = ea(k) + sc*(e_ra*rho+e)
+                  eb(k) = eb(k) + sc*(e_rb*rho+e)
+               END IF
+               IF (order >= 2 .OR. order == -2) THEN
+                  eaa(k) = eaa(k) + sc*(e_ra_ra*rho+2.0_dp*e_ra)
+                  eab(k) = eab(k) + sc*(e_ra_rb*rho+e_ra+e_rb)
+                  ebb(k) = ebb(k) + sc*(e_rb_rb*rho+2.0_dp*e_rb)
                END IF
             END IF
             IF (2.0_dp*my_rhoa > rho_cutoff .AND. sx /= 0.0_dp) THEN
@@ -406,7 +416,7 @@ CONTAINS
                   eb(k) = eb(k) + sx*(2.0_dp*e_rb*my_rhob+e)
                END IF
                IF (order >= 2 .OR. order == -2) THEN
-                  ebb(k) = ebb(k) + sx*(4.0_dp*e_rb_rb*my_rhob+2.0_dp*e_rb)
+                  ebb(k) = ebb(k) + sx*4.0_dp*(e_rb_rb*my_rhob+e_rb)
                END IF
             END IF
          END DO
@@ -418,6 +428,7 @@ CONTAINS
 
    END SUBROUTINE sr_lsd_calc
 
+#:include "xc_sr_lda.fypp"
 @:ldasr()
 
 END MODULE xc_sr_lda
