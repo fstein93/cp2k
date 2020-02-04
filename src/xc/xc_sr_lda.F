@@ -12,7 +12,7 @@
 !> \see functionals_utilities
 ! **************************************************************************************************
 MODULE xc_sr_lda
-#:include "xc_sr_lda.fypp"
+!#:include "xc_sr_lda.fypp"
 
    USE bibliography,                    ONLY: Paziani2006,&
                                               Toulouse2004,&
@@ -42,7 +42,31 @@ MODULE xc_sr_lda
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'xc_sr_lda'
 
-@:global_var_srlda()
+!@:global_var_srlda()
+#:include "xc_perdew_wang.fypp"
+@:global_var_pw92()
+   REAL(KIND=dp), PARAMETER, PRIVATE :: &
+      d3_1 = 0.31_dp, &
+      d3_2 = 4.95_dp, &
+      g2_1 = 0.02267_dp, &
+      g2_2 = 0.4319_dp, &
+      g2_3 = 0.04_dp, &
+      g0_1 = 0.0207_dp, &
+      g0_2 = 0.08193_dp, &
+      g0_3 = 0.01277_dp, &
+      g0_4 = 0.001859_dp, &
+      g0_5 = 0.7524_dp, &
+      alpha = (4.0_dp/(9.0_dp*pi))**(1.0_dp/3.0_dp), &
+      aa = 5.84605_dp, &
+      cc = 3.91744_dp, &
+      dd = 3.44851_dp, &
+      qq = (2.0_dp*LOG(2.0_dp)-2.0_dp)/pi**2, &
+      bb = dd - 3.0_dp*pi*alpha/(4.0_dp*LOG(2.0_dp)-4.0_dp), &
+      beta = 0.784949_dp, &
+      c3_1 = 1.0_dp/SQRT(2.0_dp*pi), &
+      d2_1 = 0.547_dp, &
+      d2_2 = -0.388_dp, &
+      d2_3 = 0.676_dp
 
    PUBLIC :: sr_lda_info, sr_lda_eval, sr_lsd_eval
 
@@ -428,7 +452,11 @@ CONTAINS
 
    END SUBROUTINE sr_lsd_calc
 
-#:include "xc_sr_lda.fypp"
-@:ldasr()
+#:include "xc_perdew_wang.fypp"
+@:init_pw92()
+@:calc_ec_pw92()
+
+#include "xc_sr_lda.fypp"
+!@:ldasr()
 
 END MODULE xc_sr_lda

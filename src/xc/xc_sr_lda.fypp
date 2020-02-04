@@ -1,3 +1,4 @@
+#if
 #!-------------------------------------------------------------------------------------------------!
 #!   CP2K: A general program to perform molecular dynamics simulations                             !
 #!   Copyright (C) 2000 - 2020  CP2K developers group                                              !
@@ -33,6 +34,7 @@
 #:def ldasr()
 #:include "xc_perdew_wang.fypp"
 @:init_pw92()
+#endif
 
    ELEMENTAL SUBROUTINE calc_D3(rs, max_deriv, D3, D3_rs, D3_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -43,19 +45,21 @@
 
       REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7
 
-      MARK_USED(max_deriv)
-
       x0 = -d3_2 + rs
       x1 = rs**(-2)
       x2 = exp(-d3_1*rs)
       x3 = x1*x2
       x4 = x0*x3
-      x5 = x2/rs**3
-      x6 = d3_1*x1*x2
-      x7 = 4.0_dp*x5
       D3 = x4
-      D3_rs = -x0*x6 + x3 + 2.0_dp*x5*(d3_2 - rs)
-      D3_rs_rs = d3_1**2*x4 + d3_1*x0*x7 - 2.0_dp*x6 - x7 + 6.0_dp*x0*x2/rs**4
+      IF (max_deriv > 0) THEN
+         x5 = x2/rs**3
+         x6 = d3_1*x1*x2
+         D3_rs = -x0*x6 + x3 + 2.0_dp*x5*(d3_2 - rs)
+      END IF
+      IF (max_deriv > 1) THEN
+         x7 = 4.0_dp*x5
+         D3_rs_rs = d3_1**2*x4 + d3_1*x0*x7 - 2.0_dp*x6 - x7 + 6.0_dp*x0*x2/rs**4
+      END IF
 
    END SUBROUTINE calc_D3
 
@@ -68,18 +72,20 @@
 
       REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6
 
-      MARK_USED(max_deriv)
-
       x0 = 1.0_dp/rs
       x1 = exp(-d2_1*rs)
       x2 = x1*(-d2_2 + d2_3*rs)
       x3 = x0*x2
-      x4 = d2_3*x1
-      x5 = x0*x4
-      x6 = rs**(-2)
       D2 = x3
-      D2_rs = -d2_1*x3 - (x2*x6 - x5)
-      D2_rs_rs = d2_1**2*x3 + 2.0_dp*(d2_1*(x2*x6 - x5) - x4*x6 + x2/rs**3)
+      IF (max_deriv > 0) THEN
+         x4 = d2_3*x1
+         x5 = x0*x4
+         x6 = rs**(-2)
+         D2_rs = -d2_1*x3 - (x2*x6 - x5)
+      END IF
+      IF (max_deriv > 1) THEN
+         D2_rs_rs = d2_1**2*x3 + 2.0_dp*(d2_1*(x2*x6 - x5) - x4*x6 + x2/rs**3)
+      END IF
 
    END SUBROUTINE calc_D2
 
@@ -92,8 +98,6 @@
 
       REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16
 
-      MARK_USED(max_deriv)
-
       x0 = rs**2
       x1 = 1.0_dp/x0
       x2 = (2.0_dp/5.0_dp)*x1
@@ -103,18 +107,22 @@
       x6 = g2_2*rs + g2_3*x0 + 1.0_dp
       x7 = 1.0_dp/x6
       x8 = x3*x4*x5*x7
-      x9 = g2_1*x3*x4*x7
-      x10 = rs**(-3)
-      x11 = g2_3*rs
-      x12 = -g2_2 - 2.0_dp*x11
-      x13 = x6**(-2)
-      x14 = x12*x13*x3*x4*x5
-      x15 = (8.0_dp/5.0_dp)*x10
-      x16 = (4.0_dp/5.0_dp)*x1*x13*x3*x4
       g2 = x2*x8
-      g2_rs = -4.0_dp/5.0_dp*x10*x8 + x14*x2 - x2*x9
-      g2_rs_rs = -g2_1*x12*x16 - g2_3*x16*x5 - x12*x2*x3*x4*x5*(2.0_dp*g2_2 + 4.0_dp* &
-      x11)/x6**3 - x14*x15 + x15*x9 + (12.0_dp/5.0_dp)*x8/rs**4
+      IF (max_deriv > 0) THEN 
+         x9 = g2_1*x3*x4*x7
+         x10 = rs**(-3)
+         x11 = g2_3*rs
+         x12 = -g2_2 - 2.0_dp*x11
+         x13 = x6**(-2)
+         x14 = x12*x13*x3*x4*x5
+         g2_rs = -4.0_dp/5.0_dp*x10*x8 + x14*x2 - x2*x9
+      END IF
+      IF (max_deriv > 1) THEN
+         x15 = (8.0_dp/5.0_dp)*x10
+         x16 = (4.0_dp/5.0_dp)*x1*x13*x3*x4
+         g2_rs_rs = -g2_1*x12*x16 - g2_3*x16*x5 - x12*x2*x3*x4*x5*(2.0_dp*g2_2 + 4.0_dp* &
+            x11)/x6**3 - x14*x15 + x15*x9 + (12.0_dp/5.0_dp)*x8/rs**4
+      END IF
 
    END SUBROUTINE calc_g2
 
@@ -264,18 +272,20 @@
 
       REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5
 
-      MARK_USED(max_deriv)
-
       x0 = exp(-g0_5*rs)
       x1 = (1.0_dp/2.0_dp)*g0_1
       x2 = rs**2
       x3 = rs**3
       x4 = x0*((1.0_dp/2.0_dp)*g0_2*x2 - 1.0_dp/2.0_dp*g0_3*x3 + (1.0_dp/2.0_dp)* &
       g0_4*rs**4 + rs*x1 + 1.0_dp/2.0_dp)
-      x5 = x0*(g0_2*rs - 3.0_dp/2.0_dp*g0_3*x2 + 2.0_dp*g0_4*x3 + x1)
       g0 = x4
-      g0_rs = -g0_5*x4 + x5
-      g0_rs_rs = g0_5**2*x4 - 2.0_dp*g0_5*x5 + x0*(g0_2 - 3.0_dp*g0_3*rs + 6.0_dp*g0_4*x2)
+      IF (max_deriv > 0) THEN
+         x5 = x0*(g0_2*rs - 3.0_dp/2.0_dp*g0_3*x2 + 2.0_dp*g0_4*x3 + x1)
+         g0_rs = -g0_5*x4 + x5
+      END IF
+      IF (max_deriv > 1) THEN
+         g0_rs_rs = g0_5**2*x4 - 2.0_dp*g0_5*x5 + x0*(g0_2 - 3.0_dp*g0_3*rs + 6.0_dp*g0_4*x2)
+      END IF
 
    END SUBROUTINE calc_g0
 
@@ -291,12 +301,16 @@
       CALL calc_g0(rs, max_deriv, g0, g0_rs, g0_rs_rs)
 
       x0 = rs**(-3)
-      x1 = (3.0_dp/8.0_dp)*x0
-      x2 = rs**(-4)
       C2 = x0*(-3.0_dp/8.0_dp*g0 + 3.0_dp/16.0_dp)
-      C2_rs = -g0_rs*x1 + x2*((9.0_dp/8.0_dp)*g0 - 9.0_dp/16.0_dp)
-      C2_rs_rs = (9.0_dp/4.0_dp)*g0_rs*x2 - g0_rs_rs*x1 + (-9.0_dp/2.0_dp*g0 + &
-      9.0_dp/4.0_dp)/rs**5
+      IF (max_deriv > 0) THEN
+         x1 = (3.0_dp/8.0_dp)*x0
+         x2 = rs**(-4)
+         C2_rs = -g0_rs*x1 + x2*((9.0_dp/8.0_dp)*g0 - 9.0_dp/16.0_dp)
+      END IF
+      IF (max_deriv > 1) THEN
+         C2_rs_rs = (9.0_dp/4.0_dp)*g0_rs*x2 - g0_rs_rs*x1 + (-9.0_dp/2.0_dp*g0 + &
+            9.0_dp/4.0_dp)/rs**5
+      END IF
 
    END SUBROUTINE calc_C2
 
@@ -320,16 +334,20 @@
       x6 = (1.0_dp/2.0_dp)*g0_2*x4 - 1.0_dp/2.0_dp*g0_3*x0 + (1.0_dp/2.0_dp)*g0_4*x5 &
       + rs*x3 + 1.0_dp/2.0_dp
       x7 = x2*x6
-      x8 = g0_2*rs - 3.0_dp/2.0_dp*g0_3*x4 + 2.0_dp*g0_4*x0 + x3
-      x9 = x2*x8
-      x10 = 1.0_dp/x5
-      x11 = 6.0_dp*c3_1*x1*x10
       C3 = -x7
-      C3_rs = c3_1*x1*x10*((3.0_dp/2.0_dp)*g0_1*rs + (3.0_dp/2.0_dp)*g0_2*x4 - &
-      3.0_dp/2.0_dp*g0_3*x0 + (3.0_dp/2.0_dp)*g0_4*x5 + 3.0_dp/2.0_dp) + g0_5 &
-      *x7 - x9
-      C3_rs_rs = -12.0_dp*c3_1*x1*x6/rs**5 - g0_5**2*x7 - g0_5*x11*x6 + 2.0_dp*g0_5*x9 + &
-      x11*x8 - x2*(g0_2 - 3.0_dp*g0_3*rs + 6.0_dp*g0_4*x4)
+      IF (max_deriv > 0) THEN
+         x8 = g0_2*rs - 3.0_dp/2.0_dp*g0_3*x4 + 2.0_dp*g0_4*x0 + x3
+         x9 = x2*x8
+         x10 = 1.0_dp/x5
+         C3_rs = c3_1*x1*x10*((3.0_dp/2.0_dp)*g0_1*rs + (3.0_dp/2.0_dp)*g0_2*x4 - &
+            3.0_dp/2.0_dp*g0_3*x0 + (3.0_dp/2.0_dp)*g0_4*x5 + 3.0_dp/2.0_dp) + g0_5 &
+            *x7 - x9
+      END IF
+      IF (max_deriv > 1) THEN
+         x11 = 6.0_dp*c3_1*x1*x10
+         C3_rs_rs = -12.0_dp*c3_1*x1*x6/rs**5 - g0_5**2*x7 - g0_5*x11*x6 + 2.0_dp*g0_5*x9 + &
+            x11*x8 - x2*(g0_2 - 3.0_dp*g0_3*rs + 6.0_dp*g0_4*x4)
+      END IF
 
    END SUBROUTINE calc_C3
 
@@ -348,16 +366,19 @@
       x0 = rs**(-3)
       x1 = alpha**(-2)
       x2 = x1/rs**2
-      x3 = rs**(-4)
-      x4 = x0*x1
       C4 = x0*(-9.0_dp/64.0_dp*D2 - 9.0_dp/256.0_dp*g2 + (9.0_dp/320.0_dp)*x2)
-      C4_rs = x0*(-9.0_dp/64.0_dp*D2_rs - 9.0_dp/256.0_dp*g2_rs - 9.0_dp/160.0_dp*x4 &
-      ) + x3*((27.0_dp/64.0_dp)*D2 + (27.0_dp/256.0_dp)*g2 - 27.0_dp/320.0_dp &
-      *x2)
-      C4_rs_rs = x0*(-9.0_dp/64.0_dp*D2_rs_rs - 9.0_dp/256.0_dp*g2_rs_rs + (27.0_dp &
-      /160.0_dp)*x1*x3) + x3*((27.0_dp/32.0_dp)*D2_rs + (27.0_dp/128.0_dp)* &
-      g2_rs + (27.0_dp/80.0_dp)*x4) + (-27.0_dp/16.0_dp*D2 - 27.0_dp/64.0_dp* &
-      g2 + (27.0_dp/80.0_dp)*x2)/rs**5
+      IF (max_deriv > 0) THEN
+         x3 = rs**(-4)
+         x4 = x0*x1
+         C4_rs = x0*(-9.0_dp/64.0_dp*D2_rs - 9.0_dp/256.0_dp*g2_rs - 9.0_dp/160.0_dp*x4) &
+            + x3*((27.0_dp/64.0_dp)*D2 + (27.0_dp/256.0_dp)*g2 - 27.0_dp/320.0_dp*x2)
+      END IF
+      IF (max_deriv > 1) THEN
+         C4_rs_rs = x0*(-9.0_dp/64.0_dp*D2_rs_rs - 9.0_dp/256.0_dp*g2_rs_rs + (27.0_dp &
+            /160.0_dp)*x1*x3) + x3*((27.0_dp/32.0_dp)*D2_rs + (27.0_dp/128.0_dp)* &
+            g2_rs + (27.0_dp/80.0_dp)*x4) + (-27.0_dp/16.0_dp*D2 - 27.0_dp/64.0_dp* &
+            g2 + (27.0_dp/80.0_dp)*x2)/rs**5
+      END IF
 
    END SUBROUTINE calc_C4
 
@@ -376,13 +397,17 @@
       x0 = sqrt(2.0_dp)
       x1 = 1.0_dp/sqrt(pi)
       x2 = x0*x1/rs**3
-      x3 = x0*x1/rs**4
       C5 = x2*(-9.0_dp/80.0_dp*D3 - 9.0_dp/320.0_dp*g2)
-      C5_rs = x2*(-9.0_dp/80.0_dp*D3_rs - 9.0_dp/320.0_dp*g2_rs) + x3*((27.0_dp/ &
-      80.0_dp)*D3 + (27.0_dp/320.0_dp)*g2)
-      C5_rs_rs = x2*(-9.0_dp/80.0_dp*D3_rs_rs - 9.0_dp/320.0_dp*g2_rs_rs) + x3*(( &
-      27.0_dp/40.0_dp)*D3_rs + (27.0_dp/160.0_dp)*g2_rs) + x0*x1*(-27.0_dp/ &
-      20.0_dp*D3 - 27.0_dp/80.0_dp*g2)/rs**5
+      IF (max_deriv > 0) THEN
+         x3 = x0*x1/rs**4
+         C5_rs = x2*(-9.0_dp/80.0_dp*D3_rs - 9.0_dp/320.0_dp*g2_rs) + x3*((27.0_dp/ &
+            80.0_dp)*D3 + (27.0_dp/320.0_dp)*g2)
+      END IF
+      IF (max_deriv > 1) THEN
+         C5_rs_rs = x2*(-9.0_dp/80.0_dp*D3_rs_rs - 9.0_dp/320.0_dp*g2_rs_rs) + x3*(( &
+            27.0_dp/40.0_dp)*D3_rs + (27.0_dp/160.0_dp)*g2_rs) + x0*x1*(-27.0_dp/ &
+            20.0_dp*D3 - 27.0_dp/80.0_dp*g2)/rs**5
+      END IF
 
    END SUBROUTINE calc_C5
 
@@ -404,14 +429,18 @@
       x3 = 4.0_dp*x2
       x4 = beta**6
       x5 = C3*x4
-      x6 = rs**5
-      x7 = C3_rs*x4
-      x8 = rs**7
-      x9 = C5*x0
       a1 = C5*x1 + x3*x5
-      a1_rs = C5_rs*x1 + x3*x7 + 24.0_dp*x5*x6 + 8.0_dp*x8*x9
-      a1_rs_rs = C3_rs_rs*x3*x4 + 16.0_dp*C5_rs*x0*x8 + C5_rs_rs*x1 + 120.0_dp*rs**4*x5 &
-      + 56.0_dp*x2*x9 + 48.0_dp*x6*x7
+      IF (max_deriv > 0) THEN
+         x6 = rs**5
+         x7 = C3_rs*x4
+         x8 = rs**7
+         x9 = C5*x0
+         a1_rs = C5_rs*x1 + x3*x7 + 24.0_dp*x5*x6 + 8.0_dp*x8*x9
+      END IF
+      IF (max_deriv > 1) THEN
+         a1_rs_rs = C3_rs_rs*x3*x4 + 16.0_dp*C5_rs*x0*x8 + C5_rs_rs*x1 + 120.0_dp*rs**4*x5 &
+            + 56.0_dp*x2*x9 + 48.0_dp*x6*x7
+      END IF
 
    END SUBROUTINE calc_a1
 
@@ -438,17 +467,20 @@
       x7 = 6.0_dp*x6
       x8 = beta**4
       x9 = Ec*x8
-      x10 = rs**5
-      x11 = C2_rs*x4
-      x12 = rs**7
-      x13 = C4*x0
-      x14 = rs**3
-      x15 = Ec_rs*x8
       a2 = C4*x1 + x3*x5 + x7*x9
-      a2_rs = C4_rs*x1 + 24.0_dp*x10*x5 + x11*x3 + 8.0_dp*x12*x13 + 24.0_dp*x14*x9 + x15*x7
-      a2_rs_rs = C2_rs_rs*x3*x4 + 16.0_dp*C4_rs*x0*x12 + C4_rs_rs*x1 + Ec_rs_rs*x7* &
-      x8 + 72.0_dp*rs**2*x9 + 48.0_dp*x10*x11 + 56.0_dp*x13*x2 + 48.0_dp*x14*x15 + 120.0_dp*x5* &
-      x6
+      IF (max_deriv > 0) THEN 
+         x10 = rs**5
+         x11 = C2_rs*x4
+         x12 = rs**7
+         x13 = C4*x0
+         x14 = rs**3
+         x15 = Ec_rs*x8
+         a2_rs = C4_rs*x1 + 24.0_dp*x10*x5 + x11*x3 + 8.0_dp*x12*x13 + 24.0_dp*x14*x9 + x15*x7
+      END IF
+      IF (max_deriv > 1) THEN
+         a2_rs_rs = C2_rs_rs*x3*x4 + 16.0_dp*C4_rs*x0*x12 + C4_rs_rs*x1 + Ec_rs_rs*x7* &
+            x8 + 72.0_dp*rs**2*x9 + 48.0_dp*x10*x11 + 56.0_dp*x13*x2 + 48.0_dp*x14*x15 + 120.0_dp*x5*x6
+      END IF
 
    END SUBROUTINE calc_a2
 
@@ -465,11 +497,15 @@
 
       x0 = beta**8
       x1 = rs**8*x0
-      x2 = rs**7
-      x3 = C3*x0
       a3 = C3*x1
-      a3_rs = C3_rs*x1 + 8.0_dp*x2*x3
-      a3_rs_rs = 16.0_dp*C3_rs*x0*x2 + C3_rs_rs*x1 + 56.0_dp*rs**6*x3
+      IF (max_deriv > 0) THEN
+         x2 = rs**7
+         x3 = C3*x0
+         a3_rs = C3_rs*x1 + 8.0_dp*x2*x3
+      END IF
+      IF (max_deriv > 1) THEN
+         a3_rs_rs = 16.0_dp*C3_rs*x0*x2 + C3_rs_rs*x1 + 56.0_dp*rs**6*x3
+      END IF
 
    END SUBROUTINE calc_a3
 
@@ -490,14 +526,18 @@
       x3 = 4.0_dp*x2
       x4 = beta**6
       x5 = Ec*x4
-      x6 = rs**7
-      x7 = C2*x0
-      x8 = rs**5
-      x9 = Ec_rs*x4
       a4 = C2*x1 + x3*x5
-      a4_rs = C2_rs*x1 + x3*x9 + 24.0_dp*x5*x8 + 8.0_dp*x6*x7
-      a4_rs_rs = 16.0_dp*C2_rs*x0*x6 + C2_rs_rs*x1 + Ec_rs_rs*x3*x4 + 120.0_dp*rs**4*x5 &
-      + 56.0_dp*x2*x7 + 48.0_dp*x8*x9
+      IF (max_deriv > 0) THEN
+         x6 = rs**7
+         x7 = C2*x0
+         x8 = rs**5
+         x9 = Ec_rs*x4
+         a4_rs = C2_rs*x1 + x3*x9 + 24.0_dp*x5*x8 + 8.0_dp*x6*x7
+      END IF
+      IF (max_deriv > 1) THEN
+         a4_rs_rs = 16.0_dp*C2_rs*x0*x6 + C2_rs_rs*x1 + Ec_rs_rs*x3*x4 + 120.0_dp*rs**4*x5 &
+            + 56.0_dp*x2*x7 + 48.0_dp*x8*x9
+      END IF
 
    END SUBROUTINE calc_a4
 
@@ -514,11 +554,15 @@
 
       x0 = beta**8
       x1 = rs**8*x0
-      x2 = rs**7
-      x3 = Ec*x0
       a5 = Ec*x1
-      a5_rs = Ec_rs*x1 + 8.0_dp*x2*x3
-      a5_rs_rs = 16.0_dp*Ec_rs*x0*x2 + Ec_rs_rs*x1 + 56.0_dp*rs**6*x3
+      IF (max_deriv > 0) THEN 
+         x2 = rs**7
+         x3 = Ec*x0
+         a5_rs = Ec_rs*x1 + 8.0_dp*x2*x3
+      END IF
+      IF (max_deriv > 1) THEN
+         a5_rs_rs = 16.0_dp*Ec_rs*x0*x2 + Ec_rs_rs*x1 + 56.0_dp*rs**6*x3
+      END IF
 
    END SUBROUTINE calc_a5
 
@@ -538,43 +582,49 @@
       x2 = dd*x0 + x1
       x3 = 1.0_dp/x2
       x4 = bb*x0 + cc*xx**3 + x1
-      x5 = 1.0_dp/x4
-      x6 = 2.0_dp*bb
-      x7 = x6*xx
-      x8 = 3.0_dp*cc*x0
-      x9 = aa + x7 + x8
-      x10 = x2**(-2)
-      x11 = -aa
-      x12 = dd*xx
-      x13 = 2.0_dp*x12
-      x14 = x11 - x13
-      x15 = x14*x4
-      x16 = x10*x15 + x3*x9
-      x17 = qq*x16*x5
-      x18 = qq*x2
-      x19 = 2.0_dp*x10
       Q = qq*log(x3*x4)
-      Q_xx = x17*x2
-      Q_xx_xx = x16*x18*(x11 - x7 - x8)/x4**2 + x17*(aa + x13) + x18*x5*(-dd* &
-      x19*x4 + x14*x19*x9 + x15*(-2.0_dp*aa - 4.0_dp*x12)/x2**3 + x3*(6*cc*xx + &
-      x6))
+      IF (max_deriv > 0) THEN
+         x5 = 1.0_dp/x4
+         x6 = 2.0_dp*bb
+         x7 = x6*xx
+         x8 = 3.0_dp*cc*x0
+         x9 = aa + x7 + x8
+         x10 = x2**(-2)
+         x11 = -aa
+         x12 = dd*xx
+         x13 = 2.0_dp*x12
+         x14 = x11 - x13
+         x15 = x14*x4
+         x16 = x10*x15 + x3*x9
+         x17 = qq*x16*x5
+         Q_xx = x17*x2
+      END IF
+      IF (max_deriv > 1) THEN
+         x18 = qq*x2
+         x19 = 2.0_dp*x10
+         Q_xx_xx = x16*x18*(x11 - x7 - x8)/x4**2 + x17*(aa + x13) + x18*x5*(-dd* &
+            x19*x4 + x14*x19*x9 + x15*(-2.0_dp*aa - 4.0_dp*x12)/x2**3 + x3*(6.0_dp*cc*xx +x6))
+      END IF
 
    END SUBROUTINE calc_Q
 
-   ELEMENTAL IMPURE SUBROUTINE calc_sr_lda_ec(rs, mu, max_deriv, ec_mu, ec_mu_rs, ec_mu_rs_rs)
+   ELEMENTAL IMPURE SUBROUTINE calc_sr_lda_ec(rs, mu, max_deriv, ec_mu, ec_mu_rho, ec_mu_rho_rho)
       REAL(KIND=dp), INTENT(IN) :: rs, mu
       INTEGER, INTENT(IN) :: max_deriv
-      REAL(KIND=dp), INTENT(OUT) :: ec_mu, ec_mu_rs, ec_mu_rs_rs
+      REAL(KIND=dp), INTENT(OUT) :: ec_mu, ec_mu_rho, ec_mu_rho_rho
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_ec_mu", routineP = moduleN//":"//routineN
 
       REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, &
          x18, Ec, Ec_rs, Ec_rs_rs, Q, Q_rs, Q_rs_rs, a1, a1_rs, a1_rs_rs, a2, a2_rs, a2_rs_rs, a3, a3_rs, &
-         a3_rs_rs, a4, a4_rs, a4_rs_rs, a5, a5_rs, a5_rs_rs, ed(0:2)
+         a3_rs_rs, a4, a4_rs, a4_rs_rs, a5, a5_rs, a5_rs_rs, ed(0:2), ec_mu_rs, ec_mu_rs_rs
 
+      CALL calc_g(rs, 0, ed, max_deriv)
       CALL pw_lda_ed_loc(3.0_dp/(4.0_dp*pi)/rs**3, ed, max_deriv)
+      Ec = ed(0)
       Ec_rs = ed(1)*(-9.0_dp/(4.0_dp*pi))/rs**4
       Ec_rs_rs = ed(2)*(81.0_dp/(16.0_dp*pi**2))/rs**8+ed(1)*(9.0_dp/pi)/rs**5
+
       CALL calc_Q(rs, max_deriv, Q, Q_rs, Q_rs_rs)
       CALL calc_a1(rs, max_deriv, a1, a1_rs, a1_rs_rs)
       CALL calc_a2(rs, max_deriv, a2, a2_rs, a2_rs_rs, Ec, Ec_rs, Ec_rs_rs)
@@ -598,17 +648,23 @@
       x13 = a4*x12
       x14 = mu**8
       x15 = a5*x14
-      x16 = x4**(-5)
-      x17 = rs*x1*x16*x2
-      x18 = 8.0_dp*(Q + x11 + x13 + x15 + x7 + x9)
       ec_mu = Ec - x5*(Q + x11 + x13 + x15 + x7 + x9)
-      ec_mu_rs = Ec_rs + x17*x18 - x5*(Q_rs + a1_rs*x6 + a2_rs*x8 + a3_rs*x10 &
-      + a4_rs*x12 + a5_rs*x14)
-      ec_mu_rs_rs = Ec_rs_rs - 80.0_dp*beta**4*x0*x8*(Q + x11 + x13 + x15 &
-      + x7 + x9)/x4**6 + x16*x18*x3 + 16.0_dp*x17*(Q_rs + a1_rs*x6 &
-      + a2_rs*x8 + a3_rs*x10 + a4_rs*x12 + a5_rs*x14) - x5* &
-      (Q_rs_rs + a1_rs_rs*x6 + a2_rs_rs*x8 + a3_rs_rs*x10 + a4_rs_rs* &
-      x12 + a5_rs_rs*x14)
+      IF (max_deriv > 0) THEN
+         x16 = x4**(-5)
+         x17 = rs*x1*x16*x2
+         x18 = 8.0_dp*(Q + x11 + x13 + x15 + x7 + x9)
+         ec_mu_rs = Ec_rs + x17*x18 - x5*(Q_rs + a1_rs*x6 + a2_rs*x8 + a3_rs*x10 &
+            + a4_rs*x12 + a5_rs*x14)
+      END IF
+      IF (max_deriv > 1) THEN
+         ec_mu_rs_rs = Ec_rs_rs - 80.0_dp*beta**4*x0*x8*(Q + x11 + x13 + x15 &
+            + x7 + x9)/x4**6 + x16*x18*x3 + 16.0_dp*x17*(Q_rs + a1_rs*x6 &
+            + a2_rs*x8 + a3_rs*x10 + a4_rs*x12 + a5_rs*x14) - x5* &
+            (Q_rs_rs + a1_rs_rs*x6 + a2_rs_rs*x8 + a3_rs_rs*x10 + a4_rs_rs* &
+            x12 + a5_rs_rs*x14)
+      END IF
+
+      CALL calc_rs2rho(rs, max_deriv, ec_mu_rs, ec_mu_rs_rs, ec_mu_rho, ec_mu_rho_rho)
 
    END SUBROUTINE calc_sr_lda_ec
 
@@ -1147,8 +1203,6 @@
       REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, &
          x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, facx_A, facx, ex_mu_rs, ex_mu_rs_rs
 
-      MARK_USED(max_deriv)
-
       facx_A = (18.0_dp*pi)**(-1.0_dp/3.0_dp)
       facx = (18.0_dp/pi**2)**(1.0_dp/3.0_dp)
       x0 = 1.0_dp/rs
@@ -1171,50 +1225,60 @@
       x17 = x14*x16
       x18 = x1*(-rs*x2 + x17 + x7 + sqrt(pi)*erf(0.5_dp*x0*x8*x9))
       x19 = facx*(-rs*x18 + 3.0_dp/8.0_dp)
-      x20 = facx_A*mu*rs
-      x21 = 12.0_dp*x10*x6
-      x22 = x14*x8*x9
-      x23 = x14*(x15 - x21)
-      x24 = 1.0_dp/x3
-      x25 = x12*x13*x24
-      x26 = -x11*x22 + (1.0_dp/2.0_dp)*x14*x16*x25 - x2 + x21 + x23
-      x27 = facx*(-x18 - x20*x26)
-      x28 = 2.0_dp*x24
-      x29 = 24.0_dp*rs*x6
       ex_mu = -x0*x19
-      ex_mu_rs = -x0*x27 + x11*x19
-      ex_mu_rs_rs = -facx*x0*(-x15*x26 - x20*(-x14*x29 + x22*x28 + x23*x25 + &
-      x29 - 3.0_dp/2.0_dp*x12*x13*x17/rs**4 - 1.0_dp/2.0_dp*x14/(rs**5*x4* &
-      x5) + (1.0_dp/4.0_dp)*x17/(facx_A**4*mu**4*rs**6))) + 2.0_dp*x11*x27 - &
-      x19*x28
+      IF (max_deriv > 0) THEN
+         x20 = facx_A*mu*rs
+         x21 = 12.0_dp*x10*x6
+         x22 = x14*x8*x9
+         x23 = x14*(x15 - x21)
+         x24 = 1.0_dp/x3
+         x25 = x12*x13*x24
+         x26 = -x11*x22 + (1.0_dp/2.0_dp)*x14*x16*x25 - x2 + x21 + x23
+         x27 = facx*(-x18 - x20*x26)
+         ex_mu_rs = -x0*x27 + x11*x19
+      END IF
+      IF (max_deriv > 1) THEN
+         x28 = 2.0_dp*x24
+         x29 = 24.0_dp*rs*x6
+         ex_mu_rs_rs = -facx*x0*(-x15*x26 - x20*(-x14*x29 + x22*x28 + x23*x25 + &
+            x29 - 3.0_dp/2.0_dp*x12*x13*x17/rs**4 - 1.0_dp/2.0_dp*x14/(rs**5*x4* &
+            x5) + (1.0_dp/4.0_dp)*x17/(facx_A**4*mu**4*rs**6))) + 2.0_dp*x11*x27 - &
+            x19*x28
+      END IF
 
-      CALL calc_rs2rho(rs, ex_mu_rs, ex_mu_rs_rs, ex_mu_rho, ex_mu_rho_rho)
+      CALL calc_rs2rho(rs, max_deriv, ex_mu_rs, ex_mu_rs_rs, ex_mu_rho, ex_mu_rho_rho)
 
    END SUBROUTINE calc_sr_lda_ex
 
 ! **************************************************************************************************
 !> \brief Transform derivatives wrt rs to derivatives wrt rho
 !> \param rs ...
+!> \param max_deriv ...
 !> \param e_rs ...
 !> \param e_rs_rs ...
 !> \param e_rho ...
 !> \param e_rho_rho ...
 ! **************************************************************************************************
-   ELEMENTAL SUBROUTINE calc_rs2rho(rs, e_rs, e_rs_rs, e_rho, e_rho_rho)
+   ELEMENTAL SUBROUTINE calc_rs2rho(rs, max_deriv, e_rs, e_rs_rs, e_rho, e_rho_rho)
       REAL(KIND=dp), INTENT(IN) :: rs, e_rs, e_rs_rs
+      INTEGER, INTENT(IN) :: max_deriv
       REAL(KIND=dp), INTENT(OUT) :: e_rho, e_rho_rho
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_rs2rho", routineP = moduleN//":"//routineN
 
       REAL(KIND=dp) :: rs_rho, rs_rho_rho
 
-      rs_rho = -4.0_dp/9.0_dp*pi*rs**4
-      rs_rho_rho = 4.0_dp*rs_rho**2/rs
-      e_rho = e_rs*rs_rho
-      e_rho_rho = e_rs_rs*rs_rho**2+e_rs*rs_rho_rho
+      IF (max_deriv > 0) THEN
+         rs_rho = -4.0_dp/9.0_dp*pi*rs**4
+         e_rho = e_rs*rs_rho
+      END IF
+      IF (max_deriv > 1) THEN
+         rs_rho_rho = 4.0_dp*rs_rho**2/rs
+         e_rho_rho = e_rs_rs*rs_rho**2+e_rs*rs_rho_rho
+      END IF
 
    END SUBROUTINE calc_rs2rho
 
-@:calc_ec_pw92()
-#:enddef
-#:endmute
+!@:calc_ec_pw92()
+!#:enddef
+!#:endmute
