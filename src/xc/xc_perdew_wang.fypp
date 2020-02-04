@@ -143,9 +143,9 @@
       INTEGER, INTENT(IN)                                :: order
       INTEGER                                            :: m, order_
       LOGICAL, DIMENSION(0:3)                            :: calc
-      REAL(KIND=dp)                                      :: rho, tr, trr, trrr, trrz, trz, trzz, tz, &
-                                                            tzz, tzzz
-      REAL(KIND=dp), DIMENSION(0:3)                      :: ac, e0, e1, f, r
+      REAL(KIND=dp)                                      :: rho
+      REAL(KIND=dp), DIMENSION(0:3)                      :: f, r
+      REAL(KIND=dp), DIMENSION(0:9)                      :: e_rz
       REAL(KIND=dp), DIMENSION(0:3, 0:3)                 :: z
       order_ = order
       calc = .FALSE.
@@ -158,124 +158,145 @@
       rho = a + b
       CALL calc_fx(a, b, f(0:order_), order_)
       CALL calc_rs(rho, r(0))
-      CALL calc_g(r(0), -1, ac(0:order_), order_)
-      CALL calc_g(r(0), 0, e0(0:order_), order_)
-      CALL calc_g(r(0), 1, e1(0:order_), order_)
       CALL calc_z(a, b, z(0:order_, 0:order_), order_)
-!! calculate first partial derivatives
-      IF (order_ >= 1) THEN
-         r(1) = (-1.0_dp/3.0_dp)*r(0)/rho
-         tr = e0(1) &
-              + fpp*ac(1)*f(0) &
-              - fpp*ac(1)*f(0)*z(0, 0)**4 &
-              + (e1(1) - e0(1))*f(0)*z(0, 0)**4
-         tz = fpp*ac(0)*f(1) &
-              - fpp*ac(0)*f(1)*z(0, 0)**4 &
-              - fpp*ac(0)*f(0)*4.0_dp*z(0, 0)**3 &
-              + (e1(0) - e0(0))*f(1)*z(0, 0)**4 &
-              + (e1(0) - e0(0))*f(0)*4.0_dp*z(0, 0)**3
-      END IF
-!! calculate second partial derivatives
-      IF (order_ >= 2) THEN
-         r(2) = (-4.0_dp/3.0_dp)*r(1)/rho
-         trr = e0(2) &
-               + fpp*ac(2)*f(0) &
-               - fpp*ac(2)*f(0)*z(0, 0)**4 &
-               + (e1(2) - e0(2))*f(0)*z(0, 0)**4
-         trz = fpp*ac(1)*f(1) &
-               - fpp*ac(1)*f(1)*z(0, 0)**4 &
-               - fpp*ac(1)*f(0)*4.0_dp*z(0, 0)**3 &
-               + (e1(1) - e0(1))*f(1)*z(0, 0)**4 &
-               + (e1(1) - e0(1))*f(0)*4.0_dp*z(0, 0)**3
-         tzz = fpp*ac(0)*f(2) &
-               - fpp*ac(0)*f(2)*z(0, 0)**4 &
-               - fpp*ac(0)*f(1)*8.0_dp*z(0, 0)**3 &
-               - fpp*ac(0)*f(0)*12.0_dp*z(0, 0)**2 &
-               + (e1(0) - e0(0))*f(2)*z(0, 0)**4 &
-               + (e1(0) - e0(0))*f(1)*8.0_dp*z(0, 0)**3 &
-               + (e1(0) - e0(0))*f(0)*12.0_dp*z(0, 0)**2
-      END IF
-!! calculate third derivatives
-      IF (order_ >= 3) THEN
-         r(3) = (-7.0_dp/3.0_dp)*r(2)/rho
-         trrr = e0(3) &
-                + fpp*ac(3)*f(0) &
-                - fpp*ac(3)*f(0)*z(0, 0)**4 &
-                + (e1(3) - e0(3))*f(0)*z(0, 0)**4
-         trrz = fpp*ac(2)*f(1) &
-                - fpp*ac(2)*f(1)*z(0, 0)**4 &
-                - fpp*ac(2)*f(0)*4.0_dp*z(0, 0)**3 &
-                + (e1(2) - e0(2))*f(1)*z(0, 0)**4 &
-                + (e1(2) - e0(2))*f(0)*4.0_dp*z(0, 0)**3
-         trzz = fpp*ac(1)*f(2) &
-                - fpp*ac(1)*f(2)*z(0, 0)**4 &
-                - fpp*ac(1)*f(1)*8.0_dp*z(0, 0)**3 &
-                - fpp*ac(1)*f(0)*12.0_dp*z(0, 0)**2 &
-                + (e1(1) - e0(1))*f(2)*z(0, 0)**4 &
-                + (e1(1) - e0(1))*f(1)*8.0_dp*z(0, 0)**3 &
-                + (e1(1) - e0(1))*f(0)*12.0_dp*z(0, 0)**2
-         tzzz = fpp*ac(0)*f(3) &
-                - fpp*ac(0)*f(3)*z(0, 0)**4 &
-                - fpp*ac(0)*f(2)*12.0_dp*z(0, 0)**3 &
-                - fpp*ac(0)*f(1)*36.0_dp*z(0, 0)**2 &
-                - fpp*ac(0)*f(0)*24.0_dp*z(0, 0) &
-                + (e1(0) - e0(0))*f(3)*z(0, 0)**4 &
-                + (e1(0) - e0(0))*f(2)*12.0_dp*z(0, 0)**3 &
-                + (e1(0) - e0(0))*f(1)*36.0_dp*z(0, 0)**2 &
-                + (e1(0) - e0(0))*f(0)*24.0_dp*z(0, 0)
-      END IF
+
+      CALL pw_lsd_ed_loc_rz(r(0), z(0, 0), f, e_rz, order_)
+
       m = 0
       IF (calc(0)) THEN
-         ed(m) = e0(0) &
-                 + fpp*ac(0)*f(0)*(1.0_dp - z(0, 0)**4) &
-                 + (e1(0) - e0(0))*f(0)*z(0, 0)**4
+         ed(m) = e_rz(0)
          m = m + 1
       END IF
       IF (calc(1)) THEN
-         ed(m) = tr*r(1) + tz*z(1, 0)
-         ed(m + 1) = tr*r(1) + tz*z(0, 1)
+         r(1) = (-1.0_dp/3.0_dp)*r(0)/rho
+         ed(m) = e_rz(1)*r(1) + e_rz(2)*z(1, 0)
+         ed(m + 1) = e_rz(1)*r(1) + e_rz(2)*z(0, 1)
          m = m + 2
       END IF
       IF (calc(2)) THEN
-         ed(m) = trr*r(1)**2 + 2.0_dp*trz*r(1)*z(1, 0) &
-                 + tr*r(2) + tzz*z(1, 0)**2 + tz*z(2, 0)
-         ed(m + 1) = trr*r(1)**2 + trz*r(1)*(z(0, 1) + z(1, 0)) &
-                     + tr*r(2) + tzz*z(1, 0)*z(0, 1) + tz*z(1, 1)
-         ed(m + 2) = trr*r(1)**2 + 2.0_dp*trz*r(1)*z(0, 1) &
-                     + tr*r(2) + tzz*z(0, 1)**2 + tz*z(0, 2)
+         r(2) = (-4.0_dp/3.0_dp)*r(1)/rho
+         ed(m) = e_rz(3)*r(1)**2 + 2.0_dp*e_rz(4)*r(1)*z(1, 0) &
+                 + e_rz(1)*r(2) + e_rz(5)*z(1, 0)**2 + e_rz(2)*z(2, 0)
+         ed(m + 1) = e_rz(3)*r(1)**2 + e_rz(4)*r(1)*(z(0, 1) + z(1, 0)) &
+                     + e_rz(1)*r(2) + e_rz(5)*z(1, 0)*z(0, 1) + e_rz(2)*z(1, 1)
+         ed(m + 2) = e_rz(3)*r(1)**2 + 2.0_dp*e_rz(4)*r(1)*z(0, 1) &
+                     + e_rz(1)*r(2) + e_rz(5)*z(0, 1)**2 + e_rz(2)*z(0, 2)
          m = m + 3
       END IF
       IF (calc(3)) THEN
+         r(3) = (-7.0_dp/3.0_dp)*r(2)/rho
          ed(m) = &
-            trrr*r(1)**3 + 3.0_dp*trrz*r(1)**2*z(1, 0) &
-            + 3.0_dp*trr*r(1)*r(2) + 3.0_dp*trz*r(2)*z(1, 0) + tr*r(3) &
-            + 3.0_dp*trzz*r(1)*z(1, 0)**2 + tzzz*z(1, 0)**3 &
-            + 3.0_dp*trz*r(1)*z(2, 0) &
-            + 3.0_dp*tzz*z(1, 0)*z(2, 0) + tz*z(3, 0)
+            e_rz(6)*r(1)**3 + 3.0_dp*e_rz(7)*r(1)**2*z(1, 0) &
+            + 3.0_dp*e_rz(3)*r(1)*r(2) + 3.0_dp*e_rz(4)*r(2)*z(1, 0) + e_rz(1)*r(3) &
+            + 3.0_dp*e_rz(8)*r(1)*z(1, 0)**2 + e_rz(9)*z(1, 0)**3 &
+            + 3.0_dp*e_rz(4)*r(1)*z(2, 0) &
+            + 3.0_dp*e_rz(5)*z(1, 0)*z(2, 0) + e_rz(2)*z(3, 0)
          ed(m + 1) = &
-            trrr*r(1)**3 + trrz*r(1)**2*(2.0_dp*z(1, 0) + z(0, 1)) &
-            + 2.0_dp*trzz*r(1)*z(1, 0)*z(0, 1) &
-            + 2.0_dp*trz*(r(2)*z(1, 0) + r(1)*z(1, 1)) &
-            + 3.0_dp*trr*r(2)*r(1) + trz*r(2)*z(0, 1) + tr*r(3) &
-            + trzz*r(1)*z(1, 0)**2 + tzzz*z(1, 0)**2*z(0, 1) &
-            + 2.0_dp*tzz*z(1, 0)*z(1, 1) &
-            + trz*r(1)*z(2, 0) + tzz*z(2, 0)*z(0, 1) + tz*z(2, 1)
+            e_rz(6)*r(1)**3 + e_rz(7)*r(1)**2*(2.0_dp*z(1, 0) + z(0, 1)) &
+            + 2.0_dp*e_rz(8)*r(1)*z(1, 0)*z(0, 1) &
+            + 2.0_dp*e_rz(4)*(r(2)*z(1, 0) + r(1)*z(1, 1)) &
+            + 3.0_dp*e_rz(3)*r(2)*r(1) + e_rz(4)*r(2)*z(0, 1) + e_rz(1)*r(3) &
+            + e_rz(8)*r(1)*z(1, 0)**2 + e_rz(9)*z(1, 0)**2*z(0, 1) &
+            + 2.0_dp*e_rz(5)*z(1, 0)*z(1, 1) &
+            + e_rz(4)*r(1)*z(2, 0) + e_rz(5)*z(2, 0)*z(0, 1) + e_rz(2)*z(2, 1)
          ed(m + 2) = &
-            trrr*r(1)**3 + trrz*r(1)**2*(2.0_dp*z(0, 1) + z(1, 0)) &
-            + 2.0_dp*trzz*r(1)*z(0, 1)*z(1, 0) &
-            + 2.0_dp*trz*(r(2)*z(0, 1) + r(1)*z(1, 1)) &
-            + 3.0_dp*trr*r(2)*r(1) + trz*r(2)*z(1, 0) + tr*r(3) &
-            + trzz*r(1)*z(0, 1)**2 + tzzz*z(0, 1)**2*z(1, 0) &
-            + 2.0_dp*tzz*z(0, 1)*z(1, 1) &
-            + trz*r(1)*z(0, 2) + tzz*z(0, 2)*z(1, 0) + tz*z(1, 2)
+            e_rz(6)*r(1)**3 + e_rz(7)*r(1)**2*(2.0_dp*z(0, 1) + z(1, 0)) &
+            + 2.0_dp*e_rz(8)*r(1)*z(0, 1)*z(1, 0) &
+            + 2.0_dp*e_rz(4)*(r(2)*z(0, 1) + r(1)*z(1, 1)) &
+            + 3.0_dp*e_rz(3)*r(2)*r(1) + e_rz(4)*r(2)*z(1, 0) + e_rz(1)*r(3) &
+            + e_rz(8)*r(1)*z(0, 1)**2 + e_rz(9)*z(0, 1)**2*z(1, 0) &
+            + 2.0_dp*e_rz(5)*z(0, 1)*z(1, 1) &
+            + e_rz(4)*4*r(1)*z(0, 2) + e_rz(5)*z(0, 2)*z(1, 0) + e_rz(2)*z(1, 2)
          ed(m + 3) = &
-            trrr*r(1)**3 + 3.0_dp*trrz*r(1)**2*z(0, 1) &
-            + 3.0_dp*trr*r(1)*r(2) + 3.0_dp*trz*r(2)*z(0, 1) + tr*r(3) &
-            + 3.0_dp*trzz*r(1)*z(0, 1)**2 + tzzz*z(0, 1)**3 &
-            + 3.0_dp*trz*r(1)*z(0, 2) &
-            + 3.0_dp*tzz*z(0, 1)*z(0, 2) + tz*z(0, 3)
+            e_rz(6)*r(1)**3 + 3.0_dp*e_rz(7)*r(1)**2*z(0, 1) &
+            + 3.0_dp*e_rz(3)*r(1)*r(2) + 3.0_dp*e_rz(4)*r(2)*z(0, 1) + e_rz(1)*r(3) &
+            + 3.0_dp*e_rz(8)*r(1)*z(0, 1)**2 + e_rz(9)*z(0, 1)**3 &
+            + 3.0_dp*e_rz(4)*r(1)*z(0, 2) &
+            + 3.0_dp*e_rz(5)*z(0, 1)*z(0, 2) + e_rz(2)*z(0, 3)
       END IF
    END SUBROUTINE pw_lsd_ed_loc
+
+
+! **************************************************************************************************
+!> \brief calculate PW92 functional and derivatives wrt rs and zeta
+!> \param a ...
+!> \param b ...
+!> \param ed ...
+!> \param order ...
+! **************************************************************************************************
+   SUBROUTINE pw_lsd_ed_loc_rz(r, z, f, ed, order_)
+      REAL(KIND=dp), INTENT(IN)                          :: r, z, f(0:3)
+      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: ed
+      INTEGER, INTENT(IN)                                :: order_
+      REAL(KIND=dp), DIMENSION(0:3)                      :: ac, e0, e1
+
+      CALL calc_g(r, -1, ac(0:order_), order_)
+      CALL calc_g(r, 0, e0(0:order_), order_)
+      CALL calc_g(r, 1, e1(0:order_), order_)
+
+      ed(0) = e0(0) &
+              + fpp*ac(0)*f(0)*(1.0_dp - z**4) &
+              + (e1(0) - e0(0))*f(0)*z**4
+!! calculate first partial derivatives
+      IF (order_ >= 1) THEN
+         ed(1) = e0(1) &
+              + fpp*ac(1)*f(0) &
+              - fpp*ac(1)*f(0)*z**4 &
+              + (e1(1) - e0(1))*f(0)*z**4
+         ed(2) = fpp*ac(0)*f(1) &
+              - fpp*ac(0)*f(1)*z**4 &
+              - fpp*ac(0)*f(0)*4.0_dp*z**3 &
+              + (e1(0) - e0(0))*f(1)*z**4 &
+              + (e1(0) - e0(0))*f(0)*4.0_dp*z**3
+      END IF
+!! calculate second partial derivatives
+      IF (order_ >= 2) THEN
+         ed(3) = e0(2) &
+               + fpp*ac(2)*f(0) &
+               - fpp*ac(2)*f(0)*z**4 &
+               + (e1(2) - e0(2))*f(0)*z**4
+         ed(4) = fpp*ac(1)*f(1) &
+               - fpp*ac(1)*f(1)*z**4 &
+               - fpp*ac(1)*f(0)*4.0_dp*z**3 &
+               + (e1(1) - e0(1))*f(1)*z**4 &
+               + (e1(1) - e0(1))*f(0)*4.0_dp*z**3
+         ed(5) = fpp*ac(0)*f(2) &
+               - fpp*ac(0)*f(2)*z**4 &
+               - fpp*ac(0)*f(1)*8.0_dp*z**3 &
+               - fpp*ac(0)*f(0)*12.0_dp*z**2 &
+               + (e1(0) - e0(0))*f(2)*z**4 &
+               + (e1(0) - e0(0))*f(1)*8.0_dp*z**3 &
+               + (e1(0) - e0(0))*f(0)*12.0_dp*z**2
+      END IF
+!! calculate third derivatives
+      IF (order_ >= 3) THEN
+         ed(6) = e0(3) &
+                + fpp*ac(3)*f(0) &
+                - fpp*ac(3)*f(0)*z**4 &
+                + (e1(3) - e0(3))*f(0)*z**4
+         ed(7) = fpp*ac(2)*f(1) &
+                - fpp*ac(2)*f(1)*z**4 &
+                - fpp*ac(2)*f(0)*4.0_dp*z**3 &
+                + (e1(2) - e0(2))*f(1)*z**4 &
+                + (e1(2) - e0(2))*f(0)*4.0_dp*z**3
+         ed(8) = fpp*ac(1)*f(2) &
+                - fpp*ac(1)*f(2)*z**4 &
+                - fpp*ac(1)*f(1)*8.0_dp*z**3 &
+                - fpp*ac(1)*f(0)*12.0_dp*z**2 &
+                + (e1(1) - e0(1))*f(2)*z**4 &
+                + (e1(1) - e0(1))*f(1)*8.0_dp*z**3 &
+                + (e1(1) - e0(1))*f(0)*12.0_dp*z**2
+         ed(9) = fpp*ac(0)*f(3) &
+                - fpp*ac(0)*f(3)*z**4 &
+                - fpp*ac(0)*f(2)*12.0_dp*z**3 &
+                - fpp*ac(0)*f(1)*36.0_dp*z**2 &
+                - fpp*ac(0)*f(0)*24.0_dp*z &
+                + (e1(0) - e0(0))*f(3)*z**4 &
+                + (e1(0) - e0(0))*f(2)*12.0_dp*z**3 &
+                + (e1(0) - e0(0))*f(1)*36.0_dp*z**2 &
+                + (e1(0) - e0(0))*f(0)*24.0_dp*z
+      END IF
+   END SUBROUTINE pw_lsd_ed_loc_rz
 
 ! **************************************************************************************************
 !> \brief ...
