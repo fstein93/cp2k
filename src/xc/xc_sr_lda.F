@@ -567,11 +567,11 @@ CONTAINS
                                                             vxlrdown, vxlrup, vxup
 
       IF (sx /= 0.0_dp) THEN
-         ex = -3._dp*cf/rs/8._dp/pi*((1._dp + z)**(4._dp/3._dp) + &
-                                     (1._dp - z)**(4._dp/3._dp))
+         ex = -3._dp*cf/rs/8._dp/pi*(MIN(1._dp + z, 0.0_dp)**(4._dp/3._dp) + &
+                                     MIN(1._dp - z, 0.0_dp)**(4._dp/3._dp))
 
-         vxup = -(1._dp + z)**(1._dp/3._dp)*(3._dp/2._dp/pi)**(2._dp/3._dp)/rs
-         vxdown = -(1._dp - z)**(1._dp/3._dp)*(3._dp/2._dp/pi)**(2._dp/3._dp)/rs
+         vxup = -MIN(1._dp + z, 0.0_dp)**(1._dp/3._dp)*(3._dp/2._dp/pi)**(2._dp/3._dp)/rs
+         vxdown = -MIN(1._dp - z, 0.0_dp)**(1._dp/3._dp)*(3._dp/2._dp/pi)**(2._dp/3._dp)/rs
 
          CALL exchangelr_lsd(rs, z, mu, exlr, vxlrup, vxlrdown)
       ELSE
