@@ -8,6 +8,8 @@
    REAL(KIND=dp), DIMENSION(-1:1) :: c0, c1, c2, c3
    REAL(KIND=dp), DIMENSION(-1:1) :: d0, d1
    REAL(KIND=dp) :: eps_rho
+   REAL(KIND=dp), PARAMETER :: &
+      fpp = 0.584822362263464620726223866376013788782_dp ! d^2f(0)/dz^2
 #:enddef
 
 #:def init_pw92()
@@ -80,6 +82,223 @@
       END DO
 
    END SUBROUTINE perdew_wang_init
+#:enddef
+
+#:def calc_ec_pw92()
+! **************************************************************************************************
+!> \brief ...
+!> \param rho ...
+!> \param ed ...
+!> \param order ...
+! **************************************************************************************************
+   SUBROUTINE pw_lda_ed_loc(rho, ed, order)
+      REAL(KIND=dp), INTENT(IN)                          :: rho
+      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: ed
+      INTEGER, INTENT(IN)                                :: order
+      INTEGER                                            :: m, order_
+      LOGICAL, DIMENSION(0:3)                            :: calc
+      REAL(KIND=dp), DIMENSION(0:3)                      :: e0, r
+      order_ = order
+      ed = 0
+      calc = .FALSE.
+      IF (order_ >= 0) THEN
+         calc(0:order_) = .TRUE.
+      ELSE
+         order_ = -1*order_
+         calc(order_) = .TRUE.
+      END IF
+      CALL calc_rs(rho, r(0))
+      CALL calc_g(r(0), 0, e0, order_)
+      IF (order_ >= 1) r(1) = (-1.0_dp/3.0_dp)*r(0)/rho
+      IF (order_ >= 2) r(2) = (-4.0_dp/3.0_dp)*r(1)/rho
+      IF (order_ >= 3) r(3) = (-7.0_dp/3.0_dp)*r(2)/rho
+      m = 0
+      IF (calc(0)) THEN
+         ed(m) = e0(0)
+         m = m + 1
+      END IF
+      IF (calc(1)) THEN
+         ed(m) = e0(1)*r(1)
+         m = m + 1
+      END IF
+      IF (calc(2)) THEN
+         ed(m) = e0(2)*r(1)**2 + e0(1)*r(2)
+         m = m + 1
+      END IF
+      IF (calc(3)) THEN
+         ed(m) = e0(3)*r(1)**3 + e0(2)*3.0_dp*r(1)*r(2) + e0(1)*r(3)
+      END IF
+   END SUBROUTINE pw_lda_ed_loc
+
+! **************************************************************************************************
+!> \brief ...
+!> \param a ...
+!> \param b ...
+!> \param ed ...
+!> \param order ...
+! **************************************************************************************************
+   SUBROUTINE pw_lsd_ed_loc(a, b, ed, order)
+      REAL(KIND=dp), INTENT(IN)                          :: a, b
+      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: ed
+      INTEGER, INTENT(IN)                                :: order
+      INTEGER                                            :: m, order_
+      LOGICAL, DIMENSION(0:3)                            :: calc
+      REAL(KIND=dp)                                      :: rho
+      REAL(KIND=dp), DIMENSION(0:3)                      :: f, r
+      REAL(KIND=dp), DIMENSION(0:9)                      :: e_rz
+      REAL(KIND=dp), DIMENSION(0:3, 0:3)                 :: z
+      order_ = order
+      calc = .FALSE.
+      IF (order_ > 0) THEN
+         calc(0:order_) = .TRUE.
+      ELSE
+         order_ = -1*order_
+         calc(order_) = .TRUE.
+      END IF
+      rho = a + b
+      CALL calc_fx(a, b, f(0:order_), order_)
+      CALL calc_rs(rho, r(0))
+      CALL calc_z(a, b, z(0:order_, 0:order_), order_)
+
+      CALL pw_lsd_ed_loc_rz(r(0), z(0, 0), f, e_rz, order_)
+
+      m = 0
+      IF (calc(0)) THEN
+         ed(m) = e_rz(0)
+         m = m + 1
+      END IF
+      IF (calc(1)) THEN
+         r(1) = (-1.0_dp/3.0_dp)*r(0)/rho
+         ed(m) = e_rz(1)*r(1) + e_rz(2)*z(1, 0)
+         ed(m + 1) = e_rz(1)*r(1) + e_rz(2)*z(0, 1)
+         m = m + 2
+      END IF
+      IF (calc(2)) THEN
+         r(2) = (-4.0_dp/3.0_dp)*r(1)/rho
+         ed(m) = e_rz(3)*r(1)**2 + 2.0_dp*e_rz(4)*r(1)*z(1, 0) &
+                 + e_rz(1)*r(2) + e_rz(5)*z(1, 0)**2 + e_rz(2)*z(2, 0)
+         ed(m + 1) = e_rz(3)*r(1)**2 + e_rz(4)*r(1)*(z(0, 1) + z(1, 0)) &
+                     + e_rz(1)*r(2) + e_rz(5)*z(1, 0)*z(0, 1) + e_rz(2)*z(1, 1)
+         ed(m + 2) = e_rz(3)*r(1)**2 + 2.0_dp*e_rz(4)*r(1)*z(0, 1) &
+                     + e_rz(1)*r(2) + e_rz(5)*z(0, 1)**2 + e_rz(2)*z(0, 2)
+         m = m + 3
+      END IF
+      IF (calc(3)) THEN
+         r(3) = (-7.0_dp/3.0_dp)*r(2)/rho
+         ed(m) = &
+            e_rz(6)*r(1)**3 + 3.0_dp*e_rz(7)*r(1)**2*z(1, 0) &
+            + 3.0_dp*e_rz(3)*r(1)*r(2) + 3.0_dp*e_rz(4)*r(2)*z(1, 0) + e_rz(1)*r(3) &
+            + 3.0_dp*e_rz(8)*r(1)*z(1, 0)**2 + e_rz(9)*z(1, 0)**3 &
+            + 3.0_dp*e_rz(4)*r(1)*z(2, 0) &
+            + 3.0_dp*e_rz(5)*z(1, 0)*z(2, 0) + e_rz(2)*z(3, 0)
+         ed(m + 1) = &
+            e_rz(6)*r(1)**3 + e_rz(7)*r(1)**2*(2.0_dp*z(1, 0) + z(0, 1)) &
+            + 2.0_dp*e_rz(8)*r(1)*z(1, 0)*z(0, 1) &
+            + 2.0_dp*e_rz(4)*(r(2)*z(1, 0) + r(1)*z(1, 1)) &
+            + 3.0_dp*e_rz(3)*r(2)*r(1) + e_rz(4)*r(2)*z(0, 1) + e_rz(1)*r(3) &
+            + e_rz(8)*r(1)*z(1, 0)**2 + e_rz(9)*z(1, 0)**2*z(0, 1) &
+            + 2.0_dp*e_rz(5)*z(1, 0)*z(1, 1) &
+            + e_rz(4)*r(1)*z(2, 0) + e_rz(5)*z(2, 0)*z(0, 1) + e_rz(2)*z(2, 1)
+         ed(m + 2) = &
+            e_rz(6)*r(1)**3 + e_rz(7)*r(1)**2*(2.0_dp*z(0, 1) + z(1, 0)) &
+            + 2.0_dp*e_rz(8)*r(1)*z(0, 1)*z(1, 0) &
+            + 2.0_dp*e_rz(4)*(r(2)*z(0, 1) + r(1)*z(1, 1)) &
+            + 3.0_dp*e_rz(3)*r(2)*r(1) + e_rz(4)*r(2)*z(1, 0) + e_rz(1)*r(3) &
+            + e_rz(8)*r(1)*z(0, 1)**2 + e_rz(9)*z(0, 1)**2*z(1, 0) &
+            + 2.0_dp*e_rz(5)*z(0, 1)*z(1, 1) &
+            + e_rz(4)*4*r(1)*z(0, 2) + e_rz(5)*z(0, 2)*z(1, 0) + e_rz(2)*z(1, 2)
+         ed(m + 3) = &
+            e_rz(6)*r(1)**3 + 3.0_dp*e_rz(7)*r(1)**2*z(0, 1) &
+            + 3.0_dp*e_rz(3)*r(1)*r(2) + 3.0_dp*e_rz(4)*r(2)*z(0, 1) + e_rz(1)*r(3) &
+            + 3.0_dp*e_rz(8)*r(1)*z(0, 1)**2 + e_rz(9)*z(0, 1)**3 &
+            + 3.0_dp*e_rz(4)*r(1)*z(0, 2) &
+            + 3.0_dp*e_rz(5)*z(0, 1)*z(0, 2) + e_rz(2)*z(0, 3)
+      END IF
+   END SUBROUTINE pw_lsd_ed_loc
+
+
+! **************************************************************************************************
+!> \brief calculate PW92 functional and derivatives wrt rs and zeta
+!> \param a ...
+!> \param b ...
+!> \param ed ...
+!> \param order ...
+! **************************************************************************************************
+   SUBROUTINE pw_lsd_ed_loc_rz(r, z, f, ed, order_)
+      REAL(KIND=dp), INTENT(IN)                          :: r, z, f(0:3)
+      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: ed
+      INTEGER, INTENT(IN)                                :: order_
+      REAL(KIND=dp), DIMENSION(0:3)                      :: ac, e0, e1
+
+      CALL calc_g(r, -1, ac(0:order_), order_)
+      CALL calc_g(r, 0, e0(0:order_), order_)
+      CALL calc_g(r, 1, e1(0:order_), order_)
+
+      ed(0) = e0(0) &
+              + fpp*ac(0)*f(0)*(1.0_dp - z**4) &
+              + (e1(0) - e0(0))*f(0)*z**4
+!! calculate first partial derivatives
+      IF (order_ >= 1) THEN
+         ed(1) = e0(1) &
+              + fpp*ac(1)*f(0) &
+              - fpp*ac(1)*f(0)*z**4 &
+              + (e1(1) - e0(1))*f(0)*z**4
+         ed(2) = fpp*ac(0)*f(1) &
+              - fpp*ac(0)*f(1)*z**4 &
+              - fpp*ac(0)*f(0)*4.0_dp*z**3 &
+              + (e1(0) - e0(0))*f(1)*z**4 &
+              + (e1(0) - e0(0))*f(0)*4.0_dp*z**3
+      END IF
+!! calculate second partial derivatives
+      IF (order_ >= 2) THEN
+         ed(3) = e0(2) &
+               + fpp*ac(2)*f(0) &
+               - fpp*ac(2)*f(0)*z**4 &
+               + (e1(2) - e0(2))*f(0)*z**4
+         ed(4) = fpp*ac(1)*f(1) &
+               - fpp*ac(1)*f(1)*z**4 &
+               - fpp*ac(1)*f(0)*4.0_dp*z**3 &
+               + (e1(1) - e0(1))*f(1)*z**4 &
+               + (e1(1) - e0(1))*f(0)*4.0_dp*z**3
+         ed(5) = fpp*ac(0)*f(2) &
+               - fpp*ac(0)*f(2)*z**4 &
+               - fpp*ac(0)*f(1)*8.0_dp*z**3 &
+               - fpp*ac(0)*f(0)*12.0_dp*z**2 &
+               + (e1(0) - e0(0))*f(2)*z**4 &
+               + (e1(0) - e0(0))*f(1)*8.0_dp*z**3 &
+               + (e1(0) - e0(0))*f(0)*12.0_dp*z**2
+      END IF
+!! calculate third derivatives
+      IF (order_ >= 3) THEN
+         ed(6) = e0(3) &
+                + fpp*ac(3)*f(0) &
+                - fpp*ac(3)*f(0)*z**4 &
+                + (e1(3) - e0(3))*f(0)*z**4
+         ed(7) = fpp*ac(2)*f(1) &
+                - fpp*ac(2)*f(1)*z**4 &
+                - fpp*ac(2)*f(0)*4.0_dp*z**3 &
+                + (e1(2) - e0(2))*f(1)*z**4 &
+                + (e1(2) - e0(2))*f(0)*4.0_dp*z**3
+         ed(8) = fpp*ac(1)*f(2) &
+                - fpp*ac(1)*f(2)*z**4 &
+                - fpp*ac(1)*f(1)*8.0_dp*z**3 &
+                - fpp*ac(1)*f(0)*12.0_dp*z**2 &
+                + (e1(1) - e0(1))*f(2)*z**4 &
+                + (e1(1) - e0(1))*f(1)*8.0_dp*z**3 &
+                + (e1(1) - e0(1))*f(0)*12.0_dp*z**2
+         ed(9) = fpp*ac(0)*f(3) &
+                - fpp*ac(0)*f(3)*z**4 &
+                - fpp*ac(0)*f(2)*12.0_dp*z**3 &
+                - fpp*ac(0)*f(1)*36.0_dp*z**2 &
+                - fpp*ac(0)*f(0)*24.0_dp*z &
+                + (e1(0) - e0(0))*f(3)*z**4 &
+                + (e1(0) - e0(0))*f(2)*12.0_dp*z**3 &
+                + (e1(0) - e0(0))*f(1)*36.0_dp*z**2 &
+                + (e1(0) - e0(0))*f(0)*24.0_dp*z
+      END IF
+   END SUBROUTINE pw_lsd_ed_loc_rz
+
+@:calc_g()
 #:enddef
 
 #:def calc_g()
