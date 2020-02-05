@@ -260,13 +260,15 @@ constants_Q=[(a, a_), (c, c_), (d, d_), (q, q_), (b, b_)]
 
 class Q(My_Function):
     nargs=1
+    add_args=(mu,)
     constants=constants_Q
     
     @classmethod
-    def eval(cls, x): 
+    def eval(cls, rs): 
+        x=mu*sqrt(rs)
         return q*log((one+a*x+b*x**2+c*x**three)/(one+a*x+d*x**two))
 
-create_Routine_from_Function(Q, file, max_deriv, [], False, x)
+create_Routine_from_Function(Q, file, max_deriv, [], False, rs)
 
 # The actual energy density
 
@@ -275,7 +277,7 @@ class ec_mu(My_Function):
     nargs=1
     add_args=(mu,)
     needed_functions=[(Ec, lambda rs: (rs,), (rs,)),
-                      (Q, lambda rs: (mu*sqrt(rs),), (rs,)),
+                      (Q, lambda rs: (rs,), (rs,)),
                       (a1, lambda rs: (rs,), (rs,)),
                       (a2, lambda rs: (rs,), (rs,)),
                       (a3, lambda rs: (rs,), (rs,)),
@@ -284,8 +286,7 @@ class ec_mu(My_Function):
     
     @classmethod
     def eval(cls, rs):
-        x=mu*sqrt(rs)
-        return Ec.dummy(rs)-(Q.dummy(x)+a1.dummy(rs)*mu**three+a2.dummy(rs)*mu**four+a3.dummy(rs)*mu**five+a4.dummy(rs)*mu**six+a5.dummy(rs)*mu**eight)/(one+b0(rs)**two*mu**two)**four
+        return Ec.dummy(rs)-(Q.dummy(rs)+a1.dummy(rs)*mu**three+a2.dummy(rs)*mu**four+a3.dummy(rs)*mu**five+a4.dummy(rs)*mu**six+a5.dummy(rs)*mu**eight)/(one+b0(rs)**two*mu**two)**four
 
 create_Routine_from_Function(ec_mu, file, max_deriv, [], False, rs)
 

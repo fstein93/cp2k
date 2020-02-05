@@ -22,7 +22,7 @@
       D3_rs = -x0*x6 + x3 - x5*(-2*d3_2 + 2*rs)
       D3_rs_rs = d3_1**2*x4 + d3_1*x0*x7 - 2*x6 - x7 + 6*x0*x2/rs**4
 
-   END SUBROUTINE D3
+   END SUBROUTINE calc_D3
 
    ELEMENTAL SUBROUTINE calc_D2(rs, max_deriv, D2, D2_rs, D2_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -44,7 +44,7 @@
       D2_rs = -d2_1*x3 - x2*x6 + x5
       D2_rs_rs = d2_1**2*x3 + 2*d2_1*x2*x6 - 2*d2_1*x5 - 2*x4*x6 + 2*x2/rs**3
 
-   END SUBROUTINE D2
+   END SUBROUTINE calc_D2
 
    ELEMENTAL SUBROUTINE calc_g2(rs, max_deriv, g2, g2_rs, g2_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -80,7 +80,7 @@
       g2_rs_rs = -g2_1*x12*x16 - g2_3*x16*x5 + x12*x2*x3*x4*x5*(-2*g2_2 - 4* &
       x11)/x6**3 - x14*x15 + x15*x9 + (12.0_dp/5.0_dp)*x8/rs**4
 
-   END SUBROUTINE g2
+   END SUBROUTINE calc_g2
 
    ELEMENTAL SUBROUTINE calc_g0(rs, max_deriv, g0, g0_rs, g0_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -107,7 +107,7 @@
       g0_rs = -g0_5*x4 + x5
       g0_rs_rs = g0_5**2*x4 - 2*g0_5*x5 + x0*(g0_2 - 3*g0_3*rs + 6*g0_4*x2)
 
-   END SUBROUTINE g0
+   END SUBROUTINE calc_g0
 
    ELEMENTAL SUBROUTINE calc_C2(rs, max_deriv, C2, C2_rs, C2_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -128,7 +128,7 @@
       C2_rs_rs = (9.0_dp/4.0_dp)*g0_rs*x2 - g0_rs_rs*x1 + (-9.0_dp/2.0_dp*g0 + &
       9.0_dp/4.0_dp)/rs**5
 
-   END SUBROUTINE C2
+   END SUBROUTINE calc_C2
 
    ELEMENTAL SUBROUTINE calc_C3(rs, max_deriv, C3, C3_rs, C3_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -161,7 +161,7 @@
       C3_rs_rs = -12*c3_1*x1*x6/rs**5 - g0_5**2*x7 - g0_5*x11*x6 + 2*g0_5*x9 + &
       x11*x8 - x2*(g0_2 - 3*g0_3*rs + 6*g0_4*x4)
 
-   END SUBROUTINE C3
+   END SUBROUTINE calc_C3
 
    ELEMENTAL SUBROUTINE calc_C4(rs, max_deriv, C4, C4_rs, C4_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -189,7 +189,7 @@
       g2_rs + (27.0_dp/80.0_dp)*x4) + (-27.0_dp/16.0_dp*D2 - 27.0_dp/64.0_dp* &
       g2 + (27.0_dp/80.0_dp)*x2)/rs**5
 
-   END SUBROUTINE C4
+   END SUBROUTINE calc_C4
 
    ELEMENTAL SUBROUTINE calc_C5(rs, max_deriv, C5, C5_rs, C5_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -214,7 +214,7 @@
       27.0_dp/40.0_dp)*D3_rs + (27.0_dp/160.0_dp)*g2_rs) + x0*x1*(-27.0_dp/ &
       20.0_dp*D3 - 27.0_dp/80.0_dp*g2)/rs**5
 
-   END SUBROUTINE C5
+   END SUBROUTINE calc_C5
 
    ELEMENTAL SUBROUTINE calc_a1(rs, max_deriv, a1, a1_rs, a1_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -243,7 +243,7 @@
       a1_rs_rs = C3_rs_rs*x3*x4 + 16*C5_rs*x0*x8 + C5_rs_rs*x1 + 120*rs**4*x5 &
       + 56*x2*x9 + 48*x6*x7
 
-   END SUBROUTINE a1
+   END SUBROUTINE calc_a1
 
    ELEMENTAL SUBROUTINE calc_a2(rs, max_deriv, a2, a2_rs, a2_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -280,7 +280,7 @@
       x8 + 72*rs**2*x9 + 48*x10*x11 + 56*x13*x2 + 48*x14*x15 + 120*x5* &
       x6
 
-   END SUBROUTINE a2
+   END SUBROUTINE calc_a2
 
    ELEMENTAL SUBROUTINE calc_a3(rs, max_deriv, a3, a3_rs, a3_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -301,7 +301,7 @@
       a3_rs = C3_rs*x1 + 8*x2*x3
       a3_rs_rs = 16*C3_rs*x0*x2 + C3_rs_rs*x1 + 56*rs**6*x3
 
-   END SUBROUTINE a3
+   END SUBROUTINE calc_a3
 
    ELEMENTAL SUBROUTINE calc_a4(rs, max_deriv, a4, a4_rs, a4_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -330,7 +330,7 @@
       a4_rs_rs = 16*C2_rs*x0*x6 + C2_rs_rs*x1 + Ec_rs_rs*x3*x4 + 120*rs**4*x5 &
       + 56*x2*x7 + 48*x8*x9
 
-   END SUBROUTINE a4
+   END SUBROUTINE calc_a4
 
    ELEMENTAL SUBROUTINE calc_a5(rs, max_deriv, a5, a5_rs, a5_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -351,49 +351,54 @@
       a5_rs = Ec_rs*x1 + 8*x2*x3
       a5_rs_rs = 16*Ec_rs*x0*x2 + Ec_rs_rs*x1 + 56*rs**6*x3
 
-   END SUBROUTINE a5
+   END SUBROUTINE calc_a5
 
-   ELEMENTAL SUBROUTINE calc_Q(xx, max_deriv, Q, Q_xx, Q_xx_xx)
-      REAL(KIND=dp), INTENT(IN) :: xx
+   ELEMENTAL SUBROUTINE calc_Q(rs, mu, max_deriv, Q, Q_rs, Q_rs_rs)
+      REAL(KIND=dp), INTENT(IN) :: rs, mu
       INTEGER, INTENT(IN) :: max_deriv
-      REAL(KIND=dp), INTENT(OUT) :: Q, Q_xx, Q_xx_xx
+      REAL(KIND=dp), INTENT(OUT) :: Q, Q_rs, Q_rs_rs
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_Q", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, aa, cc, dd, qq, bb
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, aa, cc, dd, qq, bb
 
       aa = 5.84605_dp
       cc = 3.91744_dp
       dd = 3.44851_dp
       qq = (-2 + 2*0.693147180559945_dp)/pi**2
       bb = 3.44851_dp - 17.53815_dp*pi/(-4 + 4*0.693147180559945_dp)
-      x0 = xx**2
-      x1 = aa*xx + 1
-      x2 = dd*x0 + x1
-      x3 = 1.0_dp/x2
-      x4 = bb*x0 + cc*xx**3 + x1
-      x5 = 1.0_dp/x4
-      x6 = 2*bb
-      x7 = x6*xx
-      x8 = 3*cc*x0
-      x9 = aa + x7 + x8
-      x10 = x2**(-2)
-      x11 = -aa
-      x12 = dd*xx
-      x13 = 2*x12
-      x14 = x11 - x13
-      x15 = x14*x4
-      x16 = x10*x15 + x3*x9
-      x17 = qq*x16*x5
-      x18 = qq*x2
-      x19 = 2*x10
-      Q = qq*log(x3*x4)
-      Q_xx = x17*x2
-      Q_xx_xx = x16*x18*(x11 - x7 - x8)/x4**2 + x17*(aa + x13) + x18*x5*(-dd* &
-      x19*x4 + x14*x19*x9 + x15*(-2*aa - 4*x12)/x2**3 + x3*(6*cc*xx + &
-      x6))
+      x0 = mu**2
+      x1 = dd*x0
+      x2 = sqrt(rs)
+      x3 = aa*mu
+      x4 = x2*x3 + 1
+      x5 = rs*x1 + x4
+      x6 = 1.0_dp/x5
+      x7 = bb*x0
+      x8 = rs**(3.0_dp/2.0_dp)
+      x9 = cc*mu**3
+      x10 = rs*x7 + x4 + x8*x9
+      x11 = 1.0_dp/x10
+      x12 = 1.0_dp/x2
+      x13 = x12*x3
+      x14 = (1.0_dp/2.0_dp)*x13
+      x15 = (3.0_dp/2.0_dp)*x2*x9
+      x16 = x14 + x15 + x7
+      x17 = -x14
+      x18 = -x1 + x17
+      x19 = x5**(-2)
+      x20 = x10*x19
+      x21 = x16*x6 + x18*x20
+      x22 = qq*x11*x21
+      x23 = qq*x5
+      x24 = (1.0_dp/4.0_dp)*x3/x8
+      Q = qq*log(x10*x6)
+      Q_rs = x22*x5
+      Q_rs_rs = x11*x23*(x10*x18*(-2*x1 - x13)/x5**3 + 2*x16*x18*x19 + x20*x24 &
+      + x6*((3.0_dp/4.0_dp)*x12*x9 - x24)) + x22*(x1 + x14) + x21*x23*( &
+      -x15 + x17 - x7)/x10**2
 
-   END SUBROUTINE Q
+   END SUBROUTINE calc_Q
 
    ELEMENTAL SUBROUTINE calc_ec_mu(rs, mu, max_deriv, ec_mu, ec_mu_rs, ec_mu_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs, mu
@@ -405,7 +410,7 @@
       REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, Ec, Ec_rs, Ec_rs_rs, Q, Q_rs, Q_rs_rs, a1, a1_rs, a1_rs_rs, a2, a2_rs, a2_rs_rs, a3, a3_rs, a3_rs_rs, a4, a4_rs, a4_rs_rs, a5, a5_rs, a5_rs_rs
 
       CALL calc_Ec(rs, max_deriv, Ec, Ec_rs, Ec_rs_rs)
-      CALL calc_Q(rs, max_deriv, Q, Q_rs, Q_rs_rs)
+      CALL calc_Q(rs, mu, max_deriv, Q, Q_rs, Q_rs_rs)
       CALL calc_a1(rs, max_deriv, a1, a1_rs, a1_rs_rs)
       CALL calc_a2(rs, max_deriv, a2, a2_rs, a2_rs_rs)
       CALL calc_a3(rs, max_deriv, a3, a3_rs, a3_rs_rs)
@@ -440,4 +445,4 @@
       (-Q_rs_rs - a1_rs_rs*x6 - a2_rs_rs*x8 - a3_rs_rs*x10 - a4_rs_rs* &
       x12 - a5_rs_rs*x14)
 
-   END SUBROUTINE ec_mu
+   END SUBROUTINE calc_ec_mu
