@@ -104,7 +104,7 @@ class g2(My_Function):
     @classmethod
     def eval(cls, rs_):
         rs=rs_*two**third
-        return two**(five/three)/five/alpha**two/rs**two*(one-g2_1*rs)/(one+g2_2*rs+g2_3*rs**two)*four
+        return two**(five/three)/five/alpha**two/rs**two*(one-g2_1*rs)/(one+g2_2*rs+g2_3*rs**two)/two
     
 create_Routine_from_Function(g2, file, max_deriv, [], False, rs)
 
