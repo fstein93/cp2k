@@ -102,8 +102,9 @@ class g2(My_Function):
     constants=constants_g2
     
     @classmethod
-    def eval(cls, rs):
-        return two**(five/three)/five/alpha**two/rs**two*(one-g2_1*rs)/(one+g2_2*rs+g2_3*rs**two)
+    def eval(cls, rs_):
+        rs=rs_*two**third
+        return two**(five/three)/five/alpha**two/rs**two*(one-g2_1*rs)/(one+g2_2*rs+g2_3*rs**two)*four
     
 create_Routine_from_Function(g2, file, max_deriv, [], False, rs)
 
@@ -166,23 +167,23 @@ create_Routine_from_Function(C3, file, max_deriv, [], False, rs)
 
 class C4(My_Function):
     nargs=1
-    needed_functions=[(g2, lambda rs: (rs*two**third,), (rs,)),
-                      (D2, lambda rs:(rs,), (rs,))]
+    needed_functions=[(g2, lambda rs: (rs,), (rs,)),
+                      (D2, lambda rs: (rs,), (rs,))]
     
     @classmethod
     def eval(cls, rs):
-        return -sympify('9/64')/rs**three*(one/four*g2.dummy(rs*two**third)+D2.dummy(rs)-one/five/alpha**two/rs**two)
+        return -sympify('9/64')/rs**three*(g2.dummy(rs)+D2.dummy(rs)-one/five/alpha**two/rs**two)
 
 create_Routine_from_Function(C4, file, max_deriv, [], False, rs)
 
 class C5(My_Function):
     nargs=1
-    needed_functions=[(g2, lambda rs: (rs*two**third,), (rs,)),
+    needed_functions=[(g2, lambda rs: (rs,), (rs,)),
                       (D3, lambda rs: (rs,), (rs,))]
     
     @classmethod
     def eval(cls, rs):
-        return -sympify('9/40')/sqrt(two*pi)/rs**three*(one/four*g2.dummy(rs*two**third)+D3.dummy(rs))
+        return -sympify('9/40')/sqrt(two*pi)/rs**three*(g2.dummy(rs)+D3.dummy(rs))
 
 create_Routine_from_Function(C5, file, max_deriv, [], False, rs)
 
@@ -238,7 +239,7 @@ class a5(My_Function):
     
     @classmethod
     def eval(cls, rs):
-        return b0(rs)**eight*Ec(rs)
+        return b0(rs)**eight*Ec.dummy(rs)
 
 create_Routine_from_Function(a5, file, max_deriv, [], False, rs)
 
@@ -246,8 +247,8 @@ create_Routine_from_Function(a5, file, max_deriv, [], False, rs)
 a_=sympify(5.84605)
 c_=sympify(3.91744)
 d_=sympify(3.44851)
-b_=d_-sympify('3')*pi*a_/sympify('4*log(2)-4')
-q_=sympify('2*(log(2)-1)/pi**2')
+b_=d_-sympify('3')*pi*a_/sympify('4*log(2)-4', evaluate=False)
+q_=sympify('2*(log(2)-1)/pi**2', evaluate=False)
         
 a=Symbol('aa')
 b=Symbol('bb')
