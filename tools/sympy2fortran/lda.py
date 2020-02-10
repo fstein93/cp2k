@@ -161,7 +161,7 @@ class C3(My_Function):
     
     @classmethod
     def eval(cls, rs):
-        return -c3_1/rs**three*g0(rs)
+        return -c3_1/rs**three*g0.dummy(rs)
 
 create_Routine_from_Function(C3, file, max_deriv, [], False, rs)
 

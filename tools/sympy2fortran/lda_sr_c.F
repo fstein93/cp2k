@@ -139,29 +139,16 @@
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_C3", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, g0, g0_rs, g0_rs_rs
+      REAL(KIND=dp) :: x0, x1, x2, g0, g0_rs, g0_rs_rs
 
       CALL calc_g0(rs, max_deriv, g0, g0_rs, g0_rs_rs)
 
-      x0 = rs**3
-      x1 = exp(-g0_5*rs)
-      x2 = c3_1*x1/x0
-      x3 = (1.0_dp/2.0_dp)*g0_1
-      x4 = rs**2
-      x5 = rs**4
-      x6 = (1.0_dp/2.0_dp)*g0_2*x4 - 1.0_dp/2.0_dp*g0_3*x0 + (1.0_dp/2.0_dp)*g0_4*x5 &
-      + rs*x3 + 1.0_dp/2.0_dp
-      x7 = x2*x6
-      x8 = g0_2*rs - 3.0_dp/2.0_dp*g0_3*x4 + 2*g0_4*x0 + x3
-      x9 = x2*x8
-      x10 = 1.0_dp/x5
-      x11 = 6*c3_1*x1*x10
-      C3 = -x7
-      C3_rs = c3_1*x1*x10*((3.0_dp/2.0_dp)*g0_1*rs + (3.0_dp/2.0_dp)*g0_2*x4 - &
-      3.0_dp/2.0_dp*g0_3*x0 + (3.0_dp/2.0_dp)*g0_4*x5 + 3.0_dp/2.0_dp) + g0_5 &
-      *x7 - x9
-      C3_rs_rs = -12*c3_1*x1*x6/rs**5 - g0_5**2*x7 - g0_5*x11*x6 + 2*g0_5*x9 + &
-      x11*x8 - x2*(g0_2 - 3*g0_3*rs + 6*g0_4*x4)
+      x0 = c3_1/rs**3
+      x1 = c3_1*g0
+      x2 = rs**(-4)
+      C3 = -g0*x0
+      C3_rs = -g0_rs*x0 + 3*x1*x2
+      C3_rs_rs = 6*c3_1*g0_rs*x2 - g0_rs_rs*x0 - 12*x1/rs**5
 
    END SUBROUTINE calc_C3
 
