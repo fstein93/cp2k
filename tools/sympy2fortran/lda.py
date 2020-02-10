@@ -62,7 +62,7 @@ class b0(Function):
 d3_1=Symbol('d3_1')
 d3_2=Symbol('d3_2')
 
-constants_D3=[(d3_1, sympify(0.31)), (d3_2, sympify(4.95))]
+constants_D3=[(d3_1, sympify(0.31)), (d3_2, sympify(-4.95))]
 
 class D3(My_Function):
     nargs=1
@@ -70,7 +70,7 @@ class D3(My_Function):
     
     @classmethod
     def eval(cls, rs):
-        return exp(-d3_1*rs)/rs**two*(-d3_2+rs)
+        return exp(-d3_1*rs)/rs**two*(d3_2+rs)
 
 subs_D3=[[D3, 'calc_D3', rs]]
 create_Routine_from_Function(D3, file, max_deriv, [], False, rs)
@@ -78,14 +78,14 @@ create_Routine_from_Function(D3, file, max_deriv, [], False, rs)
 d2_1=Symbol('d2_1')
 d2_2=Symbol('d2_2')
 d2_3=Symbol('d2_3')
-constants_D2=[(d2_1, sympify(0.547)), (d2_2, sympify(0.388)), (d2_3, sympify(0.676))]
+constants_D2=[(d2_1, sympify(0.547)), (d2_2, sympify(-0.388)), (d2_3, sympify(0.676))]
 
 class D2(My_Function):
     nargs=1
     
     @classmethod
     def eval(cls, rs):
-        return exp(-d2_1*rs)/rs*(-d2_2+d2_3*rs)
+        return exp(-d2_1*rs)/rs*(d2_2+d2_3*rs)
 
 create_Routine_from_Function(D2, file, max_deriv, [], False, rs)
 

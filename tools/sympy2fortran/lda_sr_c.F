@@ -9,8 +9,8 @@
       REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, d3_1, d3_2
 
       d3_1 = 0.31_dp
-      d3_2 = 4.95_dp
-      x0 = -d3_2 + rs
+      d3_2 = -4.95_dp
+      x0 = d3_2 + rs
       x1 = rs**(-2)
       x2 = exp(-d3_1*rs)
       x3 = x1*x2
@@ -19,7 +19,7 @@
       x6 = d3_1*x1*x2
       x7 = 4*x5
       D3 = x4
-      D3_rs = -x0*x6 + x3 - x5*(-2*d3_2 + 2*rs)
+      D3_rs = -x0*x6 + x3 - x5*(2*d3_2 + 2*rs)
       D3_rs_rs = d3_1**2*x4 + d3_1*x0*x7 - 2*x6 - x7 + 6*x0*x2/rs**4
 
    END SUBROUTINE calc_D3
@@ -35,7 +35,7 @@
 
       x0 = 1.0_dp/rs
       x1 = exp(-d2_1*rs)
-      x2 = x1*(-d2_2 + d2_3*rs)
+      x2 = x1*(d2_2 + d2_3*rs)
       x3 = x0*x2
       x4 = d2_3*x1
       x5 = x0*x4
