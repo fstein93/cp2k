@@ -61,7 +61,12 @@ MODULE xc_sr_lda
       q3a = 0.547_dp, &
       t1a = -4.95_dp, &
       t2a = 1._dp, &
-      t3a = 0.31_dp
+      t3a = 0.31_dp, &
+      d3_1 = 0.31_dp, &
+      d3_2 = 4.95_dp, &
+      d2_1 = 0.547_dp, &
+      d2_2 = 0.388_dp, &
+      d2_3 = 0.676_dp
 
    PUBLIC :: sr_lda_info, sr_lda_eval, sr_lsd_eval
 
@@ -423,6 +428,59 @@ CONTAINS
 
    END SUBROUTINE
 
+   ELEMENTAL SUBROUTINE calc_D3(rs, max_deriv, D3, D3_rs, D3_rs_rs)
+      REAL(KIND=dp), INTENT(IN) :: rs
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: D3, D3_rs, D3_rs_rs
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_D3", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7
+
+      x0 = -d3_2 + rs
+      x1 = rs**(-2)
+      x2 = exp(-d3_1*rs)
+      x3 = x1*x2
+      x4 = x0*x3
+      D3 = x4
+      IF (max_deriv >= 1) THEN
+         x5 = x2/rs**3
+         x6 = d3_1*x1*x2
+         D3_rs = -x0*x6 + x3 + 2.0_dp*x5*(d3_2 - rs)
+      END IF
+      IF (max_deriv >= 2) THEN
+         x7 = 4.0_dp*x5
+         D3_rs_rs = d3_1**2*x4 + (d3_1*x0 - 1.0_dp)*x7 - 2.0_dp*x6 + 6.0_dp*x0*x2/rs**4
+      END IF
+
+   END SUBROUTINE calc_D3
+
+   ELEMENTAL SUBROUTINE calc_D2(rs, max_deriv, D2, D2_rs, D2_rs_rs)
+      REAL(KIND=dp), INTENT(IN) :: rs
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: D2, D2_rs, D2_rs_rs
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_D2", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6
+
+      x0 = 1.0_dp/rs
+      x1 = exp(-d2_1*rs)
+      x2 = x1*(-d2_2 + d2_3*rs)
+      x3 = x0*x2
+      D2 = x3
+      IF (max_deriv >= 1) THEN
+         x4 = d2_3*x1
+         x5 = x0*x4
+         x6 = rs**(-2)
+         D2_rs = -d2_1*x3 - (x2*x6 - x5)
+      END IF
+      IF (max_deriv >= 2) THEN
+         D2_rs_rs = d2_1**2*x3 + 2.0_dp*(d2_1*(x2*x6 - x5) - x4*x6 + x2/rs**3)
+      END IF
+
+   END SUBROUTINE calc_D2
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param rs ...
@@ -440,16 +498,13 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lda', routineP = moduleN//':'//routineN
 
       REAL(KIND=dp) :: a1, a1rs, a2, a2rs, a3, a3rs, a4, a4rs, a5, a5rs, b0, coe2, coe2rs, coe3, &
-                       coe3rs, coe4, coe4rs, coe5, coe5rs, d2anti, d2antid, d3anti, d3antid, eclrrs, x, z
+                       coe3rs, coe4, coe4rs, coe5, coe5rs, d2anti, d2antid, d3anti, d3antid, eclrrs, x, z, dummy
 
       b0 = adib*rs
       z = 0._dp
 
-      d2anti = (q1a + q2a*rs)*EXP(-q3a*rs)/rs
-      d3anti = (t1a + t2a*rs)*EXP(-t3a*rs)/rs**2
-
-      d2antid = -((q1a + q1a*q3a*rs + q2a*q3a*rs**2)/rs**2)*EXP(-q3a*rs)
-      d3antid = -((rs*t2a*(1._dp + rs*t3a) + t1a*(2._dp + rs*t3a))/rs**3)*EXP(-rs*t3a)
+      CALL calc_D2(rs, 1, d2anti, d2antid, dummy)
+      CALL calc_D3(rs, 1, d3anti, d3antid, dummy)
 
       coe2 = -3._dp/8._dp/rs**3*(g0(rs) - 0.5_dp)
       coe2rs = -3._dp/8._dp/rs**3*g0d(rs) + 9._dp/8._dp/rs**4*(g0(rs) - 0.5_dp)
@@ -623,17 +678,14 @@ CONTAINS
 
       REAL(KIND=dp) :: a1, a1rs, a1z, a2, a2rs, a2z, a3, a3rs, a3z, a4, a4rs, a4z, a5, a5rs, a5z, &
                        b0, coe2, coe2rs, coe2z, coe3, coe3rs, coe3z, coe4, coe4rs, coe4z, coe5, coe5rs, coe5z, &
-                       d2anti, d2antid, d3anti, d3antid, eclrrs, eclrz, phi, x
+                       d2anti, d2antid, d3anti, d3antid, eclrrs, eclrz, phi, x, dummy
 
       phi = ((1._dp + z)**(2._dp/3._dp) + (1._dp - z)**(2._dp/3._dp))/2._dp
 
       b0 = adib*rs
 
-      d2anti = (q1a + q2a*rs)*EXP(-q3a*rs)/rs
-      d3anti = (t1a + t2a*rs)*EXP(-t3a*rs)/rs**2
-
-      d2antid = -((q1a + q1a*q3a*rs + q2a*q3a*rs**2)/rs**2)*EXP(-q3a*rs)
-      d3antid = -((rs*t2a*(1._dp + rs*t3a) + t1a*(2._dp + rs*t3a))/rs**3)*EXP(-rs*t3a)
+      CALL calc_D2(rs, 1, d2anti, d2antid, dummy)
+      CALL calc_D3(rs, 1, d3anti, d3antid, dummy)
 
       coe2 = -3._dp/8._dp/rs**3*(1._dp - z**2)*(g0(rs) - 0.5_dp)
       coe2rs = -3._dp/8._dp/rs**3*(1._dp - z**2)*g0d(rs) + 9._dp/8._dp/rs**4*(1._dp - z**2)*(g0(rs) - 0.5_dp)
