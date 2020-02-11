@@ -151,7 +151,7 @@ CONTAINS
       INTEGER                                            :: npoints, handle, method
       INTEGER, DIMENSION(:, :), POINTER                  :: bo
       REAL(KIND=dp)                                      :: omega, rho_cutoff, sc, sx
-      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_rho, rho
+      REAL(KIND=dp), DIMENSION(:, :, :), POINTER         :: dummy, e_0, e_rho, e_rho_rho, rho
       TYPE(xc_derivative_type), POINTER                  :: deriv
 
       CALL timeset(routineN, handle)
@@ -161,7 +161,7 @@ CONTAINS
       CALL section_vals_val_get(sr_section, 'OMEGA', r_val=omega)
       CALL section_vals_val_get(sr_section, 'PARAMETRIZATION', i_val=method)
 
-      NULLIFY (bo, rho, e_0, e_rho, dummy)
+      NULLIFY (bo, rho, e_0, e_rho, e_rho_rho, dummy)
       CPASSERT(ASSOCIATED(rho_set))
       CPASSERT(rho_set%ref_count > 0)
       CPASSERT(ASSOCIATED(deriv_set))
@@ -177,6 +177,7 @@ CONTAINS
 
       e_0 => dummy
       e_rho => dummy
+      e_rho_rho => dummy
 
       IF (order >= 0) THEN
          deriv => xc_dset_get_derivative(deriv_set, "", &
@@ -188,11 +189,16 @@ CONTAINS
                                          allocate_deriv=.TRUE.)
          CALL xc_derivative_get(deriv, deriv_data=e_rho)
       END IF
-      IF (order > 1 .OR. order < -1) THEN
-         CPABORT("derivatives bigger than 1 not implemented")
+      IF (order >= 2 .OR. order == -2) THEN
+         deriv => xc_dset_get_derivative(deriv_set, "(rho)(rho)", &
+                                         allocate_deriv=.TRUE.)
+         CALL xc_derivative_get(deriv, deriv_data=e_rho_rho)
+      END IF
+      IF (order > 2 .OR. order < -2) THEN
+         CPABORT("derivatives bigger than 2 not implemented")
       END IF
 
-      CALL sr_lda_calc(rho, omega, rho_cutoff, e_0, e_rho, &
+      CALL sr_lda_calc(rho, omega, rho_cutoff, e_0, e_rho, e_rho_rho, &
                        npoints, order, sx, sc)
 
       CALL timestop(handle)
@@ -211,21 +217,23 @@ CONTAINS
 !> \param sx ...
 !> \param sc ...
 ! **************************************************************************************************
-   SUBROUTINE sr_lda_calc(rho, omega, rho_cutoff, e_0, e_rho, npoints, order, sx, sc)
+   SUBROUTINE sr_lda_calc(rho, omega, rho_cutoff, e_0, e_rho, e_rho_rho, npoints, order, sx, sc)
       !FM low level calc routine
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rho
       REAL(KIND=dp), INTENT(IN)                          :: omega, rho_cutoff
-      REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_0, e_rho
+      REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_0, e_rho, e_rho_rho
       INTEGER, INTENT(IN)                                :: npoints, order
       REAL(KIND=dp), INTENT(IN)                          :: sx, sc
 
       CHARACTER(len=*), PARAMETER :: routineN = 'sr_lda_calc', routineP = moduleN//':'//routineN
 
-      INTEGER                                            :: handle, k
-      REAL(KIND=dp)                                      :: my_rho, rs
+      INTEGER                                            :: handle, k, order_
+      REAL(KIND=dp)                                      :: my_rho, rs, e, e_r, e_r_r
       REAL(KIND=dp), DIMENSION(0:1)                      :: ed
 
       CALL timeset(routineN, handle)
+
+      order_ = ABS(order)
 
       IF (sc /= 0.0_dp .OR. sx /= 0.0_dp) THEN
 !$OMP PARALLEL DO PRIVATE (k, ed, my_rho, rs) DEFAULT(NONE)&
@@ -236,13 +244,28 @@ CONTAINS
             IF (rho(k) > rho_cutoff) THEN
                rs = (3.0_dp/4.0_dp/pi/my_rho)**(1.0_dp/3.0_dp)
 
-               CALL ldasr(rs, omega, ed(0), ed(1), sx, sc)
+               IF (sc /= 0.0_dp) THEN
+                  CALL calc_sr_lda_ec(rs, omega, order_, e, e_r, e_r_r)
 
-               IF (order >= 0) THEN
-                  e_0(k) = e_0(k) + ed(0)*my_rho
+                  IF (order >= 0) THEN
+                     e_0(k) = e_0(k) + sc*e*my_rho
+                  END IF
+                  IF (order >= 1 .OR. order == -1) THEN
+                     e_rho(k) = e_rho(k) + sc*(e_r*my_rho + e)
+                  END IF
+                  IF (order >= 2 .OR. order == -2) THEN
+                     e_rho_rho(k) = e_rho_rho(k) + sc*(e_r_r*my_rho + 2.0_dp*e_r)
+                  END IF
                END IF
-               IF (order >= 1 .OR. order == -1) THEN
-                  e_rho(k) = e_rho(k) + ed(1)
+               IF (sx /= 0.0_dp) THEN
+                  CALL ldasr(rs, omega, ed(0), ed(1))
+
+                  IF (order >= 0) THEN
+                     e_0(k) = e_0(k) + sx*ed(0)*my_rho
+                  END IF
+                  IF (order >= 1 .OR. order == -1) THEN
+                     e_rho(k) = e_rho(k) + sx*ed(1)
+                  END IF
                END IF
             END IF
 
@@ -399,47 +422,22 @@ CONTAINS
 !> \param mu ...
 !> \param excsr ...
 !> \param vxcsr ...
-!> \param sx ...
-!> \param sc ...
 ! **************************************************************************************************
-   ELEMENTAL SUBROUTINE ldasr(rs, mu, excsr, vxcsr, sx, sc)
+   ELEMENTAL SUBROUTINE ldasr(rs, mu, exsr, vxsr)
       REAL(KIND=dp), INTENT(IN)                          :: rs, mu
-      REAL(KIND=dp), INTENT(OUT)                         :: excsr, vxcsr
-      REAL(KIND=dp), INTENT(IN)                          :: sx, sc
+      REAL(KIND=dp), INTENT(OUT)                         :: exsr, vxsr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ldasr', routineP = moduleN//':'//routineN
 
-      REAL(KIND=dp)                                      :: ec, ecd, eclr, ex, exlr, vc, vclr, vx, &
-                                                            vxlr
+      REAL(KIND=dp)                                      :: ex, exlr, vx, vxlr
 
-      IF (sx /= 0.0_dp) THEN
-         ex = -3._dp*cf/rs/4._dp/pi
-         vx = -(3._dp/2._dp/pi)**(2._dp/3._dp)/rs
+      ex = -3._dp*cf/4._dp/pi/rs
+      vx = -(3._dp/2._dp/pi)**(2._dp/3._dp)/rs
 
-         CALL exchangelr_lda(rs, mu, exlr, vxlr)
-      ELSE
-         ex = 0.0_dp
-         vx = 0.0_dp
+      CALL exchangelr_lda(rs, mu, exlr, vxlr)
 
-         exlr = 0.0_dp
-         vxlr = 0.0_dp
-      END IF
-
-      IF (sc /= 0.0_dp) THEN
-         CALL ecPW_lda(rs, ec, ecd)
-         vc = ec - rs/3._dp*ecd
-
-         CALL ecorrlr_lda(rs, mu, eclr, vclr, ec, ecd)
-      ELSE
-         ec = 0.0_dp
-         vc = 0.0_dp
-
-         eclr = 0.0_dp
-         vclr = 0.0_dp
-      END IF
-
-      excsr = sx*ex + sc*ec - (sx*exlr + sc*eclr)
-      vxcsr = sx*vx + sc*vc - (sx*vxlr + sc*vclr)
+      exsr = ex - exlr
+      vxsr = vx - vxlr
 
    END SUBROUTINE
 
@@ -957,44 +955,137 @@ CONTAINS
 
    END SUBROUTINE calc_a5
 
+   ELEMENTAL SUBROUTINE calc_Q(xx, max_deriv, Q, Q_xx, Q_xx_xx)
+      REAL(KIND=dp), INTENT(IN) :: xx
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: Q, Q_xx, Q_xx_xx
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_Q", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19
+
+      x0 = xx**2
+      x1 = aa*xx + 1.0_dp
+      x2 = dd*x0 + x1
+      x3 = 1.0_dp/x2
+      x4 = bb*x0 + cc*xx**3 + x1
+      x5 = 1.0_dp/x4
+      x6 = 2.0_dp*bb
+      x7 = x6*xx
+      x8 = 3.0_dp*cc*x0
+      x9 = aa + x7 + x8
+      x10 = x2**(-2)
+      Q = qq*log(x3*x4)
+      IF (max_deriv >= 1) THEN
+         x11 = -aa
+         x12 = dd*xx
+         x13 = 2.0_dp*x12
+         x14 = x11 - x13
+         x15 = x14*x4
+         x16 = x10*x15 + x3*x9
+         x17 = qq*x16*x5
+         Q_xx = x17*x2
+      END IF
+      IF (max_deriv >= 2) THEN
+         x18 = qq*x2
+         x19 = 2.0_dp*x10
+         Q_xx_xx = x16*x18*(x11 - x7 - x8)/x4**2 + x17*(aa + x13) + x18*x5*(-dd* &
+                                                 x19*x4 + x14*x19*x9 + x15*(-2.0_dp*aa - 4.0_dp*x12)/x2**3 + x3*(6.0_dp*cc*xx + x6))
+      END IF
+
+   END SUBROUTINE calc_Q
+
+   ELEMENTAL SUBROUTINE calc_sr_lda_ec(rs, mu, max_deriv, ec_mu, ec_mu_rho, ec_mu_rho_rho)
+      REAL(KIND=dp), INTENT(IN) :: rs, mu
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: ec_mu, ec_mu_rho, ec_mu_rho_rho
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_ec_mu", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, &
+                       x18, Ec, Ec_rs, Ec_rs_rs, Q, Q_rs, Q_rs_rs, a1, a1_rs, a1_rs_rs, a2, a2_rs, a2_rs_rs, a3, a3_rs, &
+                       a3_rs_rs, a4, a4_rs, a4_rs_rs, a5, a5_rs, a5_rs_rs, ed(0:2), ec_mu_rs, ec_mu_rs_rs, xx, Q_xx, Q_xx_xx
+
+      CALL calc_g(rs, 0, ed, max_deriv)
+      Ec = ed(0)
+
+      xx = mu*sqrt(rs)
+
+      CALL calc_Q(xx, max_deriv, Q, Q_xx, Q_xx_xx)
+      CALL calc_a1(rs, max_deriv, a1, a1_rs, a1_rs_rs)
+      CALL calc_a2(rs, max_deriv, a2, a2_rs, a2_rs_rs, Ec, Ec_rs, Ec_rs_rs)
+      CALL calc_a3(rs, max_deriv, a3, a3_rs, a3_rs_rs)
+      CALL calc_a4(rs, max_deriv, a4, a4_rs, a4_rs_rs, Ec, Ec_rs, Ec_rs_rs)
+      CALL calc_a5(rs, max_deriv, a5, a5_rs, a5_rs_rs, Ec, Ec_rs, Ec_rs_rs)
+
+      x0 = rs**2
+      x1 = beta**2
+      x2 = mu**2
+      x3 = x1*x2
+      x4 = x0*x3 + 1.0_dp
+      x5 = x4**(-4)
+      x6 = mu**3
+      x7 = a1*x6
+      x8 = mu**4
+      x9 = a2*x8
+      x10 = mu**5
+      x11 = a3*x10
+      x12 = mu**6
+      x13 = a4*x12
+      x14 = mu**8
+      x15 = a5*x14
+      ec_mu = Ec - x5*(Q + x11 + x13 + x15 + x7 + x9)
+      IF (max_deriv >= 1) THEN
+         Ec_rs = ed(1)
+         Q_rs = Q_xx*mu/sqrt(rs)
+         x16 = x4**(-5)
+         x17 = rs*x1*x16*x2
+         x18 = 8.0_dp*(Q + x11 + x13 + x15 + x7 + x9)
+         ec_mu_rs = Ec_rs + x17*x18 - x5*(Q_rs + a1_rs*x6 + a2_rs*x8 + a3_rs*x10 &
+                                          + a4_rs*x12 + a5_rs*x14)
+      END IF
+      IF (max_deriv >= 2) THEN
+         Ec_rs_rs = ed(2)
+         Q_rs_rs = Q_xx_xx*mu**2/rs - 0.5_dp*Q_xx*mu/rs**1.5_dp
+         ec_mu_rs_rs = Ec_rs_rs - 80.0_dp*beta**4*x0*x8*(Q + x11 + x13 + x15 &
+                                                         + x7 + x9)/x4**6 + x16*x18*x3 + 16.0_dp*x17*(Q_rs + a1_rs*x6 &
+                                                                             + a2_rs*x8 + a3_rs*x10 + a4_rs*x12 + a5_rs*x14) - x5* &
+                       (Q_rs_rs + a1_rs_rs*x6 + a2_rs_rs*x8 + a3_rs_rs*x10 + a4_rs_rs* &
+                        x12 + a5_rs_rs*x14)
+      END IF
+
+      CALL calc_rs2rho(rs, max_deriv, ec_mu_rs, ec_mu_rs_rs, ec_mu_rho, ec_mu_rho_rho)
+
+   END SUBROUTINE calc_sr_lda_ec
+
 ! **************************************************************************************************
-!> \brief ...
+!> \brief Transform derivatives wrt rs to derivatives wrt rho
 !> \param rs ...
-!> \param mu ...
-!> \param eclr ...
-!> \param vclr ...
-!> \param ec ...
-!> \param ecd ...
+!> \param max_deriv ...
+!> \param e_rs ...
+!> \param e_rs_rs ...
+!> \param e_rho ...
+!> \param e_rho_rho ...
 ! **************************************************************************************************
-   ELEMENTAL SUBROUTINE ecorrlr_lda(rs, mu, eclr, vclr, ec, ecd)
-      REAL(KIND=dp), INTENT(IN)                          :: rs, mu
-      REAL(KIND=dp), INTENT(OUT)                         :: eclr, vclr
-      REAL(KIND=dp), INTENT(IN)                          :: ec, ecd
+   ELEMENTAL SUBROUTINE calc_rs2rho(rs, max_deriv, e_rs, e_rs_rs, e_rho, e_rho_rho)
+      REAL(KIND=dp), INTENT(IN) :: rs, e_rs, e_rs_rs
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: e_rho, e_rho_rho
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lda', routineP = moduleN//':'//routineN
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_rs2rho", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: a1, a1rs, a2, a2rs, a3, a3rs, a4, a4rs, a5, a5rs, b0, &
-                       eclrrs, x, dummy, dummy2
+      REAL(KIND=dp) :: rs_rho, rs_rho_rho
 
-      b0 = adib*rs
+      IF (max_deriv >= 1) THEN
+         rs_rho = -4.0_dp/9.0_dp*pi*rs**4
+         e_rho = e_rs*rs_rho
+      END IF
+      IF (max_deriv >= 2) THEN
+         rs_rho_rho = 4.0_dp*rs_rho**2/rs
+         e_rho_rho = e_rs_rs*rs_rho**2 + e_rs*rs_rho_rho
+      END IF
 
-      CALL calc_a1(rs, 1, a1, a1rs, dummy)
-      CALL calc_a2(rs, 1, a2, a2rs, dummy, ec, ecd, dummy2)
-      CALL calc_a3(rs, 1, a3, a3rs, dummy)
-      CALL calc_a4(rs, 1, a4, a4rs, dummy, ec, ecd, dummy2)
-      CALL calc_a5(rs, 1, a5, a5rs, dummy, ec, ecd, dummy2)
-
-      x = mu*SQRT(rs)
-
-      eclr = (Qrpa(x) + mu**3*(a1 + mu*(a2 + mu*(a3 + mu*(a4 + a5*mu**2)))))/((1._dp + b0**2*mu**2)**4)
-
-      eclrrs = -8._dp*adib/(1._dp + b0**2*mu**2)*b0*mu**2*eclr + &
-               1._dp/((1._dp + b0**2*mu**2)**4)*(mu/(2._dp*SQRT(rs))*Qrpad(x) + &
-                                                 mu**3*(a1rs + mu*(a2rs + mu*(a3rs + mu*(a4rs + a5rs*mu**2)))))
-
-      vclr = eclr - rs/3._dp*eclrrs
-
-   END SUBROUTINE
+   END SUBROUTINE calc_rs2rho
 
 ! **************************************************************************************************
 !> \brief ...
