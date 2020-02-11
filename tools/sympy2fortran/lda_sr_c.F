@@ -212,25 +212,23 @@
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a1", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, C3, C3_rs, C3_rs_rs, C5, C5_rs, C5_rs_rs
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, C3, C3_rs, C3_rs_rs, C5, C5_rs, C5_rs_rs
 
       CALL calc_C3(rs, max_deriv, C3, C3_rs, C3_rs_rs)
       CALL calc_C5(rs, max_deriv, C5, C5_rs, C5_rs_rs)
 
-      x0 = beta**8
-      x1 = rs**8*x0
-      x2 = rs**6
+      x0 = b0**8
+      x1 = C5*x0
+      x2 = b0**6
       x3 = 4*x2
-      x4 = beta**6
-      x5 = C3*x4
-      x6 = rs**5
-      x7 = C3_rs*x4
-      x8 = rs**7
-      x9 = C5*x0
-      a1 = C5*x1 + x3*x5
-      a1_rs = C5_rs*x1 + x3*x7 + 24*x5*x6 + 8*x8*x9
-      a1_rs_rs = C3_rs_rs*x3*x4 + 16*C5_rs*x0*x8 + C5_rs_rs*x1 + 120*rs**4*x5 &
-      + 56*x2*x9 + 48*x6*x7
+      x4 = C5_rs*x0
+      x5 = 1.0_dp/rs
+      x6 = C3*x2
+      x7 = rs**(-2)
+      a1 = C3*x3 + x1
+      a1_rs = C3_rs*x3 + 8*x1*x5 + x4 + 24*x5*x6
+      a1_rs_rs = 48*C3_rs*x2*x5 + C3_rs_rs*x3 + C5_rs_rs*x0 + 56*x1*x7 + 16*x4 &
+      *x5 + 120*x6*x7
 
    END SUBROUTINE calc_a1
 
@@ -241,33 +239,29 @@
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a2", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, C2, C2_rs, C2_rs_rs, C4, C4_rs, C4_rs_rs, Ec, Ec_rs, Ec_rs_rs
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, C2, C2_rs, C2_rs_rs, C4, C4_rs, C4_rs_rs, Ec, Ec_rs, Ec_rs_rs
 
       CALL calc_C2(rs, max_deriv, C2, C2_rs, C2_rs_rs)
       CALL calc_C4(rs, max_deriv, C4, C4_rs, C4_rs_rs)
       CALL calc_Ec(rs, max_deriv, Ec, Ec_rs, Ec_rs_rs)
 
-      x0 = beta**8
-      x1 = rs**8*x0
-      x2 = rs**6
+      x0 = b0**8
+      x1 = C4*x0
+      x2 = b0**6
       x3 = 4*x2
-      x4 = beta**6
-      x5 = C2*x4
-      x6 = rs**4
-      x7 = 6*x6
-      x8 = beta**4
-      x9 = Ec*x8
-      x10 = rs**5
-      x11 = C2_rs*x4
-      x12 = rs**7
-      x13 = C4*x0
-      x14 = rs**3
-      x15 = Ec_rs*x8
-      a2 = C4*x1 + x3*x5 + x7*x9
-      a2_rs = C4_rs*x1 + 24*x10*x5 + x11*x3 + 8*x12*x13 + 24*x14*x9 + x15*x7
-      a2_rs_rs = C2_rs_rs*x3*x4 + 16*C4_rs*x0*x12 + C4_rs_rs*x1 + Ec_rs_rs*x7* &
-      x8 + 72*rs**2*x9 + 48*x10*x11 + 56*x13*x2 + 48*x14*x15 + 120*x5* &
-      x6
+      x4 = b0**4
+      x5 = 6*x4
+      x6 = C4_rs*x0
+      x7 = 1.0_dp/rs
+      x8 = 24*x7
+      x9 = C2*x2
+      x10 = Ec*x4
+      x11 = rs**(-2)
+      x12 = 48*x7
+      a2 = C2*x3 + Ec*x5 + x1
+      a2_rs = C2_rs*x3 + Ec_rs*x5 + 8*x1*x7 + x10*x8 + x6 + x8*x9
+      a2_rs_rs = C2_rs*x12*x2 + C2_rs_rs*x3 + C4_rs_rs*x0 + Ec_rs*x12*x4 + &
+      Ec_rs_rs*x5 + 56*x1*x11 + 72*x10*x11 + 120*x11*x9 + 16*x6*x7
 
    END SUBROUTINE calc_a2
 
@@ -282,13 +276,13 @@
 
       CALL calc_C3(rs, max_deriv, C3, C3_rs, C3_rs_rs)
 
-      x0 = beta**8
-      x1 = rs**8*x0
-      x2 = rs**7
-      x3 = C3*x0
-      a3 = C3*x1
-      a3_rs = C3_rs*x1 + 8*x2*x3
-      a3_rs_rs = 16*C3_rs*x0*x2 + C3_rs_rs*x1 + 56*rs**6*x3
+      x0 = b0**8
+      x1 = C3*x0
+      x2 = C3_rs*x0
+      x3 = 1.0_dp/rs
+      a3 = x1
+      a3_rs = 8*x1*x3 + x2
+      a3_rs_rs = C3_rs_rs*x0 + 16*x2*x3 + 56*x1/rs**2
 
    END SUBROUTINE calc_a3
 
@@ -299,25 +293,23 @@
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a4", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, C2, C2_rs, C2_rs_rs, Ec, Ec_rs, Ec_rs_rs
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, C2, C2_rs, C2_rs_rs, Ec, Ec_rs, Ec_rs_rs
 
       CALL calc_C2(rs, max_deriv, C2, C2_rs, C2_rs_rs)
       CALL calc_Ec(rs, max_deriv, Ec, Ec_rs, Ec_rs_rs)
 
-      x0 = beta**8
-      x1 = rs**8*x0
-      x2 = rs**6
+      x0 = b0**8
+      x1 = C2*x0
+      x2 = b0**6
       x3 = 4*x2
-      x4 = beta**6
-      x5 = Ec*x4
-      x6 = rs**7
-      x7 = C2*x0
-      x8 = rs**5
-      x9 = Ec_rs*x4
-      a4 = C2*x1 + x3*x5
-      a4_rs = C2_rs*x1 + x3*x9 + 24*x5*x8 + 8*x6*x7
-      a4_rs_rs = 16*C2_rs*x0*x6 + C2_rs_rs*x1 + Ec_rs_rs*x3*x4 + 120*rs**4*x5 &
-      + 56*x2*x7 + 48*x8*x9
+      x4 = C2_rs*x0
+      x5 = 1.0_dp/rs
+      x6 = Ec*x2
+      x7 = rs**(-2)
+      a4 = Ec*x3 + x1
+      a4_rs = Ec_rs*x3 + 8*x1*x5 + x4 + 24*x5*x6
+      a4_rs_rs = C2_rs_rs*x0 + 48*Ec_rs*x2*x5 + Ec_rs_rs*x3 + 56*x1*x7 + 16*x4 &
+      *x5 + 120*x6*x7
 
    END SUBROUTINE calc_a4
 
@@ -332,13 +324,13 @@
 
       CALL calc_Ec(rs, max_deriv, Ec, Ec_rs, Ec_rs_rs)
 
-      x0 = beta**8
-      x1 = rs**8*x0
-      x2 = rs**7
-      x3 = Ec*x0
-      a5 = Ec*x1
-      a5_rs = Ec_rs*x1 + 8*x2*x3
-      a5_rs_rs = 16*Ec_rs*x0*x2 + Ec_rs_rs*x1 + 56*rs**6*x3
+      x0 = b0**8
+      x1 = Ec*x0
+      x2 = Ec_rs*x0
+      x3 = 1.0_dp/rs
+      a5 = x1
+      a5_rs = 8*x1*x3 + x2
+      a5_rs_rs = Ec_rs_rs*x0 + 16*x2*x3 + 56*x1/rs**2
 
    END SUBROUTINE calc_a5
 
@@ -349,43 +341,30 @@
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_Q", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, aa, cc, dd, qq, bb
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, aa, cc, dd, qq, bb
 
       aa = 5.84605_dp
       cc = 3.91744_dp
       dd = 3.44851_dp
       qq = 2*(-1 + 0.693147180559945_dp)/pi**2
       bb = 3.44851_dp - 17.53815_dp*pi/(-4 + 4*0.693147180559945_dp)
-      x0 = mu**2
-      x1 = dd*x0
-      x2 = sqrt(rs)
-      x3 = aa*mu
-      x4 = x2*x3 + 1
-      x5 = rs*x1 + x4
-      x6 = 1.0_dp/x5
-      x7 = bb*x0
-      x8 = rs**(3.0_dp/2.0_dp)
-      x9 = cc*mu**3
-      x10 = rs*x7 + x4 + x8*x9
-      x11 = 1.0_dp/x10
-      x12 = 1.0_dp/x2
-      x13 = x12*x3
-      x14 = (1.0_dp/2.0_dp)*x13
-      x15 = (3.0_dp/2.0_dp)*x2*x9
-      x16 = x14 + x15 + x7
-      x17 = -x14
-      x18 = -x1 + x17
-      x19 = x5**(-2)
-      x20 = x10*x19
-      x21 = x16*x6 + x18*x20
-      x22 = qq*x11*x21
-      x23 = qq*x5
-      x24 = (1.0_dp/4.0_dp)*x3/x8
-      Q = qq*log(x10*x6)
-      Q_rs = x22*x5
-      Q_rs_rs = x11*x23*(x10*x18*(-2*x1 - x13)/x5**3 + 2*x16*x18*x19 + x20*x24 &
-      + x6*((3.0_dp/4.0_dp)*x12*x9 - x24)) + x22*(x1 + x14) + x21*x23*( &
-      -x15 + x17 - x7)/x10**2
+      x0 = xx**2
+      x1 = aa*xx + 1
+      x2 = dd*x0 + x1
+      x3 = 1.0_dp/x2
+      x4 = bb*x0 + cc*xx**3 + x1
+      x5 = 2*xx
+      x6 = aa + dd*x5
+      x7 = x4*x6
+      x8 = 3*cc*x0
+      x9 = aa + bb*x5 + x8
+      x10 = x2*x9
+      x11 = xx*(-x10 + x7)
+      x12 = x2**2
+      Q = qq*log(x3*x4)
+      Q_rs = -1.0_dp/2.0_dp*qq*x11*x3/(rs*x4)
+      Q_rs_rs = (1.0_dp/4.0_dp)*qq*xx*(x10*x11 - x11*x7 + x4*(x12*(-aa + x8) + &
+      x2*(aa*x4 - x5*x6*x9) + x4*x5*x6**2))/(rs**2*x12*x4**2)
 
    END SUBROUTINE calc_Q
 

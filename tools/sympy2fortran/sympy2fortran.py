@@ -177,7 +177,7 @@ def postprocessing(deriv, intermediates, list_subs, name, max_deriv: int, do_sim
         print(d)
         
         for token, sub in list_subs:
-            d=d.subs(token, sub).expand().doit()
+            d=d.subs(token, sub).doit()
         
         # Perform substitutions in sympy representation
         for intermediate in intermediates:

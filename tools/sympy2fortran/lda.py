@@ -59,6 +59,8 @@ class b0(Function):
     def eval(cls, rs):
         return beta*rs
     
+subs_b0=[(beta, Symbol('b0')/rs)]
+    
 d3_1=Symbol('d3_1')
 d3_2=Symbol('d3_2')
 
@@ -198,7 +200,7 @@ class a1(My_Function):
     def eval(cls, rs):
         return four*b0(rs)**six*C3.dummy(rs)+b0(rs)**eight*C5.dummy(rs)
 
-create_Routine_from_Function(a1, file, max_deriv, [], False, rs)
+create_Routine_from_Function(a1, file, max_deriv, subs_b0, False, rs)
 
 class a2(My_Function):
     nargs=1
@@ -210,7 +212,7 @@ class a2(My_Function):
     def eval(cls, rs):
         return four*b0(rs)**six*C2.dummy(rs)+b0(rs)**eight*C4.dummy(rs)+six*b0(rs)**four*Ec.dummy(rs)
 
-create_Routine_from_Function(a2, file, max_deriv, [], False, rs)
+create_Routine_from_Function(a2, file, max_deriv, subs_b0, False, rs)
 
 class a3(My_Function):
     nargs=1
@@ -220,7 +222,7 @@ class a3(My_Function):
     def eval(cls, rs):
         return b0(rs)**eight*C3.dummy(rs)
 
-create_Routine_from_Function(a3, file, max_deriv, [], False, rs)
+create_Routine_from_Function(a3, file, max_deriv, subs_b0, False, rs)
 
 class a4(My_Function):
     nargs=1
@@ -231,7 +233,7 @@ class a4(My_Function):
     def eval(cls, rs):
         return b0(rs)**eight*C2.dummy(rs)+four*b0(rs)**six*Ec.dummy(rs)
 
-create_Routine_from_Function(a4, file, max_deriv, [], False, rs)
+create_Routine_from_Function(a4, file, max_deriv, subs_b0, False, rs)
 
 class a5(My_Function):
     nargs=1
@@ -241,7 +243,7 @@ class a5(My_Function):
     def eval(cls, rs):
         return b0(rs)**eight*Ec.dummy(rs)
 
-create_Routine_from_Function(a5, file, max_deriv, [], False, rs)
+create_Routine_from_Function(a5, file, max_deriv, subs_b0, False, rs)
 
 # constants for the functional
 a_=sympify(5.84605)
@@ -269,7 +271,7 @@ class Q(My_Function):
         x=mu*sqrt(rs)
         return q*log((one+a*x+b*x**2+c*x**three)/(one+a*x+d*x**two))
 
-create_Routine_from_Function(Q, file, max_deriv, [], False, rs)
+create_Routine_from_Function(Q, file, max_deriv, [(mu, Symbol('xx')/sqrt(rs))], True, rs)
 
 # The actual energy density
 
