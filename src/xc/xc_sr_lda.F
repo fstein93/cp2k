@@ -804,6 +804,159 @@ CONTAINS
 
    END SUBROUTINE calc_C5
 
+   ELEMENTAL SUBROUTINE calc_a1(rs, max_deriv, a1, a1_rs, a1_rs_rs)
+      REAL(KIND=dp), INTENT(IN) :: rs
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: a1, a1_rs, a1_rs_rs
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a1", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, C3, C3_rs, C3_rs_rs, C5, C5_rs, C5_rs_rs
+
+      CALL calc_C3(rs, max_deriv, C3, C3_rs, C3_rs_rs)
+      CALL calc_C5(rs, max_deriv, C5, C5_rs, C5_rs_rs)
+
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4.0_dp*x2
+      x4 = beta**6
+      x5 = C3*x4
+      a1 = C5*x1 + x3*x5
+      IF (max_deriv >= 1) THEN
+         x6 = rs**5
+         x7 = C3_rs*x4
+         x8 = rs**7
+         x9 = C5*x0
+         a1_rs = C5_rs*x1 + x3*x7 + 24.0_dp*x5*x6 + 8.0_dp*x8*x9
+      END IF
+      IF (max_deriv >= 2) THEN
+         a1_rs_rs = C3_rs_rs*x3*x4 + 16.0_dp*C5_rs*x0*x8 + C5_rs_rs*x1 + 120.0_dp*rs**4*x5 &
+                    + 56.0_dp*x2*x9 + 48.0_dp*x6*x7
+      END IF
+
+   END SUBROUTINE calc_a1
+
+   ELEMENTAL SUBROUTINE calc_a2(rs, max_deriv, a2, a2_rs, a2_rs_rs, Ec, Ec_rs, Ec_rs_rs)
+      REAL(KIND=dp), INTENT(IN) :: rs, Ec, Ec_rs, Ec_rs_rs
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: a2, a2_rs, a2_rs_rs
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a2", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, C2, C2_rs, &
+                       C2_rs_rs, C4, C4_rs, C4_rs_rs
+
+      CALL calc_C2(rs, max_deriv, C2, C2_rs, C2_rs_rs)
+      CALL calc_C4(rs, max_deriv, C4, C4_rs, C4_rs_rs)
+
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4.0_dp*x2
+      x4 = beta**6
+      x5 = C2*x4
+      x6 = rs**4
+      x7 = 6.0_dp*x6
+      x8 = beta**4
+      x9 = Ec*x8
+      a2 = C4*x1 + x3*x5 + x7*x9
+      IF (max_deriv >= 1) THEN
+         x10 = rs**5
+         x11 = C2_rs*x4
+         x12 = rs**7
+         x13 = C4*x0
+         x14 = rs**3
+         x15 = Ec_rs*x8
+         a2_rs = C4_rs*x1 + 24.0_dp*x10*x5 + x11*x3 + 8.0_dp*x12*x13 + 24.0_dp*x14*x9 + x15*x7
+      END IF
+      IF (max_deriv >= 2) THEN
+         a2_rs_rs = C2_rs_rs*x3*x4 + 16.0_dp*C4_rs*x0*x12 + C4_rs_rs*x1 + Ec_rs_rs*x7* &
+                    x8 + 72.0_dp*rs**2*x9 + 48.0_dp*x10*x11 + 56.0_dp*x13*x2 + 48.0_dp*x14*x15 + 120.0_dp*x5*x6
+      END IF
+
+   END SUBROUTINE calc_a2
+
+   ELEMENTAL SUBROUTINE calc_a3(rs, max_deriv, a3, a3_rs, a3_rs_rs)
+      REAL(KIND=dp), INTENT(IN) :: rs
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: a3, a3_rs, a3_rs_rs
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a3", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, C3, C3_rs, C3_rs_rs
+
+      CALL calc_C3(rs, max_deriv, C3, C3_rs, C3_rs_rs)
+
+      x0 = beta**8
+      x1 = rs**8*x0
+      a3 = C3*x1
+      IF (max_deriv >= 1) THEN
+         x2 = rs**7
+         x3 = C3*x0
+         a3_rs = C3_rs*x1 + 8.0_dp*x2*x3
+      END IF
+      IF (max_deriv >= 2) THEN
+         a3_rs_rs = 16.0_dp*C3_rs*x0*x2 + C3_rs_rs*x1 + 56.0_dp*rs**6*x3
+      END IF
+
+   END SUBROUTINE calc_a3
+
+   ELEMENTAL SUBROUTINE calc_a4(rs, max_deriv, a4, a4_rs, a4_rs_rs, Ec, Ec_rs, Ec_rs_rs)
+      REAL(KIND=dp), INTENT(IN) :: rs, Ec, Ec_rs, Ec_rs_rs
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: a4, a4_rs, a4_rs_rs
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a4", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, C2, C2_rs, C2_rs_rs
+
+      CALL calc_C2(rs, max_deriv, C2, C2_rs, C2_rs_rs)
+
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4.0_dp*x2
+      x4 = beta**6
+      x5 = Ec*x4
+      a4 = C2*x1 + x3*x5
+      IF (max_deriv >= 1) THEN
+         x6 = rs**7
+         x7 = C2*x0
+         x8 = rs**5
+         x9 = Ec_rs*x4
+         a4_rs = C2_rs*x1 + x3*x9 + 24.0_dp*x5*x8 + 8.0_dp*x6*x7
+      END IF
+      IF (max_deriv >= 2) THEN
+         a4_rs_rs = 16.0_dp*C2_rs*x0*x6 + C2_rs_rs*x1 + Ec_rs_rs*x3*x4 + 120.0_dp*rs**4*x5 &
+                    + 56.0_dp*x2*x7 + 48.0_dp*x8*x9
+      END IF
+
+   END SUBROUTINE calc_a4
+
+   ELEMENTAL SUBROUTINE calc_a5(rs, max_deriv, a5, a5_rs, a5_rs_rs, Ec, Ec_rs, Ec_rs_rs)
+      REAL(KIND=dp), INTENT(IN) :: rs, Ec, Ec_rs, Ec_rs_rs
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: a5, a5_rs, a5_rs_rs
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a5", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3
+
+      x0 = beta**8
+      x1 = rs**8*x0
+      a5 = Ec*x1
+      IF (max_deriv >= 1) THEN
+         x2 = rs**7
+         x3 = Ec*x0
+         a5_rs = Ec_rs*x1 + 8.0_dp*x2*x3
+      END IF
+      IF (max_deriv >= 2) THEN
+         a5_rs_rs = 16.0_dp*Ec_rs*x0*x2 + Ec_rs_rs*x1 + 56.0_dp*rs**6*x3
+      END IF
+
+   END SUBROUTINE calc_a5
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param rs ...
@@ -820,31 +973,16 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lda', routineP = moduleN//':'//routineN
 
-      REAL(KIND=dp) :: a1, a1rs, a2, a2rs, a3, a3rs, a4, a4rs, a5, a5rs, b0, coe2, coe2rs, coe3, &
-                       coe3rs, coe4, coe4rs, coe5, coe5rs, eclrrs, x, dummy
+      REAL(KIND=dp) :: a1, a1rs, a2, a2rs, a3, a3rs, a4, a4rs, a5, a5rs, b0, &
+                       eclrrs, x, dummy, dummy2
 
       b0 = adib*rs
 
-      CALL calc_C2(rs, 1, coe2, coe2rs, dummy)
-      CALL calc_C3(rs, 1, coe3, coe3rs, dummy)
-      CALL calc_C4(rs, 1, coe4, coe4rs, dummy)
-      CALL calc_C5(rs, 1, coe5, coe5rs, dummy)
-
-      a1 = 4._dp*b0**6*coe3 + b0**8*coe5
-      a1rs = 24._dp*adib*b0**5*coe3 + 4._dp*b0**6*coe3rs + 8._dp*adib*b0**7*coe5 + b0**8*coe5rs
-
-      a2 = 4._dp*b0**6*coe2 + b0**8*coe4 + 6._dp*b0**4*ec
-      a2rs = 24._dp*adib*b0**5*coe2 + 4._dp*b0**6*coe2rs + 8._dp*adib*b0**7*coe4 + b0**8*coe4rs &
-             + 24._dp*adib*b0**3*ec + 6._dp*b0**4*ecd
-
-      a3 = b0**8*coe3
-      a3rs = 8._dp*adib*b0**7*coe3 + b0**8*coe3rs
-
-      a4 = b0**6*(b0**2*coe2 + 4._dp*ec)
-      a4rs = 8._dp*adib*b0**7*coe2 + b0**8*coe2rs + 24._dp*adib*b0**5*ec + 4._dp*b0**6*ecd
-
-      a5 = b0**8*ec
-      a5rs = 8._dp*adib*b0**7*ec + b0**8*ecd
+      CALL calc_a1(rs, 1, a1, a1rs, dummy)
+      CALL calc_a2(rs, 1, a2, a2rs, dummy, ec, ecd, dummy2)
+      CALL calc_a3(rs, 1, a3, a3rs, dummy)
+      CALL calc_a4(rs, 1, a4, a4rs, dummy, ec, ecd, dummy2)
+      CALL calc_a5(rs, 1, a5, a5rs, dummy, ec, ecd, dummy2)
 
       x = mu*SQRT(rs)
 
