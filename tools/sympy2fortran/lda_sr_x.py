@@ -57,6 +57,6 @@ class ex_mu(My_Function):
     def eval(cls, rs):
         return -facx/rs*(three/eight-Ax(rs)*(sqrt(pi)*erf(half/Ax(rs))+(two*Ax(rs)-four*Ax(rs)**three)*exp(-one/four/Ax(rs)**two)-three*Ax(rs)+four*Ax(rs)**three))
 
-create_Routine_from_Function(ex_mu, file, max_deriv, [(mu, Symbol('Ax')/rs/facx_A)], True, rs)
+create_Routine_from_Function(ex_mu, file, max_deriv, [(mu, Symbol('Ax')/rs/facx_A), (exp(-one/four/Symbol('Ax')**two), Symbol('exp_Ax'))], True, rs)
 
 file.close()
