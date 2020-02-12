@@ -81,7 +81,9 @@ MODULE xc_sr_lda
       c3_1 = 1.0_dp/SQRT(2.0_dp*pi), &
       d2_1 = 0.547_dp, &
       d2_2 = 0.388_dp, &
-      d2_3 = 0.676_dp
+      d2_3 = 0.676_dp, &
+      facx_A = (18.0_dp*pi)**(-1.0_dp/3.0_dp), &
+      facx = (18.0_dp/pi**2)**(1.0_dp/3.0_dp)
 
    PUBLIC :: sr_lda_info, sr_lda_eval, sr_lsd_eval
 
@@ -229,7 +231,6 @@ CONTAINS
 
       INTEGER                                            :: handle, k, order_
       REAL(KIND=dp)                                      :: my_rho, rs, e, e_r, e_r_r
-      REAL(KIND=dp), DIMENSION(0:1)                      :: ed
 
       CALL timeset(routineN, handle)
 
@@ -257,14 +258,18 @@ CONTAINS
                      e_rho_rho(k) = e_rho_rho(k) + sc*(e_r_r*my_rho + 2.0_dp*e_r)
                   END IF
                END IF
+
                IF (sx /= 0.0_dp) THEN
-                  CALL ldasr(rs, omega, ed(0), ed(1))
+                  CALL calc_sr_lda_ex(rs, omega, order_, e, e_r, e_r_r)
 
                   IF (order >= 0) THEN
-                     e_0(k) = e_0(k) + sx*ed(0)*my_rho
+                     e_0(k) = e_0(k) + sx*e*my_rho
                   END IF
                   IF (order >= 1 .OR. order == -1) THEN
-                     e_rho(k) = e_rho(k) + sx*ed(1)
+                     e_rho(k) = e_rho(k) + sx*(e_r*my_rho + e)
+                  END IF
+                  IF (order >= 2 .OR. order == -2) THEN
+                     e_rho_rho(k) = e_rho_rho(k) + sx*(e_r_r*my_rho + 2.0_dp*e_r)
                   END IF
                END IF
             END IF
@@ -415,31 +420,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE sr_lsd_calc
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rs ...
-!> \param mu ...
-!> \param excsr ...
-!> \param vxcsr ...
-! **************************************************************************************************
-   ELEMENTAL SUBROUTINE ldasr(rs, mu, exsr, vxsr)
-      REAL(KIND=dp), INTENT(IN)                          :: rs, mu
-      REAL(KIND=dp), INTENT(OUT)                         :: exsr, vxsr
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'ldasr', routineP = moduleN//':'//routineN
-
-      REAL(KIND=dp)                                      :: ex, exlr, vx, vxlr
-
-      ex = -3._dp*cf/4._dp/pi/rs
-      vx = -(3._dp/2._dp/pi)**(2._dp/3._dp)/rs
-
-      CALL exchangelr_lda(rs, mu, exlr, vxlr)
-
-      exsr = ex - exlr
-      vxsr = vx - vxlr
-
-   END SUBROUTINE
 
    ELEMENTAL SUBROUTINE calc_D3(rs, max_deriv, D3, D3_rs, D3_rs_rs)
       REAL(KIND=dp), INTENT(IN) :: rs
@@ -765,13 +745,15 @@ CONTAINS
       x3 = rs**(-4)
       x4 = x0*x1
       C4 = x0*(-9.0_dp/64.0_dp*D2 - 9.0_dp/64.0_dp*g2 + (9.0_dp/320.0_dp)*x2)
-      C4_rs = x0*(-9.0_dp/64.0_dp*D2_rs - 9.0_dp/64.0_dp*g2_rs - 9.0_dp/160.0_dp*x4 &
-                  ) + x3*((27.0_dp/64.0_dp)*D2 + (27.0_dp/64.0_dp)*g2 - 27.0_dp/320.0_dp* &
-                          x2)
-      C4_rs_rs = x0*(-9.0_dp/64.0_dp*D2_rs_rs - 9.0_dp/64.0_dp*g2_rs_rs + (27.0_dp/ &
-                                                               160.0_dp)*x1*x3) + x3*((27.0_dp/32.0_dp)*D2_rs + (27.0_dp/32.0_dp)* &
-                                                           g2_rs + (27.0_dp/80.0_dp)*x4) + (-27.0_dp/16.0_dp*D2 - 27.0_dp/16.0_dp* &
-                                                                                                    g2 + (27.0_dp/80.0_dp)*x2)/rs**5
+      IF (max_deriv >= 1) THEN
+         C4_rs = x0*(-9.0_dp/64.0_dp*D2_rs - 9.0_dp/64.0_dp*g2_rs - 9.0_dp/160.0_dp*x4) &
+                 + x3*((27.0_dp/64.0_dp)*D2 + (27.0_dp/64.0_dp)*g2 - 27.0_dp/320.0_dp*x2)
+      END IF
+      IF (max_deriv >= 2) THEN
+         C4_rs_rs = x0*(-9.0_dp/64.0_dp*D2_rs_rs - 9.0_dp/64.0_dp*g2_rs_rs + (27.0_dp/160.0_dp)*x1*x3) &
+                    + x3*((27.0_dp/32.0_dp)*D2_rs + (27.0_dp/32.0_dp)*g2_rs + (27.0_dp/80.0_dp)*x4) &
+                    + (-27.0_dp/16.0_dp*D2 - 27.0_dp/16.0_dp*g2 + (27.0_dp/80.0_dp)*x2)/rs**5
+      END IF
 
    END SUBROUTINE calc_C4
 
@@ -809,28 +791,28 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a1", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, C3, C3_rs, C3_rs_rs, C5, C5_rs, C5_rs_rs
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, C3, C3_rs, C3_rs_rs, C5, C5_rs, C5_rs_rs, b0
 
       CALL calc_C3(rs, max_deriv, C3, C3_rs, C3_rs_rs)
       CALL calc_C5(rs, max_deriv, C5, C5_rs, C5_rs_rs)
 
-      x0 = beta**8
-      x1 = rs**8*x0
-      x2 = rs**6
+      b0 = beta*rs
+
+      x0 = b0**8
+      x1 = C5*x0
+      x2 = b0**6
       x3 = 4.0_dp*x2
-      x4 = beta**6
-      x5 = C3*x4
-      a1 = C5*x1 + x3*x5
+      a1 = C3*x3 + x1
       IF (max_deriv >= 1) THEN
-         x6 = rs**5
-         x7 = C3_rs*x4
-         x8 = rs**7
-         x9 = C5*x0
-         a1_rs = C5_rs*x1 + x3*x7 + 24.0_dp*x5*x6 + 8.0_dp*x8*x9
+         x4 = C5_rs*x0
+         x5 = 1.0_dp/rs
+         x6 = C3*x2
+         a1_rs = C3_rs*x3 + 8.0_dp*x1*x5 + x4 + 24.0_dp*x5*x6
       END IF
       IF (max_deriv >= 2) THEN
-         a1_rs_rs = C3_rs_rs*x3*x4 + 16.0_dp*C5_rs*x0*x8 + C5_rs_rs*x1 + 120.0_dp*rs**4*x5 &
-                    + 56.0_dp*x2*x9 + 48.0_dp*x6*x7
+         x7 = rs**(-2)
+         a1_rs_rs = 48.0_dp*C3_rs*x2*x5 + C3_rs_rs*x3 + C5_rs_rs*x0 + 56.0_dp*x1*x7 + 16.0_dp*x4 &
+                    *x5 + 120.0_dp*x6*x7
       END IF
 
    END SUBROUTINE calc_a1
@@ -842,35 +824,34 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a2", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, C2, C2_rs, &
-                       C2_rs_rs, C4, C4_rs, C4_rs_rs
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, C2, C2_rs, &
+                       C2_rs_rs, C4, C4_rs, C4_rs_rs, b0
 
       CALL calc_C2(rs, max_deriv, C2, C2_rs, C2_rs_rs)
       CALL calc_C4(rs, max_deriv, C4, C4_rs, C4_rs_rs)
 
-      x0 = beta**8
-      x1 = rs**8*x0
-      x2 = rs**6
+      b0 = beta*rs
+
+      x0 = b0**8
+      x1 = C4*x0
+      x2 = b0**6
       x3 = 4.0_dp*x2
-      x4 = beta**6
-      x5 = C2*x4
-      x6 = rs**4
-      x7 = 6.0_dp*x6
-      x8 = beta**4
-      x9 = Ec*x8
-      a2 = C4*x1 + x3*x5 + x7*x9
+      x4 = b0**4
+      x5 = 6.0_dp*x4
+      a2 = C2*x3 + Ec*x5 + x1
       IF (max_deriv >= 1) THEN
-         x10 = rs**5
-         x11 = C2_rs*x4
-         x12 = rs**7
-         x13 = C4*x0
-         x14 = rs**3
-         x15 = Ec_rs*x8
-         a2_rs = C4_rs*x1 + 24.0_dp*x10*x5 + x11*x3 + 8.0_dp*x12*x13 + 24.0_dp*x14*x9 + x15*x7
+         x6 = C4_rs*x0
+         x7 = 1.0_dp/rs
+         x8 = 24.0_dp*x7
+         x9 = C2*x2
+         x10 = Ec*x4
+         a2_rs = C2_rs*x3 + Ec_rs*x5 + 8.0_dp*x1*x7 + x10*x8 + x6 + x8*x9
       END IF
       IF (max_deriv >= 2) THEN
-         a2_rs_rs = C2_rs_rs*x3*x4 + 16.0_dp*C4_rs*x0*x12 + C4_rs_rs*x1 + Ec_rs_rs*x7* &
-                    x8 + 72.0_dp*rs**2*x9 + 48.0_dp*x10*x11 + 56.0_dp*x13*x2 + 48.0_dp*x14*x15 + 120.0_dp*x5*x6
+         x11 = rs**(-2)
+         x12 = 48.0_dp*x7
+         a2_rs_rs = C2_rs*x12*x2 + C2_rs_rs*x3 + C4_rs_rs*x0 + Ec_rs*x12*x4 + &
+                    Ec_rs_rs*x5 + 56.0_dp*x1*x11 + 72.0_dp*x10*x11 + 120.0_dp*x11*x9 + 16.0_dp*x6*x7
       END IF
 
    END SUBROUTINE calc_a2
@@ -882,20 +863,22 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a3", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, C3, C3_rs, C3_rs_rs
+      REAL(KIND=dp) :: x0, x1, x2, x3, C3, C3_rs, C3_rs_rs, b0
 
       CALL calc_C3(rs, max_deriv, C3, C3_rs, C3_rs_rs)
 
-      x0 = beta**8
-      x1 = rs**8*x0
-      a3 = C3*x1
+      b0 = beta*rs
+
+      x0 = b0**8
+      x1 = C3*x0
+      a3 = x1
       IF (max_deriv >= 1) THEN
-         x2 = rs**7
-         x3 = C3*x0
-         a3_rs = C3_rs*x1 + 8.0_dp*x2*x3
+         x2 = C3_rs*x0
+         x3 = 1.0_dp/rs
+         a3_rs = x2 + 8.0_dp*x1*x3
       END IF
       IF (max_deriv >= 2) THEN
-         a3_rs_rs = 16.0_dp*C3_rs*x0*x2 + C3_rs_rs*x1 + 56.0_dp*rs**6*x3
+         a3_rs_rs = 16.0_dp*x2*x3 + C3_rs_rs*x0 + 56.0_dp*x1/rs**2
       END IF
 
    END SUBROUTINE calc_a3
@@ -907,27 +890,27 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a4", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, C2, C2_rs, C2_rs_rs
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, C2, C2_rs, C2_rs_rs, b0
 
       CALL calc_C2(rs, max_deriv, C2, C2_rs, C2_rs_rs)
 
-      x0 = beta**8
-      x1 = rs**8*x0
-      x2 = rs**6
+      b0 = beta*rs
+
+      x0 = b0**8
+      x1 = C2*x0
+      x2 = b0**6
       x3 = 4.0_dp*x2
-      x4 = beta**6
-      x5 = Ec*x4
-      a4 = C2*x1 + x3*x5
+      a4 = Ec*x3 + x1
       IF (max_deriv >= 1) THEN
-         x6 = rs**7
-         x7 = C2*x0
-         x8 = rs**5
-         x9 = Ec_rs*x4
-         a4_rs = C2_rs*x1 + x3*x9 + 24.0_dp*x5*x8 + 8.0_dp*x6*x7
+         x4 = C2_rs*x0
+         x5 = 1.0_dp/rs
+         x6 = Ec*x2
+         a4_rs = Ec_rs*x3 + 8.0_dp*x1*x5 + x4 + 24.0_dp*x5*x6
       END IF
       IF (max_deriv >= 2) THEN
-         a4_rs_rs = 16.0_dp*C2_rs*x0*x6 + C2_rs_rs*x1 + Ec_rs_rs*x3*x4 + 120.0_dp*rs**4*x5 &
-                    + 56.0_dp*x2*x7 + 48.0_dp*x8*x9
+         x7 = rs**(-2)
+         a4_rs_rs = C2_rs_rs*x0 + 48.0_dp*Ec_rs*x2*x5 + Ec_rs_rs*x3 + 56.0_dp*x1*x7 + 16.0_dp*x4 &
+                    *x5 + 120.0_dp*x6*x7
       END IF
 
    END SUBROUTINE calc_a4
@@ -939,58 +922,55 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a5", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3
+      REAL(KIND=dp) :: x0, x1, x2, x3, b0
 
-      x0 = beta**8
-      x1 = rs**8*x0
-      a5 = Ec*x1
+      b0 = beta*rs
+
+      x0 = b0**8
+      x1 = Ec*x0
+      a5 = x1
       IF (max_deriv >= 1) THEN
-         x2 = rs**7
-         x3 = Ec*x0
-         a5_rs = Ec_rs*x1 + 8.0_dp*x2*x3
+         x2 = Ec_rs*x0
+         x3 = 1.0_dp/rs
+         a5_rs = 8.0_dp*x1*x3 + x2
       END IF
       IF (max_deriv >= 2) THEN
-         a5_rs_rs = 16.0_dp*Ec_rs*x0*x2 + Ec_rs_rs*x1 + 56.0_dp*rs**6*x3
+         a5_rs_rs = Ec_rs_rs*x0 + 16.0_dp*x2*x3 + 56.0_dp*x1/rs**2
       END IF
 
    END SUBROUTINE calc_a5
 
-   ELEMENTAL SUBROUTINE calc_Q(xx, max_deriv, Q, Q_xx, Q_xx_xx)
-      REAL(KIND=dp), INTENT(IN) :: xx
+   ELEMENTAL SUBROUTINE calc_Q(rs, mu, max_deriv, Q, Q_rs, Q_rs_rs)
+      REAL(KIND=dp), INTENT(IN) :: rs, mu
       INTEGER, INTENT(IN) :: max_deriv
-      REAL(KIND=dp), INTENT(OUT) :: Q, Q_xx, Q_xx_xx
+      REAL(KIND=dp), INTENT(OUT) :: Q, Q_rs, Q_rs_rs
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_Q", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, xx
+
+      xx = mu*sqrt(rs)
 
       x0 = xx**2
       x1 = aa*xx + 1.0_dp
       x2 = dd*x0 + x1
       x3 = 1.0_dp/x2
       x4 = bb*x0 + cc*xx**3 + x1
-      x5 = 1.0_dp/x4
-      x6 = 2.0_dp*bb
-      x7 = x6*xx
-      x8 = 3.0_dp*cc*x0
-      x9 = aa + x7 + x8
-      x10 = x2**(-2)
       Q = qq*log(x3*x4)
       IF (max_deriv >= 1) THEN
-         x11 = -aa
-         x12 = dd*xx
-         x13 = 2.0_dp*x12
-         x14 = x11 - x13
-         x15 = x14*x4
-         x16 = x10*x15 + x3*x9
-         x17 = qq*x16*x5
-         Q_xx = x17*x2
+         x5 = 2.0_dp*xx
+         x6 = aa + dd*x5
+         x7 = x4*x6
+         x8 = 3.0_dp*cc*x0
+         x9 = aa + bb*x5 + x8
+         x10 = x2*x9
+         x11 = xx*(-x10 + x7)
+         Q_rs = -1.0_dp/2.0_dp*qq*x11*x3/(rs*x4)
       END IF
       IF (max_deriv >= 2) THEN
-         x18 = qq*x2
-         x19 = 2.0_dp*x10
-         Q_xx_xx = x16*x18*(x11 - x7 - x8)/x4**2 + x17*(aa + x13) + x18*x5*(-dd* &
-                                                 x19*x4 + x14*x19*x9 + x15*(-2.0_dp*aa - 4.0_dp*x12)/x2**3 + x3*(6.0_dp*cc*xx + x6))
+         x12 = x2**2
+         Q_rs_rs = (1.0_dp/4.0_dp)*qq*xx*(x10*x11 - x11*x7 + x4*(x12*(-aa + x8) + &
+                                                                 x2*(aa*x4 - x5*x6*x9) + x4*x5*x6**2))/(rs**2*x12*x4**2)
       END IF
 
    END SUBROUTINE calc_Q
@@ -1004,14 +984,16 @@ CONTAINS
 
       REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, &
                        x18, Ec, Ec_rs, Ec_rs_rs, Q, Q_rs, Q_rs_rs, a1, a1_rs, a1_rs_rs, a2, a2_rs, a2_rs_rs, a3, a3_rs, &
-                       a3_rs_rs, a4, a4_rs, a4_rs_rs, a5, a5_rs, a5_rs_rs, ed(0:2), ec_mu_rs, ec_mu_rs_rs, xx, Q_xx, Q_xx_xx
+                       a3_rs_rs, a4, a4_rs, a4_rs_rs, a5, a5_rs, a5_rs_rs, ed(0:2), ec_mu_rs, ec_mu_rs_rs, xx
 
       CALL calc_g(rs, 0, ed, max_deriv)
       Ec = ed(0)
+      Ec_rs = ed(1)
+      Ec_rs_rs = ed(2)
 
       xx = mu*sqrt(rs)
 
-      CALL calc_Q(xx, max_deriv, Q, Q_xx, Q_xx_xx)
+      CALL calc_Q(rs, mu, max_deriv, Q, Q_rs, Q_rs_rs)
       CALL calc_a1(rs, max_deriv, a1, a1_rs, a1_rs_rs)
       CALL calc_a2(rs, max_deriv, a2, a2_rs, a2_rs_rs, Ec, Ec_rs, Ec_rs_rs)
       CALL calc_a3(rs, max_deriv, a3, a3_rs, a3_rs_rs)
@@ -1034,29 +1016,59 @@ CONTAINS
       x13 = a4*x12
       x14 = mu**8
       x15 = a5*x14
-      ec_mu = Ec - x5*(Q + x11 + x13 + x15 + x7 + x9)
+      ec_mu = Ec - x5*(Q + mu**3*(a1 + mu*(a2 + mu*(a3 + mu*(a4 + a5*mu**2)))))
       IF (max_deriv >= 1) THEN
-         Ec_rs = ed(1)
-         Q_rs = Q_xx*mu/sqrt(rs)
          x16 = x4**(-5)
          x17 = rs*x1*x16*x2
          x18 = 8.0_dp*(Q + x11 + x13 + x15 + x7 + x9)
-         ec_mu_rs = Ec_rs + x17*x18 - x5*(Q_rs + a1_rs*x6 + a2_rs*x8 + a3_rs*x10 &
-                                          + a4_rs*x12 + a5_rs*x14)
+         ec_mu_rs = Ec_rs + x17*x18 - x5*(Q_rs + mu**3*(a1_rs + mu*(a2_rs + mu*(a3_rs + mu*(a4_rs + a5_rs*mu**2)))))
       END IF
       IF (max_deriv >= 2) THEN
-         Ec_rs_rs = ed(2)
-         Q_rs_rs = Q_xx_xx*mu**2/rs - 0.5_dp*Q_xx*mu/rs**1.5_dp
-         ec_mu_rs_rs = Ec_rs_rs - 80.0_dp*beta**4*x0*x8*(Q + x11 + x13 + x15 &
-                                                         + x7 + x9)/x4**6 + x16*x18*x3 + 16.0_dp*x17*(Q_rs + a1_rs*x6 &
-                                                                             + a2_rs*x8 + a3_rs*x10 + a4_rs*x12 + a5_rs*x14) - x5* &
-                       (Q_rs_rs + a1_rs_rs*x6 + a2_rs_rs*x8 + a3_rs_rs*x10 + a4_rs_rs* &
-                        x12 + a5_rs_rs*x14)
+         ec_mu_rs_rs = Ec_rs_rs - 80.0_dp*beta**4*x0*x8*(Q + mu**3*(a1 + mu*(a2 + mu*(a3 + mu*(a4 + a5*mu**2)))))/x4**6 &
+                      + x16*x18*x3 + 16.0_dp*x17*(Q_rs + mu**3*(a1_rs + mu*(a2_rs + mu*(a3_rs + mu*(a4_rs + a5_rs*mu**2))))) - x5* &
+                       (Q_rs_rs + mu**3*(a1_rs_rs + mu*(a2_rs_rs + mu*(a3_rs_rs + mu*(a4_rs_rs + a5_rs_rs*mu**2)))))
       END IF
 
       CALL calc_rs2rho(rs, max_deriv, ec_mu_rs, ec_mu_rs_rs, ec_mu_rho, ec_mu_rho_rho)
 
    END SUBROUTINE calc_sr_lda_ec
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rs ...
+!> \param max_deriv ...
+!> \param ex_mu ...
+!> \param ex_mu_rho ...
+!> \param ex_mu_rho_rho ...
+! **************************************************************************************************
+   ELEMENTAL SUBROUTINE calc_sr_lda_ex(rs, mu, max_deriv, ex_mu, ex_mu_rho, ex_mu_rho_rho)
+      REAL(KIND=dp), INTENT(IN) :: rs, mu
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: ex_mu, ex_mu_rho, ex_mu_rho_rho
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_sr_lda_ex", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, ex_mu_rs, ex_mu_rs_rs, Ax, exp_Ax
+
+      Ax = facx_A*rs*mu
+
+      x0 = Ax**2
+      exp_Ax = exp(-0.25_dp/x0)
+      ex_mu = (1.0_dp/8.0_dp)*facx*(8.0_dp*Ax*(4.0_dp*Ax**3 - 2.0_dp*Ax*exp_Ax*(2.0_dp*x0 - 1) - 3.0_dp* &
+                                               Ax + sqrt(pi)*erf(0.5_dp/Ax)) - 3.0_dp)/rs
+      IF (max_deriv >= 1) THEN
+         x1 = 8.0_dp*x0
+         x2 = 32.0_dp*Ax**4
+         x3 = exp_Ax*x2 - x2
+         ex_mu_rs = -3.0_dp/8.0_dp*facx*(x1 + x3 - 1.0_dp)/rs**2
+      END IF
+      IF (max_deriv >= 2) THEN
+         ex_mu_rs_rs = -3.0_dp/4.0_dp*facx*(exp_Ax*x1 + x3 + 1.0_dp)/rs**3
+      END IF
+
+      CALL calc_rs2rho(rs, max_deriv, ex_mu_rs, ex_mu_rs_rs, ex_mu_rho, ex_mu_rho_rho)
+
+   END SUBROUTINE calc_sr_lda_ex
 
 ! **************************************************************************************************
 !> \brief Transform derivatives wrt rs to derivatives wrt rho
@@ -1086,52 +1098,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE calc_rs2rho
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rs ...
-!> \param z ...
-!> \param mu ...
-!> \param vxlrup ...
-!> \param vxlrdown ...
-! **************************************************************************************************
-   ELEMENTAL SUBROUTINE exchangelr_lda(rs, mu, exlr, vxlr)
-      REAL(KIND=dp), INTENT(IN)                          :: rs, mu
-      REAL(KIND=dp), INTENT(OUT)                         :: exlr, vxlr
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'exchangelr_lda', &
-                                     routineP = moduleN//':'//routineN
-
-      REAL(KIND=dp)                                      :: derrs, fx, fx1, y
-
-      y = alpha/2._dp*mu*rs
-      fx = -((y*(-3._dp + 4._dp*y**2 + (2._dp - 4._dp*y**2)*EXP(-.25_dp/y**2)) + SQRT(pi)*ERF(.5_dp/y))/pi)
-      exlr = mu*fx
-      fx1 = (3._dp*(1._dp + (-4._dp + 4._dp*EXP(-.25_dp/y**2))*y**2))/pi
-      derrs = alpha/4._dp*mu**2*fx1
-      vxlr = 2._dp/3._dp*rs*derrs
-
-      vxlr = exlr - vxlr
-
-   END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief PW92 energy functional
-!> \param rs ...
-!> \param ec ...
-!> \param ecd ...
-! **************************************************************************************************
-   ELEMENTAL SUBROUTINE ecPW_lda(rs, ec, ecd)
-      REAL(KIND=dp), INTENT(IN)                          :: rs
-      REAL(KIND=dp), INTENT(OUT)                         :: ec, ecd
-
-      REAL(KIND=dp) :: G(0:1)
-
-      CALL calc_g(rs, 0, G, 1)
-      ec = G(0)
-      ecd = G(1)
-
-   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief ...
