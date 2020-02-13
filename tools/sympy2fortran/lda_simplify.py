@@ -117,6 +117,26 @@ class g2z_ab(My_Function):
 
 create_Routine_from_Function(g2z_ab, file, max_deriv, [], False, rs, zeta)
 
+# Version to deal with special case zeta >= 1
+class g2z_p1_ab(My_Function):
+    nargs=2
+    
+    @classmethod
+    def eval(cls, rs, zeta):
+        return ((one+zeta)/two)**two*g2(rs*(two/(one+zeta))**third)
+
+create_Routine_from_Function(g2z_p1_ab, file, max_deriv, [(zeta, one)], False, rs, zeta)
+
+# Version to deal with special case zeta <= -1
+class g2z_m1_ab(My_Function):
+    nargs=2
+    
+    @classmethod
+    def eval(cls, rs, zeta):
+        return ((one-zeta)/two)**two*g2(rs*(two/(one-zeta))**third)
+
+create_Routine_from_Function(g2z_m1_ab, file, max_deriv, [(zeta, -one)], True, rs, zeta)
+
 # The hole function
 g0_1=Symbol('g0_1')
 g0_2=Symbol('g0_2')
@@ -247,7 +267,7 @@ class a1_ab(My_Function):
     def eval(cls, rs, zeta):
         return four*b0(rs)**six*C3_ab.dummy(rs, zeta)+b0(rs)**eight*C5_ab.dummy(rs, zeta)
 
-create_Routine_from_Function(a1_ab, file, max_deriv, [], False, rs, zeta)
+create_Routine_from_Function(a1_ab, file, max_deriv, [(beta, Symbol('b0')/rs)], False, rs, zeta)
 
 class a2_ab(My_Function):
     nargs=2
@@ -259,7 +279,7 @@ class a2_ab(My_Function):
     def eval(cls, rs, zeta):
         return four*b0(rs)**six*C2_ab.dummy(rs, zeta)+b0(rs)**eight*C4_ab.dummy(rs, zeta)+six*b0(rs)**four*Ec_ab.dummy(rs, zeta)
 
-create_Routine_from_Function(a2_ab, file, max_deriv, [], False, rs, zeta)
+create_Routine_from_Function(a2_ab, file, max_deriv, [(beta, Symbol('b0')/rs)], False, rs, zeta)
 
 class a3_ab(My_Function):
     nargs=2
@@ -270,7 +290,7 @@ class a3_ab(My_Function):
     def eval(cls, rs, zeta):
         return b0(rs)**eight*C3_ab.dummy(rs, zeta)
 
-create_Routine_from_Function(a3_ab, file, max_deriv, [], False, rs, zeta)
+create_Routine_from_Function(a3_ab, file, max_deriv, [(beta, Symbol('b0')/rs)], False, rs, zeta)
 
 class a4_ab(My_Function):
     nargs=2
@@ -291,7 +311,7 @@ class a5_ab(My_Function):
     def eval(cls, rs, zeta):
         return b0(rs)**eight*Ec_ab.dummy(rs, zeta)
 
-create_Routine_from_Function(a5_ab, file, max_deriv, [], False, rs, zeta)
+create_Routine_from_Function(a5_ab, file, max_deriv, [(beta, Symbol('b0')/rs)], False, rs, zeta)
 
 # constants for the functional
 a_=sympify(5.84605)
@@ -323,7 +343,7 @@ class Q_ab(My_Function):
         x=mu*sqrt(rs)/phi2.dummy(zeta)
         return q*log((one+a*x+b*x**2+c*x**three)/(one+a*x+d*x**two))
 
-create_Routine_from_Function(Q_ab, file, max_deriv, [], False, rs, zeta)
+create_Routine_from_Function(Q_ab, file, max_deriv, [(mu, Symbol('xx')/sqrt(rs)/phi2.dummy(zeta))], False, rs, zeta)
 
 # The actual energy density
 
@@ -344,6 +364,6 @@ class ec_mu_ab(My_Function):
     def eval(cls, rs, zeta):
         return Ec_ab.dummy(rs, zeta)-(phi2.dummy(zeta)**3*Q_ab.dummy(rs, zeta)+a1_ab.dummy(rs, zeta)*mu**three+a2_ab.dummy(rs, zeta)*mu**four+a3_ab.dummy(rs, zeta)*mu**five+a4_ab.dummy(rs, zeta)*mu**six+a5_ab.dummy(rs, zeta)*mu**eight)/(one+b0(rs)**two*mu**two)**four
 
-create_Routine_from_Function(ec_mu_ab, file, max_deriv, [], False, rs, zeta)
+create_Routine_from_Function(ec_mu_ab, file, max_deriv, [(beta, Symbol('b0')/rs/mu)], False, rs, zeta)
 
 file.close()
