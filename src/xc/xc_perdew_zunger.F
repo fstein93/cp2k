@@ -634,11 +634,11 @@ CONTAINS
 
       rho = a + b
 
-      CALL calc_fx(a, b, f(0:order_), order_)
       CALL calc_rs(rho, r(0))
       CALL calc_g(r(0), 0, e0(0:order_), order_)
       CALL calc_g(r(0), 1, e1(0:order_), order_)
       CALL calc_z(a, b, z(:, :), order_)
+      CALL calc_fx(z(0, 0), f(0:order_), order_)
 
 !! calculate first partial derivatives
       IF (order_ >= 1) THEN

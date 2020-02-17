@@ -33,7 +33,7 @@ MODULE xc_functionals_utilities
              calc_wave_vector, calc_z, calc_rs_pw, calc_srs_pw
 
    INTERFACE calc_fx
-      MODULE PROCEDURE calc_fx_array, calc_fx_single
+      MODULE PROCEDURE calc_fx_array, calc_fx_single, calc_fx_single_rz
    END INTERFACE
 
    INTERFACE calc_rs
@@ -151,7 +151,7 @@ CONTAINS
 !> \param rho ...
 !> \param rs ...
 ! **************************************************************************************************
-   SUBROUTINE calc_rs_single(rho, rs)
+   ELEMENTAL IMPURE SUBROUTINE calc_rs_single(rho, rs)
 
 !   rs parameter : f*rho**(-1/3)
 
@@ -321,7 +321,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_fx_array', routineP = moduleN//':'//routineN
 
       INTEGER                                            :: ip
-      REAL(KIND=dp)                                      :: rhoab, x
 
 ! number of points
 ! order of derivatives
@@ -336,36 +335,9 @@ CONTAINS
       IF (SIZE(fx, 2) < m) CPABORT("SIZE(fx,2) too small")
 !!    END IF
 
-!$OMP PARALLEL DO PRIVATE(ip,x,rhoab) DEFAULT(NONE) SHARED(fx,m,eps_rho,n)
+!$OMP PARALLEL DO PRIVATE(ip) DEFAULT(NONE) SHARED(fx,m,n)
       DO ip = 1, n
-         rhoab = rhoa(ip) + rhob(ip)
-         IF (rhoab < eps_rho) THEN
-            fx(ip, 1:m) = 0.0_dp
-         ELSE
-            x = (rhoa(ip) - rhob(ip))/rhoab
-            IF (x < -1.0_dp) THEN
-               IF (m >= 0) fx(ip, 1) = 1.0_dp
-               IF (m >= 1) fx(ip, 2) = -f43*fxfac*2.0_dp**f13
-               IF (m >= 2) fx(ip, 3) = f13*f43*fxfac/2.0_dp**f23
-               IF (m >= 3) fx(ip, 4) = f23*f13*f43*fxfac/2.0_dp**f53
-            ELSE IF (x > 1.0_dp) THEN
-               IF (m >= 0) fx(ip, 1) = 1.0_dp
-               IF (m >= 1) fx(ip, 2) = f43*fxfac*2.0_dp**f13
-               IF (m >= 2) fx(ip, 3) = f13*f43*fxfac/2.0_dp**f23
-               IF (m >= 3) fx(ip, 4) = -f23*f13*f43*fxfac/2.0_dp**f53
-            ELSE
-               IF (m >= 0) &
-                  fx(ip, 1) = ((1.0_dp + x)**f43 + (1.0_dp - x)**f43 - 2.0_dp)*fxfac
-               IF (m >= 1) &
-                  fx(ip, 2) = ((1.0_dp + x)**f13 - (1.0_dp - x)**f13)*fxfac*f43
-               IF (m >= 2) &
-                  fx(ip, 3) = ((1.0_dp + x)**(-f23) + (1.0_dp - x)**(-f23))* &
-                              fxfac*f43*f13
-               IF (m >= 3) &
-                  fx(ip, 4) = ((1.0_dp + x)**(-f53) - (1.0_dp - x)**(-f53))* &
-                              fxfac*f43*f13*(-f23)
-            END IF
-         END IF
+         CALL calc_fx_single(rhoa(ip), rhob(ip), fx(:, ip), m)
       END DO
 
    END SUBROUTINE calc_fx_array
@@ -398,31 +370,55 @@ CONTAINS
          fx(1:m) = 0.0_dp
       ELSE
          x = (rhoa - rhob)/rhoab
-         IF (x < -1.0_dp) THEN
-            IF (m >= 0) fx(1) = 1.0_dp
-            IF (m >= 1) fx(2) = -f43*fxfac*2.0_dp**f13
-            IF (m >= 2) fx(3) = f13*f43*fxfac/2.0_dp**f23
-            IF (m >= 3) fx(4) = f23*f13*f43*fxfac/2.0_dp**f53
-         ELSE IF (x > 1.0_dp) THEN
-            IF (m >= 0) fx(1) = 1.0_dp
-            IF (m >= 1) fx(2) = f43*fxfac*2.0_dp**f13
-            IF (m >= 2) fx(3) = f13*f43*fxfac/2.0_dp**f23
-            IF (m >= 3) fx(4) = -f23*f13*f43*fxfac/2.0_dp**f53
-         ELSE
-            IF (m >= 0) &
-               fx(1) = ((1.0_dp + x)**f43 + (1.0_dp - x)**f43 - 2.0_dp)*fxfac
-            IF (m >= 1) &
-               fx(2) = ((1.0_dp + x)**f13 - (1.0_dp - x)**f13)*fxfac*f43
-            IF (m >= 2) &
-               fx(3) = ((1.0_dp + x)**(-f23) + (1.0_dp - x)**(-f23))* &
-                       fxfac*f43*f13
-            IF (m >= 3) &
-               fx(4) = ((1.0_dp + x)**(-f53) - (1.0_dp - x)**(-f53))* &
-                       fxfac*f43*f13*(-f23)
-         END IF
+         CALL calc_fx_single_rz(x, fx, m)
       END IF
 
    END SUBROUTINE calc_fx_single
+
+! **************************************************************************************************
+!> \brief ...
+!> \param z ...
+!> \param fx ...
+!> \param m ...
+! **************************************************************************************************
+   PURE SUBROUTINE calc_fx_single_rz(z, fx, m)
+
+!   spin interpolation function and derivatives
+!
+!   f(x) = ( (1+x)^(4/3) + (1-x)^(4/3) - 2 ) / (2^(4/3)-2)
+!   df(x) = (4/3)( (1+x)^(1/3) - (1-x)^(1/3) ) / (2^(4/3)-2)
+!   d2f(x) = (4/9)( (1+x)^(-2/3) + (1-x)^(-2/3) ) / (2^(4/3)-2)
+!   d3f(x) = (-8/27)( (1+x)^(-5/3) - (1-x)^(-5/3) ) / (2^(4/3)-2)
+!
+
+      REAL(KIND=dp), INTENT(IN)                          :: z
+      REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: fx
+      INTEGER, INTENT(IN)                                :: m
+
+      IF (z < -1.0_dp) THEN
+         IF (m >= 0) fx(1) = 1.0_dp
+         IF (m >= 1) fx(2) = -f43*fxfac*2.0_dp**f13
+         IF (m >= 2) fx(3) = f13*f43*fxfac/2.0_dp**f23
+         IF (m >= 3) fx(4) = f23*f13*f43*fxfac/2.0_dp**f53
+      ELSE IF (z > 1.0_dp) THEN
+         IF (m >= 0) fx(1) = 1.0_dp
+         IF (m >= 1) fx(2) = f43*fxfac*2.0_dp**f13
+         IF (m >= 2) fx(3) = f13*f43*fxfac/2.0_dp**f23
+         IF (m >= 3) fx(4) = -f23*f13*f43*fxfac/2.0_dp**f53
+      ELSE
+         IF (m >= 0) &
+            fx(1) = ((1.0_dp + z)**f43 + (1.0_dp - z)**f43 - 2.0_dp)*fxfac
+         IF (m >= 1) &
+            fx(2) = ((1.0_dp + z)**f13 - (1.0_dp - z)**f13)*fxfac*f43
+         IF (m >= 2) &
+            fx(3) = ((1.0_dp + z)**(-f23) + (1.0_dp - z)**(-f23))* &
+                    fxfac*f43*f13
+         IF (m >= 3) &
+            fx(4) = ((1.0_dp + z)**(-f53) - (1.0_dp - z)**(-f53))* &
+                    fxfac*f43*f13*(-f23)
+      END IF
+
+   END SUBROUTINE calc_fx_single_rz
 
 ! **************************************************************************************************
 !> \brief ...
@@ -431,7 +427,7 @@ CONTAINS
 !> \param z ...
 !> \param order ...
 ! **************************************************************************************************
-   SUBROUTINE calc_z(a, b, z, order)
+   PURE SUBROUTINE calc_z(a, b, z, order)
 
       REAL(KIND=dp), INTENT(IN)                          :: a, b
       REAL(KIND=dp), DIMENSION(0:, 0:), INTENT(OUT)      :: z

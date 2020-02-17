@@ -115,8 +115,6 @@ CONTAINS
 
    END SUBROUTINE perdew_wang_info
 
-@: init_pw92()
-
 ! **************************************************************************************************
 !> \brief Calculate the correlation energy and its derivatives
 !>      wrt to rho (the electron density) up to 3rd order. This
