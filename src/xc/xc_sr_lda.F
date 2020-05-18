@@ -1278,6 +1278,45 @@ CONTAINS
 
    END SUBROUTINE calc_C4_ab
 
+   ELEMENTAL SUBROUTINE calc_C5_ab(rs, zeta, max_deriv, C5_ab, C5_ab_rs, C5_ab_zeta, C5_ab_rs_rs, C5_ab_rs_zeta, C5_ab_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: C5_ab, C5_ab_rs, C5_ab_zeta, C5_ab_rs_rs, C5_ab_rs_zeta, C5_ab_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_C5_ab", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, g2z_ab, g2z_ab_rs, g2z_ab_zeta, g2z_ab_rs_rs, g2z_ab_rs_zeta, &
+                       g2z_ab_zeta_zeta, D3, D3_rs, D3_rs_rs
+
+      CALL calc_g2z_ab(rs, zeta, max_deriv, g2z_ab, g2z_ab_rs, g2z_ab_zeta, g2z_ab_rs_rs, g2z_ab_rs_zeta, g2z_ab_zeta_zeta)
+      CALL calc_D3(rs, max_deriv, D3, D3_rs, D3_rs_rs)
+
+      x0 = sqrt(2.0_dp)
+      x1 = 1.0_dp/sqrt(pi)
+      x2 = x0*x1/rs**3
+      x3 = -zeta**2 + 1.0_dp
+      x4 = D3*x3
+      x5 = x0*x1/rs**4
+      x6 = D3_rs*x3
+      x7 = (9.0_dp/40.0_dp)*D3
+      C5_ab = x2*(-9.0_dp/80.0_dp*g2z_ab - 9.0_dp/80.0_dp*x4)
+      IF (max_deriv >= 1) THEN
+         C5_ab_rs = x2*(-9.0_dp/80.0_dp*g2z_ab_rs - 9.0_dp/80.0_dp*x6) + x5*((27.0_dp/ &
+                                                                              80.0_dp)*g2z_ab + (27.0_dp/80.0_dp)*x4)
+         C5_ab_zeta = x2*(-9.0_dp/80.0_dp*g2z_ab_zeta + x7*zeta)
+      END IF
+      IF (max_deriv >= 2) THEN
+         C5_ab_rs_rs = x2*(-9.0_dp/80.0_dp*D3_rs_rs*x3 - 9.0_dp/80.0_dp*g2z_ab_rs_rs &
+                           ) + x5*((27.0_dp/40.0_dp)*g2z_ab_rs + (27.0_dp/40.0_dp)*x6) + x0*x1*( &
+                       -27.0_dp/20.0_dp*g2z_ab - 27.0_dp/20.0_dp*x4)/rs**5
+         C5_ab_rs_zeta = x2*((9.0_dp/40.0_dp)*D3_rs*zeta - 9.0_dp/80.0_dp* &
+                             g2z_ab_rs_zeta) + x5*(-27.0_dp/40.0_dp*D3*zeta + (27.0_dp/80.0_dp)* &
+                                                   g2z_ab_zeta)
+         C5_ab_zeta_zeta = x2*(-9.0_dp/80.0_dp*g2z_ab_zeta_zeta + x7)
+      END IF
+
+   END SUBROUTINE calc_C5_ab
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param rs ...
@@ -1325,67 +1364,16 @@ CONTAINS
 
       REAL(KIND=dp) :: a1, a1rs, a1z, a2, a2rs, a2z, a3, a3rs, a3z, a4, a4rs, a4z, a5, a5rs, a5z, &
                        b0, coe2, coe2rs, coe2z, coe3, coe3rs, coe3z, coe4, coe4rs, coe4z, coe5, coe5rs, coe5z, &
-                       d2anti, d2antid, d3anti, d3antid, eclrrs, eclrz, phi, x, dummy, g0, g0d
+                       eclrrs, eclrz, phi, x, dummy, dummy2, dummy3
 
       phi = ((1._dp + z)**(2._dp/3._dp) + (1._dp - z)**(2._dp/3._dp))/2._dp
 
       b0 = adib*rs
 
-      CALL calc_D2(rs, 1, d2anti, d2antid, dummy)
-      CALL calc_D3(rs, 1, d3anti, d3antid, dummy)
-
-      CALL calc_g0(rs, 1, g0, g0d, dummy)
-
-      coe2 = -3._dp/8._dp/rs**3*(1._dp - z**2)*(g0 - 0.5_dp)
-      coe2rs = -3._dp/8._dp/rs**3*(1._dp - z**2)*g0d+9._dp/8._dp/rs**4*(1._dp - z**2)*(g0 - 0.5_dp)
-      coe2z = -3._dp/8._dp/rs**3*(-2._dp*z)*(g0 - 0.5_dp)
-
-      coe3 = -(1._dp - z**2)*g0/SQRT(2._dp*pi)/rs**3
-      coe3rs = -(1._dp - z**2)*g0d/SQRT(2._dp*pi)/rs**3 + 3._dp*(1._dp - z**2)*g0/SQRT(2._dp*pi)/rs**4
-      coe3z = 2._dp*z*g0/(SQRT(2._dp*pi)*rs**3)
-
-      IF (ABS(z) >= 1._dp) THEN
-
-         coe4 = -9._dp/64._dp/rs**3*(dpol(rs) - cf**2*2**(5._dp/3._dp)/5._dp/rs**2)
-         coe4rs = -3._dp/rs*coe4 - 9._dp/64._dp/rs**3*(dpold(rs) + 2._dp*cf**2*2**(5._dp/3._dp)/5._dp/rs**3)
-         coe4z = -9._dp/64._dp/rs**3*(dpol(rs) - rs/6._dp*dpold(rs) - 2._dp*d2anti &
-                                      - 4._dp/15._dp*cf**2*2._dp**(5._dp/3._dp)/rs**2)*z
-
-         coe5 = -9._dp/40._dp/SQRT(2._dp*pi)/rs**3*dpol(rs)
-         coe5rs = -3._dp/rs*coe5 - 9._dp/40._dp/SQRT(2._dp*pi)/rs**3*dpold(rs)
-         coe5z = -9._dp/40._dp/SQRT(2._dp*pi)/rs**3*(dpol(rs) - rs/6._dp*dpold(rs) - 2._dp*d3anti)*z
-
-      ELSE
-
-         coe4 = -9._dp/64._dp/rs**3*(((1._dp + z)/2._dp)**2* &
-                                     dpol(rs*(2._dp/(1._dp + z))**(1._dp/3._dp)) + ((1._dp - z)/2._dp)**2 &
-                                     *dpol(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) + &
-                                     (1._dp - z**2)*d2anti - cf**2/10._dp*((1._dp + z)**(8._dp/3._dp) &
-                                                                           + (1._dp - z)**(8._dp/3._dp))/rs**2)
-         coe4rs = -3._dp/rs*coe4 - 9._dp/64._dp/rs**3*(((1._dp + z)/2._dp)**(5._dp/3._dp)*dpold(rs*(2._dp/(1._dp + z))** &
-                                                                              (1._dp/3._dp)) + ((1._dp - z)/2._dp)**(5._dp/3._dp)* &
-                                                       dpold(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) + (1._dp - z**2)*d2antid &
-                                                      + cf**2/5._dp*((1._dp + z)**(8._dp/3._dp) + (1._dp - z)**(8._dp/3._dp))/rs**3)
-         coe4z = -9._dp/64._dp/rs**3*(1._dp/2._dp*(1._dp + z)*dpol(rs*(2._dp/(1._dp + z))**(1._dp/3._dp)) &
-                                      - 1._dp/2._dp*(1._dp - z)*dpol(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) &
-                                      - rs/6._dp*((1._dp + z)/2._dp)**(2._dp/3._dp)*dpold(rs*(2/(1._dp + z))**(1._dp/3._dp)) &
-                                      + rs/6._dp*((1._dp - z)/2._dp)**(2._dp/3._dp)*dpold(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) &
-                                      - 2._dp*z*d2anti - 4._dp/15._dp*cf**2/rs**2*((1._dp + z)**(5._dp/3._dp) &
-                                                                                   - (1._dp - z)**(5._dp/3._dp)))
-
-         coe5 = -9._dp/40._dp/SQRT(2._dp*pi)/rs**3*(((1._dp + z)/2._dp)**2*dpol(rs*(2._dp/(1._dp + z))**(1._dp/3._dp)) &
-                                                    + ((1._dp - z)/2._dp)**2*dpol(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) &
-                                                    + (1._dp - z**2)*d3anti)
-         coe5rs = -3._dp/rs*coe5 - 9._dp/(40._dp*SQRT(2._dp*pi)*rs**3)*( &
-                  ((1._dp + z)/2._dp)**(5._dp/3._dp)*dpold(rs*(2._dp/(1._dp + z))**(1._dp/3._dp)) &
-                  + ((1._dp - z)/2._dp)**(5._dp/3._dp)*dpold(rs*(2._dp/(1._dp - z))**(1._dp/3._dp)) + (1._dp - z**2)*d3antid)
-         coe5z = -9._dp/40._dp/SQRT(2._dp*pi)/rs**3*(1._dp/2._dp*(1._dp + z)*dpol(rs*(2/(1._dp + z))**(1._dp/3._dp)) &
-                                                     - 1._dp/2._dp*(1._dp - z)*dpol(rs*(2/(1._dp - z))**(1._dp/3._dp)) &
-                                                     - rs/6._dp*((1._dp + z)/2._dp)**(2._dp/3._dp)*dpold(rs*(2/(1._dp + z)) &
-                                                                    **(1._dp/3._dp)) + rs/6._dp*((1._dp - z)/2._dp)**(2._dp/3._dp) &
-                                                     *dpold(rs*(2/(1._dp - z))**(1._dp/3._dp)) - 2._dp*z*d3anti)
-
-      END IF
+      CALL calc_C2_ab(rs, z, 1, coe2, coe2rs, coe2z, dummy, dummy2, dummy3)
+      CALL calc_C3_ab(rs, z, 1, coe3, coe3rs, coe3z, dummy, dummy2, dummy3)
+      CALL calc_C4_ab(rs, z, 1, coe4, coe4rs, coe4z, dummy, dummy2, dummy3)
+      CALL calc_C5_ab(rs, z, 1, coe5, coe5rs, coe5z, dummy, dummy2, dummy3)
 
       a1 = 4._dp*b0**6*coe3 + b0**8*coe5
       a1rs = 24._dp*adib*b0**5*coe3 + 4._dp*b0**6*coe3rs + 8._dp*adib*b0**7*coe5 + b0**8*coe5rs
