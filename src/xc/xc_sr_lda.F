@@ -367,7 +367,7 @@ CONTAINS
          CPABORT("derivatives bigger than 2 not implemented")
       END IF
 
-      CALL sr_lsd_calc(a, b, omega, rho_cutoff, e_0, ea, eb, npoints, order, sx, sc)
+      CALL sr_lsd_calc(a, b, omega, rho_cutoff, e_0, ea, eb, eaa, ebb, npoints, order, sx, sc)
 
       CALL timestop(handle)
 
@@ -381,16 +381,18 @@ CONTAINS
 !> \param e_0 ...
 !> \param ea ...
 !> \param eb ...
+!> \param eaa ...
+!> \param ebb ...
 !> \param npoints ...
 !> \param order ...
 !> \param sx ...
 !> \param sc ...
 ! **************************************************************************************************
-   SUBROUTINE sr_lsd_calc(rhoa, rhob, omega, rho_cutoff, e_0, ea, eb, npoints, order, sx, sc)
+   SUBROUTINE sr_lsd_calc(rhoa, rhob, omega, rho_cutoff, e_0, ea, eb, eaa, ebb, npoints, order, sx, sc)
       !FM low-level computation routine
       REAL(KIND=dp), DIMENSION(*), INTENT(IN)            :: rhoa, rhob
       REAL(KIND=dp), INTENT(IN)                          :: omega, rho_cutoff
-      REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_0, ea, eb
+      REAL(KIND=dp), DIMENSION(*), INTENT(INOUT)         :: e_0, ea, eb, eaa, ebb
       INTEGER, INTENT(IN)                                :: npoints, order
       REAL(KIND=dp), INTENT(IN)                          :: sx, sc
 
@@ -404,23 +406,57 @@ CONTAINS
 
       IF (sc /= 0.0_dp .OR. sx /= 0.0_dp) THEN
 !$OMP PARALLEL DO PRIVATE (k, rho, ed, my_rhoa, my_rhob, rs, zeta) DEFAULT(NONE)&
-!$OMP SHARED(npoints,rhoa,rhob,rho_cutoff,omega,order,e_0,ea,eb,sx,sc)
+!$OMP SHARED(npoints,rhoa,rhob,rho_cutoff,omega,order,e_0,ea,eb,eaa,ebb,sx,sc)
          DO k = 1, npoints
 
             my_rhoa = rhoa(k)
             my_rhob = rhob(k)
             rho = my_rhoa + my_rhob
-            IF (rho > rho_cutoff) THEN
-               rs = (3.0_dp/4.0_dp/pi/rho)**(1.0_dp/3.0_dp)
-               zeta = (my_rhoa - my_rhob)/rho
+            IF (sc /= 0.0_dp) THEN
+               IF (rho > rho_cutoff) THEN
+                  rs = (3.0_dp/4.0_dp/pi/rho)**(1.0_dp/3.0_dp)
+                  zeta = (my_rhoa - my_rhob)/rho
 
-               CALL lsdsr(rs, zeta, omega, ed(0), ed(1), ed(2), sx, sc)
-               IF (order >= 0) THEN
-                  e_0(k) = e_0(k) + ed(0)*rho
+                  CALL lsdsr(rs, zeta, omega, ed(0), ed(1), ed(2))
+                  IF (order >= 0) THEN
+                     e_0(k) = e_0(k) + ed(0)*rho
+                  END IF
+                  IF (order >= 1 .OR. order == -1) THEN
+                     ea(k) = ea(k) + ed(1)
+                     eb(k) = eb(k) + ed(2)
+                  END IF
                END IF
-               IF (order >= 1 .OR. order == -1) THEN
-                  ea(k) = ea(k) + ed(1)
-                  eb(k) = eb(k) + ed(2)
+            END IF
+            IF (sx /= 0.0_dp) THEN
+               IF (my_rhoa > rho_cutoff) THEN
+                  rs = (3.0_dp/8.0_dp/pi/my_rhoa)**(1.0_dp/3.0_dp)
+
+                  CALL calc_sr_lda_ex(rs, omega, ABS(order), ed(0), ed(1), ed(2))
+
+                  IF (order >= 0) THEN
+                     e_0(k) = e_0(k) + sx*ed(0)*my_rhoa
+                  END IF
+                  IF (order >= 1 .OR. order == -1) THEN
+                     ea(k) = ea(k) + sx*(2.0_dp*ed(1)*my_rhoa + ed(0))
+                  END IF
+                  IF (order >= 2 .OR. order == -2) THEN
+                     eaa(k) = eaa(k) + 4.0_dp*sx*(ed(2)*my_rhoa + ed(1))
+                  END IF
+               END IF
+               IF (my_rhob > rho_cutoff) THEN
+                  rs = (3.0_dp/8.0_dp/pi/my_rhob)**(1.0_dp/3.0_dp)
+
+                  CALL calc_sr_lda_ex(rs, omega, ABS(order), ed(0), ed(1), ed(2))
+
+                  IF (order >= 0) THEN
+                     e_0(k) = e_0(k) + sx*ed(0)*my_rhob
+                  END IF
+                  IF (order >= 1 .OR. order == -1) THEN
+                     eb(k) = eb(k) + sx*(2.0_dp*ed(1)*my_rhob + ed(0))
+                  END IF
+                  IF (order >= 2 .OR. order == -2) THEN
+                     ebb(k) = ebb(k) + 4.0_dp*sx*(ed(2)*my_rhob + ed(1))
+                  END IF
                END IF
             END IF
 
@@ -565,8 +601,7 @@ CONTAINS
             x20 = rs*x19 + (1.0_dp/3.0_dp)*x6
             x21 = (2.0_dp/5.0_dp)*x0*x1*x15*x3*x4
             g2z_ab_rs = -2.0_dp/5.0_dp*x10 - 4.0_dp/5.0_dp*x12 + x14*x16*x4
-            g2z_ab_zeta = (1.0_dp/15.0_dp)*x18 + x20*x21 + (8.0_dp/15.0_dp)*x9
-            IF (zeta < 0.0_dp) g2z_ab_zeta = -g2z_ab_zeta
+            g2z_ab_zeta = SIGN((1.0_dp/15.0_dp)*x18 + x20*x21 + (8.0_dp/15.0_dp)*x9, zeta)
          END IF
          IF (max_deriv >= 2) THEN
             x22 = (8.0_dp/5.0_dp)*x11
@@ -579,10 +614,9 @@ CONTAINS
             x29 = (1.0_dp/3.0_dp)*x5 + (2.0_dp/3.0_dp)*x6
             g2z_ab_rs_rs = g2_1*x0*x1*x22*x8 - g2_1*x14*x23 - g2_3*x23*x4 - x22* &
                            x24 + x26*(-2.0_dp*g2_2 - 4.0_dp*x13) + (12.0_dp/5.0_dp)*x0*x1*x4*x8/rs**4
-            g2z_ab_rs_zeta = (1.0_dp/15.0_dp)*g2_1*x0*x1*x14*x15*x17 - 3.0_dp/5.0_dp* &
-                             x10 - 4.0_dp/5.0_dp*x11*x28 - 16.0_dp/15.0_dp*x12 - x16*x27 + x21*(( &
-                                                                       2.0_dp/3.0_dp)*x13 + x19) + (8.0_dp/15.0_dp)*x24*x3 + x26*x29
-            IF (zeta < 0.0_dp) g2z_ab_rs_zeta = -g2z_ab_rs_zeta
+            g2z_ab_rs_zeta = SIGN((1.0_dp/15.0_dp)*g2_1*x0*x1*x14*x15*x17 - 3.0_dp/5.0_dp* &
+                                  x10 - 4.0_dp/5.0_dp*x11*x28 - 16.0_dp/15.0_dp*x12 - x16*x27 + x21*(( &
+                                                                2.0_dp/3.0_dp)*x13 + x19) + (8.0_dp/15.0_dp)*x24*x3 + x26*x29, zeta)
             g2z_ab_zeta_zeta = (2.0_dp/15.0_dp)*x0*x1*x15*x17*x27 + (2.0_dp/5.0_dp)* &
                                x0*x1*x20*x25*x29*x3*x4 + (2.0_dp/15.0_dp)*x18 + x21*(-1.0_dp/9.0_dp* &
                                                              x5 - 5.0_dp/18.0_dp*x6) + (16.0_dp/15.0_dp)*x28*x3 + (4.0_dp/9.0_dp)*x9
@@ -1095,77 +1129,182 @@ CONTAINS
 
    END SUBROUTINE calc_sr_lda_ec
 
+   ELEMENTAL SUBROUTINE calc_phin(zeta, n, max_deriv, phin, phin_zeta, phin_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: zeta
+      INTEGER, INTENT(IN) :: n, max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: phin, phin_zeta, phin_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_phin", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, n_
+
+      phin = 0.0_dp
+      phin_zeta = 0.0_dp
+      phin_zeta_zeta = 0.0_dp
+
+      IF (ABS(zeta) >= 1) THEN
+         ! If the density is fully spin-polarized, we have to use different formulae for numerical reasons
+         If (n > -1) phin = 2.0_dp**(REAL(n - 3, KIND=dp)/3.0_dp)
+         IF (n > 2 .AND. max_deriv >= 1) phin_zeta = SIGN(REAL(n, KIND=dp)/3.0_dp*2.0_dp**(REAL(n - 6, KIND=dp)/3.0_dp), zeta)
+         IF (n > 5 .AND. max_deriv >= 2) phin_zeta_zeta = REAL(n*(n - 3), KIND=dp)/9.0_dp*2.0_dp**(REAL(n - 9, KIND=dp)/3.0_dp)
+      ELSE
+         n_ = REAL(n, KIND=dp)
+
+         x0 = zeta + 1.0_dp
+         x1 = (1.0_dp/3.0_dp)*n_
+         x2 = x0**x1
+         x3 = -zeta + 1.0_dp
+         x4 = x3**x1
+         x5 = (1.0_dp/6.0_dp)*n_*x2
+         x6 = (1.0_dp/6.0_dp)*n_*x4
+         x7 = x0**(-2)
+         x8 = (1.0_dp/18.0_dp)*n_**2
+         x9 = x3**(-2)
+         phin = (1.0_dp/2.0_dp)*x2 + (1.0_dp/2.0_dp)*x4
+         IF (max_deriv >= 1) phin_zeta = -x6/x3 + x5/x0
+         IF (max_deriv >= 2) phin_zeta_zeta = x2*x7*x8 + x4*x8*x9 - x5*x7 - x6*x9
+      END IF
+
+   END SUBROUTINE calc_phin
+
+   ELEMENTAL SUBROUTINE calc_C2_ab(rs, zeta, max_deriv, C2_ab, C2_ab_rs, C2_ab_zeta, C2_ab_rs_rs, C2_ab_rs_zeta, C2_ab_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: C2_ab, C2_ab_rs, C2_ab_zeta, C2_ab_rs_rs, C2_ab_rs_zeta, C2_ab_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_C2_ab", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, g0, g0_rs, g0_rs_rs
+
+      CALL calc_g0(rs, max_deriv, g0, g0_rs, g0_rs_rs)
+
+      x0 = g0 - 1.0_dp/2.0_dp
+      x1 = rs**(-3)
+      x2 = zeta**2
+      x3 = (3.0_dp/8.0_dp)*x2 - 3.0_dp/8.0_dp
+      x4 = x1*x3
+      x5 = rs**(-4)
+      x6 = x0*x5
+      x7 = (3.0_dp/4.0_dp)*x1*zeta
+      C2_ab = x0*x4
+      IF (max_deriv >= 1) THEN
+         C2_ab_rs = g0_rs*x4 - x6*((9.0_dp/8.0_dp)*x2 - 9.0_dp/8.0_dp)
+         C2_ab_zeta = x0*x7
+      END IF
+      IF (max_deriv >= 2) THEN
+         C2_ab_rs_rs = -6.0_dp*g0_rs*x3*x5 + g0_rs_rs*x4 + 12.0_dp*x0*x3/rs**5
+         C2_ab_rs_zeta = g0_rs*x7 - 9.0_dp/4.0_dp*x6*zeta
+         C2_ab_zeta_zeta = x1*((3.0_dp/4.0_dp)*g0 - 3.0_dp/8.0_dp)
+      END IF
+
+   END SUBROUTINE calc_C2_ab
+
+   ELEMENTAL SUBROUTINE calc_C3_ab(rs, zeta, max_deriv, C3_ab, C3_ab_rs, C3_ab_zeta, C3_ab_rs_rs, C3_ab_rs_zeta, C3_ab_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: C3_ab, C3_ab_rs, C3_ab_zeta, C3_ab_rs_rs, C3_ab_rs_zeta, C3_ab_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_C3_ab", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, g0, g0_rs, g0_rs_rs
+
+      CALL calc_g0(rs, max_deriv, g0, g0_rs, g0_rs_rs)
+
+      x0 = c3_1*g0
+      x1 = rs**(-3)
+      x2 = zeta**2
+      x3 = x2 - 1.0_dp
+      x4 = x1*x3
+      x5 = c3_1*g0_rs*x1
+      x6 = rs**(-4)
+      x7 = c3_1*g0*x6
+      x8 = 2*x0*x1
+      C3_ab = x0*x4
+      IF (max_deriv >= 1) THEN
+         C3_ab_rs = x3*x5 + 3.0_dp*x7*(-x2 + 1.0_dp)
+         C3_ab_zeta = x8*zeta
+      END IF
+      IF (max_deriv >= 2) THEN
+         C3_ab_rs_rs = -6.0_dp*c3_1*g0_rs*x3*x6 + c3_1*g0_rs_rs*x4 + 12.0_dp*x0*x3/rs**5
+         C3_ab_rs_zeta = 2.0_dp*x5*zeta - 6.0_dp*x7*zeta
+         C3_ab_zeta_zeta = x8
+      END IF
+
+   END SUBROUTINE calc_C3_ab
+
+   ELEMENTAL SUBROUTINE calc_C4_ab(rs, zeta, max_deriv, C4_ab, C4_ab_rs, C4_ab_zeta, C4_ab_rs_rs, C4_ab_rs_zeta, C4_ab_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: C4_ab, C4_ab_rs, C4_ab_zeta, C4_ab_rs_rs, C4_ab_rs_zeta, C4_ab_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_C4_ab", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, g2z_ab, g2z_ab_rs, g2z_ab_zeta, g2z_ab_rs_rs, &
+                       g2z_ab_rs_zeta, g2z_ab_zeta_zeta, D2, D2_rs, D2_rs_rs, phi8, phi8_zeta, phi8_zeta_zeta
+
+      CALL calc_g2z_ab(rs, zeta, max_deriv, g2z_ab, g2z_ab_rs, g2z_ab_zeta, g2z_ab_rs_rs, g2z_ab_rs_zeta, g2z_ab_zeta_zeta)
+      CALL calc_D2(rs, max_deriv, D2, D2_rs, D2_rs_rs)
+      CALL calc_phin(zeta, 8, max_deriv, phi8, phi8_zeta, phi8_zeta_zeta)
+
+      x0 = rs**(-3)
+      x1 = alpha**(-2)
+      x2 = rs**(-2)
+      x3 = phi8*x1*x2
+      x4 = -zeta**2 + 1.0_dp
+      x5 = D2*x4
+      x6 = rs**(-4)
+      x7 = phi8*x0*x1
+      x8 = D2_rs*x4
+      x9 = (9.0_dp/32.0_dp)*D2
+      x10 = phi8_zeta*x1*x2
+      C4_ab = x0*(-9.0_dp/64.0_dp*g2z_ab + (9.0_dp/320.0_dp)*x3 - 9.0_dp/64.0_dp*x5)
+      IF (max_deriv >= 1) THEN
+         C4_ab_rs = x0*(-9.0_dp/64.0_dp*g2z_ab_rs - 9.0_dp/160.0_dp*x7 - 9.0_dp/64.0_dp &
+                        *x8) + x6*((27.0_dp/64.0_dp)*g2z_ab - 27.0_dp/320.0_dp*x3 + (27.0_dp/ &
+                                                                                     64.0_dp)*x5)
+         C4_ab_zeta = x0*(-9.0_dp/64.0_dp*g2z_ab_zeta + (9.0_dp/320.0_dp)*x10 + x9*zeta)
+      END IF
+      IF (max_deriv >= 2) THEN
+         C4_ab_rs_rs = x0*(-9.0_dp/64.0_dp*D2_rs_rs*x4 - 9.0_dp/64.0_dp*g2z_ab_rs_rs &
+                           + (27.0_dp/160.0_dp)*phi8*x1*x6) + x6*((27.0_dp/32.0_dp)*g2z_ab_rs + &
+                                                           (27.0_dp/80.0_dp)*x7 + (27.0_dp/32.0_dp)*x8) + (-27.0_dp/16.0_dp*g2z_ab &
+                                                                                  + (27.0_dp/80.0_dp)*x3 - 27.0_dp/16.0_dp*x5)/rs**5
+         C4_ab_rs_zeta = x0*((9.0_dp/32.0_dp)*D2_rs*zeta - 9.0_dp/64.0_dp* &
+                             g2z_ab_rs_zeta - 9.0_dp/160.0_dp*phi8_zeta*x0*x1) + x6*(-27.0_dp/ &
+                                                             32.0_dp*D2*zeta + (27.0_dp/64.0_dp)*g2z_ab_zeta - 27.0_dp/320.0_dp*x10)
+         C4_ab_zeta_zeta = x0*(-9.0_dp/64.0_dp*g2z_ab_zeta_zeta + (9.0_dp/320.0_dp)* &
+                               phi8_zeta_zeta*x1*x2 + x9)
+      END IF
+
+   END SUBROUTINE calc_C4_ab
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param rs ...
 !> \param z ...
 !> \param mu ...
-!> \param excsr ...
-!> \param vxcsrup ...
-!> \param vxcsrdown ...
-!> \param sx ...
-!> \param sc ...
+!> \param ecsr ...
+!> \param vcsrup ...
+!> \param vcsrdown ...
 ! **************************************************************************************************
-   ELEMENTAL SUBROUTINE lsdsr(rs, z, mu, excsr, vxcsrup, vxcsrdown, sx, sc)
+   ELEMENTAL SUBROUTINE lsdsr(rs, z, mu, ecsr, vcsrup, vcsrdown)
       REAL(KIND=dp), INTENT(IN)                          :: rs, z, mu
-      REAL(KIND=dp), INTENT(OUT)                         :: excsr, vxcsrup, vxcsrdown
-      REAL(KIND=dp), INTENT(IN)                          :: sx, sc
+      REAL(KIND=dp), INTENT(OUT)                         :: ecsr, vcsrup, vcsrdown
 
       CHARACTER(len=*), PARAMETER :: routineN = 'lsdsr', routineP = moduleN//':'//routineN
 
-      REAL(KIND=dp)                                      :: ec, ecd, eclr, ecz, ex, exlr, vcdown, &
-                                                            vclrdown, vclrup, vcup, vxdown, &
-                                                            vxlrdown, vxlrup, vxup
+      REAL(KIND=dp)                                      :: ec, ecd, eclr, ecz, vcdown, &
+                                                            vclrdown, vclrup, vcup
 
-      IF (sx /= 0.0_dp) THEN
-         IF (z >= 1.0_dp) THEN
-            ex = -3._dp*cf/pi*2.0_dp**(-5._dp/3._dp)/rs
+      CALL ecPW_lsd(rs, z, ec, ecd, ecz)
+      vcup = ec - rs/3._dp*ecd - (z - 1._dp)*ecz
+      vcdown = ec - rs/3._dp*ecd - (z + 1._dp)*ecz
 
-            vxup = -(9._dp/2._dp/pi**2)**(1._dp/3._dp)/rs
-            vxdown = 0.0_dp
-         ELSE IF (z <= -1.0_dp) THEN
-            ex = -3._dp*cf/pi*2.0_dp**(-5._dp/3._dp)/rs
+      CALL ecorrlr_lsd(rs, z, mu, eclr, vclrup, vclrdown, ec, ecd, ecz)
 
-            vxup = 0.0_dp
-            vxdown = -(9._dp/2._dp/pi**2)**(1._dp/3._dp)/rs
-         ELSE
-            ex = -3._dp*cf/rs/8._dp/pi*((1._dp + z)**(4._dp/3._dp) + &
-                                        (1._dp - z)**(4._dp/3._dp))
-
-            vxup = -(1._dp + z)**(1._dp/3._dp)*(3._dp/2._dp/pi)**(2._dp/3._dp)/rs
-            vxdown = -(1._dp - z)**(1._dp/3._dp)*(3._dp/2._dp/pi)**(2._dp/3._dp)/rs
-         END IF
-
-         CALL exchangelr_lsd(rs, z, mu, exlr, vxlrup, vxlrdown)
-      ELSE
-         ex = 0.0_dp
-         vxup = 0.0_dp
-         vxdown = 0.0_dp
-
-         exlr = 0.0_dp
-         vxlrup = 0.0_dp
-         vxlrdown = 0.0_dp
-      END IF
-
-      IF (sc /= 0.0_dp) THEN
-         CALL ecPW_lsd(rs, z, ec, ecd, ecz)
-         vcup = ec - rs/3._dp*ecd - (z - 1._dp)*ecz
-         vcdown = ec - rs/3._dp*ecd - (z + 1._dp)*ecz
-
-         CALL ecorrlr_lsd(rs, z, mu, eclr, vclrup, vclrdown, ec, ecd, ecz)
-      ELSE
-         ec = 0.0_dp
-         vcup = 0.0_dp
-         vcdown = 0.0_dp
-
-         eclr = 0.0_dp
-         vclrup = 0.0_dp
-         vclrdown = 0.0_dp
-      END IF
-
-      excsr = sx*ex + sc*ec - (sx*exlr + sc*eclr)
-      vxcsrup = sx*vxup + sc*vcup - (sx*vxlrup + sc*vclrup)
-      vxcsrdown = sx*vxdown + sc*vcdown - (sx*vxlrdown + sc*vclrdown)
+      ecsr = ec - eclr
+      vcsrup = vcup - vclrup
+      vcsrdown = vcdown - vclrdown
 
    END SUBROUTINE
 
@@ -1186,25 +1325,24 @@ CONTAINS
 
       REAL(KIND=dp) :: a1, a1rs, a1z, a2, a2rs, a2z, a3, a3rs, a3z, a4, a4rs, a4z, a5, a5rs, a5z, &
                        b0, coe2, coe2rs, coe2z, coe3, coe3rs, coe3z, coe4, coe4rs, coe4z, coe5, coe5rs, coe5z, &
-                       d2anti, d2antid, d3anti, d3antid, eclrrs, eclrz, phi, x
+                       d2anti, d2antid, d3anti, d3antid, eclrrs, eclrz, phi, x, dummy, g0, g0d
 
       phi = ((1._dp + z)**(2._dp/3._dp) + (1._dp - z)**(2._dp/3._dp))/2._dp
 
       b0 = adib*rs
 
-      d2anti = (q1a + q2a*rs)*EXP(-q3a*rs)/rs
-      d3anti = (t1a + t2a*rs)*EXP(-t3a*rs)/rs**2
+      CALL calc_D2(rs, 1, d2anti, d2antid, dummy)
+      CALL calc_D3(rs, 1, d3anti, d3antid, dummy)
 
-      d2antid = -((q1a + q1a*q3a*rs + q2a*q3a*rs**2)/rs**2)*EXP(-q3a*rs)
-      d3antid = -((rs*t2a*(1._dp + rs*t3a) + t1a*(2._dp + rs*t3a))/rs**3)*EXP(-rs*t3a)
+      CALL calc_g0(rs, 1, g0, g0d, dummy)
 
-      coe2 = -3._dp/8._dp/rs**3*(1._dp - z**2)*(g0(rs) - 0.5_dp)
-      coe2rs = -3._dp/8._dp/rs**3*(1._dp - z**2)*g0d(rs) + 9._dp/8._dp/rs**4*(1._dp - z**2)*(g0(rs) - 0.5_dp)
-      coe2z = -3._dp/8._dp/rs**3*(-2._dp*z)*(g0(rs) - 0.5_dp)
+      coe2 = -3._dp/8._dp/rs**3*(1._dp - z**2)*(g0 - 0.5_dp)
+      coe2rs = -3._dp/8._dp/rs**3*(1._dp - z**2)*g0d+9._dp/8._dp/rs**4*(1._dp - z**2)*(g0 - 0.5_dp)
+      coe2z = -3._dp/8._dp/rs**3*(-2._dp*z)*(g0 - 0.5_dp)
 
-      coe3 = -(1._dp - z**2)*g0(rs)/SQRT(2._dp*pi)/rs**3
-      coe3rs = -(1._dp - z**2)*g0d(rs)/SQRT(2._dp*pi)/rs**3 + 3._dp*(1._dp - z**2)*g0(rs)/SQRT(2._dp*pi)/rs**4
-      coe3z = 2._dp*z*g0(rs)/(SQRT(2._dp*pi)*rs**3)
+      coe3 = -(1._dp - z**2)*g0/SQRT(2._dp*pi)/rs**3
+      coe3rs = -(1._dp - z**2)*g0d/SQRT(2._dp*pi)/rs**3 + 3._dp*(1._dp - z**2)*g0/SQRT(2._dp*pi)/rs**4
+      coe3z = 2._dp*z*g0/(SQRT(2._dp*pi)*rs**3)
 
       IF (ABS(z) >= 1._dp) THEN
 
@@ -1296,34 +1434,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rs ...
-!> \return ...
-! **************************************************************************************************
-   ELEMENTAL FUNCTION g0(rs)
-      REAL(KIND=dp), INTENT(IN)                          :: rs
-      REAL(KIND=dp)                                      :: g0
-
-      g0 = (1._dp - (0.7317_dp - Fg0)*rs + Cg0*rs**2 + Dg0*rs**3 + Eg0*rs**4)*EXP(-ABS(Fg0)*rs)/2._dp
-
-   END FUNCTION
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rs ...
-!> \return ...
-! **************************************************************************************************
-   ELEMENTAL FUNCTION g0d(rs)
-      REAL(KIND=dp), INTENT(IN)                          :: rs
-      REAL(KIND=dp)                                      :: g0d
-
-      g0d = (-Bg0 + 2.0_dp*Cg0*rs + 3.0_dp*Dg0*rs**2 + 4.0_dp*Eg0*rs**3)/2._dp*EXP(-Fg0*rs) &
-            - (Fg0*(1.0_dp - Bg0*rs + Cg0*rs**2 + Dg0*rs**3 + Eg0*rs**4))/ &
-            2._dp*EXP(-Fg0*rs)
-
-   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief ...
