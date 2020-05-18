@@ -222,7 +222,7 @@
 !> \param ed ...
 !> \param order ...
 ! **************************************************************************************************
-   SUBROUTINE pw_lsd_ed_loc_rz(r, z, f, ed, order_)
+   PURE SUBROUTINE pw_lsd_ed_loc_rz(r, z, f, ed, order_)
       REAL(KIND=dp), INTENT(IN)                          :: r, z, f(0:3)
       REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: ed
       INTEGER, INTENT(IN)                                :: order_

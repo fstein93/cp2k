@@ -1317,6 +1317,202 @@ CONTAINS
 
    END SUBROUTINE calc_C5_ab
 
+   ELEMENTAL SUBROUTINE calc_a1_ab(rs, zeta, max_deriv, a1_ab, a1_ab_rs, a1_ab_zeta, a1_ab_rs_rs, a1_ab_rs_zeta, a1_ab_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: a1_ab, a1_ab_rs, a1_ab_zeta, a1_ab_rs_rs, a1_ab_rs_zeta, a1_ab_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a1_ab", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, C3_ab, C3_ab_rs, C3_ab_zeta, C3_ab_rs_rs, C3_ab_rs_zeta, &
+                       C3_ab_zeta_zeta, C5_ab, C5_ab_rs, C5_ab_zeta, C5_ab_rs_rs, C5_ab_rs_zeta, C5_ab_zeta_zeta, b0
+
+      CALL calc_C3_ab(rs, zeta, max_deriv, C3_ab, C3_ab_rs, C3_ab_zeta, C3_ab_rs_rs, C3_ab_rs_zeta, C3_ab_zeta_zeta)
+      CALL calc_C5_ab(rs, zeta, max_deriv, C5_ab, C5_ab_rs, C5_ab_zeta, C5_ab_rs_rs, C5_ab_rs_zeta, C5_ab_zeta_zeta)
+
+      b0 = beta*rs
+
+      x0 = b0**8
+      x1 = C5_ab*x0
+      x2 = b0**6
+      x3 = 4.0_dp*x2
+      x4 = C5_ab_rs*x0
+      x5 = 1.0_dp/rs
+      x6 = 24.0_dp*x5
+      x7 = C3_ab*x2
+      x8 = 8.0_dp*x5
+      x9 = C5_ab_zeta*x0
+      x10 = rs**(-2)
+
+      a1_ab = C3_ab*x3 + x1
+      IF (max_deriv >= 1) THEN
+         a1_ab_rs = C3_ab_rs*x3 + x1*x8 + x4 + x6*x7
+         a1_ab_zeta = C3_ab_zeta*x3 + x9
+      END IF
+      IF (max_deriv >= 2) THEN
+         a1_ab_rs_rs = 48.0_dp*C3_ab_rs*x2*x5 + C3_ab_rs_rs*x3 + C5_ab_rs_rs*x0 + 56.0_dp* &
+                       x1*x10 + 120.0_dp*x10*x7 + 16.0_dp*x4*x5
+         a1_ab_rs_zeta = C3_ab_rs_zeta*x3 + C3_ab_zeta*x2*x6 + C5_ab_rs_zeta*x0 + x8*x9
+         a1_ab_zeta_zeta = C3_ab_zeta_zeta*x3 + C5_ab_zeta_zeta*x0
+      END IF
+
+   END SUBROUTINE calc_a1_ab
+
+   ELEMENTAL SUBROUTINE calc_a2_ab(rs, zeta, max_deriv, a2_ab, a2_ab_rs, a2_ab_zeta, a2_ab_rs_rs, a2_ab_rs_zeta, a2_ab_zeta_zeta, &
+                                   Ec_ab, Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta, Ec_ab, Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: a2_ab, a2_ab_rs, a2_ab_zeta, a2_ab_rs_rs, a2_ab_rs_zeta, a2_ab_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a2_ab", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, C2_ab, C2_ab_rs, C2_ab_zeta, &
+           C2_ab_rs_rs, C2_ab_rs_zeta, C2_ab_zeta_zeta, C4_ab, C4_ab_rs, C4_ab_zeta, C4_ab_rs_rs, C4_ab_rs_zeta, C4_ab_zeta_zeta, b0
+
+      CALL calc_C2_ab(rs, zeta, max_deriv, C2_ab, C2_ab_rs, C2_ab_zeta, C2_ab_rs_rs, C2_ab_rs_zeta, C2_ab_zeta_zeta)
+      CALL calc_C4_ab(rs, zeta, max_deriv, C4_ab, C4_ab_rs, C4_ab_zeta, C4_ab_rs_rs, C4_ab_rs_zeta, C4_ab_zeta_zeta)
+
+      b0 = beta*rs
+
+      x0 = b0**8
+      x1 = C4_ab*x0
+      x2 = b0**6
+      x3 = 4.0_dp*x2
+      x4 = b0**4
+      x5 = 6.0_dp*x4
+      x6 = C4_ab_rs*x0
+      x7 = 1.0_dp/rs
+      x8 = 24.0_dp*x7
+      x9 = C2_ab*x2
+      x10 = 8.0_dp*x7
+      x11 = Ec_ab*x4
+      x12 = C4_ab_zeta*x0
+      x13 = rs**(-2)
+      x14 = 48.0_dp*x7
+
+      a2_ab = C2_ab*x3 + Ec_ab*x5 + x1
+      IF (max_deriv >= 1) THEN
+         a2_ab_rs = C2_ab_rs*x3 + Ec_ab_rs*x5 + x1*x10 + x11*x8 + x6 + x8*x9
+         a2_ab_zeta = C2_ab_zeta*x3 + Ec_ab_zeta*x5 + x12
+      END IF
+      IF (max_deriv >= 2) THEN
+         a2_ab_rs_rs = C2_ab_rs*x14*x2 + C2_ab_rs_rs*x3 + C4_ab_rs_rs*x0 + &
+                       Ec_ab_rs*x14*x4 + Ec_ab_rs_rs*x5 + 56.0_dp*x1*x13 + 72.0_dp*x11*x13 + 120.0_dp* &
+                       x13*x9 + 16.0_dp*x6*x7
+         a2_ab_rs_zeta = C2_ab_rs_zeta*x3 + C2_ab_zeta*x2*x8 + C4_ab_rs_zeta*x0 + &
+                         Ec_ab_rs_zeta*x5 + Ec_ab_zeta*x4*x8 + x10*x12
+         a2_ab_zeta_zeta = C2_ab_zeta_zeta*x3 + C4_ab_zeta_zeta*x0 + Ec_ab_zeta_zeta*x5
+      END IF
+
+   END SUBROUTINE calc_a2_ab
+
+   ELEMENTAL SUBROUTINE calc_a3_ab(rs, zeta, max_deriv, a3_ab, a3_ab_rs, a3_ab_zeta, a3_ab_rs_rs, a3_ab_rs_zeta, a3_ab_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: a3_ab, a3_ab_rs, a3_ab_zeta, a3_ab_rs_rs, a3_ab_rs_zeta, a3_ab_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a3_ab", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, C3_ab, C3_ab_rs, C3_ab_zeta, C3_ab_rs_rs, C3_ab_rs_zeta, C3_ab_zeta_zeta, b0
+
+      CALL calc_C3_ab(rs, zeta, max_deriv, C3_ab, C3_ab_rs, C3_ab_zeta, C3_ab_rs_rs, C3_ab_rs_zeta, C3_ab_zeta_zeta)
+
+      b0 = beta*rs
+
+      x0 = b0**8
+      x1 = C3_ab*x0
+      x2 = C3_ab_rs*x0
+      x3 = 1.0_dp/rs
+      x4 = 8.0_dp*x3
+      x5 = C3_ab_zeta*x0
+
+      a3_ab = x1
+      IF (max_deriv >= 1) THEN
+         a3_ab_rs = x1*x4 + x2
+         a3_ab_zeta = x5
+      END IF
+      IF (max_deriv >= 2) THEN
+         a3_ab_rs_rs = C3_ab_rs_rs*x0 + 16.0_dp*x2*x3 + 56.0_dp*x1/rs**2
+         a3_ab_rs_zeta = C3_ab_rs_zeta*x0 + x4*x5
+         a3_ab_zeta_zeta = C3_ab_zeta_zeta*x0
+      END IF
+
+   END SUBROUTINE calc_a3_ab
+
+   ELEMENTAL SUBROUTINE calc_a4_ab(rs, zeta, max_deriv, a4_ab, a4_ab_rs, a4_ab_zeta, a4_ab_rs_rs, a4_ab_rs_zeta, a4_ab_zeta_zeta, &
+                                   Ec_ab, Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta, Ec_ab, Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: a4_ab, a4_ab_rs, a4_ab_zeta, a4_ab_rs_rs, a4_ab_rs_zeta, a4_ab_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a4_ab", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, C2_ab, C2_ab_rs, C2_ab_zeta, C2_ab_rs_rs, &
+                       C2_ab_rs_zeta, C2_ab_zeta_zeta
+
+      CALL calc_C2_ab(rs, zeta, max_deriv, C2_ab, C2_ab_rs, C2_ab_zeta, C2_ab_rs_rs, C2_ab_rs_zeta, C2_ab_zeta_zeta)
+
+      x0 = beta**8
+      x1 = rs**8*x0
+      x2 = rs**6
+      x3 = 4.0_dp*x2
+      x4 = beta**6
+      x5 = Ec_ab*x4
+      x6 = rs**7
+      x7 = 8.0_dp*x6
+      x8 = C2_ab*x0
+      x9 = rs**5
+      x10 = 2.0_dp*x9
+      x11 = Ec_ab_rs*x4
+      x12 = 4.0_dp*x2*x4
+
+      a4_ab = C2_ab*x1 + x3*x5
+      IF (max_deriv >= 1) THEN
+         a4_ab_rs = C2_ab_rs*x1 + x10*x5 + x11*x3 + x7*x8
+         a4_ab_zeta = C2_ab_zeta*x1 + Ec_ab_zeta*x12
+      END IF
+      IF (max_deriv >= 2) THEN
+         a4_ab_rs_rs = 16.0_dp*C2_ab_rs*x0*x6 + C2_ab_rs_rs*x1 + Ec_ab_rs_rs*x12 + 120.0_dp &
+                       *rs**4*x5 + 48.0_dp*x11*x9 + 56.0_dp*x2*x8
+         a4_ab_rs_zeta = C2_ab_rs_zeta*x1 + C2_ab_zeta*x0*x7 + Ec_ab_rs_zeta*x12 &
+                         + Ec_ab_zeta*x10*x4
+         a4_ab_zeta_zeta = C2_ab_zeta_zeta*x1 + Ec_ab_zeta_zeta*x12
+      END IF
+
+   END SUBROUTINE calc_a4_ab
+
+   ELEMENTAL SUBROUTINE calc_a5_ab(rs, max_deriv, a5_ab, a5_ab_rs, a5_ab_zeta, a5_ab_rs_rs, a5_ab_rs_zeta, a5_ab_zeta_zeta, &
+                                   Ec_ab, Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, Ec_ab, Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: a5_ab, a5_ab_rs, a5_ab_zeta, a5_ab_rs_rs, a5_ab_rs_zeta, a5_ab_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a5_ab", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, b0
+
+      b0 = beta*rs
+
+      x0 = b0**8
+      x1 = Ec_ab*x0
+      x2 = Ec_ab_rs*x0
+      x3 = 1.0_dp/rs
+      x4 = 8.0_dp*x3
+      x5 = Ec_ab_zeta*x0
+
+      a5_ab = x1
+      IF (max_deriv >= 1) THEN
+         a5_ab_rs = x1*x4 + x2
+         a5_ab_zeta = x5
+      END IF
+      IF (max_deriv >= 2) THEN
+         a5_ab_rs_rs = Ec_ab_rs_rs*x0 + 16.0_dp*x2*x3 + 56.0_dp*x1/rs**2
+         a5_ab_rs_zeta = Ec_ab_rs_zeta*x0 + x4*x5
+         a5_ab_zeta_zeta = Ec_ab_zeta_zeta*x0
+      END IF
+
+   END SUBROUTINE calc_a5_ab
+
 ! **************************************************************************************************
 !> \brief ...
 !> \param rs ...
@@ -1339,7 +1535,7 @@ CONTAINS
       vcup = ec - rs/3._dp*ecd - (z - 1._dp)*ecz
       vcdown = ec - rs/3._dp*ecd - (z + 1._dp)*ecz
 
-      CALL ecorrlr_lsd(rs, z, mu, eclr, vclrup, vclrdown, ec, ecd, ecz)
+      CALL ecorrlr_lsd(rs, z, mu, eclr, vclrup, vclrdown)
 
       ecsr = ec - eclr
       vcsrup = vcup - vclrup
@@ -1355,46 +1551,37 @@ CONTAINS
 !> \param eclr ...
 !> \param ec ...
 ! **************************************************************************************************
-   ELEMENTAL SUBROUTINE ecorrlr_lsd(rs, z, mu, eclr, vclrup, vclrdown, ec, ecd, ecz)
+   ELEMENTAL SUBROUTINE ecorrlr_lsd(rs, z, mu, eclr, vclrup, vclrdown)
       REAL(KIND=dp), INTENT(IN)                          :: rs, z, mu
       REAL(KIND=dp), INTENT(OUT)                         :: eclr, vclrup, vclrdown
-      REAL(KIND=dp), INTENT(IN)                          :: ec, ecd, ecz
 
       CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lsd', routineP = moduleN//':'//routineN
 
       REAL(KIND=dp) :: a1, a1rs, a1z, a2, a2rs, a2z, a3, a3rs, a3z, a4, a4rs, a4z, a5, a5rs, a5z, &
-                       b0, coe2, coe2rs, coe2z, coe3, coe3rs, coe3z, coe4, coe4rs, coe4z, coe5, coe5rs, coe5z, &
-                       eclrrs, eclrz, phi, x, dummy, dummy2, dummy3
+                       b0, eclrrs, eclrz, phi, x, dummy, dummy2, dummy3, f(0:3), ed(0:5), Ec_ab, &
+                       Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta
 
       phi = ((1._dp + z)**(2._dp/3._dp) + (1._dp - z)**(2._dp/3._dp))/2._dp
 
       b0 = adib*rs
 
-      CALL calc_C2_ab(rs, z, 1, coe2, coe2rs, coe2z, dummy, dummy2, dummy3)
-      CALL calc_C3_ab(rs, z, 1, coe3, coe3rs, coe3z, dummy, dummy2, dummy3)
-      CALL calc_C4_ab(rs, z, 1, coe4, coe4rs, coe4z, dummy, dummy2, dummy3)
-      CALL calc_C5_ab(rs, z, 1, coe5, coe5rs, coe5z, dummy, dummy2, dummy3)
+      CALL calc_fx(z, f, 1)
+      CALL pw_lsd_ed_loc_rz(rs, z, f, ed, 1)
+      Ec_ab = ed(0)
+      Ec_ab_rs = ed(1)
+      Ec_ab_zeta = ed(2)
+      Ec_ab_rs_rs = 0.0_dp
+      Ec_ab_rs_zeta = 0.0_dp
+      Ec_ab_zeta_zeta = 0.0_dp
 
-      a1 = 4._dp*b0**6*coe3 + b0**8*coe5
-      a1rs = 24._dp*adib*b0**5*coe3 + 4._dp*b0**6*coe3rs + 8._dp*adib*b0**7*coe5 + b0**8*coe5rs
-      a1z = 4._dp*b0**6*coe3z + b0**8*coe5z
-
-      a2 = 4._dp*b0**6*coe2 + b0**8*coe4 + 6._dp*b0**4*ec
-      a2rs = 24._dp*adib*b0**5*coe2 + 4._dp*b0**6*coe2rs + 8._dp*adib*b0**7*coe4 + b0**8*coe4rs &
-             + 24._dp*adib*b0**3*ec + 6._dp*b0**4*ecd
-      a2z = 4._dp*b0**6*coe2z + b0**8*coe4z + 6._dp*b0**4*ecz
-
-      a3 = b0**8*coe3
-      a3rs = 8._dp*adib*b0**7*coe3 + b0**8*coe3rs
-      a3z = b0**8*coe3z
-
-      a4 = b0**6*(b0**2*coe2 + 4._dp*ec)
-      a4rs = 8._dp*adib*b0**7*coe2 + b0**8*coe2rs + 24._dp*adib*b0**5*ec + 4._dp*b0**6*ecd
-      a4z = b0**6*(b0**2*coe2z + 4._dp*ecz)
-
-      a5 = b0**8*ec
-      a5rs = 8._dp*adib*b0**7*ec + b0**8*ecd
-      a5z = b0**8*ecz
+      CALL calc_a1_ab(rs, z, 1, a1, a1rs, a1z, dummy, dummy2, dummy3)
+      CALL calc_a2_ab(rs, z, 1, a2, a2rs, a2z, dummy, dummy2, dummy3, Ec_ab, Ec_ab_rs, Ec_ab_zeta, &
+                      Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta)
+      CALL calc_a3_ab(rs, z, 1, a3, a3rs, a3z, dummy, dummy2, dummy3)
+      CALL calc_a4_ab(rs, z, 1, a4, a4rs, a4z, dummy, dummy2, dummy3, Ec_ab, Ec_ab_rs, Ec_ab_zeta, &
+                      Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta)
+      CALL calc_a5_ab(rs, 1, a5, a5rs, a5z, dummy, dummy2, dummy3, Ec_ab, Ec_ab_rs, Ec_ab_zeta, &
+                      Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta)
 
       x = mu*SQRT(rs)/phi
 
@@ -1422,37 +1609,6 @@ CONTAINS
       END IF
 
    END SUBROUTINE
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rs ...
-!> \return ...
-! **************************************************************************************************
-   ELEMENTAL FUNCTION dpol(rs)
-      REAL(KIND=dp), INTENT(IN)                          :: rs
-      REAL(KIND=dp)                                      :: dpol
-
-      dpol = 2._dp**(5._dp/3._dp)/5._dp*cf**2/rs**2*(1._dp + (p3p - 0.454555_dp)*rs) &
-             /(1._dp + p3p*rs + p2p*rs**2)
-
-   END FUNCTION
-
-! **************************************************************************************************
-!> \brief ...
-!> \param rs ...
-!> \return ...
-! **************************************************************************************************
-   ELEMENTAL FUNCTION dpold(rs)
-      REAL(KIND=dp), INTENT(IN)                          :: rs
-      REAL(KIND=dp)                                      :: dpold
-
-      dpold = 2._dp**(5._dp/3._dp)/5._dp*cf**2* &
-              (-2._dp + (0.454555 - 4._dp*p3p)*rs + &
-               (-4._dp*p2p + (0.90911 - 2.*p3p)*p3p)*rs**2 &
-               + p2p*(1.363665 - 3._dp*p3p)*rs**3)/ &
-              (rs**3*(1._dp + p3p*rs + p2p*rs**2)**2)
-
-   END FUNCTION
 
 ! **************************************************************************************************
 !> \brief ...
