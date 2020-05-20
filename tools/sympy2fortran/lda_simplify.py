@@ -301,7 +301,7 @@ class a4_ab(My_Function):
     def eval(cls, rs, zeta):
         return b0(rs)**eight*C2_ab.dummy(rs, zeta)+four*b0(rs)**six*Ec_ab.dummy(rs, zeta)
 
-create_Routine_from_Function(a4_ab, file, max_deriv, [], False, rs, zeta)
+create_Routine_from_Function(a4_ab, file, max_deriv, [(beta, Symbol('b0')/rs)], False, rs, zeta)
 
 class a5_ab(My_Function):
     nargs=2
@@ -341,7 +341,7 @@ class Q_ab(My_Function):
     @classmethod
     def eval(cls, rs, zeta):
         x=mu*sqrt(rs)/phi2.dummy(zeta)
-        return q*log((one+a*x+b*x**2+c*x**three)/(one+a*x+d*x**two))
+        return q*log((one+a*x+b*x**2+c*x**three)/(one+a*x+d*x**two))*phi2.dummy(zeta)**3
 
 create_Routine_from_Function(Q_ab, file, max_deriv, [(mu, Symbol('xx')/sqrt(rs)/phi2.dummy(zeta))], False, rs, zeta)
 
@@ -352,7 +352,6 @@ class ec_mu_ab(My_Function):
     nargs=2
     add_args=(mu,)
     needed_functions=[(Q_ab, lambda rs, zeta: (rs, zeta), (rs, zeta)),
-                      (phi2, lambda zeta: (zeta,), (zeta,)),
                       (a1_ab, lambda rs, zeta: (rs, zeta), (rs, zeta)),
                       (a2_ab, lambda rs, zeta: (rs, zeta), (rs, zeta)),
                       (a3_ab, lambda rs, zeta: (rs, zeta), (rs, zeta)),
@@ -362,7 +361,7 @@ class ec_mu_ab(My_Function):
     
     @classmethod
     def eval(cls, rs, zeta):
-        return Ec_ab.dummy(rs, zeta)-(phi2.dummy(zeta)**3*Q_ab.dummy(rs, zeta)+a1_ab.dummy(rs, zeta)*mu**three+a2_ab.dummy(rs, zeta)*mu**four+a3_ab.dummy(rs, zeta)*mu**five+a4_ab.dummy(rs, zeta)*mu**six+a5_ab.dummy(rs, zeta)*mu**eight)/(one+b0(rs)**two*mu**two)**four
+        return Ec_ab.dummy(rs, zeta)-(Q_ab.dummy(rs, zeta)+a1_ab.dummy(rs, zeta)*mu**three+a2_ab.dummy(rs, zeta)*mu**four+a3_ab.dummy(rs, zeta)*mu**five+a4_ab.dummy(rs, zeta)*mu**six+a5_ab.dummy(rs, zeta)*mu**eight)/(one+b0(rs)**two*mu**two)**four
 
 create_Routine_from_Function(ec_mu_ab, file, max_deriv, [(beta, Symbol('b0')/rs/mu)], False, rs, zeta)
 

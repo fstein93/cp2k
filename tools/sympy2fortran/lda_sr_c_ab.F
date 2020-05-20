@@ -578,32 +578,30 @@
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_a4_ab", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, C2_ab, C2_ab_rs, C2_ab_zeta, C2_ab_rs_rs, C2_ab_rs_zeta, C2_ab_zeta_zeta, Ec_ab, Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, C2_ab, C2_ab_rs, C2_ab_zeta, C2_ab_rs_rs, C2_ab_rs_zeta, C2_ab_zeta_zeta, Ec_ab, Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta
 
       CALL calc_C2_ab(rs, zeta, max_deriv, C2_ab, C2_ab_rs, C2_ab_zeta, C2_ab_rs_rs, C2_ab_rs_zeta, C2_ab_zeta_zeta)
       CALL calc_Ec_ab(rs, zeta, max_deriv, Ec_ab, Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta)
 
-      x0 = beta**8
-      x1 = rs**8*x0
-      x2 = rs**6
+      x0 = b0**8
+      x1 = C2_ab*x0
+      x2 = b0**6
       x3 = 4*x2
-      x4 = beta**6
-      x5 = Ec_ab*x4
-      x6 = rs**7
-      x7 = 8*x6
-      x8 = C2_ab*x0
-      x9 = rs**5
-      x10 = 24*x9
-      x11 = Ec_ab_rs*x4
-      x12 = 4*x2*x4
-      a4_ab = C2_ab*x1 + x3*x5
-      a4_ab_rs = C2_ab_rs*x1 + x10*x5 + x11*x3 + x7*x8
-      a4_ab_zeta = C2_ab_zeta*x1 + Ec_ab_zeta*x12
-      a4_ab_rs_rs = 16*C2_ab_rs*x0*x6 + C2_ab_rs_rs*x1 + Ec_ab_rs_rs*x12 + 120 &
-      *rs**4*x5 + 48*x11*x9 + 56*x2*x8
-      a4_ab_rs_zeta = C2_ab_rs_zeta*x1 + C2_ab_zeta*x0*x7 + Ec_ab_rs_zeta*x12 &
-      + Ec_ab_zeta*x10*x4
-      a4_ab_zeta_zeta = C2_ab_zeta_zeta*x1 + Ec_ab_zeta_zeta*x12
+      x4 = C2_ab_rs*x0
+      x5 = 1.0_dp/rs
+      x6 = 8*x5
+      x7 = 24*x5
+      x8 = Ec_ab*x2
+      x9 = C2_ab_zeta*x0
+      x10 = rs**(-2)
+      a4_ab = Ec_ab*x3 + x1
+      a4_ab_rs = Ec_ab_rs*x3 + x1*x6 + x4 + x7*x8
+      a4_ab_zeta = Ec_ab_zeta*x3 + x9
+      a4_ab_rs_rs = C2_ab_rs_rs*x0 + 48*Ec_ab_rs*x2*x5 + Ec_ab_rs_rs*x3 + 56* &
+      x1*x10 + 120*x10*x8 + 16*x4*x5
+      a4_ab_rs_zeta = C2_ab_rs_zeta*x0 + Ec_ab_rs_zeta*x3 + Ec_ab_zeta*x2*x7 + &
+      x6*x9
+      a4_ab_zeta_zeta = C2_ab_zeta_zeta*x0 + Ec_ab_zeta_zeta*x3
 
    END SUBROUTINE calc_a4_ab
 
@@ -640,7 +638,7 @@
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_Q_ab", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31, x32, x33, x34, x35, x36, x37, x38, x39, x40, x41, x42, x43, x44, x45, x46, x47, x48, x49, x50, x51, x52, x53, x54, x55, x56, x57, x58, x59, x60, aa, cc, dd, qq, bb, phi2, phi2_zeta, phi2_zeta_zeta
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31, x32, x33, x34, x35, x36, x37, x38, x39, x40, x41, x42, x43, x44, x45, x46, x47, x48, x49, x50, x51, x52, x53, x54, x55, x56, x57, x58, x59, x60, x61, x62, x63, x64, x65, aa, cc, dd, qq, bb, phi2, phi2_zeta, phi2_zeta_zeta
 
       CALL calc_phi2(zeta, max_deriv, phi2, phi2_zeta, phi2_zeta_zeta)
 
@@ -649,81 +647,87 @@
       dd = 3.44851_dp
       qq = 2*(-1 + 0.693147180559945_dp)/pi**2
       bb = -3*pi*a/(-4 + 4*0.693147180559945_dp) + 3.44851_dp
-      x0 = phi2**(-4)
-      x1 = xx**2
-      x2 = x0*x1
-      x3 = dd*x2
-      x4 = aa*xx
-      x5 = x4/phi2**2
-      x6 = x5 + 1
-      x7 = x3 + x6
-      x8 = 1.0_dp/x7
-      x9 = bb*x2
-      x10 = phi2**(-6)
-      x11 = xx**3
-      x12 = cc*x11
-      x13 = x10*x12
-      x14 = x13 + x6 + x9
-      x15 = 1.0_dp/x14
-      x16 = 1.0_dp/rs
-      x17 = x16*x5
-      x18 = (1.0_dp/2.0_dp)*x17
-      x19 = x16*x9
-      x20 = (3.0_dp/2.0_dp)*x13*x16
-      x21 = x18 + x19 + x20
-      x22 = -x18
-      x23 = x16*x3
-      x24 = x22 - x23
-      x25 = x7**(-2)
-      x26 = x14*x25
-      x27 = x21*x8 + x24*x26
-      x28 = qq*x15*x27
-      x29 = phi2**(-3)
-      x30 = aa*x29*xx
-      x31 = phi2_zeta*x30
-      x32 = -x31
-      x33 = phi2**(-5)
-      x34 = 2*bb*x1*x33
-      x35 = phi2_zeta*x34
-      x36 = phi2**(-7)
-      x37 = 3*cc*x11*x36
-      x38 = phi2_zeta*x37
-      x39 = x32 - x35 - x38
-      x40 = dd*phi2_zeta*x1*x33
-      x41 = 2*x40
-      x42 = x31 + x41
-      x43 = x26*x42 + x39*x8
-      x44 = qq*x15*x43
-      x45 = x14**(-2)
-      x46 = qq*x15*x7
-      x47 = rs**(-2)
-      x48 = (1.0_dp/4.0_dp)*x47*x5
-      x49 = x24*x25
-      x50 = x7**(-3)
-      x51 = x32 - x41
-      x52 = qq*x45*x7*(x31 + x35 + x38)
-      x53 = (1.0_dp/2.0_dp)*x16*x31
-      x54 = x25*x42
-      x55 = x14*x50*(2*x31 + 4*x40)
-      x56 = phi2_zeta_zeta*x30
-      x57 = phi2_zeta**2
-      x58 = 2*x0*x4*x57
-      x59 = 6*x10*x57
-      x60 = dd*x1
-      Q_ab = qq*log(x14*x8)
-      Q_ab_rs = x28*x7
-      Q_ab_zeta = x44*x7
-      Q_ab_rs_rs = qq*x27*x45*x7*(-x19 - x20 + x22) + x28*(x18 + x23) + x46*( &
-      x14*x24*x50*(-x17 - 2*x23) + x26*x48 + x49*(2*bb*x0*x1*x16 + 3*cc &
-      *x10*x11*x16 + x17) + x8*((3.0_dp/4.0_dp)*x13*x47 - x48))
-      Q_ab_rs_zeta = x27*x52 + x28*x51 + x46*(x21*x54 + x24*x55 + x26*(x16*x41 &
-      + x53) + x39*x49 + x8*(-9.0_dp/2.0_dp*phi2_zeta*x12*x16*x36 - x16* &
-      x35 - x53))
-      Q_ab_zeta_zeta = x43*x52 + x44*x51 + x46*(x26*(2*phi2_zeta_zeta*x33*x60 &
-      + x56 - x58 - x59*x60) + x42*x55 + x54*(-2*aa*phi2_zeta*x29*xx - &
-      4*bb*phi2_zeta*x1*x33 - 6*cc*phi2_zeta*x11*x36) + x8*(bb*x1*x59 - &
-      phi2_zeta_zeta*x34 - phi2_zeta_zeta*x37 - x56 + x58 + 12*x12*x57/ &
-      phi2**8))
+      x0 = phi2**3
+      x1 = phi2**(-4)
+      x2 = xx**2
+      x3 = x1*x2
+      x4 = dd*x3
+      x5 = phi2**2
+      x6 = aa*xx
+      x7 = x6/x5
+      x8 = x7 + 1
+      x9 = x4 + x8
+      x10 = 1.0_dp/x9
+      x11 = bb*x3
+      x12 = phi2**(-6)
+      x13 = xx**3
+      x14 = cc*x13
+      x15 = x12*x14
+      x16 = x11 + x15 + x8
+      x17 = log(x10*x16)
+      x18 = qq*x17
+      x19 = 1.0_dp/x16
+      x20 = qq*x0*x19
+      x21 = 1.0_dp/rs
+      x22 = x21*x7
+      x23 = (1.0_dp/2.0_dp)*x22
+      x24 = x11*x21
+      x25 = (3.0_dp/2.0_dp)*x15*x21
+      x26 = x23 + x24 + x25
+      x27 = -x23
+      x28 = x21*x4
+      x29 = x27 - x28
+      x30 = x9**(-2)
+      x31 = x16*x30
+      x32 = x10*x26 + x29*x31
+      x33 = 3*qq*x17*x5
+      x34 = 1.0_dp/x0
+      x35 = aa*x34*xx
+      x36 = phi2_zeta*x35
+      x37 = -x36
+      x38 = phi2**(-5)
+      x39 = 2*bb*x2*x38
+      x40 = phi2_zeta*x39
+      x41 = phi2**(-7)
+      x42 = 3*cc*x13*x41
+      x43 = phi2_zeta*x42
+      x44 = x37 - x40 - x43
+      x45 = dd*phi2_zeta*x2*x38
+      x46 = 2*x45
+      x47 = x36 + x46
+      x48 = x10*x44 + x31*x47
+      x49 = x16**(-2)
+      x50 = qq*x32*x9
+      x51 = qq*x0*x19*x9
+      x52 = rs**(-2)
+      x53 = (1.0_dp/4.0_dp)*x52*x7
+      x54 = x29*x30
+      x55 = x9**(-3)
+      x56 = qq*x0*x19*(x37 - x46)
+      x57 = x0*x49*(x36 + x40 + x43)
+      x58 = (1.0_dp/2.0_dp)*x21*x36
+      x59 = x30*x47
+      x60 = x16*x55*(2*x36 + 4*x45)
+      x61 = phi2_zeta**2
+      x62 = phi2_zeta_zeta*x35
+      x63 = 2*x1*x6*x61
+      x64 = 6*x12*x61
+      x65 = dd*x2
+      Q_ab = x0*x18
+      Q_ab_rs = x20*x32*x9
+      Q_ab_zeta = phi2_zeta*x33 + qq*x0*x19*x48*x9
+      Q_ab_rs_rs = x0*x49*x50*(-x24 - x25 + x27) + x20*x32*(x23 + x28) + x51*( &
+      x10*((3.0_dp/4.0_dp)*x15*x52 - x53) + x16*x29*x55*(-x22 - 2*x28) + &
+      x31*x53 + x54*(2*bb*x1*x2*x21 + 3*cc*x12*x13*x21 + x22))
+      Q_ab_rs_zeta = 3*phi2_zeta*x19*x5*x50 + x32*x56 + x50*x57 + x51*(x10*( &
+      -9.0_dp/2.0_dp*phi2_zeta*x14*x21*x41 - x21*x40 - x58) + x26*x59 + &
+      x29*x60 + x31*(x21*x46 + x58) + x44*x54)
+      Q_ab_zeta_zeta = 6*phi2*x18*x61 + 6*phi2_zeta*qq*x19*x48*x5*x9 + &
+      phi2_zeta_zeta*x33 + qq*x48*x57*x9 + x48*x56 + x51*(x10*(bb*x2* &
+      x64 - phi2_zeta_zeta*x39 - phi2_zeta_zeta*x42 - x62 + x63 + 12* &
+      x14*x61/phi2**8) + x31*(2*phi2_zeta_zeta*x38*x65 + x62 - x63 - &
+      x64*x65) + x47*x60 + x59*(-2*aa*phi2_zeta*x34*xx - 4*bb*phi2_zeta &
+      *x2*x38 - 6*cc*phi2_zeta*x13*x41))
 
    END SUBROUTINE calc_Q_ab
 
@@ -734,10 +738,9 @@
 
       CHARACTER(LEN=*), PARAMETER :: routineN = "calc_ec_mu_ab", routineP = moduleN//":"//routineN
 
-      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31, x32, x33, x34, Q_ab, Q_ab_rs, Q_ab_zeta, Q_ab_rs_rs, Q_ab_rs_zeta, Q_ab_zeta_zeta, phi2, phi2_zeta, phi2_zeta_zeta, a1_ab, a1_ab_rs, a1_ab_zeta, a1_ab_rs_rs, a1_ab_rs_zeta, a1_ab_zeta_zeta, a2_ab, a2_ab_rs, a2_ab_zeta, a2_ab_rs_rs, a2_ab_rs_zeta, a2_ab_zeta_zeta, a3_ab, a3_ab_rs, a3_ab_zeta, a3_ab_rs_rs, a3_ab_rs_zeta, a3_ab_zeta_zeta, a4_ab, a4_ab_rs, a4_ab_zeta, a4_ab_rs_rs, a4_ab_rs_zeta, a4_ab_zeta_zeta, a5_ab, a5_ab_rs, a5_ab_zeta, a5_ab_rs_rs, a5_ab_rs_zeta, a5_ab_zeta_zeta, Ec_ab, Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, x21, x22, x23, x24, x25, x26, x27, Q_ab, Q_ab_rs, Q_ab_zeta, Q_ab_rs_rs, Q_ab_rs_zeta, Q_ab_zeta_zeta, a1_ab, a1_ab_rs, a1_ab_zeta, a1_ab_rs_rs, a1_ab_rs_zeta, a1_ab_zeta_zeta, a2_ab, a2_ab_rs, a2_ab_zeta, a2_ab_rs_rs, a2_ab_rs_zeta, a2_ab_zeta_zeta, a3_ab, a3_ab_rs, a3_ab_zeta, a3_ab_rs_rs, a3_ab_rs_zeta, a3_ab_zeta_zeta, a4_ab, a4_ab_rs, a4_ab_zeta, a4_ab_rs_rs, a4_ab_rs_zeta, a4_ab_zeta_zeta, a5_ab, a5_ab_rs, a5_ab_zeta, a5_ab_rs_rs, a5_ab_rs_zeta, a5_ab_zeta_zeta, Ec_ab, Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta
 
       CALL calc_Q_ab(rs, zeta, mu, max_deriv, Q_ab, Q_ab_rs, Q_ab_zeta, Q_ab_rs_rs, Q_ab_rs_zeta, Q_ab_zeta_zeta)
-      CALL calc_phi2(zeta, max_deriv, phi2, phi2_zeta, phi2_zeta_zeta)
       CALL calc_a1_ab(rs, zeta, max_deriv, a1_ab, a1_ab_rs, a1_ab_zeta, a1_ab_rs_rs, a1_ab_rs_zeta, a1_ab_zeta_zeta)
       CALL calc_a2_ab(rs, zeta, max_deriv, a2_ab, a2_ab_rs, a2_ab_zeta, a2_ab_rs_rs, a2_ab_rs_zeta, a2_ab_zeta_zeta)
       CALL calc_a3_ab(rs, zeta, max_deriv, a3_ab, a3_ab_rs, a3_ab_zeta, a3_ab_rs_rs, a3_ab_rs_zeta, a3_ab_zeta_zeta)
@@ -748,55 +751,47 @@
       x0 = b0**2
       x1 = x0 + 1
       x2 = x1**(-4)
-      x3 = phi2**3
-      x4 = Q_ab*x3
-      x5 = mu**3
-      x6 = a1_ab*x5
-      x7 = mu**4
-      x8 = a2_ab*x7
-      x9 = mu**5
-      x10 = a3_ab*x9
-      x11 = mu**6
-      x12 = a4_ab*x11
-      x13 = mu**8
-      x14 = a5_ab*x13
-      x15 = Q_ab_rs*x3
-      x16 = a1_ab_rs*x5
-      x17 = a2_ab_rs*x7
-      x18 = a3_ab_rs*x9
-      x19 = a4_ab_rs*x11
-      x20 = a5_ab_rs*x13
-      x21 = 1.0_dp/rs
-      x22 = x1**(-5)
-      x23 = x0*x22*(8*x10 + 8*x12 + 8*x14 + 8*x4 + 8*x6 + 8*x8)
-      x24 = Q_ab_zeta*x3
-      x25 = a1_ab_zeta*x5
-      x26 = a2_ab_zeta*x7
-      x27 = a3_ab_zeta*x9
-      x28 = a4_ab_zeta*x11
-      x29 = a5_ab_zeta*x13
-      x30 = phi2**2
-      x31 = Q_ab*phi2_zeta*x30
-      x32 = rs**(-2)
-      x33 = x0*x21*x22
-      x34 = 3*x30
-      ec_mu_ab = Ec_ab + x2*(-x10 - x12 - x14 - x4 - x6 - x8)
-      ec_mu_ab_rs = Ec_ab_rs + x2*(-x15 - x16 - x17 - x18 - x19 - x20) + x21* &
-      x23
-      ec_mu_ab_zeta = Ec_ab_zeta + x2*(-x24 - x25 - x26 - x27 - x28 - x29 - 3* &
-      x31)
-      ec_mu_ab_rs_rs = Ec_ab_rs_rs + b0**4*x32*(-80*x10 - 80*x12 - 80*x14 - 80 &
-      *x4 - 80*x6 - 80*x8)/x1**6 + x2*(-Q_ab_rs_rs*x3 - a1_ab_rs_rs*x5 &
-      - a2_ab_rs_rs*x7 - a3_ab_rs_rs*x9 - a4_ab_rs_rs*x11 - a5_ab_rs_rs &
-      *x13) + x23*x32 + x33*(16*x15 + 16*x16 + 16*x17 + 16*x18 + 16*x19 &
-      + 16*x20)
-      ec_mu_ab_rs_zeta = Ec_ab_rs_zeta + x2*(-Q_ab_rs*phi2_zeta*x34 - &
-      Q_ab_rs_zeta*x3 - a1_ab_rs_zeta*x5 - a2_ab_rs_zeta*x7 - &
-      a3_ab_rs_zeta*x9 - a4_ab_rs_zeta*x11 - a5_ab_rs_zeta*x13) + x33*( &
-      8*x24 + 8*x25 + 8*x26 + 8*x27 + 8*x28 + 8*x29 + 24*x31)
-      ec_mu_ab_zeta_zeta = Ec_ab_zeta_zeta + x2*(-6*Q_ab*phi2*phi2_zeta**2 - &
-      Q_ab*phi2_zeta_zeta*x34 - 6*Q_ab_zeta*phi2_zeta*x30 - &
-      Q_ab_zeta_zeta*x3 - a1_ab_zeta_zeta*x5 - a2_ab_zeta_zeta*x7 - &
-      a3_ab_zeta_zeta*x9 - a4_ab_zeta_zeta*x11 - a5_ab_zeta_zeta*x13)
+      x3 = mu**3
+      x4 = a1_ab*x3
+      x5 = mu**4
+      x6 = a2_ab*x5
+      x7 = mu**5
+      x8 = a3_ab*x7
+      x9 = mu**6
+      x10 = a4_ab*x9
+      x11 = mu**8
+      x12 = a5_ab*x11
+      x13 = a1_ab_rs*x3
+      x14 = a2_ab_rs*x5
+      x15 = a3_ab_rs*x7
+      x16 = a4_ab_rs*x9
+      x17 = a5_ab_rs*x11
+      x18 = 1.0_dp/rs
+      x19 = x1**(-5)
+      x20 = x0*x19*(8*Q_ab + 8*x10 + 8*x12 + 8*x4 + 8*x6 + 8*x8)
+      x21 = a1_ab_zeta*x3
+      x22 = a2_ab_zeta*x5
+      x23 = a3_ab_zeta*x7
+      x24 = a4_ab_zeta*x9
+      x25 = a5_ab_zeta*x11
+      x26 = rs**(-2)
+      x27 = x0*x18*x19
+      ec_mu_ab = Ec_ab + x2*(-Q_ab - x10 - x12 - x4 - x6 - x8)
+      ec_mu_ab_rs = Ec_ab_rs + x18*x20 + x2*(-Q_ab_rs - x13 - x14 - x15 - x16 &
+      - x17)
+      ec_mu_ab_zeta = Ec_ab_zeta + x2*(-Q_ab_zeta - x21 - x22 - x23 - x24 - &
+      x25)
+      ec_mu_ab_rs_rs = Ec_ab_rs_rs + b0**4*x26*(-80*Q_ab - 80*x10 - 80*x12 - &
+      80*x4 - 80*x6 - 80*x8)/x1**6 + x2*(-Q_ab_rs_rs - a1_ab_rs_rs*x3 - &
+      a2_ab_rs_rs*x5 - a3_ab_rs_rs*x7 - a4_ab_rs_rs*x9 - a5_ab_rs_rs* &
+      x11) + x20*x26 + x27*(16*Q_ab_rs + 16*x13 + 16*x14 + 16*x15 + 16* &
+      x16 + 16*x17)
+      ec_mu_ab_rs_zeta = Ec_ab_rs_zeta + x2*(-Q_ab_rs_zeta - a1_ab_rs_zeta*x3 &
+      - a2_ab_rs_zeta*x5 - a3_ab_rs_zeta*x7 - a4_ab_rs_zeta*x9 - &
+      a5_ab_rs_zeta*x11) + x27*(8*Q_ab_zeta + 8*x21 + 8*x22 + 8*x23 + 8 &
+      *x24 + 8*x25)
+      ec_mu_ab_zeta_zeta = Ec_ab_zeta_zeta + x2*(-Q_ab_zeta_zeta - &
+      a1_ab_zeta_zeta*x3 - a2_ab_zeta_zeta*x5 - a3_ab_zeta_zeta*x7 - &
+      a4_ab_zeta_zeta*x9 - a5_ab_zeta_zeta*x11)
 
    END SUBROUTINE calc_ec_mu_ab
