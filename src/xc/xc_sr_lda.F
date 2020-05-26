@@ -1512,6 +1512,109 @@ CONTAINS
       END IF
 
    END SUBROUTINE calc_a5_ab
+   ELEMENTAL SUBROUTINE calc_Q_ab(rs, zeta, mu, max_deriv, Q_ab, Q_ab_rs, Q_ab_zeta, Q_ab_rs_rs, Q_ab_rs_zeta, Q_ab_zeta_zeta)
+      REAL(KIND=dp), INTENT(IN) :: rs, zeta, mu
+      INTEGER, INTENT(IN) :: max_deriv
+      REAL(KIND=dp), INTENT(OUT) :: Q_ab, Q_ab_rs, Q_ab_zeta, Q_ab_rs_rs, Q_ab_rs_zeta, Q_ab_zeta_zeta
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = "calc_Q_ab", routineP = moduleN//":"//routineN
+
+      REAL(KIND=dp) :: x0, x1, x2, x3, x4, x5, x6, x7, x8, x9, x10, x11, x12, x13, x14, x15, x16, x17, x18, x19, x20, &
+                     x21, x22, x23, x24, x25, x26, x27, x28, x29, x30, x31, x32, x33, x34, x35, x36, x37, x38, x39, x40, x41, x42, &
+                     x43, x44, x45, x46, x47, x48, x49, x50, x51, x52, x53, x54, x55, x56, x57, x58, x59, x60, x61, x62, x63, x64, &
+                       x65, phi2, phi2_zeta, phi2_zeta_zeta, xx
+
+      CALL calc_phin(zeta, 2, max_deriv, phi2, phi2_zeta, phi2_zeta_zeta)
+
+      xx = mu*SQRT(rs)/phi2
+
+      x0 = phi2**3
+      x1 = phi2**(-4)
+      x2 = xx**2
+      x3 = x1*x2
+      x4 = dd*x3
+      x5 = phi2**2
+      x6 = aa*xx
+      x7 = x6/x5
+      x8 = x7 + 1.0_dp
+      x9 = x4 + x8
+      x10 = 1.0_dp/x9
+      x11 = bb*x3
+      x12 = phi2**(-6)
+      x13 = xx**3
+      x14 = cc*x13
+      x15 = x12*x14
+      x16 = x11 + x15 + x8
+      x17 = log(x10*x16)
+      x18 = qq*x17
+      x19 = 1.0_dp/x16
+      x20 = qq*x0*x19
+      x21 = 1.0_dp/rs
+      x22 = x21*x7
+      x23 = (1.0_dp/2.0_dp)*x22
+      x24 = x11*x21
+      x25 = (3.0_dp/2.0_dp)*x15*x21
+      x26 = x23 + x24 + x25
+      x27 = -x23
+      x28 = x21*x4
+      x29 = x27 - x28
+      x30 = x9**(-2)
+      x31 = x16*x30
+      x32 = x10*x26 + x29*x31
+      x33 = 3*qq*x17*x5
+      x34 = 1.0_dp/x0
+      x35 = aa*x34*xx
+      x36 = phi2_zeta*x35
+      x37 = -x36
+      x38 = phi2**(-5)
+      x39 = 2.0_dp*bb*x2*x38
+      x40 = phi2_zeta*x39
+      x41 = phi2**(-7)
+      x42 = 3.0_dp*cc*x13*x41
+      x43 = phi2_zeta*x42
+      x44 = x37 - x40 - x43
+      x45 = dd*phi2_zeta*x2*x38
+      x46 = 2.0_dp*x45
+      x47 = x36 + x46
+      x48 = x10*x44 + x31*x47
+      x49 = x16**(-2)
+      x50 = qq*x32*x9
+      x51 = qq*x0*x19*x9
+      x52 = rs**(-2)
+      x53 = (1.0_dp/4.0_dp)*x52*x7
+      x54 = x29*x30
+      x55 = x9**(-3)
+      x56 = qq*x0*x19*(x37 - x46)
+      x57 = x0*x49*(x36 + x40 + x43)
+      x58 = (1.0_dp/2.0_dp)*x21*x36
+      x59 = x30*x47
+      x60 = x16*x55*(2.0_dp*x36 + 4.0_dp*x45)
+      x61 = phi2_zeta**2
+      x62 = phi2_zeta_zeta*x35
+      x63 = 2.0_dp*x1*x6*x61
+      x64 = 6.0_dp*x12*x61
+      x65 = dd*x2
+      Q_ab = x0*x18
+      IF (max_deriv >= 1) THEN
+         Q_ab_rs = x20*x32*x9
+         Q_ab_zeta = phi2_zeta*x33 + qq*x0*x19*x48*x9
+      END IF
+      IF (max_deriv >= 2) THEN
+         Q_ab_rs_rs = x0*x49*x50*(-x24 - x25 + x27) + x20*x32*(x23 + x28) + x51*( &
+                      x10*((3.0_dp/4.0_dp)*x15*x52 - x53) - x16*x29*x55*(x22 + 2.0_dp*x28) + &
+                      x31*x53 + x54*(2*bb*x1*x2*x21 + 3.0_dp*cc*x12*x13*x21 + x22))
+         Q_ab_rs_zeta = 3*phi2_zeta*x19*x5*x50 + x32*x56 + x50*x57 + x51*(-x10*( &
+                                                                  9.0_dp/2.0_dp*phi2_zeta*x14*x21*x41 + x21*x40 + x58) + x26*x59 + &
+                                                                          x29*x60 + x31*(x21*x46 + x58) + x44*x54)
+         Q_ab_zeta_zeta = 6.0_dp*phi2*x18*x61 + 6.0_dp*phi2_zeta*qq*x19*x48*x5*x9 + &
+                          phi2_zeta_zeta*x33 + qq*x48*x57*x9 + x48*x56 + x51*(x10*(bb*x2* &
+                                                              x64 - phi2_zeta_zeta*x39 - phi2_zeta_zeta*x42 - x62 + x63 + 12.0_dp* &
+                                                               x14*x61/phi2**8) + x31*(2.0_dp*phi2_zeta_zeta*x38*x65 + x62 - x63 - &
+                                                       x64*x65) + x47*x60 + x59*(-2.0_dp*aa*phi2_zeta*x34*xx - 4.0_dp*bb*phi2_zeta &
+                                                                                             *x2*x38 - 6.0_dp*cc*phi2_zeta*x13*x41))
+      END IF
+
+   END SUBROUTINE calc_Q_ab
 
 ! **************************************************************************************************
 !> \brief ...
@@ -1559,7 +1662,7 @@ CONTAINS
 
       REAL(KIND=dp) :: a1, a1rs, a1z, a2, a2rs, a2z, a3, a3rs, a3z, a4, a4rs, a4z, a5, a5rs, a5z, &
                        b0, eclrrs, eclrz, phi, x, dummy, dummy2, dummy3, f(0:3), ed(0:5), Ec_ab, &
-                       Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta
+                       Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta, Q, dummy4, dummy5
 
       phi = ((1._dp + z)**(2._dp/3._dp) + (1._dp - z)**(2._dp/3._dp))/2._dp
 
@@ -1582,10 +1685,11 @@ CONTAINS
                       Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta)
       CALL calc_a5_ab(rs, 1, a5, a5rs, a5z, dummy, dummy2, dummy3, Ec_ab, Ec_ab_rs, Ec_ab_zeta, &
                       Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta)
+      CALL calc_Q_ab(rs, z, mu, 0, Q, dummy, dummy2, dummy3, dummy4, dummy5)
 
       x = mu*SQRT(rs)/phi
 
-      eclr = (phi**3*Qrpa(x) + mu**3*(a1 + mu*(a2 + mu*(a3 + mu*(a4 + a5*mu**2)))))/((1._dp + b0**2*mu**2)**4)
+      eclr = (phi**3*Q + mu**3*(a1 + mu*(a2 + mu*(a3 + mu*(a4 + a5*mu**2)))))/((1._dp + b0**2*mu**2)**4)
 
       eclrrs = -8._dp*adib/(1._dp + b0**2*mu**2)*b0*mu**2*eclr + &
                1._dp/((1._dp + b0**2*mu**2)**4)*(phi**2*mu/(2._dp*SQRT(rs))*Qrpad(x) + &
@@ -1600,8 +1704,8 @@ CONTAINS
       ELSE
 
          eclrz = (phi**2*((1._dp + z)**(-1._dp/3._dp) - (1._dp - z)**(-1._dp/3._dp)) &
-                  *Qrpa(x) - phi*Qrpad(x)*mu*SQRT(rs)*((1._dp + z)**(-1._dp/3._dp) &
-                                                       - (1._dp - z)**(-1._dp/3._dp))/3._dp + &
+                  *Q - phi*Qrpad(x)*mu*SQRT(rs)*((1._dp + z)**(-1._dp/3._dp) &
+                                                 - (1._dp - z)**(-1._dp/3._dp))/3._dp + &
                   mu**3*(a1z + mu*(a2z + mu*(a3z + mu*(a4z + a5z*mu**2)))))/((1._dp + b0**2*mu**2)**4)
 
          vclrup = eclr - rs/3._dp*eclrrs - (z - 1._dp)*eclrz
