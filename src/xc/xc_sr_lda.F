@@ -1661,8 +1661,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'ecorrlr_lsd', routineP = moduleN//':'//routineN
 
       REAL(KIND=dp) :: a1, a1rs, a1z, a2, a2rs, a2z, a3, a3rs, a3z, a4, a4rs, a4z, a5, a5rs, a5z, &
-                       b0, eclrrs, eclrz, phi, x, dummy, dummy2, dummy3, f(0:3), ed(0:5), Ec_ab, &
-                       Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta, Q, dummy4, dummy5
+                       b0, eclrrs, eclrz, phi, dummy, dummy2, dummy3, f(0:3), ed(0:5), Ec_ab, &
+                       Ec_ab_rs, Ec_ab_zeta, Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta, Q, Q_rs, Q_zeta
 
       phi = ((1._dp + z)**(2._dp/3._dp) + (1._dp - z)**(2._dp/3._dp))/2._dp
 
@@ -1685,14 +1685,12 @@ CONTAINS
                       Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta)
       CALL calc_a5_ab(rs, 1, a5, a5rs, a5z, dummy, dummy2, dummy3, Ec_ab, Ec_ab_rs, Ec_ab_zeta, &
                       Ec_ab_rs_rs, Ec_ab_rs_zeta, Ec_ab_zeta_zeta)
-      CALL calc_Q_ab(rs, z, mu, 0, Q, dummy, dummy2, dummy3, dummy4, dummy5)
-
-      x = mu*SQRT(rs)/phi
+      CALL calc_Q_ab(rs, z, mu, 1, Q, Q_rs, Q_zeta, dummy, dummy2, dummy3)
 
       eclr = (phi**3*Q + mu**3*(a1 + mu*(a2 + mu*(a3 + mu*(a4 + a5*mu**2)))))/((1._dp + b0**2*mu**2)**4)
 
       eclrrs = -8._dp*adib/(1._dp + b0**2*mu**2)*b0*mu**2*eclr + &
-               1._dp/((1._dp + b0**2*mu**2)**4)*(phi**2*mu/(2._dp*SQRT(rs))*Qrpad(x) + &
+               1._dp/((1._dp + b0**2*mu**2)**4)*(phi**2*Q_rs + &
                                                  mu**3*(a1rs + mu*(a2rs + mu*(a3rs + mu*(a4rs + a5rs*mu**2)))))
 
       IF (z >= 1._dp) THEN
@@ -1704,8 +1702,7 @@ CONTAINS
       ELSE
 
          eclrz = (phi**2*((1._dp + z)**(-1._dp/3._dp) - (1._dp - z)**(-1._dp/3._dp)) &
-                  *Q - phi*Qrpad(x)*mu*SQRT(rs)*((1._dp + z)**(-1._dp/3._dp) &
-                                                 - (1._dp - z)**(-1._dp/3._dp))/3._dp + &
+                  *Q + phi**2*Q_zeta + &
                   mu**3*(a1z + mu*(a2z + mu*(a3z + mu*(a4z + a5z*mu**2)))))/((1._dp + b0**2*mu**2)**4)
 
          vclrup = eclr - rs/3._dp*eclrrs - (z - 1._dp)*eclrz
