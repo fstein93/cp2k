@@ -139,26 +139,48 @@
       REAL(KIND=dp), INTENT(IN)                          :: a, b
       REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: ed
       INTEGER, INTENT(IN)                                :: order
-      INTEGER                                            :: m, order_
-      LOGICAL, DIMENSION(0:3)                            :: calc
-      REAL(KIND=dp)                                      :: rho
-      REAL(KIND=dp), DIMENSION(0:3)                      :: f, r
+      INTEGER                                            :: order_
+      REAL(KIND=dp)                                      :: rho, rs
+      REAL(KIND=dp), DIMENSION(0:3)                      :: f
       REAL(KIND=dp), DIMENSION(0:9)                      :: e_rz
       REAL(KIND=dp), DIMENSION(0:3, 0:3)                 :: z
-      order_ = order
-      calc = .FALSE.
-      IF (order_ > 0) THEN
-         calc(0:order_) = .TRUE.
-      ELSE
-         order_ = -1*order_
-         calc(order_) = .TRUE.
-      END IF
+
+      order_ = ABS(order)
+
       rho = a + b
-      CALL calc_rs(rho, r(0))
+      CALL calc_rs(rho, rs)
       CALL calc_z(a, b, z(0:order_, 0:order_), order_)
       CALL calc_fx(z(0, 0), f(0:order_), order_)
 
-      CALL pw_lsd_ed_loc_rz(r(0), z(0, 0), f, e_rz, order_)
+      CALL pw_lsd_ed_loc_rz(rs, z(0, 0), f, e_rz, order_)
+
+      CALL rz2ab(e_rz, rho, rs, z, order_, ed)
+   END SUBROUTINE pw_lsd_ed_loc
+
+! **************************************************************************************************
+!> \brief ...
+!> \param e_rz ...
+!> \param rho ...
+!> \param rs ...
+!> \param z ...
+!> \param order_ ...
+!> \param ed ...
+! **************************************************************************************************
+   PURE SUBROUTINE rz2ab(e_rz, rho, rs, z, order_, ed)
+      REAL(KIND=dp), DIMENSION(0:), INTENT(IN)           :: e_rz
+      REAL(KIND=dp), INTENT(IN)                          :: rho, rs
+      REAL(KIND=dp), DIMENSION(0:, 0:), INTENT(IN)       :: z
+      INTEGER, INTENT(IN)                                :: order_
+      REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: ed
+      INTEGER                                            :: m
+      LOGICAL, DIMENSION(0:3)                            :: calc
+      REAL(KIND=dp), DIMENSION(0:3)                      :: r
+
+      calc = .FALSE.
+      calc(0:order_) = .TRUE.
+
+      r = 0.0_dp
+      r(0) = rs
 
       m = 0
       IF (calc(0)) THEN
@@ -212,7 +234,7 @@
             + 3.0_dp*e_rz(4)*r(1)*z(0, 2) &
             + 3.0_dp*e_rz(5)*z(0, 1)*z(0, 2) + e_rz(2)*z(0, 3)
       END IF
-   END SUBROUTINE pw_lsd_ed_loc
+   END SUBROUTINE rz2ab
 
 
 ! **************************************************************************************************
@@ -223,7 +245,7 @@
 !> \param order ...
 ! **************************************************************************************************
    PURE SUBROUTINE pw_lsd_ed_loc_rz(r, z, f, ed, order_)
-      REAL(KIND=dp), INTENT(IN)                          :: r, z, f(0:3)
+      REAL(KIND=dp), INTENT(IN)                          :: r, z, f(0:)
       REAL(KIND=dp), DIMENSION(0:), INTENT(OUT)          :: ed
       INTEGER, INTENT(IN)                                :: order_
       REAL(KIND=dp), DIMENSION(0:3)                      :: ac, e0, e1
@@ -296,10 +318,6 @@
       END IF
    END SUBROUTINE pw_lsd_ed_loc_rz
 
-@:calc_g()
-#:enddef
-
-#:def calc_g()
 ! **************************************************************************************************
 !> \brief ...
 !> \param r ...
