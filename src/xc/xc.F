@@ -27,7 +27,8 @@ MODULE xc
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
                                               section_vals_val_get
-   USE kahan_sum,                       ONLY: accurate_sum
+   USE kahan_sum,                       ONLY: accurate_dot_product,&
+                                              accurate_sum
    USE kinds,                           ONLY: default_path_length,&
                                               dp
    USE message_passing,                 ONLY: mp_sum
@@ -1320,8 +1321,8 @@ CONTAINS
                   END DO
                   DO jdir = 1, idir
                      virial_xc(idir, jdir) = pw_grid%dvol* &
-                                             accurate_sum(virial_pw%cr3d(:, :, :)* &
-                                                          drho(jdir)%array(:, :, :))
+                                             accurate_dot_product(virial_pw%cr3d(:, :, :), &
+                                                                  drho(jdir)%array(:, :, :))
                      virial_xc(jdir, idir) = virial_xc(idir, jdir)
                   END DO
                END DO
@@ -1451,8 +1452,8 @@ CONTAINS
                      END DO
                      DO jdir = 1, idir
                         virial_xc(idir, jdir) = virial_xc(idir, jdir) + pw_grid%dvol* &
-                                                accurate_sum(virial_pw%cr3d(:, :, :)* &
-                                                             drho_spin(jdir)%array(:, :, :))
+                                                accurate_dot_product(virial_pw%cr3d(:, :, :), &
+                                                                     drho_spin(jdir)%array(:, :, :))
                         virial_xc(jdir, idir) = virial_xc(idir, jdir)
                      END DO
                   END DO
