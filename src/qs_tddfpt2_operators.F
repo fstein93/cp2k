@@ -508,9 +508,10 @@ CONTAINS
          INTENT(in)                                      :: gs_mos
       LOGICAL, INTENT(in)                                :: do_admm
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)         :: work_rho_ia_ao
-      TYPE(dbcsr_p_type), DIMENSION(:), TARGET, INTENT(INOUT) :: work_hmat
-      TYPE(cp_fm_type), POINTER, INTENT(IN)            :: wfm_rho_orb
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: work_rho_ia_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
+         TARGET                                          :: work_hmat
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: wfm_rho_orb
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_apply_hfx'
 

@@ -116,7 +116,6 @@ CONTAINS
       TYPE(stda_env_type)                                :: stda_kernel
       TYPE(stda_control_type)                            :: stda_control
 
-
       INTEGER                                            :: ikind, nkind
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(atomic_kind_type), POINTER                    :: atomic_kind

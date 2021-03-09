@@ -1148,7 +1148,8 @@ CONTAINS
 !>     Simplified version of subroutine hfx_ks_matrix()
 ! **************************************************************************************************
    SUBROUTINE tddft_hfx_matrix(matrix_ks, rho_ao, qs_env, update_energy, recalc_integrals)
-      TYPE(dbcsr_p_type), DIMENSION(:), TARGET, INTENT(INOUT)          :: matrix_ks, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
+         TARGET                                          :: matrix_ks, rho_ao
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: update_energy, recalc_integrals
 

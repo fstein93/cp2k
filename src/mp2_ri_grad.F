@@ -25,23 +25,17 @@ MODULE mp2_ri_grad
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
-                                              cp_fm_indxg2l,&
-                                              cp_fm_indxg2p,&
-                                              cp_fm_indxl2g,&
-                                              cp_fm_p_type,&
-                                              cp_fm_release,&
-                                              cp_fm_set_all,&
-                                              cp_fm_type
+   USE cp_fm_types,                     ONLY: &
+        cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_p_type, &
+        cp_fm_release, cp_fm_set_all, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme
@@ -76,8 +70,6 @@ MODULE mp2_ri_grad
                                               pw_pool_give_back_pw,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
-                                              REALDATA3D,&
-                                              REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
@@ -147,8 +139,9 @@ CONTAINS
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff
-      INTEGER, INTENT(IN)                                :: nmo, dimen_RI
+      INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
                                                             my_group_L_size
@@ -161,8 +154,8 @@ CONTAINS
 
       INTEGER :: alpha, atom_a, beta, dimen, dir, eri_method, handle, handle2, handle3, i, iatom, &
          igrid_level, ikind, iorb, ipgf, iset, ispin, itmp(2), L_counter, lb(3), LLL, location(3), &
-         my_P_end, my_P_size, my_P_start, na1, na2, natom, ncoa, nseta, nspins, offset, potential_type, &
-         sgfa, tp(3), ub(3)
+         my_P_end, my_P_size, my_P_start, na1, na2, natom, ncoa, nseta, nspins, offset, &
+         potential_type, sgfa, tp(3), ub(3)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, virtual
       INTEGER, DIMENSION(3)                              :: comp
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
@@ -179,20 +172,20 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, pab, rpgfa, sphi_a, zeta
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_p_type), DIMENSION(:), ALLOCATABLE      :: L1_mu_i, L2_nu_a
       TYPE(dbcsr_p_type)                                 :: matrix_P_munu, matrix_P_munu_nosym
-      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: Lag_mu_i_1, Lag_nu_a_2, matrix_P_inu, mo_coeff_o, mo_coeff_v
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local, &
-                                                            matrix_P_munu_local
-      TYPE(dbcsr_p_type), DIMENSION(:, :), ALLOCATABLE   :: G_P_ia
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: Lag_mu_i_1, Lag_nu_a_2, matrix_P_inu, &
+                                                            mo_coeff_o, mo_coeff_v
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:, :)   :: G_P_ia
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local, matrix_P_munu_local
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_3c_aux, force_3c_orb_mu, &
                                                             force_3c_orb_nu
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
-      TYPE(pw_p_type)                                    :: dvg(3), pot_g, psi_L, rho_g, &
-                                                            rho_r, temp_pw_g
+      TYPE(pw_p_type)                                    :: dvg(3), pot_g, psi_L, rho_g, rho_r, &
+                                                            temp_pw_g
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
@@ -213,12 +206,12 @@ CONTAINS
       alpha_beta = (nspins == 2)
 
       dimen = nmo
-      ALLOCATE(virtual(nspins))
+      ALLOCATE (virtual(nspins))
       virtual(:) = dimen - homo(:)
       potential_type = mp2_env%potential_parameter%potential_type
       omega = mp2_env%potential_parameter%omega
       eps_filter = mp2_env%mp2_gpw%eps_filter
-      ALLOCATE(mo_coeff_o(nspins), mo_coeff_v(nspins), G_P_ia(nspins, my_group_L_size))
+      ALLOCATE (mo_coeff_o(nspins), mo_coeff_v(nspins), G_P_ia(nspins, my_group_L_size))
       DO ispin = 1, nspins
          mo_coeff_o(ispin)%matrix => mp2_env%ri_grad%mo_coeff_o(ispin)%matrix
          mo_coeff_v(ispin)%matrix => mp2_env%ri_grad%mo_coeff_v(ispin)%matrix
@@ -226,7 +219,7 @@ CONTAINS
             G_P_ia(ispin, LLL)%matrix => mp2_env%ri_grad%G_P_ia(LLL, ispin)%matrix
          END DO
       ENDDO
-      DEALLOCATE(mp2_env%ri_grad%G_P_ia)
+      DEALLOCATE (mp2_env%ri_grad%G_P_ia)
 
       itmp = get_limit(dimen_RI, para_env_sub%num_pe, para_env_sub%mepos)
       my_P_start = itmp(1)
@@ -271,7 +264,7 @@ CONTAINS
          CALL dbcsr_set(Lag_mu_i_1(ispin)%matrix, 0.0_dp)
       ENDDO
 
-      ALLOCATE(Lag_nu_a_2(nspins))
+      ALLOCATE (Lag_nu_a_2(nspins))
       DO ispin = 1, nspins
          ALLOCATE (Lag_nu_a_2(ispin)%matrix)
          CALL dbcsr_create(Lag_nu_a_2(ispin)%matrix, template=mo_coeff_v(ispin)%matrix)
@@ -836,7 +829,7 @@ CONTAINS
          CALL dbcsr_release(matrix_P_inu(ispin)%matrix)
          DEALLOCATE (matrix_P_inu(ispin)%matrix)
       ENDDO
-      DEALLOCATE(matrix_P_inu, G_P_ia)
+      DEALLOCATE (matrix_P_inu, G_P_ia)
 
       ! move the forces in the correct place
       IF (eri_method .EQ. do_eri_gpw) THEN
@@ -850,7 +843,7 @@ CONTAINS
       ! defined over all MPI tasks
       ! Start with moving from the DBCSR to FM for the lagrangians
 
-      ALLOCATE(L1_mu_i(nspins), L2_nu_a(nspins))
+      ALLOCATE (L1_mu_i(nspins), L2_nu_a(nspins))
       DO ispin = 1, nspins
          ! Now we move from the local matrices to the global ones
          ! defined over all MPI tasks
@@ -879,7 +872,7 @@ CONTAINS
          CALL dbcsr_release(Lag_nu_a_2(ispin)%matrix)
          DEALLOCATE (Lag_nu_a_2(ispin)%matrix)
       ENDDO
-      DEALLOCATE(Lag_mu_i_1, Lag_nu_a_2)
+      DEALLOCATE (Lag_mu_i_1, Lag_nu_a_2)
 
       ! Set the factor to multiply P_ij (depends on the open or closed shell)
       factor = 1.0_dp
@@ -1062,10 +1055,9 @@ CONTAINS
          ncol_block_2a, ncol_local, ncol_local_1i, ncol_local_2a, npcol, npcol_1i, npcol_2a, &
          nprow, nprow_1i, nprow_2a, nrow_block, nrow_block_1i, nrow_block_2a, nrow_local, &
          nrow_local_1i, nrow_local_2a, number_of_rec, number_of_send, proc_receive, &
-         proc_receive_static, proc_send, proc_send_ex, proc_send_static, proc_send_sub, &
-         proc_shift, rec_col_size
-      INTEGER :: rec_counter, rec_row_size, send_col_size, send_counter, send_pcol, send_prow, &
-         send_row_size, size_rec_buffer, size_send_buffer
+         proc_receive_static, proc_send, proc_send_ex, proc_send_static, proc_send_sub, proc_shift
+      INTEGER :: rec_col_size, rec_counter, rec_row_size, send_col_size, send_counter, send_pcol, &
+         send_prow, send_row_size, size_rec_buffer, size_send_buffer
       INTEGER, ALLOCATABLE, DIMENSION(:) :: iii_vet, map_rec_size, map_send_size, pos_info, &
          pos_info_ex, proc_2_send_pos, proc_map_ex, req_send, sub_proc_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :) :: grid_2_mepos, mepos_2_grid, my_col_indeces_info_1i, &
@@ -1584,9 +1576,9 @@ CONTAINS
       ! Now create and fill the P matrix (MO)
       ! FOR NOW WE ASSUME P_ab AND P_ij ARE REPLICATED OVER EACH MPI RANK
       IF (.NOT. ALLOCATED(mp2_env%ri_grad%P_mo)) THEN
-         ALLOCATE(mp2_env%ri_grad%P_mo(SIZE(mp2_env%ri_grad%mo_coeff_o)))
+         ALLOCATE (mp2_env%ri_grad%P_mo(SIZE(mp2_env%ri_grad%mo_coeff_o)))
          DO ispin = 1, SIZE(mp2_env%ri_grad%mo_coeff_o)
-            NULLIFY(mp2_env%ri_grad%P_mo(ispin)%matrix)
+            NULLIFY (mp2_env%ri_grad%P_mo(ispin)%matrix)
          END DO
       END IF
 
@@ -1689,9 +1681,9 @@ CONTAINS
       ! create also W_MP2_MO
       CALL timeset(routineN//"_WMO", handle2)
       IF (.NOT. ALLOCATED(mp2_env%ri_grad%W_mo)) THEN
-         ALLOCATE(mp2_env%ri_grad%W_mo(SIZE(mp2_env%ri_grad%mo_coeff_o)))
+         ALLOCATE (mp2_env%ri_grad%W_mo(SIZE(mp2_env%ri_grad%mo_coeff_o)))
          DO ispin = 1, SIZE(mp2_env%ri_grad%mo_coeff_o)
-            NULLIFY(mp2_env%ri_grad%W_mo(ispin)%matrix)
+            NULLIFY (mp2_env%ri_grad%W_mo(ispin)%matrix)
          END DO
       END IF
 
@@ -1732,9 +1724,9 @@ CONTAINS
       ! Calculate occ-virt block of the lagrangian in MO
       CALL timeset(routineN//"_Ljb", handle2)
       IF (.NOT. ALLOCATED(mp2_env%ri_grad%L_jb)) THEN
-         ALLOCATE(mp2_env%ri_grad%L_jb(SIZE(mp2_env%ri_grad%mo_coeff_o)))
+         ALLOCATE (mp2_env%ri_grad%L_jb(SIZE(mp2_env%ri_grad%mo_coeff_o)))
          DO ispin = 1, SIZE(mp2_env%ri_grad%mo_coeff_o)
-            NULLIFY(mp2_env%ri_grad%L_jb(ispin)%matrix)
+            NULLIFY (mp2_env%ri_grad%L_jb(ispin)%matrix)
          END DO
       END IF
 

@@ -969,7 +969,7 @@ CONTAINS
       CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_tot_gspace%pw)
 
       ! initialize src matrix
-      NULLIFY(scrm%matrix)
+      NULLIFY (scrm%matrix)
       ALLOCATE (scrm%matrix)
       CALL dbcsr_create(scrm%matrix, template=ec_env%matrix_s(1, 1)%matrix)
       CALL cp_dbcsr_alloc_block_from_nbl(scrm%matrix, ec_env%sab_orb)
@@ -1021,7 +1021,7 @@ CONTAINS
 
       ! delete scr matrix
       CALL dbcsr_release(scrm%matrix)
-      DEALLOCATE(scrm%matrix)
+      DEALLOCATE (scrm%matrix)
 
       ! return pw grids
       CALL pw_pool_give_back_pw(auxbas_pw_pool, v_hartree_rspace%pw)
@@ -1057,9 +1057,17 @@ CONTAINS
 
    END SUBROUTINE ec_build_ks_matrix_force
 
+! **************************************************************************************************
+!> \brief ...
+!> \param v_xc ...
+!> \param xc_section ...
+!> \param qs_env ...
+!> \param rho1_r ...
+!> \param rho1_g ...
+! **************************************************************************************************
    SUBROUTINE calc_ks_response_potentials(v_xc, xc_section, qs_env, rho1_r, rho1_g)
       TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: v_xc
-      TYPE(section_vals_type), POINTER, INTENT(IN)       :: xc_section
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r, rho1_g
 

@@ -1,6 +1,8 @@
 !--------------------------------------------------------------------------------------------------!
 !   CP2K: A general program to perform molecular dynamics simulations                              !
-!   Copyright (C) 2000 - 2020  CP2K developers group                                               !
+!   Copyright 2000-2021 CP2K developers group <https://cp2k.org>                                   !
+!                                                                                                  !
+!   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 
 ! **************************************************************************************************
@@ -19,14 +21,8 @@ MODULE qs_2nd_kernel_ao
                                               cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_transpose
-   USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
-                                              cp_fm_struct_release,&
-                                              cp_fm_struct_type
-   USE cp_fm_types,                     ONLY: cp_fm_create,&
-                                              cp_fm_get_info,&
+   USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_p_type,&
-                                              cp_fm_release,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE dbcsr_api,                       ONLY: dbcsr_add,&
@@ -35,7 +31,6 @@ MODULE qs_2nd_kernel_ao
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
                                               dbcsr_release,&
-                                              dbcsr_scale,&
                                               dbcsr_set,&
                                               dbcsr_type
    USE hfx_admm_utils,                  ONLY: tddft_hfx_matrix
@@ -48,10 +43,6 @@ MODULE qs_2nd_kernel_ao
                                               section_vals_get_subs_vals,&
                                               section_vals_type
    USE kinds,                           ONLY: dp
-   USE qs_collocate_density,            ONLY: calculate_rho_elec
-   USE qs_integrate_potential,          ONLY: integrate_v_rspace
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
-   USE qs_linres_types,                 ONLY: linres_control_type
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_zero
@@ -63,17 +54,18 @@ MODULE qs_2nd_kernel_ao
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
+   USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
+   USE qs_integrate_potential,          ONLY: integrate_v_rspace
+   USE qs_ks_types,                     ONLY: qs_ks_env_type
+   USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_p_env_types,                  ONLY: qs_p_env_type
    USE task_list_types,                 ONLY: task_list_type
-   USE xc,                              ONLY: xc_calc_2nd_deriv,&
-                                              xc_prep_2nd_deriv,&
-                                              xc_vxc_pw_create
+   USE xc,                              ONLY: xc_calc_2nd_deriv
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
    USE xc_rho_set_types,                ONLY: xc_rho_set_create,&
-                                              xc_rho_set_get,&
                                               xc_rho_set_release,&
                                               xc_rho_set_type,&
                                               xc_rho_set_update
@@ -134,6 +126,7 @@ CONTAINS
 !> \brief THis routine applies the Hartree-Fock Exchange kernel to a perturbation density matrix considering ADMM
 !> \param qs_env the Quickstep environment
 !> \param rho1_ao perturbation density matrix in AO basis (does not change)
+!> \param rho1_ao_admm ...
 !> \param h1_mat the resulting kernel matrix in AO basis (on output, it will have added the hfx kernel)
 !> \param recalc_integrals whether the integrals are to be recalculated (default: no)
 ! **************************************************************************************************
@@ -190,7 +183,7 @@ CONTAINS
          rho1 => rho1_ao
       END IF
 
-      NULLIFY(work_hmat)
+      NULLIFY (work_hmat)
       CALL dbcsr_allocate_matrix_set(work_hmat, nspins)
       DO ispin = 1, nspins
          ALLOCATE (work_hmat(ispin)%matrix)
@@ -245,7 +238,6 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param p_env perturbation environment
-!> \param dm first order perturbation matrix
 ! **************************************************************************************************
    SUBROUTINE apply_xc_admm_ao(qs_env, p_env)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
@@ -390,10 +382,8 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Calculate ADMM auxiliary response density
 !> \param qs_env ...
-!> \param c0 ...
-!> \param c1 ...
-!> \param rho1_aux_r ...
-!> \param rho1_aux_g ...
+!> \param dm ...
+!> \param dm_admm ...
 ! **************************************************************************************************
    SUBROUTINE admm_aux_reponse_density(qs_env, dm, dm_admm)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env

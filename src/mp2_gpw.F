@@ -30,15 +30,10 @@ MODULE mp2_gpw
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_p_type,&
                                               cp_fm_type
-   USE cp_log_handling,                 ONLY: cp_add_default_logger,&
-                                              cp_get_default_logger,&
-                                              cp_logger_create,&
-                                              cp_logger_get_default_unit_nr,&
-                                              cp_logger_release,&
-                                              cp_logger_set,&
-                                              cp_logger_type,&
-                                              cp_rm_default_logger,&
-                                              cp_to_string
+   USE cp_log_handling,                 ONLY: &
+        cp_add_default_logger, cp_get_default_logger, cp_logger_create, &
+        cp_logger_get_default_unit_nr, cp_logger_release, cp_logger_set, cp_logger_type, &
+        cp_rm_default_logger, cp_to_string
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
    USE cp_para_types,                   ONLY: cp_para_env_type
@@ -148,17 +143,17 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mp2_gpw_main'
 
-      INTEGER :: blacs_grid_layout, color_sub, dimen, dimen_RI, dimen_RI_red, eri_method, &
-         handle, ispin, local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, nmo, &
-         nspins, potential_type, ri_metric_type
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ends_array_mc, ends_array_mc_block, &
-                                                            starts_array_mc, starts_array_mc_block, &
-                                                            gw_corr_lev_occ, gw_corr_lev_virt, homo
+      INTEGER :: blacs_grid_layout, color_sub, dimen, dimen_RI, dimen_RI_red, eri_method, handle, &
+         ispin, local_unit_nr, my_group_L_end, my_group_L_size, my_group_L_start, nmo, nspins, &
+         potential_type, ri_metric_type
+      INTEGER, ALLOCATABLE, DIMENSION(:) :: ends_array_mc, ends_array_mc_block, gw_corr_lev_occ, &
+         gw_corr_lev_virt, homo, starts_array_mc, starts_array_mc_block
       INTEGER, DIMENSION(3)                              :: periodic
       LOGICAL :: blacs_repeatable, do_bse, do_im_time, do_kpoints_cubic_RPA, my_do_gw, &
          my_do_ri_mp2, my_do_ri_rpa, my_do_ri_sos_laplace_mp2
-      REAL(KIND=dp) :: Emp2_AB, Emp2_BB, Emp2_Cou_BB, Emp2_EX_BB, &
-         eps_gvg_rspace_old, eps_pgf_orb_old, eps_rho_rspace_old
+      REAL(KIND=dp)                                      :: Emp2_AB, Emp2_BB, Emp2_Cou_BB, &
+                                                            Emp2_EX_BB, eps_gvg_rspace_old, &
+                                                            eps_pgf_orb_old, eps_rho_rspace_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Eigenval
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BIb_C_bse_ab, BIb_C_bse_ij
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
@@ -167,12 +162,13 @@ CONTAINS
          DIMENSION(:, :, :)                              :: t_3c_O_ind
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub, blacs_env_sub_mat_munu
-      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff
+      TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       TYPE(cp_logger_type), POINTER                      :: logger, logger_sub
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub, para_env_sub_RPA
       TYPE(dbcsr_p_type)                                 :: mat_munu, mat_P_global
-      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: mo_coeff_all, mo_coeff_gw, mo_coeff_o, mo_coeff_v
+      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_coeff_all, mo_coeff_gw, mo_coeff_o, &
+                                                            mo_coeff_v
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s_kp
       TYPE(dbcsr_t_type)                                 :: t_3c_M
@@ -180,7 +176,8 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(group_dist_d1_type)                           :: gd_array, gd_B_all, gd_B_occ_bse, &
                                                             gd_B_virt_bse
-      TYPE(group_dist_d1_type), DIMENSION(:), ALLOCATABLE :: gd_B_virtual
+      TYPE(group_dist_d1_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: gd_B_virtual
       TYPE(hfx_compression_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: t_3c_O_compressed
       TYPE(kpoint_type), POINTER                         :: kpoints, kpoints_from_DFT
@@ -193,7 +190,8 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(three_dim_real_array), DIMENSION(:), ALLOCATABLE   :: BIb_C, BIb_C_gw
+      TYPE(three_dim_real_array), ALLOCATABLE, &
+         DIMENSION(:)                                    :: BIb_C, BIb_C_gw
 
       CALL timeset(routineN, handle)
 
@@ -234,8 +232,8 @@ CONTAINS
          CALL get_qs_env(qs_env=qs_env, dft_control=dft_control, mos=mos)
       END IF
       CALL get_mo_set(mo_set=mos_mp2(1)%mo_set, nao=dimen)
-      NULLIFY(mo_coeff)
-      ALLOCATE(homo(nspins), Eigenval(dimen, nspins), mo_coeff(nspins))
+      NULLIFY (mo_coeff)
+      ALLOCATE (homo(nspins), Eigenval(dimen, nspins), mo_coeff(nspins))
       DO ispin = 1, nspins
          CALL get_mo_set(mo_set=mos_mp2(ispin)%mo_set, &
                          eigenvalues=mo_eigenvalues, nmo=nmo, homo=homo(ispin), &
@@ -342,7 +340,7 @@ CONTAINS
 
       ! check if we want to do ri-g0w0 on top of ri-rpa
       my_do_gw = mp2_env%ri_rpa%do_ri_g0w0
-      ALLOCATE(gw_corr_lev_occ(nspins), gw_corr_lev_virt(nspins))
+      ALLOCATE (gw_corr_lev_occ(nspins), gw_corr_lev_virt(nspins))
       gw_corr_lev_occ(1) = mp2_env%ri_g0w0%corr_mos_occ
       gw_corr_lev_virt(1) = mp2_env%ri_g0w0%corr_mos_virt
       IF (nspins == 2) THEN
@@ -351,7 +349,7 @@ CONTAINS
       END IF
 
       ! After the components are inside of the routines, we can move this line insight the branch
-      ALLOCATE(mo_coeff_o(nspins), mo_coeff_v(nspins), mo_coeff_all(nspins), mo_coeff_gw(nspins))
+      ALLOCATE (mo_coeff_o(nspins), mo_coeff_v(nspins), mo_coeff_all(nspins), mo_coeff_gw(nspins))
 
       ! for imag. time, we do not need this
       IF (.NOT. do_im_time) THEN
@@ -462,7 +460,7 @@ CONTAINS
 
       IF (calc_forces) THEN
          ! make a copy of mo_coeff_o and mo_coeff_v
-         ALLOCATE(mp2_env%ri_grad%mo_coeff_o(nspins), mp2_env%ri_grad%mo_coeff_v(nspins))
+         ALLOCATE (mp2_env%ri_grad%mo_coeff_o(nspins), mp2_env%ri_grad%mo_coeff_v(nspins))
          DO ispin = 1, nspins
             NULLIFY (mp2_env%ri_grad%mo_coeff_o(ispin)%matrix)
             CALL dbcsr_init_p(mp2_env%ri_grad%mo_coeff_o(ispin)%matrix)
@@ -497,8 +495,8 @@ CONTAINS
                DEALLOCATE (mo_coeff_all(ispin)%matrix)
             END IF
          END DO
-         DEALLOCATE(mo_coeff_o, mo_coeff_v)
-         IF (my_do_gw) DEALLOCATE(mo_coeff_all)
+         DEALLOCATE (mo_coeff_o, mo_coeff_v)
+         IF (my_do_gw) DEALLOCATE (mo_coeff_all)
 
       END IF
 
@@ -524,14 +522,13 @@ CONTAINS
             CALL create_matrix_P(mat_P_global, qs_env, mp2_env, para_env, dft_control, atomic_kind_set, &
                                  qs_kind_set, atom2d, molecule_kind_set, molecule_set, particle_set, cell)
 
-
             ! To be removed later
-            ALLOCATE(BIb_C(nspins))
+            ALLOCATE (BIb_C(nspins))
          END IF
 
-         IF (.NOT. ALLOCATED(BIb_C)) ALLOCATE(BIb_C(nspins))
-         IF (.NOT. ALLOCATED(BIb_C_gw)) ALLOCATE(BIb_C_gw(nspins))
-         IF (.NOT. ALLOCATED(gd_B_virtual)) ALLOCATE(gd_B_virtual(nspins))
+         IF (.NOT. ALLOCATED(BIb_C)) ALLOCATE (BIb_C(nspins))
+         IF (.NOT. ALLOCATED(BIb_C_gw)) ALLOCATE (BIb_C_gw(nspins))
+         IF (.NOT. ALLOCATED(gd_B_virtual)) ALLOCATE (gd_B_virtual(nspins))
 
          ! RI-RPA
          IF (nspins == 2) THEN
@@ -614,7 +611,7 @@ CONTAINS
                   CALL dbcsr_release(mp2_env%ri_grad%mo_coeff_v(ispin)%matrix)
                   DEALLOCATE (mp2_env%ri_grad%mo_coeff_v(ispin)%matrix)
                ENDDO
-               DEALLOCATE(mp2_env%ri_grad%mo_coeff_o, mp2_env%ri_grad%mo_coeff_v)
+               DEALLOCATE (mp2_env%ri_grad%mo_coeff_o, mp2_env%ri_grad%mo_coeff_v)
 
                CALL dbcsr_release(mat_munu%matrix)
                DEALLOCATE (mat_munu%matrix)
@@ -632,7 +629,7 @@ CONTAINS
             CALL dbcsr_release(mo_coeff_gw(ispin)%matrix)
             DEALLOCATE (mo_coeff_gw(ispin)%matrix)
          END DO
-         DEALLOCATE(mo_coeff_gw)
+         DEALLOCATE (mo_coeff_gw)
       END IF
 
       ! re-init the radii to be able to generate pair lists with MP2-appropriate screening

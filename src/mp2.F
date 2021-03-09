@@ -478,8 +478,8 @@ CONTAINS
       CASE (mp2_method_direct)
          IF (unit_nr > 0) WRITE (unit_nr, *)
 
-         ALLOCATE(Auto(dimen, nspins))
-         ALLOCATE(C(dimen, dimen, nspins))
+         ALLOCATE (Auto(dimen, nspins))
+         ALLOCATE (C(dimen, dimen, nspins))
 
          DO ispin = 1, nspins
             ! get the alpha coeff and eigenvalues
@@ -540,7 +540,7 @@ CONTAINS
 
          END IF
 
-         DEALLOCATE(C, Auto)
+         DEALLOCATE (C, Auto)
 
       CASE (mp2_ri_optimize_basis)
          ! optimize ri basis set or tests for RI-MP2 gradients
@@ -550,8 +550,8 @@ CONTAINS
             WRITE (unit_nr, *)
          END IF
 
-         ALLOCATE(Auto(dimen, nspins))
-         ALLOCATE(C(dimen, dimen, nspins))
+         ALLOCATE (Auto(dimen, nspins))
+         ALLOCATE (C(dimen, dimen, nspins))
 
          DO ispin = 1, nspins
             ! get the alpha coeff and eigenvalues
@@ -576,7 +576,7 @@ CONTAINS
                                         kind_of, qs_env, para_env, unit_nr)
          END IF
 
-         DEALLOCATE(Auto, C)
+         DEALLOCATE (Auto, C)
 
       CASE (mp2_method_gpw)
          ! check if calculate the exchange contribution

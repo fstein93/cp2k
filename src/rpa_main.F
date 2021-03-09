@@ -1327,9 +1327,9 @@ CONTAINS
          nkp_self_energy, nmo, num_3c_repl, num_cells_dm, num_fit_points, num_points_corr, &
          num_Z_vectors, size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
-      INTEGER, ALLOCATABLE, DIMENSION(:, :) :: t_3c_O_mo_ind, t_3c_O_mo_ind_beta
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: ikp_local
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_cell_3c, t_3c_O_mo_ind, &
+                                                            t_3c_O_mo_ind_beta
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cell_to_index_3c
       INTEGER, DIMENSION(:), POINTER                     :: col_blk_size, prim_blk_sizes, &
                                                             RI_blk_sizes

@@ -16,8 +16,7 @@ MODULE mp2_ri_grad_util
                                               cp_blacs_env_release,&
                                               cp_blacs_env_type
    USE cp_dbcsr_operations,             ONLY: copy_fm_to_dbcsr,&
-                                              cp_dbcsr_m_by_n_from_template,&
-                                              dbcsr_allocate_matrix_set
+                                              cp_dbcsr_m_by_n_from_template
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -1194,7 +1193,7 @@ CONTAINS
 
       INTEGER :: dummy_proc, handle, i_global, i_local, iaia, iiB, iii, ispin, itmp(2), j_global, &
          j_local, jjB, jjj, kkB, mypcol, myprow, ncol_block, ncol_local, npcol, nprow, nrow_block, &
-         nrow_local, number_of_rec, number_of_send, nspins, proc_receive, proc_send, proc_shift, &
+         nrow_local, nspins, number_of_rec, number_of_send, proc_receive, proc_send, proc_shift, &
          rec_counter, rec_iaia_end, rec_iaia_size, rec_iaia_start, rec_pcol, rec_prow, &
          ref_send_pcol, ref_send_prow, send_counter, send_pcol, send_prow, size_rec_buffer, &
          size_send_buffer
@@ -1216,10 +1215,10 @@ CONTAINS
       ! allocate G_P_ia (DBCSR)
       IF (.NOT. ALLOCATED(mp2_env%ri_grad%G_P_ia)) THEN
          nspins = SIZE(mp2_env%ri_grad%mo_coeff_o)
-         ALLOCATE(mp2_env%ri_grad%G_P_ia(my_group_L_size, nspins))
+         ALLOCATE (mp2_env%ri_grad%G_P_ia(my_group_L_size, nspins))
          DO ispin = 1, nspins
          DO kkB = 1, my_group_L_size
-            NULLIFY(mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix)
+            NULLIFY (mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix)
          END DO
          END DO
       END IF
@@ -1482,7 +1481,7 @@ CONTAINS
 
          ! now create the DBCSR matrix and copy fm_ia into it
          ispin = 2
-         If (alpha_case) ispin = 1
+         IF (alpha_case) ispin = 1
          ALLOCATE (mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix)
          CALL cp_dbcsr_m_by_n_from_template(mp2_env%ri_grad%G_P_ia(kkB, ispin)%matrix, &
                                             template=mp2_env%ri_grad%mo_coeff_o(ispin)%matrix, &

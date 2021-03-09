@@ -112,6 +112,7 @@ CONTAINS
 !> \param p_env the environment to initialize
 !> \param qs_env the qs_environment for the system
 !> \param p1_option ...
+!> \param p1_admm_option ...
 !> \param psi0d ...
 !> \param orthogonal_orbitals if the orbitals are orthogonal
 !> \param linres_control ...
@@ -125,7 +126,7 @@ CONTAINS
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
-         POINTER                                         :: p1_admm_option, p1_option
+         POINTER                                         :: p1_option, p1_admm_option
       TYPE(cp_fm_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: psi0d
       LOGICAL, INTENT(in), OPTIONAL                      :: orthogonal_orbitals
@@ -368,11 +369,16 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE p_env_check_i_alloc
 
+! **************************************************************************************************
+!> \brief ...
+!> \param p_env ...
+!> \param qs_env ...
+! **************************************************************************************************
    SUBROUTINE p_env_update_rho(p_env, qs_env)
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'apply_op'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'p_env_update_rho'
 
       INTEGER                                            :: handle, ispin
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao

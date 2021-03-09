@@ -17,10 +17,7 @@ MODULE qs_linres_methods
    USE atomic_kind_types,               ONLY: atomic_kind_type,&
                                               get_atomic_kind
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_plus_fm_fm_t,&
-                                              cp_dbcsr_sm_fm_multiply,&
-                                              dbcsr_allocate_matrix_set,&
-                                              dbcsr_deallocate_matrix_set
+   USE cp_dbcsr_operations,             ONLY: cp_dbcsr_sm_fm_multiply
    USE cp_external_control,             ONLY: external_control
    USE cp_files,                        ONLY: close_file,&
                                               open_file
@@ -34,7 +31,6 @@ MODULE qs_linres_methods
                                               cp_fm_get_submatrix,&
                                               cp_fm_p_type,&
                                               cp_fm_release,&
-                                              cp_fm_set_all,&
                                               cp_fm_set_submatrix,&
                                               cp_fm_to_fm,&
                                               cp_fm_type
@@ -51,16 +47,15 @@ MODULE qs_linres_methods
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_checksum,&
                                               dbcsr_copy,&
-                                              dbcsr_create,&
-                                              dbcsr_deallocate_matrix,&
-                                              dbcsr_filter,&
                                               dbcsr_p_type,&
-                                              dbcsr_scale,&
                                               dbcsr_set,&
                                               dbcsr_type
-   USE input_constants,                 ONLY: &
-        do_loc_none, kg_tnadd_embed, op_loc_berry, ot_precond_none, &
-        ot_precond_solver_default, state_loc_all
+   USE input_constants,                 ONLY: do_loc_none,&
+                                              kg_tnadd_embed,&
+                                              op_loc_berry,&
+                                              ot_precond_none,&
+                                              ot_precond_solver_default,&
+                                              state_loc_all
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -78,8 +73,6 @@ MODULE qs_linres_methods
    USE preconditioner,                  ONLY: apply_preconditioner,&
                                               make_preconditioner
    USE pw_env_types,                    ONLY: pw_env_type
-   USE pw_pool_types,                   ONLY: pw_pool_type
-   USE pw_types,                        ONLY: pw_p_type
    USE qs_2nd_kernel_ao,                ONLY: apply_hfx_ao,&
                                               apply_xc_admm_ao,&
                                               build_dm_response
@@ -89,7 +82,6 @@ MODULE qs_linres_methods
                                               get_qs_kind_set,&
                                               qs_kind_type
    USE qs_kpp1_env_methods,             ONLY: calc_kpp1
-   USE qs_ks_types,                     ONLY: qs_ks_env_type
    USE qs_linres_types,                 ONLY: linres_control_type
    USE qs_loc_methods,                  ONLY: qs_loc_driver
    USE qs_loc_types,                    ONLY: get_qs_loc_env,&
@@ -755,14 +747,12 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param p_env ...
-!> \param c0 ...
-!> \param Av ...
 ! **************************************************************************************************
    SUBROUTINE apply_op_2_dft(qs_env, p_env)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'apply_op_2_dft'
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_op_2_dft'
 
       INTEGER                                            :: handle, nspins
       LOGICAL                                            :: gapw, gapw_xc, lr_triplet, lrigpw
@@ -838,8 +828,6 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param p_env ...
-!> \param c0 ...
-!> \param Av ...
 ! **************************************************************************************************
    SUBROUTINE apply_op_2_xtb(qs_env, p_env)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
@@ -848,8 +836,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_op_2_xtb'
 
       INTEGER                                            :: atom_a, handle, iatom, ikind, is, ispin, &
-                                                            na, natom, natorb, nkind, ns, &
-                                                            nsgf, nspins
+                                                            na, natom, natorb, nkind, ns, nsgf, &
+                                                            nspins
       INTEGER, DIMENSION(25)                             :: lao
       INTEGER, DIMENSION(5)                              :: occ
       LOGICAL                                            :: lr_triplet

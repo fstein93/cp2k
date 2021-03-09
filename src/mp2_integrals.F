@@ -61,9 +61,9 @@ MODULE mp2_integrals
                                               do_potential_long,&
                                               do_potential_short,&
                                               do_potential_truncated
-   USE kinds,                           ONLY: dp,&
-                                              int_8,&
-                                              default_string_length
+   USE kinds,                           ONLY: default_string_length,&
+                                              dp,&
+                                              int_8
    USE kpoint_methods,                  ONLY: kpoint_init_cell_index
    USE kpoint_types,                    ONLY: kpoint_type
    USE libint_2c_3c,                    ONLY: libint_potential_type
@@ -197,12 +197,13 @@ CONTAINS
                                     t_3c_M, t_3c_O, t_3c_O_compressed, t_3c_O_ind, &
                                     ri_metric, gd_B_occ_bse, gd_B_virt_bse)
 
-      TYPE(three_dim_real_array), ALLOCATABLE, DIMENSION(:), &
-         INTENT(OUT)                                     :: BIb_C, BIb_C_gw
+      TYPE(three_dim_real_array), ALLOCATABLE, &
+         DIMENSION(:), INTENT(OUT)                       :: BIb_C, BIb_C_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(OUT)                                     :: BIb_C_bse_ij, BIb_C_bse_ab
       TYPE(group_dist_d1_type), INTENT(OUT)              :: gd_array
-      TYPE(group_dist_d1_type), DIMENSION(:), ALLOCATABLE, INTENT(OUT) :: gd_B_virtual
+      TYPE(group_dist_d1_type), ALLOCATABLE, &
+         DIMENSION(:), INTENT(OUT)                       :: gd_B_virtual
       INTEGER, INTENT(OUT)                               :: dimen_RI, dimen_RI_red
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env, para_env_sub
@@ -211,7 +212,7 @@ CONTAINS
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)        :: mo_coeff
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
       INTEGER, INTENT(IN)                                :: nmo
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
@@ -246,22 +247,20 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_ri_gpw_compute_in'
 
       INTEGER :: cm, cut_memory, cut_memory_int, eri_method, gw_corr_lev_total, handle, handle2, &
-         handle4, i, i_counter, i_mem, ispin, itmp(2), j, jcell, kcell, LLL, &
-         min_bsize, mp_comm_t3c_2, my_B_all_end, my_B_all_size, &
-         my_B_all_start, my_B_occ_bse_end, my_B_occ_bse_size, my_B_occ_bse_start, &
-         my_B_virt_bse_end, my_B_virt_bse_size, my_B_virt_bse_start, my_group_L_end
-      INTEGER :: my_group_L_size, my_group_L_start, natom, ngroup, nimg, nkind, nspins, num_small_eigen, &
-         potential_type, ri_metric_type
+         handle4, i, i_counter, i_mem, ispin, itmp(2), j, jcell, kcell, LLL, min_bsize, &
+         mp_comm_t3c_2, my_B_all_end, my_B_all_size, my_B_all_start, my_B_occ_bse_end, &
+         my_B_occ_bse_size, my_B_occ_bse_start, my_B_virt_bse_end, my_B_virt_bse_size, &
+         my_B_virt_bse_start, my_group_L_end, my_group_L_size, my_group_L_start, natom, ngroup, &
+         nimg, nkind, nspins, num_small_eigen, potential_type, ri_metric_type
       INTEGER(int_8)                                     :: nze
       INTEGER, ALLOCATABLE, DIMENSION(:) :: dist_AO_1, dist_AO_2, dist_RI, &
-         ends_array_mc_block_int, ends_array_mc_int, my_B_virtual_end, my_B_virtual_start, &
-         my_B_size, sizes_AO, sizes_AO_split, sizes_RI, &
-         sizes_RI_split, starts_array_mc_block_int, starts_array_mc_int, sub_proc_map, virtual
+         ends_array_mc_block_int, ends_array_mc_int, my_B_size, my_B_virtual_end, &
+         my_B_virtual_start, sizes_AO, sizes_AO_split, sizes_RI, sizes_RI_split, &
+         starts_array_mc_block_int, starts_array_mc_int, sub_proc_map, virtual
       INTEGER, DIMENSION(2, 3)                           :: bounds
       INTEGER, DIMENSION(3)                              :: bounds_3c, pcoord, pdims, pdims_t3c, &
                                                             periodic
-      LOGICAL                                            :: do_gpw, &
-                                                            do_kpoints_from_Gamma, do_svd, &
+      LOGICAL                                            :: do_gpw, do_kpoints_from_Gamma, do_svd, &
                                                             memory_info
       REAL(KIND=dp) :: compression_factor, cond_num, cutoff_old, eps_svd, mem_for_iaK, memory_3c, &
          occ, omega_pot, rc_ang, relative_cutoff_old
@@ -277,8 +276,9 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(distribution_3d_type)                         :: dist_3d
       TYPE(gto_basis_set_p_type), DIMENSION(:), POINTER  :: basis_set_ao, basis_set_ri_aux
-      TYPE(intermediate_matrix_type)                     :: intermed_mat_bse_ij, intermed_mat_bse_ab
-      TYPE(intermediate_matrix_type), DIMENSION(:), ALLOCATABLE :: intermed_mat, intermed_mat_gw
+      TYPE(intermediate_matrix_type)                     :: intermed_mat_bse_ab, intermed_mat_bse_ij
+      TYPE(intermediate_matrix_type), ALLOCATABLE, &
+         DIMENSION(:)                                    :: intermed_mat, intermed_mat_gw
       TYPE(neighbor_list_3c_type)                        :: nl_3c
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_p_type)                                    :: pot_g, psi_L, rho_g, rho_r
@@ -297,7 +297,7 @@ CONTAINS
          CPABORT("TRUNCATED and SHORTRANGE RI metrics not yet implemented")
       ENDIF
 
-      ALLOCATE(virtual(nspins))
+      ALLOCATE (virtual(nspins))
       virtual(:) = nmo - homo(:)
       gw_corr_lev_total = gw_corr_lev_virt + gw_corr_lev_occ
 
@@ -463,8 +463,8 @@ CONTAINS
       ! in case we do imaginary time, we need the overlap tensor (alpha beta P) or trunc. Coulomb tensor
       IF (.NOT. do_im_time) THEN
 
-         ALLOCATE(gd_B_virtual(nspins), intermed_mat(nspins))
-         ALLOCATE(my_B_virtual_start(nspins), my_B_virtual_end(nspins), my_B_size(nspins))
+         ALLOCATE (gd_B_virtual(nspins), intermed_mat(nspins))
+         ALLOCATE (my_B_virtual_start(nspins), my_B_virtual_end(nspins), my_B_size(nspins))
          DO ispin = 1, nspins
 
             CALL create_intermediate_matrices(intermed_mat(ispin), mo_coeff_o(ispin)%matrix, virtual(ispin), homo(ispin), &
@@ -479,7 +479,7 @@ CONTAINS
          ! in the case of G0W0, we need (K|nm), n,m may be occ or virt (m restricted to corrected levels)
          IF (my_do_gw) THEN
 
-            ALLOCATE(intermed_mat_gw(nspins))
+            ALLOCATE (intermed_mat_gw(nspins))
             DO ispin = 1, nspins
                CALL create_intermediate_matrices(intermed_mat_gw(ispin), mo_coeff_gw(ispin)%matrix, &
                                                  nmo, gw_corr_lev_total, &
@@ -518,7 +518,7 @@ CONTAINS
          END DO
 
          ! array that will store the (ia|K) integrals
-         ALLOCATE(BIb_C(nspins))
+         ALLOCATE (BIb_C(nspins))
          DO ispin = 1, nspins
             ALLOCATE (BIb_C(ispin)%array(my_group_L_size, my_B_size(ispin), homo(ispin)))
             BIb_C(ispin)%array = 0.0_dp
@@ -527,7 +527,7 @@ CONTAINS
          ! in the case of GW, we also need (nm|K)
          IF (my_do_gw) THEN
 
-            ALLOCATE(BIb_C_gw(nspins))
+            ALLOCATE (BIb_C_gw(nspins))
             DO ispin = 1, nspins
                ALLOCATE (BIb_C_gw(ispin)%array(my_group_L_size, my_B_all_size, gw_corr_lev_total))
                BIb_C_gw(ispin)%array = 0.0_dp
@@ -667,13 +667,13 @@ CONTAINS
          DO ispin = 1, nspins
             CALL release_intermediate_matrices(intermed_mat(ispin))
          END DO
-         DEALLOCATE(intermed_mat)
+         DEALLOCATE (intermed_mat)
 
          IF (my_do_gw) THEN
             DO ispin = 1, nspins
                CALL release_intermediate_matrices(intermed_mat_gw(ispin))
             END DO
-            DEALLOCATE(intermed_mat_gw)
+            DEALLOCATE (intermed_mat_gw)
          END IF
 
          IF (do_bse) THEN
@@ -1196,13 +1196,17 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE ao_to_mo_and_store_B
 
+! **************************************************************************************************
+!> \brief ...
+!> \param intermed_mat ...
+! **************************************************************************************************
    SUBROUTINE release_intermediate_matrices(intermed_mat)
       TYPE(intermediate_matrix_type), INTENT(INOUT)      :: intermed_mat
 
       CALL dbcsr_release(intermed_mat%matrix_ia_jnu)
       CALL dbcsr_release(intermed_mat%matrix_ia_jb)
       CALL cp_fm_release(intermed_mat%fm_BIb_jb)
-      DEALLOCATE(intermed_mat%local_col_row_info)
+      DEALLOCATE (intermed_mat%local_col_row_info)
 
    END SUBROUTINE
 

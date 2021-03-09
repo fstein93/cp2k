@@ -85,9 +85,6 @@ CONTAINS
 !> \param nmo ...
 !> \param homo ...
 !> \param Eigenval ...
-!> \param Eigenval_beta ...
-!> \param homo_beta ...
-!> \param mo_coeff_beta ...
 !> \author Vladimir Rybkin, 08/2019
 ! **************************************************************************************************
    SUBROUTINE rse_energy(qs_env, mp2_env, para_env, dft_control, &
@@ -111,9 +108,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: coeff, corr, rse_corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: diag_diff
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
+      TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: fm_P_mu_nu, fm_X_mo, fm_XC_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: fm_ao, fm_ao_mo
-      TYPE(cp_fm_p_type), DIMENSION(:), ALLOCATABLE      :: fm_P_mu_nu, fm_X_mo, fm_XC_mo
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_mu_nu, matrix_s, rho_ao
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
@@ -167,8 +164,8 @@ CONTAINS
       END DO
 
       ! Dense (full) matrices
-      ALLOCATE(fm_P_mu_nu(nspins))
-      NULLIFY(fm_struct_tmp)
+      ALLOCATE (fm_P_mu_nu(nspins))
+      NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
       DO ispin = 1, nspins
@@ -181,9 +178,9 @@ CONTAINS
       NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
-      ALLOCATE(fm_X_mo(nspins), fm_XC_mo(nspins))
+      ALLOCATE (fm_X_mo(nspins), fm_XC_mo(nspins))
       DO ispin = 1, nspins
-         NULLIFY(fm_X_mo(ispin)%matrix, fm_XC_mo(ispin)%matrix)
+         NULLIFY (fm_X_mo(ispin)%matrix, fm_XC_mo(ispin)%matrix)
          CALL cp_fm_create(fm_X_mo(ispin)%matrix, fm_struct_tmp, name="f_X_mo")
          CALL cp_fm_create(fm_XC_mo(ispin)%matrix, fm_struct_tmp, name="f_XC_mo")
          CALL cp_fm_set_all(fm_X_mo(ispin)%matrix, 0.0_dp)
@@ -228,7 +225,7 @@ CONTAINS
       ! Calculate DFT exchange-correlation contribution
       CALL xc_contribution(qs_env, fm_ao, fm_ao_mo, fm_XC_mo, mo_coeff, dimen)
 
-      ALLOCATE(diag_diff(dimen))
+      ALLOCATE (diag_diff(dimen))
       rse_corr = 0.0_dp
 
       DO ispin = 1, nspins
@@ -256,7 +253,7 @@ CONTAINS
                i_global = row_indices(iiB)
                IF ((i_global .LE. homo(ispin)) .AND. (j_global .GT. homo(ispin))) THEN
                   corr = corr + fm_X_mo(ispin)%matrix%local_data(iib, jjb)**2.0_dp/ &
-                             (eigenval(i_global, ispin) - eigenval(j_global, ispin) - diag_diff(i_global) + diag_diff(j_global))
+                         (eigenval(i_global, ispin) - eigenval(j_global, ispin) - diag_diff(i_global) + diag_diff(j_global))
                ENDIF
             END DO
          END DO
@@ -322,8 +319,10 @@ CONTAINS
       TYPE(qs_rho_type), INTENT(IN), POINTER             :: rho_work
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          POINTER                                         :: mat_mu_nu
-      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_X_ao, fm_X_ao_mo
-      TYPE(cp_fm_p_type), INTENT(IN), DIMENSION(:)       :: fm_P_mu_nu, fm_X_mo
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_P_mu_nu
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_X_ao
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_X_mo
+      TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_X_ao_mo
       LOGICAL, INTENT(IN)                                :: recalc_hfx_integrals
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'exchange_contribution'
@@ -402,7 +401,7 @@ CONTAINS
    SUBROUTINE xc_contribution(qs_env, fm_XC_ao, fm_XC_ao_mo, fm_XC_mo, mo_coeff, dimen)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(cp_fm_type), INTENT(IN), POINTER              :: fm_XC_ao, fm_XC_ao_mo
-      TYPE(cp_fm_p_type), INTENT(IN), DIMENSION(:)       :: fm_XC_mo, mo_coeff
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_XC_mo, mo_coeff
       INTEGER, INTENT(IN)                                :: dimen
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xc_contribution'
@@ -470,18 +469,19 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE non_diag_rse(fm_F_mo, eigenval, dimen, homo, para_env, &
                            blacs_env, rse_corr)
-      TYPE(cp_fm_p_type), INTENT(IN), DIMENSION(:)       :: fm_F_mo
+      TYPE(cp_fm_p_type), DIMENSION(:), INTENT(IN)       :: fm_F_mo
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: dimen
-      INTEGER, INTENT(IN), DIMENSION(:)                  :: homo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(cp_blacs_env_type), INTENT(IN), POINTER       :: blacs_env
       REAL(KIND=dp), INTENT(OUT)                         :: rse_corr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'non_diag_rse'
 
-      INTEGER                                            :: handle, i_global, iiB, ispin, j_global, jjB, &
-                                                            ncol_local, nrow_local, nspins, virtual
+      INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
+                                                            jjB, ncol_local, nrow_local, nspins, &
+                                                            virtual
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: corr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: eig_o, eig_semi_can, eig_v
