@@ -140,8 +140,8 @@ CONTAINS
          IF (ispin == 2) my_beta_beta_case = .TRUE.
       END IF
 
-      amp_fac = 2.0_dp
-      IF (my_alpha_beta_case .OR. my_open_shell_SS) amp_fac = 1.0_dp
+      amp_fac = mp2_env%scale_S+mp2_env%scale_T
+      IF (my_alpha_beta_case .OR. my_open_shell_SS) amp_fac = mp2_env%scale_T
 
       CALL mp2_ri_get_sizes( &
          mp2_env, para_env, para_env_sub, gd_array, gd_B_virtual(ispin), &
@@ -443,7 +443,7 @@ CONTAINS
                        (Eigenval(homo(ispin) + a_global, ispin) + Eigenval(homo(ispin) + b_global, ispin) - &
                         Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
                            IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) &
-                              t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - local_ab(b_global, a))/ &
+                              t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - mp2_env%scale_T*local_ab(b_global, a))/ &
                                                   (Eigenval(homo(ispin) + a_global, ispin) + &
                                                    Eigenval(homo(ispin) + b_global, ispin) - &
                                                    Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1,ispin))
@@ -472,7 +472,7 @@ CONTAINS
                        (Eigenval(homo(ispin) + a_global, ispin) + Eigenval(homo(ispin) + b_global, ispin) - &
                         Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
                               IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) &
-                                 t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - external_ab(b, a))/ &
+                                 t_ab(a_global, b) = -(amp_fac*local_ab(a_global, b) - mp2_env%scale_T*external_ab(b, a))/ &
                                                      (Eigenval(homo(ispin) + a_global, ispin) + &
                                                       Eigenval(homo(ispin) + b_global, ispin) - &
                                                       Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
@@ -1545,7 +1545,7 @@ CONTAINS
             END DO
          END DO
          ! update diagonal part of P_ij
-         P_ij_diag = -SUM(local_ab*local_ab)
+         P_ij_diag = -SUM(local_ab*local_ab)*mp2_env%scale_S
          ! More integrals needed only for alpha-beta case: local_ba
          DO b = 1, my_B_size
             b_global = b + my_B_virtual_start - 1
@@ -1576,7 +1576,7 @@ CONTAINS
       ENDIF
       ! Alpha_beta case
       IF (alpha_beta) THEN
-         CALL dgemm('T', 'N', my_B_size, my_B_size, virtual_beta, 1.0_dp, &
+         CALL dgemm('T', 'N', my_B_size, my_B_size, virtual_beta, mp2_env%scale_S, &
                     local_ba(:, :), virtual_beta, local_ba(:, :), virtual_beta, 1.0_dp, &
                     mp2_env%ri_grad%P_ab(1)%array(1:my_B_size, my_B_virtual_start: &
                                          my_B_virtual_end), my_B_size)
@@ -1604,7 +1604,7 @@ CONTAINS
          ENDIF
          ! Beta_beta_case
          IF (beta_beta) THEN
-            CALL dgemm('N', 'T', my_B_size, virtual, my_B_size, 1.0_dp, &
+            CALL dgemm('N', 'T', my_B_size, virtual, my_B_size, mp2_env%scale_S, &
                        t_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size), my_B_size, &
                        local_ab(:, :), virtual, &
                        1.0_dp, mp2_env%ri_grad%P_ab(2)%array(1:my_B_size, 1:virtual), my_B_size)
@@ -1650,7 +1650,7 @@ CONTAINS
          ! Alpha-beta case
          IF (alpha_beta) THEN
             ! Alpha-beta part of beta-beta density
-            CALL dgemm('T', 'N', my_B_size_beta, rec_B_size, virtual, 1.0_dp, &
+            CALL dgemm('T', 'N', my_B_size_beta, rec_B_size, virtual, mp2_env%scale_S, &
                        local_ab(:, :), virtual, external_ab(:, :), virtual, &
                        1.0_dp, mp2_env%ri_grad%P_ab(2)%array(1:my_B_size_beta, rec_B_virtual_start:rec_B_virtual_end), &
                        my_B_size_beta)
@@ -1665,7 +1665,7 @@ CONTAINS
             CALL mp_sendrecv(local_ba(1:virtual_beta, 1:my_B_size), proc_send, &
                              external_ab(1:virtual_beta, 1:rec_B_size), proc_receive, &
                              para_env_sub%group)
-            CALL dgemm('T', 'N', my_B_size, rec_B_size, virtual_beta, 1.0_dp, &
+            CALL dgemm('T', 'N', my_B_size, rec_B_size, virtual_beta, mp2_env%scale_S, &
                        local_ba(:, :), virtual_beta, external_ab(:, :), virtual_beta, &
                        1.0_dp, mp2_env%ri_grad%P_ab(1)%array(1:my_B_size, rec_B_virtual_start:rec_B_virtual_end), my_B_size)
          ENDIF
@@ -1712,11 +1712,11 @@ CONTAINS
                     local_j_aL(1:dimen_RI, 1:my_B_size, jjB), dimen_RI, &
                     1.0_dp, Y_i_aP(1:my_B_size, 1:dimen_RI, iiB), my_B_size)
       ELSE ! Alpha-beta
-         CALL dgemm('N', 'T', my_B_size, dimen_RI, my_B_size_beta, 1.0_dp, &
+         CALL dgemm('N', 'T', my_B_size, dimen_RI, my_B_size_beta, mp2_env%scale_S, &
                     local_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size_beta), my_B_size, &
                     local_j_aL(1:dimen_RI, 1:my_B_size_beta, jjB), dimen_RI, &
                     1.0_dp, Y_i_aP(1:my_B_size, 1:dimen_RI, iiB), my_B_size)
-         CALL dgemm('T', 'T', my_B_size_beta, dimen_RI, my_B_size, 1.0_dp, &
+         CALL dgemm('T', 'T', my_B_size_beta, dimen_RI, my_B_size, mp2_env%scale_S, &
                     local_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size_beta), my_B_size, &
                     local_i_aL(1:dimen_RI, 1:my_B_size, jjB), dimen_RI, &
                     1.0_dp, Y_j_aP(1:my_B_size_beta, 1:dimen_RI, jjB), my_B_size_beta)
@@ -1752,7 +1752,7 @@ CONTAINS
             ! Alpha-alpha part
             ALLOCATE (send_ab(send_B_size, dimen_RI))
             send_ab = 0.0_dp
-            CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size_beta, 1.0_dp, &
+            CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size_beta, mp2_env%scale_S, &
                        local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size_beta), send_B_size, &
                        local_j_aL(1:dimen_RI, 1:my_B_size_beta, jjB), dimen_RI, &
                        0.0_dp, send_ab(1:send_B_size, 1:dimen_RI), send_B_size)
@@ -1776,7 +1776,7 @@ CONTAINS
             ALLOCATE (send_ab(send_B_size, dimen_RI))
             send_ab = 0.0_dp
 
-            CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size, 1.0_dp, &
+            CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size, mp2_env%scale_S, &
                        local_ba(send_B_virtual_start:send_B_virtual_end, 1:my_B_size), send_B_size, &
                        local_i_aL(1:dimen_RI, 1:my_B_size, jjB), dimen_RI, &
                        0.0_dp, send_ab(1:send_B_size, 1:dimen_RI), send_B_size)
@@ -2344,8 +2344,8 @@ CONTAINS
       ENDIF
 
       ! Set amplitude factor
-      amp_fac = 2.0_dp
-      IF (open_shell) amp_fac = 1.0_dp
+      amp_fac = mp2_env%scale_S+mp2_env%scale_T
+      IF (open_shell) amp_fac = mp2_env%scale_T
 
       ! Loop(s) over orbital triplets
       DO iloops = 1, nloops
@@ -2582,7 +2582,7 @@ CONTAINS
                      b_global = b + my_B_virtual_start - 1
                      DO a = 1, my_B_size
                         a_global = a + my_B_virtual_start - 1
-                        t_ab(a_global, b) = (amp_fac*local_ab(a_global, b) - local_ab(b_global, a))/ &
+                        t_ab(a_global, b) = (amp_fac*local_ab(a_global, b) - mp2_env%scale_T*local_ab(b_global, a))/ &
                                            (Eigenval(my_i) + Eigenval(my_k) - Eigenval(homo + a_global) - Eigenval(homo + b_global))
                      END DO
                   END DO
@@ -2592,7 +2592,7 @@ CONTAINS
                         b_global = b + my_B_virtual_start_beta - 1
                         DO a = 1, my_B_size
                            a_global = a + my_B_virtual_start - 1
-                           t_ab(a_global, b) = local_ab(a_global, b)/ &
+                           t_ab(a_global, b) = mp2_env%scale_S*local_ab(a_global, b)/ &
                                                (Eigenval(my_i) + Eigenval_beta(my_k) - Eigenval(homo + a_global) - &
                                                 Eigenval_beta(homo_beta + b_global))
                         END DO
@@ -2602,7 +2602,7 @@ CONTAINS
                         b_global = b + my_B_virtual_start - 1
                         DO a = 1, my_B_size_beta
                            a_global = a + my_B_virtual_start_beta - 1
-                           t_ab(a_global, b) = local_ab(a_global, b)/ &
+                           t_ab(a_global, b) = mp2_env%scale_S*local_ab(a_global, b)/ &
                                                (Eigenval_beta(my_i) + Eigenval(my_k) - Eigenval_beta(homo_beta + a_global) - &
                                                 Eigenval(homo + b_global))
                         END DO
@@ -2626,7 +2626,7 @@ CONTAINS
                         b_global = b + my_B_virtual_start - 1
                         DO a = 1, rec_B_size
                            a_global = a + rec_B_virtual_start - 1
-                           t_ab(a_global, b) = (amp_fac*local_ab(a_global, b) - external_ab(b, a))/ &
+                           t_ab(a_global, b) = (amp_fac*local_ab(a_global, b) - mp2_env%scale_T*external_ab(b, a))/ &
                                            (Eigenval(my_i) + Eigenval(my_k) - Eigenval(homo + a_global) - Eigenval(homo + b_global))
                         END DO
                      END DO
