@@ -138,7 +138,7 @@ MODULE response_solver
 
    LOGICAL, PARAMETER                   :: debug_forces = .TRUE.
 
-   PUBLIC ::  response_equation, response_force, ks_ref_potential
+   PUBLIC ::  response_equation, response_force, ks_ref_potential, calc_ks_response_potentials
 
 CONTAINS
 
@@ -300,10 +300,9 @@ CONTAINS
       INTEGER                                            :: handle, iounit, ispin, mspin, n_rep_hf, &
                                                             nao, nao_aux, natom, nder, nimages, &
                                                             nspins
-      INTEGER, DIMENSION(2, 3)                           :: bo
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       LOGICAL                                            :: distribute_fock_matrix, do_hfx, &
-                                                            hfx_treat_lsd_in_core, lsd, resp_only, &
+                                                            hfx_treat_lsd_in_core, resp_only, &
                                                             s_mstruct_changed, use_virial
       REAL(KIND=dp)                                      :: eh1, ekin_mol, eps_ppnl, exc, focc, &
                                                             total_rhoz, total_rhoz_aux, zehartree
@@ -327,19 +326,16 @@ CONTAINS
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: rhoz_tot_gspace, vhxc_rspace, &
                                                             zv_hartree_gspace, zv_hartree_rspace
-      TYPE(pw_p_type), DIMENSION(:), POINTER :: rho_g, rho_g_aux, rho_r, rho_r_aux, rhoz_g, &
-         rhoz_g_aux, rhoz_r, rhoz_r_aux, tau_r, tau_r_aux, v_rspace, v_tau_rspace, v_xc
+      TYPE(pw_p_type), DIMENSION(:), POINTER :: rhoz_g, &
+         rhoz_g_aux, rhoz_r, rhoz_r_aux, v_rspace, v_tau_rspace, v_xc
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
-      TYPE(section_vals_type), POINTER                   :: hfx_section, xc_fun_section, xc_section
+      TYPE(section_vals_type), POINTER                   :: hfx_section, xc_section
       TYPE(virial_type), POINTER                         :: virial
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
-      TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho1_set, rho_set
 
       CALL timeset(routineN, handle)
 
@@ -529,7 +525,6 @@ CONTAINS
       END IF
       !
       CALL get_qs_env(qs_env=qs_env, rho=rho)
-      CALL qs_rho_get(rho, rho_r=rho_r, rho_g=rho_g, tau_r=tau_r)
       ALLOCATE (v_xc(nspins))
       DO ispin = 1, nspins
          NULLIFY (v_xc(ispin)%pw)
@@ -543,28 +538,7 @@ CONTAINS
       ELSE
          xc_section => section_vals_get_subs_vals(qs_env%input, "DFT%XC")
       END IF
-      lsd = (nspins == 2)
-      NULLIFY (deriv_set, rho_set, rho1_set)
-      CALL xc_prep_2nd_deriv(deriv_set, rho_set, rho_r, auxbas_pw_pool, xc_section=xc_section)
-      bo = rhoz_r(1)%pw%pw_grid%bounds_local
-      CALL xc_rho_set_create(rho1_set, bo, &
-                             rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
-                             drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
-                             tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
-
-      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-      needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
-
-      ! calculate the arguments needed by the functionals
-      CALL xc_rho_set_update(rho1_set, rhoz_r, rhoz_g, tau_r, needs, &
-                             section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
-                             section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
-                             auxbas_pw_pool)
-      CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, &
-                             rho1_set, auxbas_pw_pool, xc_section=xc_section)
-      CALL xc_dset_release(deriv_set)
-      CALL xc_rho_set_release(rho_set)
-      CALL xc_rho_set_release(rho1_set)
+      CALL calc_ks_response_potentials(v_xc, xc_section, qs_env, rhoz_r, rhoz_g)
       !
       !
       CALL qs_rho_get(rho, rho_ao_kp=matrix_p)
@@ -654,14 +628,12 @@ CONTAINS
                                        qs_env=qs_env, calculate_forces=.TRUE., &
                                        basis_type="AUX_FIT")
             END DO
-            NULLIFY (rho_g_aux, rho_r_aux, tau_r_aux, rhoz_g_aux, rhoz_r_aux)
             IF (debug_forces) THEN
                fodeb(1:3) = force(1)%rho_elec(1:3, 1) - fodeb(1:3)
                CALL mp_sum(fodeb, para_env%group)
                IF (iounit > 0) WRITE (iounit, "(T3,A,T33,3F16.8)") "DEBUG:: Pz*Vxc(rho_admm)", fodeb
             END IF
             !
-            CALL qs_rho_get(rho_aux_fit, rho_r=rho_r_aux, rho_g=rho_g_aux, tau_r=tau_r_aux)
             ALLOCATE (v_xc(nspins))
             DO ispin = 1, nspins
                NULLIFY (v_xc(ispin)%pw)
@@ -669,8 +641,8 @@ CONTAINS
                                       use_data=REALDATA3D, in_space=REALSPACE)
                CALL pw_zero(v_xc(ispin)%pw)
             END DO
-            lsd = (nspins == 2)
             ! rhoz_aux
+            NULLIFY (rhoz_g_aux, rhoz_r_aux)
             ALLOCATE (rhoz_r_aux(nspins), rhoz_g_aux(nspins))
             DO ispin = 1, nspins
                NULLIFY (rhoz_r_aux(ispin)%pw, rhoz_g_aux(ispin)%pw)
@@ -685,27 +657,7 @@ CONTAINS
                                        total_rho=total_rhoz_aux, basis_type="AUX_FIT")
             END DO
             !
-            NULLIFY (deriv_set, rho_set, rho1_set)
-            CALL xc_prep_2nd_deriv(deriv_set, rho_set, rho_r_aux, auxbas_pw_pool, xc_section=xc_section)
-            bo = rhoz_r_aux(1)%pw%pw_grid%bounds_local
-            CALL xc_rho_set_create(rho1_set, bo, &
-                                   rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
-                                   drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
-                                   tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
-
-            xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-            needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
-
-            ! calculate the arguments needed by the functionals
-            CALL xc_rho_set_update(rho1_set, rhoz_r_aux, rhoz_g_aux, tau_r_aux, needs, &
-                                   section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
-                                   section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
-                                   auxbas_pw_pool)
-            CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, &
-                                   rho1_set, auxbas_pw_pool, xc_section=xc_section)
-            CALL xc_dset_release(deriv_set)
-            CALL xc_rho_set_release(rho_set)
-            CALL xc_rho_set_release(rho1_set)
+            CALL calc_ks_response_potentials(v_xc, xc_section, qs_env, rhoz_r_aux, rhoz_g_aux, .TRUE.)
             !
             CALL qs_rho_get(rho_aux_fit, rho_ao_kp=matrix_p)
             IF (debug_forces) fodeb(1:3) = force(1)%rho_elec(1:3, 1)
@@ -887,6 +839,78 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE response_force
+
+! **************************************************************************************************
+!> \brief ...
+!> \param v_xc ...
+!> \param xc_section ...
+!> \param qs_env ...
+!> \param rho1_r ...
+!> \param rho1_g ...
+!> \param do_admm ...
+! **************************************************************************************************
+   SUBROUTINE calc_ks_response_potentials(v_xc, xc_section, qs_env, rho1_r, rho1_g, do_admm)
+      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: v_xc
+      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r, rho1_g
+      LOGICAL, INTENT(IN), OPTIONAL                      :: do_admm
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ks_response_potentials'
+
+      INTEGER                                            :: handle, nspins
+      INTEGER, DIMENSION(2, 3)                           :: bo
+      LOGICAL                                            :: lsd, my_do_admm
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, tau_r
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(section_vals_type), POINTER                   :: xc_fun_section
+      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
+      TYPE(xc_rho_cflags_type)                           :: needs
+      TYPE(xc_rho_set_type), POINTER                     :: rho1_set, rho_set
+
+      CALL timeset(routineN, handle)
+
+      my_do_admm = .FALSE.
+      IF (PRESENT(do_admm)) my_do_admm = .TRUE.
+
+      IF (.NOT. my_do_admm) THEN
+         CALL get_qs_env(qs_env, ks_env=ks_env, rho=rho, pw_env=pw_env)
+      ELSE
+         CALL get_qs_env(qs_env, ks_env=ks_env, rho_aux_fit=rho, pw_env=pw_env)
+      END IF
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
+      CALL qs_rho_get(rho, rho_r=rho_r, tau_r=tau_r)
+
+      nspins = SIZE(v_xc, 1)
+      lsd = (nspins == 2)
+      NULLIFY (deriv_set, rho_set, rho1_set)
+      CALL xc_prep_2nd_deriv(deriv_set, rho_set, rho_r, auxbas_pw_pool, xc_section=xc_section)
+      bo = rho1_r(1)%pw%pw_grid%bounds_local
+      CALL xc_rho_set_create(rho1_set, bo, &
+                             rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
+                             drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
+                             tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
+
+      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
+      needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
+
+      ! calculate the arguments needed by the functionals
+      CALL xc_rho_set_update(rho1_set, rho1_r, rho1_g, tau_r, needs, &
+                             section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
+                             section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
+                             auxbas_pw_pool)
+      CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, &
+                             rho1_set, auxbas_pw_pool, xc_section=xc_section)
+      CALL xc_dset_release(deriv_set)
+      CALL xc_rho_set_release(rho_set)
+      CALL xc_rho_set_release(rho1_set)
+
+      CALL timestop(handle)
+
+   END SUBROUTINE calc_ks_response_potentials
 
 ! **************************************************************************************************
 !> \brief ...

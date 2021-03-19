@@ -146,6 +146,7 @@ MODULE energy_corrections
                                               qs_rho_type
    USE qs_vxc,                          ONLY: qs_vxc_create
    USE response_solver,                 ONLY: ks_ref_potential,&
+                                              calc_ks_response_potentials,&
                                               response_equation,&
                                               response_force
    USE task_list_methods,               ONLY: generate_qs_task_list
@@ -1056,71 +1057,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE ec_build_ks_matrix_force
-
-! **************************************************************************************************
-!> \brief ...
-!> \param v_xc ...
-!> \param xc_section ...
-!> \param qs_env ...
-!> \param rho1_r ...
-!> \param rho1_g ...
-! **************************************************************************************************
-   SUBROUTINE calc_ks_response_potentials(v_xc, xc_section, qs_env, rho1_r, rho1_g, compute_virial, virial)
-      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: v_xc
-      TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r, rho1_g
-      LOGICAL, INTENT(IN), OPTIONAL :: compute_virial
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), OPTIONAL :: virial
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ks_response_potentials'
-
-      INTEGER                                            :: handle, nspins
-      INTEGER, DIMENSION(2, 3)                           :: bo
-      LOGICAL                                            :: lsd
-      TYPE(pw_env_type), POINTER                         :: pw_env
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_r, tau_r
-      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
-      TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(section_vals_type), POINTER                   :: xc_fun_section
-      TYPE(xc_derivative_set_type), POINTER              :: deriv_set
-      TYPE(xc_rho_cflags_type)                           :: needs
-      TYPE(xc_rho_set_type), POINTER                     :: rho1_set, rho_set
-
-      CALL timeset(routineN, handle)
-
-      CALL get_qs_env(qs_env, ks_env=ks_env, rho=rho, pw_env=pw_env)
-      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool)
-      CALL qs_rho_get(rho, rho_r=rho_r, tau_r=tau_r)
-
-      nspins = SIZE(v_xc, 1)
-      lsd = (nspins == 2)
-      NULLIFY (deriv_set, rho_set, rho1_set)
-      CALL xc_prep_2nd_deriv(deriv_set, rho_set, rho_r, auxbas_pw_pool, xc_section=xc_section)
-      bo = rho1_r(1)%pw%pw_grid%bounds_local
-      CALL xc_rho_set_create(rho1_set, bo, &
-                             rho_cutoff=section_get_rval(xc_section, "DENSITY_CUTOFF"), &
-                             drho_cutoff=section_get_rval(xc_section, "GRADIENT_CUTOFF"), &
-                             tau_cutoff=section_get_rval(xc_section, "TAU_CUTOFF"))
-
-      xc_fun_section => section_vals_get_subs_vals(xc_section, "XC_FUNCTIONAL")
-      needs = xc_functionals_get_needs(xc_fun_section, lsd, .TRUE.)
-
-      ! calculate the arguments needed by the functionals
-      CALL xc_rho_set_update(rho1_set, rho1_r, rho1_g, tau_r, needs, &
-                             section_get_ival(xc_section, "XC_GRID%XC_DERIV"), &
-                             section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
-                             auxbas_pw_pool)
-      CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, &
-                             rho1_set, auxbas_pw_pool, xc_section=xc_section, compute_virial=compute_virial, virial_xc=virial)
-      CALL xc_dset_release(deriv_set)
-      CALL xc_rho_set_release(rho_set)
-      CALL xc_rho_set_release(rho1_set)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE calc_ks_response_potentials
 
 ! **************************************************************************************************
 !> \brief Solve KS equation for a given matrix

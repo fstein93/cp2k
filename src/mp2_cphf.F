@@ -39,7 +39,6 @@ MODULE mp2_cphf
                                               dbcsr_p_type,&
                                               dbcsr_scale,&
                                               dbcsr_set
-   USE energy_corrections,              ONLY: calc_ks_response_potentials
    USE hfx_types,                       ONLY: alloc_containers,&
                                               hfx_container_type,&
                                               hfx_init_container,&
@@ -99,6 +98,7 @@ MODULE mp2_cphf
                                               qs_p_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE response_solver,                 ONLY: calc_ks_response_potentials
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_vxc_pw_create
 
