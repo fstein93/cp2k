@@ -17,6 +17,7 @@ MODULE mp2_cphf
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               copy_fm_to_dbcsr,&
+                                              cp_dbcsr_sm_fm_multiply,&
                                               dbcsr_allocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_upper_to_full
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -37,13 +38,16 @@ MODULE mp2_cphf
                                               dbcsr_create,&
                                               dbcsr_deallocate_matrix,&
                                               dbcsr_p_type,&
+                                              dbcsr_release,&
                                               dbcsr_scale,&
-                                              dbcsr_set
+                                              dbcsr_set,&
+                                              dbcsr_type
    USE hfx_types,                       ONLY: alloc_containers,&
                                               hfx_container_type,&
                                               hfx_init_container,&
                                               hfx_type
-   USE input_constants,                 ONLY: ot_precond_full_all
+   USE input_constants,                 ONLY: ot_precond_full_all,&
+                                              do_admm_aux_exch_func_none 
    USE input_section_types,             ONLY: section_vals_get,&
                                               section_vals_get_subs_vals,&
                                               section_vals_type,&
@@ -74,7 +78,8 @@ MODULE mp2_cphf
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
                                               pw_p_type
-   USE qs_2nd_kernel_ao,                ONLY: apply_hfx_ao,&
+   USE qs_2nd_kernel_ao,                ONLY: admm_aux_reponse_density,&
+                                              apply_hfx_ao,&
                                               apply_xc_admm_ao
    USE qs_collocate_density,            ONLY: calculate_rho_elec
    USE qs_energy_types,                 ONLY: qs_energy_type
@@ -98,7 +103,9 @@ MODULE mp2_cphf
                                               qs_p_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE qs_vxc,                          ONLY: qs_vxc_create
    USE response_solver,                 ONLY: calc_ks_response_potentials
+   USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_vxc_pw_create
 
@@ -507,7 +514,7 @@ CONTAINS
       END DO
       DEALLOCATE (P_mo, W_mo)
 
-      CALL update_mp2_forces(qs_env, para_env)
+      CALL update_mp2_forces(qs_env, p_env, para_env)
 
       ! We will need one more hfx calculation for HF gradient part
       mp2_env%not_last_hfx = .FALSE.
@@ -1178,8 +1185,9 @@ CONTAINS
 !> \param qs_env ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE update_mp2_forces(qs_env, para_env)
+   SUBROUTINE update_mp2_forces(qs_env, p_env, para_env)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_mp2_forces'
@@ -1188,26 +1196,29 @@ CONTAINS
                                                             ispin, nspins
       INTEGER, DIMENSION(3)                              :: comp
       LOGICAL                                            :: use_virial
-      REAL(KIND=dp)                                      :: e_hartree, e_xc, pair_energy, tot_rho_r
+      REAL(KIND=dp)                                      :: e_hartree, e_xc, pair_energy, tot_rho_r , exc
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_dummy, h_stress
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: matrix_h_aux
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, matrix_s, &
-                                                            matrix_w_mp2, rho_ao
+                                                            matrix_w_mp2, rho_ao, rho_ao_aux, matrix_s_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
       TYPE(pw_p_type)                                    :: dvg(3), pot_g, pot_r, rho_tot_g, &
                                                             rho_tot_r, temp_pw_g
       TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: tau_mp2_g, tau_mp2_r
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_mp2_g, rho_mp2_r, rho_r, &
-                                                            tau_r, v_rho, v_tau, v_xc
+                                                            tau_r, v_rho, v_tau, &
+                                                            v_xc, rho_mp2_g_aux, rho_mp2_r_aux, v_rspace, v_tau_rspace
       TYPE(pw_p_type), POINTER                           :: rho_core
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux
       TYPE(section_vals_type), POINTER                   :: input, xc_section
+      TYPE(task_list_type), POINTER                      :: task_list_aux_fit
       TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
@@ -1340,6 +1351,94 @@ CONTAINS
          force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%rho_elec
          force(ikind)%rho_elec = 0.0_dp
       ENDDO
+
+      IF (dft_control%do_admm) THEN
+         IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+            CALL get_qs_env(qs_env, ks_env=ks_env, rho_aux_fit=rho_aux, &
+                            matrix_s_aux_fit=matrix_s_aux, task_list_aux_fit=task_list_aux_fit)
+            xc_section => admm_env%xc_section_aux
+            NULLIFY (rho_mp2_g_aux, rho_mp2_r_aux)
+            ALLOCATE (rho_mp2_r_aux(nspins), rho_mp2_g_aux(nspins))
+            DO ispin = 1, nspins
+               NULLIFY (rho_mp2_r_aux(ispin)%pw, rho_mp2_g_aux(ispin)%pw)
+               CALL pw_pool_create_pw(auxbas_pw_pool, rho_mp2_r_aux(ispin)%pw, &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool_create_pw(auxbas_pw_pool, rho_mp2_g_aux(ispin)%pw, &
+                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+            ENDDO
+            CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux)
+            ALLOCATE(matrix_h_aux(nspins))
+            DO ispin = 1, nspins
+               NULLIFY(matrix_h_aux(ispin)%matrix)
+               ALLOCATE(matrix_h_aux(ispin)%matrix)
+               CALL dbcsr_create(matrix_h_aux(ispin)%matrix, template=p_env%p1_admm(ispin)%matrix)
+               CALL dbcsr_copy(matrix_h_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix)
+               CALL dbcsr_set(matrix_h_aux(ispin)%matrix, 0.0_dp)
+            END DO
+
+            CALL admm_aux_reponse_density(qs_env, matrix_p_mp2, p_env%p1_admm)
+
+            NULLIFY (v_rspace, v_tau_rspace)
+            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_aux, xc_section=xc_section, &
+                               vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
+            CPASSERT(.NOT. ASSOCIATED(v_tau_rspace))
+
+            DO ispin = 1, nspins
+               v_rspace(ispin)%pw%cr3d = v_rspace(ispin)%pw%pw_grid%dvol*v_rspace(ispin)%pw%cr3d
+               CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
+                                       hmat=matrix_h_aux(ispin), pmat=p_env%p1_admm(ispin), &
+                                       qs_env=qs_env, calculate_forces=.TRUE., &
+                                       basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin)%pw)
+            END DO
+            DEALLOCATE(v_rspace)
+
+WRITE(*,*) "rho_elec vxc"
+            DO ikind = 1, SIZE(force)
+WRITE(*,*) force(ikind)%rho_elec
+               force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%rho_elec
+               force(ikind)%rho_elec = 0.0_dp
+            ENDDO
+
+            DO ispin = 1, nspins
+               CALL calculate_rho_elec(ks_env=ks_env, matrix_p=p_env%p1_admm(ispin)%matrix, &
+                                       rho=rho_mp2_r_aux(ispin), rho_gspace=rho_mp2_g_aux(ispin), &
+                                       total_rho=tot_rho_r, basis_type="AUX_FIT", &
+                                       task_list_external=task_list_aux_fit)
+            END DO
+            !
+            CALL calc_ks_response_potentials(v_xc, xc_section, qs_env, rho_mp2_r_aux, rho_mp2_g_aux, .TRUE.)
+            !
+            DO ispin = 1, nspins
+               CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
+               CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
+                                       hmat=matrix_h_aux(ispin), pmat=rho_ao_aux(ispin), &
+                                       calculate_forces=.TRUE., basis_type="AUX_FIT", &
+                                       task_list_external=task_list_aux_fit)
+            END DO
+            DO ispin = 1, nspins
+               CALL dbcsr_release(matrix_h_aux(ispin)%matrix)
+            END DO
+            DEALLOCATE(matrix_h_aux)
+
+WRITE(*,*) "rho_elec all"
+            DO ikind = 1, SIZE(force)
+WRITE(*,*) force(ikind)%rho_elec
+               force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%rho_elec
+               force(ikind)%rho_elec = 0.0_dp
+            ENDDO
+
+            CALL apply_hfx_ao(qs_env, p_env%p1, p_env%p1_admm, matrix_ks, .FALSE., .TRUE.)
+
+WRITE(*,*) "fock_4c"
+            DO ikind = 1, SIZE(force)
+WRITE(*,*) force(ikind)%fock_4c
+               force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%fock_4c
+               force(ikind)%fock_4c = 0.0_dp
+            ENDDO
+
+         END IF
+      END IF
 
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
