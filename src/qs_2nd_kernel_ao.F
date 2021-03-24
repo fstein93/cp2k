@@ -24,9 +24,9 @@ MODULE qs_2nd_kernel_ao
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_types,                     ONLY: cp_fm_get_info,&
                                               cp_fm_p_type,&
+                                              cp_fm_set_all,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
-   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
                                               dbcsr_create,&
@@ -74,7 +74,6 @@ MODULE qs_2nd_kernel_ao
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
    USE task_list_types,                 ONLY: task_list_type
-   USE virial_types,                    ONLY: virial_type
    USE xc,                              ONLY: xc_calc_2nd_deriv
    USE xc_derivatives,                  ONLY: xc_functionals_get_needs
    USE xc_rho_cflags_types,             ONLY: xc_rho_cflags_type
@@ -155,14 +154,10 @@ CONTAINS
       LOGICAL                                            :: my_calc_forces, my_recalc_integrals
       REAL(KIND=dp)                                      :: alpha
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho1, work_hmat
-      TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_p
+      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: hrho
       TYPE(dbcsr_type)                                   :: work_hmat2
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(qs_rho_type), POINTER                         :: rho_aux_fit
-      TYPE(section_vals_type), POINTER                   :: hfx_section, input
-      TYPE(virial_type), POINTER                         :: virial
 
       CALL timeset(routineN, handle)
 
@@ -240,15 +235,25 @@ CONTAINS
          END DO
          CALL dbcsr_release(work_hmat2)
 
-         CALL admm_projection_derivative(qs_env, admm_env, work_hmat, rho1_ao)
+         IF (my_calc_forces) THEN
+            ALLOCATE(hrho(nspins))
+            DO ispin = 1, nspins
+               NULLIFY(hrho(nspins)%matrix)
+               ALLOCATE (hrho(ispin)%matrix)
+               CALL dbcsr_create(hrho(ispin)%matrix, template=work_hmat(ispin)%matrix)
+               CALL dbcsr_copy(hrho(ispin)%matrix, work_hmat(ispin)%matrix)
+               CALL dbcsr_set(hrho(ispin)%matrix, 0.0_dp)
+            END DO
 
-         CALL get_qs_env(qs_env, rho_aux_fit=rho_aux_fit, para_env=para_env, virial=virial, input=input)
-         CALL qs_rho_get(rho_aux_fit, rho_ao_kp=matrix_p)
+            CALL admm_projection_derivative(qs_env, admm_env, work_hmat, hrho, rho1_ao)
 
-         hfx_section => section_vals_get_subs_vals(input, "DFT%XC%HF")
+            DO ispin = 1, nspins
+               CALL dbcsr_release(hrho(ispin)%matrix)
+               DEALLOCATE(hrho(ispin)%matrix)
+            END DO
+            DEALLOCATE(hrho)
+         END IF
 
-         CALL derivatives_four_center(qs_env, matrix_p, rho1, hfx_section, para_env, &
-                                      1, virial%pv_availability, resp_only=.TRUE.)
       ELSE
          DO ispin = 1, nspins
             CALL dbcsr_add(h1_mat(ispin)%matrix, work_hmat(ispin)%matrix, 1.0_dp, alpha)
@@ -454,26 +459,28 @@ CONTAINS
 !> \brief ...
 !> \param qs_env ...
 !> \param admm_env ...
-!> \param matrix_hz ...
-!> \param matrix_pz ...
+!> \param matrix_hz HFX part of the Fock matrix using the response density
+!> \param matrix_h HFX part of the Fock matrix using the KS density
+!> \param matrix_pz response density in orbital basis
 ! **************************************************************************************************
-   SUBROUTINE admm_projection_derivative(qs_env, admm_env, matrix_hz, matrix_pz)
+   SUBROUTINE admm_projection_derivative(qs_env, admm_env, matrix_hz, matrix_h, matrix_pz)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: matrix_hz
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: matrix_hz, matrix_h
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_pz
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_projection_derivative'
 
       INTEGER                                            :: handle, ispin, nao, natom, naux, nspins
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: admm_force
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: admm_force_s, admm_force_q
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_p
       TYPE(dbcsr_type), POINTER                          :: matrix_w_q, matrix_w_s
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_aux_fit_asymm, sab_aux_fit_vs_orb
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
+      TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
 
@@ -485,7 +492,8 @@ CONTAINS
                       matrix_s_aux_fit=matrix_s_aux_fit, &
                       matrix_s_aux_fit_vs_orb=matrix_s_aux_fit_vs_orb, &
                       sab_aux_fit_vs_orb=sab_aux_fit_vs_orb, &
-                      sab_aux_fit_asymm=sab_aux_fit_asymm)
+                      sab_aux_fit_asymm=sab_aux_fit_asymm, &
+                      rho=rho)
 
       ALLOCATE (matrix_w_q)
       CALL dbcsr_copy(matrix_w_q, matrix_s_aux_fit_vs_orb(1)%matrix, &
@@ -494,14 +502,24 @@ CONTAINS
       CALL dbcsr_create(matrix_w_s, template=matrix_s_aux_fit(1)%matrix, &
                         name='W MATRIX AUX S', &
                         matrix_type=dbcsr_type_no_symmetry)
+      CALL dbcsr_copy(matrix_w_s, matrix_s_aux_fit_vs_orb(1)%matrix)
+      CALL dbcsr_set(matrix_w_s, 0.0_dp)
 
       CALL get_qs_env(qs_env=qs_env, atomic_kind_set=atomic_kind_set, &
                       natom=natom, force=force)
-      ALLOCATE (admm_force(3, natom))
+      ALLOCATE (admm_force_s(3, natom), admm_force_q(3, natom))
+      admm_force_s = 0.0_dp
+      admm_force_q = 0.0_dp
 
       nspins = SIZE(matrix_pz)
       nao = admm_env%nao_orb
       naux = admm_env%nao_aux_fit
+
+      CALL cp_fm_set_all(admm_env%work_orb_orb, 0.0_dp)
+      CALL cp_fm_set_all(admm_env%work_aux_aux, 0.0_dp)
+
+      CALL qs_rho_get(rho, rho_ao=matrix_p)
+
       DO ispin = 1, nspins
          CALL copy_dbcsr_to_fm(matrix_hz(ispin)%matrix, admm_env%work_aux_aux)
          CALL cp_gemm("N", "N", naux, naux, naux, 1.0_dp, admm_env%s_inv, &
@@ -511,27 +529,48 @@ CONTAINS
          CALL copy_dbcsr_to_fm(matrix_pz(ispin)%matrix, admm_env%work_orb_orb)
          ! admm_env%work_aux_orb2 = S-1*H*A*P
          CALL cp_gemm("N", "N", naux, nao, nao, 1.0_dp, admm_env%work_aux_orb, &
-                      admm_env%work_orb_orb, 0.0_dp, admm_env%work_aux_orb2)
-         ! admm_env%work_aux_aux = S-1*H*A*P*A(T)
-         CALL cp_gemm("N", "T", naux, naux, nao, 2.0_dp, admm_env%work_aux_orb2, &
-                      admm_env%A, 0.0_dp, admm_env%work_aux_aux)
-         !
-         CALL copy_fm_to_dbcsr(admm_env%work_aux_orb2, matrix_w_q, keep_sparsity=.TRUE.)
-         CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_w_s, keep_sparsity=.TRUE.)
-         CALL dbcsr_scale(matrix_w_s, -2.0_dp)
-         !
-         admm_force = 0.0_dp
-         CALL build_overlap_force(ks_env, admm_force, &
-                                  basis_type_a="AUX_FIT", basis_type_b="AUX_FIT", &
-                                  sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s)
-         CALL build_overlap_force(ks_env, admm_force, &
-                                  basis_type_a="AUX_FIT", basis_type_b="ORB", &
-                                  sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q)
-         ! add forces
-         CALL add_qs_force(admm_force, force, "overlap_admm", atomic_kind_set)
+                      admm_env%work_orb_orb, 1.0_dp, admm_env%work_aux_orb2)
+
+         CALL copy_dbcsr_to_fm(matrix_h(ispin)%matrix, admm_env%work_aux_aux)
+         CALL cp_gemm("N", "N", naux, naux, naux, 1.0_dp, admm_env%s_inv, &
+                      admm_env%work_aux_aux, 0.0_dp, admm_env%work_aux_aux2)
+         CALL cp_gemm("N", "N", naux, nao, naux, 1.0_dp, admm_env%work_aux_aux2, &
+                      admm_env%A, 0.0_dp, admm_env%work_aux_orb)
+         CALL copy_dbcsr_to_fm(matrix_p(ispin)%matrix, admm_env%work_orb_orb)
+         ! admm_env%work_aux_orb2 = S-1*H*A*P
+         CALL cp_gemm("N", "N", naux, nao, nao, 1.0_dp, admm_env%work_aux_orb, &
+                      admm_env%work_orb_orb, 1.0_dp, admm_env%work_aux_orb2)
+      END DO
+      !
+      CALL copy_fm_to_dbcsr(admm_env%work_aux_orb2, matrix_w_q, keep_sparsity=.TRUE.)
+      !
+      ! admm_env%work_aux_aux = S-1*H*A*P*A(T)
+      CALL cp_gemm("N", "T", naux, naux, nao, -1.0_dp, admm_env%work_aux_orb2, &
+                   admm_env%A, 0.0_dp, admm_env%work_aux_aux)
+      CALL copy_fm_to_dbcsr(admm_env%work_aux_aux, matrix_w_s, keep_sparsity=.TRUE.)
+      !
+      CALL build_overlap_force(ks_env, admm_force_s, &
+                               basis_type_a="AUX_FIT", basis_type_b="AUX_FIT", &
+                               sab_nl=sab_aux_fit_asymm, matrix_p=matrix_w_s)
+      CALL build_overlap_force(ks_env, admm_force_q, &
+                               basis_type_a="AUX_FIT", basis_type_b="ORB", &
+                               sab_nl=sab_aux_fit_vs_orb, matrix_p=matrix_w_q)
+
+      WRITE(*,*) "contr S"
+      DO ispin = 1, natom
+         WRITE(*,*) admm_force_s(:, ispin)
       END DO
 
-      DEALLOCATE (admm_force)
+      WRITE(*,*) "contr Q"
+      DO ispin = 1, natom
+         WRITE(*,*) admm_force_Q(:, ispin)
+      END DO
+
+      ! add forces
+      CALL add_qs_force(admm_force_s, force, "overlap_admm", atomic_kind_set)
+      CALL add_qs_force(admm_force_q, force, "overlap_admm", atomic_kind_set)
+
+      DEALLOCATE (admm_force_s, admm_force_q)
       CALL dbcsr_deallocate_matrix(matrix_w_s)
       CALL dbcsr_deallocate_matrix(matrix_w_q)
 

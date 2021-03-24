@@ -32,6 +32,9 @@ MODULE mp2_cphf
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
+   USE cp_log_handling,                 ONLY: cp_get_default_logger,&
+                                              cp_logger_get_default_unit_nr,&
+                                              cp_logger_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_copy,&
@@ -58,7 +61,7 @@ MODULE mp2_cphf
    USE machine,                         ONLY: m_walltime
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_sum
-   USE mp2_types,                       ONLY: mp2_type
+   USE mp2_types,                       ONLY: mp2_type, two_dim_real_array
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_type
    USE pw_methods,                      ONLY: pw_axpy,&
@@ -1192,11 +1195,11 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_mp2_forces'
 
-      INTEGER                                            :: alpha, beta, handle, handle2, i, ikind, &
+      INTEGER                                            :: alpha, beta, handle, handle2, i, ikind, iounit, &
                                                             ispin, nspins
       INTEGER, DIMENSION(3)                              :: comp
       LOGICAL                                            :: use_virial
-      REAL(KIND=dp)                                      :: e_hartree, e_xc, pair_energy, tot_rho_r , exc
+      REAL(KIND=dp)                                      :: e_hartree, e_xc, pair_energy, tot_rho_r
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_dummy, h_stress
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: matrix_h_aux
@@ -1209,7 +1212,7 @@ CONTAINS
       TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: tau_mp2_g, tau_mp2_r
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_mp2_g, rho_mp2_r, rho_r, &
                                                             tau_r, v_rho, v_tau, &
-                                                            v_xc, rho_mp2_g_aux, rho_mp2_r_aux, v_rspace, v_tau_rspace
+                                                            v_xc, rho_mp2_g_aux, rho_mp2_r_aux
       TYPE(pw_p_type), POINTER                           :: rho_core
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1220,8 +1223,13 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: input, xc_section
       TYPE(task_list_type), POINTER                      :: task_list_aux_fit
       TYPE(virial_type), POINTER                         :: virial
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(two_dim_real_array), DIMENSION(:), ALLOCATABLE :: deb
 
       CALL timeset(routineN, handle)
+
+      logger => cp_get_default_logger()
+      iounit = cp_logger_get_default_unit_nr(logger)
 
       NULLIFY (input, pw_env, matrix_s, rho, energy, force, virial, matrix_w_mp2, &
                matrix_p_mp2, matrix_ks, rho_core)
@@ -1378,27 +1386,10 @@ CONTAINS
 
             CALL admm_aux_reponse_density(qs_env, matrix_p_mp2, p_env%p1_admm)
 
-            NULLIFY (v_rspace, v_tau_rspace)
-            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_aux, xc_section=xc_section, &
-                               vxc_rho=v_rspace, vxc_tau=v_tau_rspace, exc=exc, just_energy=.FALSE.)
-            CPASSERT(.NOT. ASSOCIATED(v_tau_rspace))
-
-            DO ispin = 1, nspins
-               v_rspace(ispin)%pw%cr3d = v_rspace(ispin)%pw%pw_grid%dvol*v_rspace(ispin)%pw%cr3d
-               CALL integrate_v_rspace(v_rspace=v_rspace(ispin), &
-                                       hmat=matrix_h_aux(ispin), pmat=p_env%p1_admm(ispin), &
-                                       qs_env=qs_env, calculate_forces=.TRUE., &
-                                       basis_type="AUX_FIT", task_list_external=task_list_aux_fit)
-               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rspace(ispin)%pw)
-            END DO
-            DEALLOCATE(v_rspace)
-
-WRITE(*,*) "rho_elec vxc"
+            ALLOCATE(deb(SIZE(force)))
             DO ikind = 1, SIZE(force)
-WRITE(*,*) force(ikind)%rho_elec
-               force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%rho_elec
-               force(ikind)%rho_elec = 0.0_dp
-            ENDDO
+               ALLOCATE(deb(ikind)%array(SIZE(force(ikind)%rho_elec, 1), SIZE(force(ikind)%rho_elec, 2)))
+            END DO
 
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=p_env%p1_admm(ispin)%matrix, &
@@ -1410,32 +1401,48 @@ WRITE(*,*) force(ikind)%rho_elec
             CALL calc_ks_response_potentials(v_xc, xc_section, qs_env, rho_mp2_r_aux, rho_mp2_g_aux, .TRUE.)
             !
             DO ispin = 1, nspins
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_mp2_r_aux(ispin)%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_mp2_g_aux(ispin)%pw)
                CALL pw_scale(v_xc(ispin)%pw, v_xc(ispin)%pw%pw_grid%dvol)
                CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_xc(ispin), &
                                        hmat=matrix_h_aux(ispin), pmat=rho_ao_aux(ispin), &
                                        calculate_forces=.TRUE., basis_type="AUX_FIT", &
                                        task_list_external=task_list_aux_fit)
             END DO
+            DEALLOCATE(rho_mp2_r_aux, rho_mp2_g_aux)
             DO ispin = 1, nspins
                CALL dbcsr_release(matrix_h_aux(ispin)%matrix)
+               DEALLOCATE(matrix_h_aux(ispin)%matrix)
             END DO
             DEALLOCATE(matrix_h_aux)
 
-WRITE(*,*) "rho_elec all"
+            IF (iounit > 0) WRITE(*,*) "rho_elec all"
             DO ikind = 1, SIZE(force)
-WRITE(*,*) force(ikind)%rho_elec
+               deb(ikind)%array(:,:) = force(ikind)%rho_elec
                force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%rho_elec
                force(ikind)%rho_elec = 0.0_dp
             ENDDO
+            DO ikind = 1, SIZE(deb)
+               CALL mp_sum(deb(ikind)%array, para_env%group)
+               IF (iounit > 0) WRITE(*,*) deb(ikind)%array
+            END DO
 
             CALL apply_hfx_ao(qs_env, p_env%p1, p_env%p1_admm, matrix_ks, .FALSE., .TRUE.)
+            DO ikind = 1, SIZE(deb)
+               deb(ikind)%array(:, :) = force(ikind)%overlap_admm
+               force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%overlap_admm
+               force(ikind)%overlap_admm = 0.0_dp
+            END DO
+            IF (iounit > 0) WRITE(*,*) "overlap_admm"
+            DO ikind = 1, SIZE(deb)
+               CALL mp_sum(deb(ikind)%array, para_env%group)
+               IF (iounit > 0) WRITE(*,*) deb(ikind)%array
+            END DO
 
-WRITE(*,*) "fock_4c"
-            DO ikind = 1, SIZE(force)
-WRITE(*,*) force(ikind)%fock_4c
-               force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%fock_4c
-               force(ikind)%fock_4c = 0.0_dp
-            ENDDO
+            DO ikind = 1, SIZE(deb)
+               DEALLOCATE(deb(ikind)%array)
+            END DO
+            DEALLOCATE(deb)
 
          END IF
       END IF
