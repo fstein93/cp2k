@@ -1307,12 +1307,26 @@ CONTAINS
       CALL pw_transfer(pot_g%pw, pot_r%pw)
       CALL pw_scale(pot_r%pw, pot_r%pw%pw_grid%dvol)
 
+      ALLOCATE(deb(SIZE(force)))
+      DO ikind = 1, SIZE(force)
+         ALLOCATE(deb(ikind)%array(SIZE(force(ikind)%rho_elec, 1), SIZE(force(ikind)%rho_elec, 2)))
+      END DO
+
       ! calculate core forces
       CALL integrate_v_core_rspace(pot_r, qs_env)
       DO ikind = 1, SIZE(force)
+         deb(ikind)%array(:, :) = force(ikind)%rho_core
          force(ikind)%mp2_sep = force(ikind)%rho_core
          force(ikind)%rho_core = 0.0_dp
       ENDDO
+      IF (iounit > 0) WRITE(iounit, *) "core"
+      DO ikind = 1, SIZE(deb)
+         CALL mp_sum(deb(ikind)%array, para_env%group)
+         IF (iounit <= 0) CYCLE
+         DO ispin = 1, SIZE(deb(ikind)%array, 2)
+            WRITE(iounit,*) deb(ikind)%array(:, ispin)
+         END DO
+      END DO
 
       ! Calculate XC part
       NULLIFY (v_xc)
@@ -1356,11 +1370,21 @@ CONTAINS
       END DO
 
       DO ikind = 1, SIZE(force)
+         deb(ikind)%array(:, :) = force(ikind)%rho_elec
          force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%rho_elec
          force(ikind)%rho_elec = 0.0_dp
       ENDDO
+      IF (iounit > 0) WRITE(iounit, *) "HXC part"
+      DO ikind = 1, SIZE(deb)
+         CALL mp_sum(deb(ikind)%array, para_env%group)
+         IF (iounit <= 0) CYCLE
+         DO ispin = 1, SIZE(deb(ikind)%array, 2)
+            WRITE(iounit,*) deb(ikind)%array(:, ispin)
+         END DO
+      END DO
 
       IF (dft_control%do_admm) THEN
+
          IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
             CALL get_qs_env(qs_env, ks_env=ks_env, rho_aux_fit=rho_aux, &
                             matrix_s_aux_fit=matrix_s_aux, task_list_aux_fit=task_list_aux_fit)
@@ -1385,11 +1409,6 @@ CONTAINS
             END DO
 
             CALL admm_aux_reponse_density(qs_env, matrix_p_mp2, p_env%p1_admm)
-
-            ALLOCATE(deb(SIZE(force)))
-            DO ikind = 1, SIZE(force)
-               ALLOCATE(deb(ikind)%array(SIZE(force(ikind)%rho_elec, 1), SIZE(force(ikind)%rho_elec, 2)))
-            END DO
 
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=p_env%p1_admm(ispin)%matrix, &
@@ -1416,7 +1435,7 @@ CONTAINS
             END DO
             DEALLOCATE(matrix_h_aux)
 
-            IF (iounit > 0) WRITE(*,*) "rho_elec all"
+            IF (iounit > 0) WRITE(iounit,*) "rho_elec all"
             DO ikind = 1, SIZE(force)
                deb(ikind)%array(:,:) = force(ikind)%rho_elec
                force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%rho_elec
@@ -1424,7 +1443,7 @@ CONTAINS
             ENDDO
             DO ikind = 1, SIZE(deb)
                CALL mp_sum(deb(ikind)%array, para_env%group)
-               IF (iounit > 0) WRITE(*,*) deb(ikind)%array
+               IF (iounit > 0) WRITE(iounit,*) deb(ikind)%array
             END DO
 
             CALL apply_hfx_ao(qs_env, p_env%p1, p_env%p1_admm, matrix_ks, .FALSE., .TRUE.)
@@ -1433,19 +1452,35 @@ CONTAINS
                force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%overlap_admm
                force(ikind)%overlap_admm = 0.0_dp
             END DO
-            IF (iounit > 0) WRITE(*,*) "overlap_admm"
+            IF (iounit > 0) WRITE(iounit,*) "overlap_admm"
             DO ikind = 1, SIZE(deb)
                CALL mp_sum(deb(ikind)%array, para_env%group)
-               IF (iounit > 0) WRITE(*,*) deb(ikind)%array
+               IF (iounit > 0) WRITE(iounit,*) deb(ikind)%array
             END DO
-
-            DO ikind = 1, SIZE(deb)
-               DEALLOCATE(deb(ikind)%array)
-            END DO
-            DEALLOCATE(deb)
 
          END IF
+
+         ! Now, add the correction of the derivatives from the projector
+         CALL apply_hfx_ao(qs_env, p_env%p1, p_env%p1_admm, p_env%kpp1, .FALSE., .TRUE.)
+
+         DO ikind = 1, SIZE(deb)
+            deb(ikind)%array(:, :) = force(ikind)%overlap_admm
+            force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%overlap_admm
+            force(ikind)%overlap_admm = 0.0_dp
+         END DO
+
+         IF (iounit > 0) WRITE(iounit,*) "overlap_admm"
+         DO ikind = 1, SIZE(deb)
+            CALL mp_sum(deb(ikind)%array, para_env%group)
+            IF (iounit > 0) WRITE(iounit,*) deb(ikind)%array
+         END DO
+
       END IF
+
+      DO ikind = 1, SIZE(deb)
+         DEALLOCATE(deb(ikind)%array)
+      END DO
+      DEALLOCATE(deb)
 
       DO ispin = 1, nspins
          CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
