@@ -653,9 +653,9 @@ CONTAINS
 
       !in case of no admm exchange corr., no auxiliary exchange functional needed
       IF (admm_env%aux_exch_func == do_admm_aux_exch_func_none) THEN
-         hfx_fraction = 0.0_dp
          CALL section_vals_val_set(xc_fun_section, "_SECTION_PARAMETERS_", &
-                                   i_val=xc_none)
+                                i_val=xc_none)
+         hfx_fraction = 0.0_dp
       ELSE IF (admm_env%aux_exch_func == do_admm_aux_exch_func_default) THEN
          ! default PBE Functional
          !! ** Add functionals evaluated with auxiliary basis
