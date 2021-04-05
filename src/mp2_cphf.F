@@ -171,15 +171,15 @@ CONTAINS
                                                             P_mo, W_mo
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
       TYPE(cp_fm_type), POINTER                          :: fm_back, fm_G_mu_nu
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, matrix_s, &
-                                                            matrix_w_mp2, P_mu_nu, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, matrix_p_mp2_admm, matrix_s, &
+                                                            matrix_w_mp2, P_mu_nu, rho_ao, rho_ao_aux_fit
       TYPE(hfx_container_type), DIMENSION(:), POINTER    :: integral_containers
       TYPE(hfx_container_type), POINTER                  :: maxval_container
       TYPE(hfx_type), POINTER                            :: actual_x_data
       TYPE(linres_control_type), POINTER                 :: linres_control
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(section_vals_type), POINTER                   :: hfx_sections, input
 
       CALL timeset(routineN, handle)
@@ -187,13 +187,14 @@ CONTAINS
       ! start collecting stuff
       dimen = nmo
       NULLIFY (input, matrix_s, blacs_env, rho, matrix_w_mp2, &
-               matrix_p_mp2, matrix_ks)
+               matrix_p_mp2, matrix_p_mp2_admm, matrix_ks)
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       input=input, &
                       matrix_s=matrix_s, &
                       matrix_ks=matrix_ks, &
                       matrix_p_mp2=matrix_p_mp2, &
+                      matrix_p_mp2_admm=matrix_p_mp2_admm, &
                       matrix_w_mp2=matrix_w_mp2, &
                       blacs_env=blacs_env, &
                       rho=rho)
@@ -506,7 +507,23 @@ CONTAINS
          CALL dbcsr_set(matrix_p_mp2(ispin)%matrix, 0.0_dp)
          CALL copy_fm_to_dbcsr(P_mo(ispin)%matrix, matrix_p_mp2(ispin)%matrix, keep_sparsity=.TRUE.)
       END DO
-      CALL set_ks_env(ks_env, matrix_p_mp2=matrix_p_mp2)
+
+      IF (dft_control%do_admm) THEN
+         CALL get_qs_env(qs_env, rho_aux_fit=rho_aux_fit)
+         CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux_fit)
+
+         ! create mp2 DBCSR density in auxiliary basis
+         CALL dbcsr_allocate_matrix_set(matrix_p_mp2_admm, nspins)
+         DO ispin = 1, nspins
+            ALLOCATE (matrix_p_mp2_admm(ispin)%matrix)
+            CALL dbcsr_copy(matrix_p_mp2_admm(ispin)%matrix, rho_ao_aux_fit(ispin)%matrix, &
+                            name="P MATRIX MP2 ADMM")
+         END DO
+
+         CALL admm_aux_reponse_density(qs_env, matrix_p_mp2, matrix_p_mp2_admm)
+      END IF
+
+      CALL set_ks_env(ks_env, matrix_p_mp2=matrix_p_mp2, matrix_p_mp2_admm=matrix_p_mp2_admm)
 
       CALL cp_fm_release(fm_back)
 
@@ -517,7 +534,7 @@ CONTAINS
       END DO
       DEALLOCATE (P_mo, W_mo)
 
-      CALL update_mp2_forces(qs_env, p_env, para_env)
+      CALL update_mp2_forces(qs_env)
 
       ! We will need one more hfx calculation for HF gradient part
       mp2_env%not_last_hfx = .FALSE.
@@ -1186,12 +1203,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE update_mp2_forces(qs_env, p_env, para_env)
+   SUBROUTINE update_mp2_forces(qs_env)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_mp2_forces'
 
@@ -1202,8 +1216,9 @@ CONTAINS
       REAL(KIND=dp)                                      :: e_hartree, e_xc, pair_energy, tot_rho_r
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_dummy, h_stress
       TYPE(admm_type), POINTER                           :: admm_env
+      TYPE(cp_para_env_type), POINTER                    :: para_env
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: matrix_h_aux
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, matrix_s, &
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, matrix_p_mp2_admm, matrix_s, &
                                                             matrix_w_mp2, rho_ao, rho_ao_aux, matrix_s_aux
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_env_type), POINTER                         :: pw_env
@@ -1232,15 +1247,17 @@ CONTAINS
       iounit = cp_logger_get_default_unit_nr(logger)
 
       NULLIFY (input, pw_env, matrix_s, rho, energy, force, virial, matrix_w_mp2, &
-               matrix_p_mp2, matrix_ks, rho_core)
+               matrix_p_mp2, matrix_p_mp2_admm, matrix_ks, rho_core)
       CALL get_qs_env(qs_env, &
                       ks_env=ks_env, &
                       dft_control=dft_control, &
                       pw_env=pw_env, &
                       input=input, &
+                      para_env=para_env, &
                       matrix_s=matrix_s, &
                       matrix_ks=matrix_ks, &
                       matrix_p_mp2=matrix_p_mp2, &
+                      matrix_p_mp2_admm=matrix_p_mp2_admm, &
                       matrix_w_mp2=matrix_w_mp2, &
                       rho=rho, &
                       energy=energy, &
@@ -1403,15 +1420,13 @@ CONTAINS
             DO ispin = 1, nspins
                NULLIFY(matrix_h_aux(ispin)%matrix)
                ALLOCATE(matrix_h_aux(ispin)%matrix)
-               CALL dbcsr_create(matrix_h_aux(ispin)%matrix, template=p_env%p1_admm(ispin)%matrix)
-               CALL dbcsr_copy(matrix_h_aux(ispin)%matrix, p_env%p1_admm(ispin)%matrix)
+               CALL dbcsr_create(matrix_h_aux(ispin)%matrix, template=matrix_p_mp2_admm(ispin)%matrix)
+               CALL dbcsr_copy(matrix_h_aux(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix)
                CALL dbcsr_set(matrix_h_aux(ispin)%matrix, 0.0_dp)
             END DO
 
-            CALL admm_aux_reponse_density(qs_env, matrix_p_mp2, p_env%p1_admm)
-
             DO ispin = 1, nspins
-               CALL calculate_rho_elec(ks_env=ks_env, matrix_p=p_env%p1_admm(ispin)%matrix, &
+               CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_p_mp2_admm(ispin)%matrix, &
                                        rho=rho_mp2_r_aux(ispin), rho_gspace=rho_mp2_g_aux(ispin), &
                                        total_rho=tot_rho_r, basis_type="AUX_FIT", &
                                        task_list_external=task_list_aux_fit)
@@ -1446,7 +1461,7 @@ CONTAINS
                IF (iounit > 0) WRITE(iounit,*) deb(ikind)%array
             END DO
 
-            CALL apply_hfx_ao(qs_env, p_env%p1, p_env%p1_admm, matrix_ks, .FALSE., .TRUE.)
+            CALL apply_hfx_ao(qs_env, matrix_p_mp2, matrix_p_mp2_admm, matrix_ks, .FALSE., .TRUE.)
             DO ikind = 1, SIZE(deb)
                deb(ikind)%array(:, :) = force(ikind)%overlap_admm
                force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%overlap_admm
@@ -1461,7 +1476,7 @@ CONTAINS
          END IF
 
          ! Now, add the correction of the derivatives from the projector
-         CALL apply_hfx_ao(qs_env, p_env%p1, p_env%p1_admm, p_env%kpp1, .FALSE., .TRUE.)
+         CALL apply_hfx_ao(qs_env, matrix_p_mp2, matrix_p_mp2_admm, matrix_ks, .FALSE., .TRUE.)
 
          DO ikind = 1, SIZE(deb)
             deb(ikind)%array(:, :) = force(ikind)%overlap_admm

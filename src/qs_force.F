@@ -142,8 +142,8 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff, mo_coeff_aux_fit
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_aux_fit, matrix_p_mp2, matrix_s, &
-         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_w, matrix_w_mp2, rho_ao
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER :: matrix_ks_aux_fit, matrix_p_mp2, matrix_p_mp2_admm, matrix_s, &
+         matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, matrix_w, matrix_w_mp2, rho_ao, rho_ao_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_w_kp
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(lri_environment_type), POINTER                :: lri_env
@@ -153,7 +153,7 @@ CONTAINS
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(qs_rho_type), POINTER                         :: rho
+      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
       TYPE(qs_subsys_type), POINTER                      :: subsys
       TYPE(section_vals_type), POINTER                   :: print_section
       TYPE(virial_type), POINTER                         :: virial
@@ -313,9 +313,10 @@ CONTAINS
 
       ! MP2 Code
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
-         NULLIFY (matrix_p_mp2, matrix_w_mp2, rho, ks_env, energy)
+         NULLIFY (matrix_p_mp2, matrix_p_mp2_admm, matrix_w_mp2, rho, ks_env, energy)
          CALL get_qs_env(qs_env, &
                          matrix_p_mp2=matrix_p_mp2, &
+                         matrix_p_mp2_admm=matrix_p_mp2_admm, &
                          matrix_w_mp2=matrix_w_mp2, &
                          ks_env=ks_env, &
                          rho=rho, &
@@ -329,7 +330,19 @@ CONTAINS
             CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
          END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
-         CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
+
+         ! If we use ADMM, we have to update densities in auxiliary basis, too
+         IF (dft_control%do_admm) THEN
+            NULLIFY (rho_aux_fit, rho_ao_aux_fit)
+            CALL get_qs_env(qs_env, rho_aux_fit=rho_aux_fit)
+            CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux_fit)
+            DO ispin = 1, dft_control%nspins
+               CALL dbcsr_add(rho_ao_aux_fit(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix, 1.0_dp, -1.0_dp)
+            END DO
+            CALL qs_rho_update_rho(rho_aux_fit, qs_env=qs_env)
+         END IF
+
+         CALL qs_ks_did_change(ks_env, rho_changed=.TRUE., do_not_update_admm=.TRUE.)
          CALL qs_ks_update_qs_env(qs_env, just_energy=.TRUE.)
          energy%total = energy%total + energy%mp2
 
@@ -339,14 +352,32 @@ CONTAINS
             CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, 1.0_dp)
          END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
-         CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
+
+         ! Same for ADMM
+         IF (dft_control%do_admm) THEN
+            DO ispin = 1, dft_control%nspins
+               CALL dbcsr_add(rho_ao_aux_fit(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
+            END DO
+            CALL qs_rho_update_rho(rho_aux_fit, qs_env=qs_env)
+         END IF
+
+         CALL qs_ks_did_change(ks_env, rho_changed=.TRUE., do_not_update_admm=.TRUE.)
          CALL qs_scf_compute_properties(qs_env, wf_type='MP2   ')
          ! Get everything back
          DO ispin = 1, dft_control%nspins
             CALL dbcsr_add(rho_ao(ispin)%matrix, matrix_p_mp2(ispin)%matrix, 1.0_dp, -1.0_dp)
          END DO
          CALL qs_rho_update_rho(rho, qs_env=qs_env)
-         CALL qs_ks_did_change(ks_env, rho_changed=.TRUE.)
+
+         ! Same for ADMM
+         IF (dft_control%do_admm) THEN
+            DO ispin = 1, dft_control%nspins
+               CALL dbcsr_add(rho_ao_aux_fit(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix, 1.0_dp, -1.0_dp)
+            END DO
+            CALL qs_rho_update_rho(rho_aux_fit, qs_env=qs_env)
+         END IF
+
+         CALL qs_ks_did_change(ks_env, rho_changed=.TRUE., do_not_update_admm=.TRUE.)
 
          ! deallocate mp2_W
          CALL dbcsr_deallocate_matrix_set(matrix_w_mp2)

@@ -143,6 +143,7 @@ MODULE qs_ks_types
       LOGICAL                                               :: s_mstruct_changed = .TRUE., &
                                                                rho_changed = .TRUE., &
                                                                potential_changed = .TRUE., &
+                                                               update_admm = .TRUE., &
                                                                forces_up_to_date = .FALSE.
       INTEGER                                               :: n_evals = 0, &
                                                                id_nr = -1, &
@@ -163,6 +164,7 @@ MODULE qs_ks_types
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_im => Null(), &
                                                             matrix_w_mp2 => Null(), &
                                                             matrix_p_mp2 => Null(), &
+                                                            matrix_p_mp2_admm => Null(), &
                                                             matrix_s_aux_fit => Null(), &
                                                             matrix_s_aux_fit_vs_orb => Null(), &
                                                             matrix_ks_aux_fit => Null(), &
@@ -256,6 +258,7 @@ CONTAINS
 !> \param s_mstruct_changed ...
 !> \param rho_changed ...
 !> \param potential_changed ...
+!> \param update_admm ...
 !> \param forces_up_to_date ...
 !> \param matrix_h ...
 !> \param matrix_ks ...
@@ -273,6 +276,7 @@ CONTAINS
 !> \param matrix_w ...
 !> \param matrix_w_mp2 ...
 !> \param matrix_p_mp2 ...
+!> \param matrix_p_mp2_admm ...
 !> \param matrix_h_kp ...
 !> \param matrix_ks_kp ...
 !> \param matrix_vxc_kp ...
@@ -347,11 +351,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_ks_env(ks_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, &
-                         potential_changed, forces_up_to_date, &
+                         potential_changed, update_admm, forces_up_to_date, &
                          matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, matrix_ks_aux_fit, &
                          matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, &
                          kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-                         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, &
+                         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, matrix_p_mp2_admm, &
                          matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
                          matrix_s_RI_aux_kp, &
                          rho, rho_aux_fit, rho_aux_fit_buffer, &
@@ -372,11 +376,12 @@ CONTAINS
       TYPE(qs_ks_env_type), INTENT(IN)                   :: ks_env
       TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
-                                                            potential_changed, forces_up_to_date
+                                                            potential_changed, forces_up_to_date, &
+                                                            update_admm
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
          matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, &
          matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2
+         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, matrix_p_mp2_admm
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
                                                             matrix_vxc_kp, kinetic_kp, &
@@ -432,6 +437,7 @@ CONTAINS
       IF (PRESENT(s_mstruct_changed)) s_mstruct_changed = ks_env%s_mstruct_changed
       IF (PRESENT(rho_changed)) rho_changed = ks_env%rho_changed
       IF (PRESENT(potential_changed)) potential_changed = ks_env%potential_changed
+      IF (PRESENT(update_admm)) update_admm = ks_env%update_admm
       IF (PRESENT(forces_up_to_date)) forces_up_to_date = ks_env%forces_up_to_date
       IF (PRESENT(v_hartree_rspace)) v_hartree_rspace => ks_env%v_hartree_rspace
 
@@ -460,6 +466,7 @@ CONTAINS
       IF (PRESENT(matrix_s_aux_fit_vs_orb)) matrix_s_aux_fit_vs_orb => ks_env%matrix_s_aux_fit_vs_orb
       IF (PRESENT(matrix_w_mp2)) matrix_w_mp2 => ks_env%matrix_w_mp2
       IF (PRESENT(matrix_p_mp2)) matrix_p_mp2 => ks_env%matrix_p_mp2
+      IF (PRESENT(matrix_p_mp2_admm)) matrix_p_mp2_admm => ks_env%matrix_p_mp2_admm
       IF (PRESENT(rho)) rho => ks_env%rho
       IF (PRESENT(rho_aux_fit)) rho_aux_fit => ks_env%rho_aux_fit
       IF (PRESENT(rho_aux_fit_buffer)) rho_aux_fit_buffer => ks_env%rho_aux_fit_buffer
@@ -541,6 +548,7 @@ CONTAINS
 !> \param s_mstruct_changed ...
 !> \param rho_changed ...
 !> \param potential_changed ...
+!> \param update_admm ...
 !> \param forces_up_to_date ...
 !> \param matrix_h ...
 !> \param matrix_ks ...
@@ -558,6 +566,7 @@ CONTAINS
 !> \param matrix_w ...
 !> \param matrix_w_mp2 ...
 !> \param matrix_p_mp2 ...
+!> \param matrix_p_mp2_admm ...
 !> \param matrix_h_kp ...
 !> \param matrix_ks_kp ...
 !> \param matrix_vxc_kp ...
@@ -606,10 +615,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_ks_env(ks_env, v_hartree_rspace, &
                          s_mstruct_changed, rho_changed, &
-                         potential_changed, forces_up_to_date, &
+                         potential_changed, update_admm, forces_up_to_date, &
                          matrix_h, matrix_ks, matrix_ks_im, matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, &
                          matrix_ks_aux_fit_dft, matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, &
-                         matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, &
+                         matrix_s_aux_fit_vs_orb, matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, matrix_p_mp2_admm, &
                          matrix_h_kp, matrix_ks_kp, matrix_vxc_kp, kinetic_kp, matrix_s_kp, matrix_w_kp, &
                          matrix_s_RI_aux_kp, &
                          vppl, rho_core, rho_nlcc, rho_nlcc_g, vee, &
@@ -625,11 +634,12 @@ CONTAINS
       TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
       TYPE(pw_type), OPTIONAL, POINTER                   :: v_hartree_rspace
       LOGICAL, OPTIONAL                                  :: s_mstruct_changed, rho_changed, &
-                                                            potential_changed, forces_up_to_date
+                                                            potential_changed, forces_up_to_date, &
+                                                            update_admm
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, POINTER :: matrix_h, matrix_ks, matrix_ks_im, &
          matrix_vxc, matrix_ks_aux_fit, matrix_ks_aux_fit_im, matrix_ks_aux_fit_dft, &
          matrix_ks_aux_fit_hfx, kinetic, matrix_s, matrix_s_aux_fit, matrix_s_aux_fit_vs_orb, &
-         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2
+         matrix_s_RI_aux, matrix_w, matrix_w_mp2, matrix_p_mp2, matrix_p_mp2_admm
       TYPE(dbcsr_p_type), DIMENSION(:, :), OPTIONAL, &
          POINTER                                         :: matrix_h_kp, matrix_ks_kp, &
                                                             matrix_vxc_kp, kinetic_kp, &
@@ -658,9 +668,12 @@ CONTAINS
       IF (PRESENT(s_mstruct_changed)) ks_env%s_mstruct_changed = s_mstruct_changed
       IF (PRESENT(rho_changed)) ks_env%rho_changed = rho_changed
       IF (PRESENT(potential_changed)) ks_env%potential_changed = potential_changed
+      IF (PRESENT(update_admm)) ks_env%update_admm = update_admm
       IF (PRESENT(forces_up_to_date)) ks_env%forces_up_to_date = forces_up_to_date
-      IF (ks_env%s_mstruct_changed .OR. ks_env%potential_changed .OR. ks_env%rho_changed) &
+      IF (ks_env%s_mstruct_changed .OR. ks_env%potential_changed .OR. ks_env%rho_changed) THEN
          ks_env%forces_up_to_date = .FALSE.
+         IF (.NOT. PRESENT(update_admm)) ks_env%update_admm = .TRUE.
+      END IF
       IF (PRESENT(v_hartree_rspace)) ks_env%v_hartree_rspace => v_hartree_rspace
 
       IF (PRESENT(matrix_h)) CALL set_1d_pointer(ks_env%matrix_h, matrix_h)
@@ -693,6 +706,7 @@ CONTAINS
       IF (PRESENT(matrix_s_aux_fit_vs_orb)) ks_env%matrix_s_aux_fit_vs_orb => matrix_s_aux_fit_vs_orb
       IF (PRESENT(matrix_w_mp2)) ks_env%matrix_w_mp2 => matrix_w_mp2
       IF (PRESENT(matrix_p_mp2)) ks_env%matrix_p_mp2 => matrix_p_mp2
+      IF (PRESENT(matrix_p_mp2_admm)) ks_env%matrix_p_mp2_admm => matrix_p_mp2_admm
       IF (PRESENT(rho_core)) ks_env%rho_core => rho_core
       IF (PRESENT(rho_nlcc)) ks_env%rho_nlcc => rho_nlcc
       IF (PRESENT(rho_nlcc_g)) ks_env%rho_nlcc_g => rho_nlcc_g
@@ -810,6 +824,8 @@ CONTAINS
                CALL dbcsr_deallocate_matrix_set(ks_env%matrix_w_mp2)
             IF (ASSOCIATED(ks_env%matrix_p_mp2)) &
                CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2)
+            IF (ASSOCIATED(ks_env%matrix_p_mp2_admm)) &
+               CALL dbcsr_deallocate_matrix_set(ks_env%matrix_p_mp2_admm)
             IF (ASSOCIATED(ks_env%rho)) &
                CALL qs_rho_release(ks_env%rho)
             IF (ASSOCIATED(ks_env%rho_buffer)) &
@@ -914,16 +930,18 @@ CONTAINS
 !> \param rho_changed if true it means that the density has changed
 !> \param potential_changed ...
 !> \param full_reset if true everything has changed
+!> \param do_not_update_admm if true it means that the admm density matrices shall not be updated
 !> \par History
 !>      4.2002 created [fawzi]
 !>     12.2014 moved from qs_ks_methods, added deallocation of KS-matrices [Ole Schuett]
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE qs_ks_did_change(ks_env, s_mstruct_changed, rho_changed, &
-                               potential_changed, full_reset)
+                               potential_changed, full_reset, do_not_update_admm)
       TYPE(qs_ks_env_type), INTENT(INOUT)                :: ks_env
       LOGICAL, INTENT(in), OPTIONAL                      :: s_mstruct_changed, rho_changed, &
-                                                            potential_changed, full_reset
+                                                            potential_changed, full_reset, &
+                                                            do_not_update_admm
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'qs_ks_did_change'
 
@@ -950,6 +968,12 @@ CONTAINS
             ks_env%potential_changed = .TRUE.
             my_mstruct_chg = .TRUE.
          ENDIF
+      END IF
+
+      IF (PRESENT(do_not_update_admm)) THEN
+         ks_env%update_admm = .NOT. do_not_update_admm
+      ELSE
+         ks_env%update_admm = .TRUE.
       END IF
 
       IF (my_mstruct_chg) THEN

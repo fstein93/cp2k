@@ -127,7 +127,8 @@ MODULE qs_ks_methods
    USE qs_ks_atom,                      ONLY: update_ks_atom
    USE qs_ks_qmmm_methods,              ONLY: qmmm_calculate_energy,&
                                               qmmm_modify_hartree_pot
-   USE qs_ks_types,                     ONLY: qs_ks_env_type,&
+   USE qs_ks_types,                     ONLY: get_ks_env,&
+                                              qs_ks_env_type,&
                                               set_ks_env
    USE qs_ks_utils,                     ONLY: &
         calc_v_sic_rspace, calculate_zmp_potential, compute_matrix_vxc, &
@@ -218,7 +219,7 @@ CONTAINS
       INTEGER                                            :: handle, iatom, img, ispin, nimages, ns, &
                                                             nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, gapw, gapw_xc, &
-         hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, rigpw, use_virial
+         hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, rigpw, update_admm, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
@@ -538,15 +539,19 @@ CONTAINS
       IF (dft_control%do_admm) THEN
          CALL hfx_admm_init(qs_env)
 
-         IF (dft_control%do_admm_mo) THEN
-            IF (qs_env%run_rtp) THEN
-               CALL rtp_admm_calc_rho_aux(qs_env)
-            ELSE
-               CALL admm_mo_calc_rho_aux(qs_env)
-            END IF
-         ELSEIF (dft_control%do_admm_dm) THEN
-            CALL admm_dm_calc_rho_aux(ks_env)
-         ENDIF
+         CALL get_ks_env(ks_env, update_admm=update_admm)
+         IF (update_admm) THEN
+            IF (dft_control%do_admm_mo) THEN
+               IF (qs_env%run_rtp) THEN
+                  CALL rtp_admm_calc_rho_aux(qs_env)
+               ELSE
+                  CALL admm_mo_calc_rho_aux(qs_env)
+               END IF
+            ELSEIF (dft_control%do_admm_dm) THEN
+               CALL admm_dm_calc_rho_aux(ks_env)
+            ENDIF
+         END IF
+         CALL set_ks_env(ks_env, update_admm=.TRUE.)
       ENDIF
 
       ! only activate stress calculation if

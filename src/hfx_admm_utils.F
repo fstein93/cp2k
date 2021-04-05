@@ -453,7 +453,11 @@ CONTAINS
                CALL scale_dm(qs_env, rho_ao_orb, scale_back=.FALSE.)
             END IF
             IF (ASSOCIATED(qs_env%mp2_env)) THEN
-               CALL get_qs_env(qs_env, matrix_p_mp2=rho_ao_resp)
+               IF (dft_control%do_admm) THEN
+                  CALL get_qs_env(qs_env, matrix_p_mp2_admm=rho_ao_resp)
+               ELSE
+                  CALL get_qs_env(qs_env, matrix_p_mp2=rho_ao_resp)
+               END IF
             ELSE
                NULLIFY (rho_ao_resp)
             END IF
