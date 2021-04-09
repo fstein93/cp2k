@@ -805,7 +805,11 @@ CONTAINS
             ALLOCATE (mat_mu_nu(2)%matrix)
             CALL dbcsr_create(mat_mu_nu(2)%matrix, template=p_env%kpp1(1)%matrix)
             rho_work_ao(2)%matrix => mat_mu_nu(2)%matrix
-            IF (dft_control%do_admm) rho_work_ao_admm(2)%matrix => mat_mu_nu(2)%matrix
+            IF (dft_control%do_admm) THEN
+               NULLIFY(rho_work_ao_admm(2)%matrix)
+               ALLOCATE(rho_work_ao_admm(2)%matrix)
+               CALL dbcsr_create(rho_work_ao_admm(2)%matrix, template=p_env%p1_admm(2)%matrix)
+            END IF
          END IF
 
          DO ispin = 1, nspins
@@ -822,6 +826,10 @@ CONTAINS
          END IF
          DEALLOCATE (mat_mu_nu, rho_work_ao)
          IF (dft_control%do_admm) THEN
+            IF (nspins == 2) THEN
+               CALL dbcsr_release(rho_work_ao_admm(2)%matrix)
+               DEALLOCATE(rho_work_ao_admm(2)%matrix)
+            END IF
             DEALLOCATE (rho_work_ao_admm)
             CALL apply_xc_admm_ao(qs_env, p_env)
          END IF
@@ -1336,14 +1344,6 @@ CONTAINS
          force(ikind)%mp2_sep = force(ikind)%rho_core
          force(ikind)%rho_core = 0.0_dp
       ENDDO
-      IF (iounit > 0) WRITE(iounit, *) "core"
-      DO ikind = 1, SIZE(deb)
-         CALL mp_sum(deb(ikind)%array, para_env%group)
-         IF (iounit <= 0) CYCLE
-         DO ispin = 1, SIZE(deb(ikind)%array, 2)
-            WRITE(iounit,*) deb(ikind)%array(:, ispin)
-         END DO
-      END DO
 
       ! Calculate XC part
       NULLIFY (v_xc)
@@ -1391,14 +1391,6 @@ CONTAINS
          force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%rho_elec
          force(ikind)%rho_elec = 0.0_dp
       ENDDO
-      IF (iounit > 0) WRITE(iounit, *) "HXC part"
-      DO ikind = 1, SIZE(deb)
-         CALL mp_sum(deb(ikind)%array, para_env%group)
-         IF (iounit <= 0) CYCLE
-         DO ispin = 1, SIZE(deb(ikind)%array, 2)
-            WRITE(iounit,*) deb(ikind)%array(:, ispin)
-         END DO
-      END DO
 
       IF (dft_control%do_admm) THEN
 

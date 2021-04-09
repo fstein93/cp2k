@@ -1,7 +1,7 @@
 &GLOBAL                                                                                           
-  PROJECT     GRAD_H2O_gpw
+  PROJECT     GRAD_H2O_gpw_admm_none
   PRINT_LEVEL LOW
-  RUN_TYPE    DEBUG
+  RUN_TYPE    GEO_OPT
 &END GLOBAL
 &MOTION
   &GEO_OPT
@@ -9,29 +9,21 @@
   &END
 &END MOTION
 
-&DEBUG
-   DEBUG_FORCES .TRUE.
-   DEBUG_STRESS_TENSOR .FALSE.
-   DEBUG_DIPOLE .FALSE.
-   DEBUG_POLARIZABILITY .FALSE.
-   DE 0.001
-   EPS_NO_ERROR_CHECK 5.e-5
-   STOP_ON_MISMATCH .FALSE.
-&END
-
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME  HFX_BASIS
     BASIS_SET_FILE_NAME  BASIS_ADMM
     POTENTIAL_FILE_NAME  POTENTIAL
+    UKS
+    MULTIPLICITY 2
     &AUXILIARY_DENSITY_MATRIX_METHOD
       METHOD BASIS_PROJECTION
       ADMM_PURIFICATION_METHOD NONE
-      EXCH_CORRECTION_FUNC PBEX
+      EXCH_CORRECTION_FUNC NONE
     &END
     &MGRID
-      CUTOFF     100
+      CUTOFF     150
       REL_CUTOFF  30
     &END MGRID
     &QS
@@ -44,7 +36,7 @@
     &END POISSON
     &SCF
       SCF_GUESS   ATOMIC
-      EPS_SCF     1.0E-6
+      EPS_SCF     1.0E-5
       MAX_SCF     100
     &END SCF
     &XC
@@ -67,7 +59,7 @@
         &RI_MP2
           BLOCK_SIZE  1
           EPS_CANONICAL 0.0001
-          FREE_HFX_BUFFER .TRUE.
+          FREE_HFX_BUFFER .FALSE.
           &CPHF
             EPS_CONV  1.0E-6
             MAX_ITER  10
@@ -75,7 +67,7 @@
         &END
         &INTEGRALS
           &WFC_GPW
-            CUTOFF      25
+            CUTOFF      50
             REL_CUTOFF  10
             EPS_FILTER  1.0E-12
             EPS_GRID    1.0E-8
@@ -101,16 +93,15 @@
       BASIS_SET AUX_FIT FIT3
       POTENTIAL         GTH-HF-q1
     &END KIND
-    &KIND O
+    &KIND C
       BASIS_SET         DZVP-GTH
       BASIS_SET RI_AUX  RI_DZVP-GTH
       BASIS_SET AUX_FIT FIT3
-      POTENTIAL         GTH-HF-q6
+      POTENTIAL         GTH-HF-q4
     &END KIND
     &COORD
-      O       0.000000    0.000000    -0.211000
-      H       0.000000   -0.844000     0.495000
-      H       0.000000    0.744000     0.495000
+  C     0.000     0.000     0.300
+  H     0.000     1.173     0.000
     &END
     &TOPOLOGY
       &CENTER_COORDINATES

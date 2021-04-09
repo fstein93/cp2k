@@ -191,6 +191,7 @@ CONTAINS
 !>        ks matrix. Defaults to false
 !> \param print_active ...
 !> \param ext_ks_matrix ...
+!> \param add_mp2_admm whether to add mp2 admm density after calculating the admm density matrix
 !> \par History
 !>      06.2002 moved from qs_scf to qs_ks_methods, use of ks_env
 !>              new did_change scheme [fawzi]
@@ -206,10 +207,10 @@ CONTAINS
 !>      to qs_env components?
 ! **************************************************************************************************
    SUBROUTINE qs_ks_build_kohn_sham_matrix(qs_env, calculate_forces, just_energy, &
-                                           print_active, ext_ks_matrix)
+                                           print_active, ext_ks_matrix, add_mp2_admm)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
-      LOGICAL, INTENT(IN), OPTIONAL                      :: print_active
+      LOGICAL, INTENT(IN), OPTIONAL                      :: print_active, add_mp2_admm
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: ext_ks_matrix
 
@@ -219,7 +220,7 @@ CONTAINS
       INTEGER                                            :: handle, iatom, img, ispin, nimages, ns, &
                                                             nspins
       LOGICAL :: do_adiabatic_rescaling, do_ddapc, do_hfx, do_ppl, gapw, gapw_xc, &
-         hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, rigpw, update_admm, use_virial
+         hfx_treat_lsd_in_core, just_energy_xc, lrigpw, my_print, rigpw, use_virial
       REAL(KIND=dp)                                      :: ecore_ppl, edisp, ee_ener, ekin_mol, &
                                                             mulliken_order_p
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_loc
@@ -228,7 +229,7 @@ CONTAINS
       TYPE(cell_type), POINTER                           :: cell
       TYPE(cp_logger_type), POINTER                      :: logger
       TYPE(cp_para_env_type), POINTER                    :: para_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_vxc, mo_derivs
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ksmat, matrix_vxc, mo_derivs, matrix_p_mp2_admm, rho_ao_aux
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix, matrix_h, matrix_s, my_rho, &
                                                             rho_ao
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -539,19 +540,25 @@ CONTAINS
       IF (dft_control%do_admm) THEN
          CALL hfx_admm_init(qs_env)
 
-         CALL get_ks_env(ks_env, update_admm=update_admm)
-         IF (update_admm) THEN
-            IF (dft_control%do_admm_mo) THEN
-               IF (qs_env%run_rtp) THEN
-                  CALL rtp_admm_calc_rho_aux(qs_env)
-               ELSE
-                  CALL admm_mo_calc_rho_aux(qs_env)
+         IF (dft_control%do_admm_mo) THEN
+            IF (qs_env%run_rtp) THEN
+               CALL rtp_admm_calc_rho_aux(qs_env)
+            ELSE
+               CALL admm_mo_calc_rho_aux(qs_env)
+            END IF
+            ! If we do not used the ADMM DM method, we have to add the mp2 ADMM matrix manually
+            IF (calculate_forces .AND. ASSOCIATED(qs_env%mp2_env) .AND. PRESENT(add_mp2_admm)) THEN
+               IF (add_mp2_admm) THEN
+                  CALL get_qs_env(qs_env, rho_aux_fit=rho_struct, matrix_p_mp2_admm=matrix_p_mp2_admm)
+                  CALL qs_rho_get(rho_struct, rho_ao=rho_ao_aux)
+                  DO ispin = 1, nspins
+                     CALL dbcsr_add(rho_ao_aux(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix, 1.0_dp, 1.0_dp)
+                  END DO
                END IF
-            ELSEIF (dft_control%do_admm_dm) THEN
-               CALL admm_dm_calc_rho_aux(ks_env)
-            ENDIF
-         END IF
-         CALL set_ks_env(ks_env, update_admm=.TRUE.)
+            END IF
+         ELSEIF (dft_control%do_admm_dm) THEN
+            CALL admm_dm_calc_rho_aux(ks_env)
+         ENDIF
       ENDIF
 
       ! only activate stress calculation if
@@ -1077,6 +1084,8 @@ CONTAINS
 !> \param just_energy if true updates the energies but not the
 !>        ks matrix. Defaults to false
 !> \param print_active ...
+!> \param add_mp2_admm whether to add the mp2 density matrix in the auxiliary basis after
+!>        calculating the density matrix in auxiliary basis
 !> \par History
 !>      4.2002 created [fawzi]
 !>      8.2014 kpoints [JGH]
@@ -1084,10 +1093,10 @@ CONTAINS
 !> \author Fawzi Mohamed
 ! **************************************************************************************************
    SUBROUTINE qs_ks_update_qs_env(qs_env, calculate_forces, just_energy, &
-                                  print_active)
+                                  print_active, add_mp2_admm)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN), OPTIONAL                      :: calculate_forces, just_energy, &
-                                                            print_active
+                                                            print_active, add_mp2_admm
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'qs_ks_update_qs_env'
 
@@ -1135,7 +1144,8 @@ CONTAINS
          CALL rebuild_ks_matrix(qs_env, &
                                 calculate_forces=c_forces, &
                                 just_energy=energy_only, &
-                                print_active=print_active)
+                                print_active=print_active, &
+                                add_mp2_admm=add_mp2_admm)
 
          IF (.NOT. energy_only) THEN
             CALL set_ks_env(ks_env, &
@@ -1194,10 +1204,10 @@ CONTAINS
 !> \param print_active ...
 !> \author Ole Schuett
 ! **************************************************************************************************
-   SUBROUTINE rebuild_ks_matrix(qs_env, calculate_forces, just_energy, print_active)
+   SUBROUTINE rebuild_ks_matrix(qs_env, calculate_forces, just_energy, print_active, add_mp2_admm)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       LOGICAL, INTENT(IN)                                :: calculate_forces, just_energy
-      LOGICAL, INTENT(IN), OPTIONAL                      :: print_active
+      LOGICAL, INTENT(IN), OPTIONAL                      :: print_active, add_mp2_admm
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rebuild_ks_matrix'
 
@@ -1228,7 +1238,8 @@ CONTAINS
          CALL qs_ks_build_kohn_sham_matrix(qs_env, &
                                            calculate_forces=calculate_forces, &
                                            just_energy=just_energy, &
-                                           print_active=print_active)
+                                           print_active=print_active, &
+                                           add_mp2_admm=add_mp2_admm)
       END IF
 
       CALL timestop(handle)
