@@ -22,12 +22,13 @@ MODULE mp2_ri_grad
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_geadd
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
    USE cp_fm_types,                     ONLY: &
         cp_fm_create, cp_fm_get_info, cp_fm_indxg2l, cp_fm_indxg2p, cp_fm_indxl2g, cp_fm_p_type, &
-        cp_fm_release, cp_fm_set_all, cp_fm_type
+        cp_fm_release, cp_fm_set_all, cp_fm_to_fm_submat, cp_fm_type
    USE cp_gemm_interface,               ONLY: cp_gemm
    USE cp_para_env,                     ONLY: cp_para_env_release,&
                                               cp_para_env_split
@@ -1555,22 +1556,23 @@ CONTAINS
                           row_indices=row_indices, &
                           col_indices=col_indices)
 
+      CALL mp_sum(mp2_env%ri_grad%P_ij(my_spin)%array, para_env%group)
+
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
-            ! diagonal elements alreasy updated
-            IF (j_global == i_global) CYCLE
-            ! check if the given element is above the threshold
-            IF (ABS(Eigenval(j_global) - Eigenval(i_global)) < mp2_env%ri_mp2%eps_canonical) CYCLE
-            mp2_env%ri_grad%P_ij(my_spin)%array(i_global, j_global) = &
-               factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
+            ! diagonal elements and nearly degenerate ij pairs already updated
+            IF (j_global == i_global .OR. (ABS(Eigenval(j_global) - Eigenval(i_global)) < mp2_env%ri_mp2%eps_canonical)) THEN
+               fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(my_spin)%array(i_global, j_global)
+            ELSE
+               fm_P_ij%local_data(iiB, jjB) = &
+                  factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
+            END IF
          END DO
       END DO
-      ! release fm_P_ij
-      CALL cp_fm_release(fm_P_ij)
-      ! mp_sum it (we can avoid mp_sum, but for now let's keep it easy)
-      CALL mp_sum(mp2_env%ri_grad%P_ij(my_spin)%array, para_env%group)
+      ! deallocate the local P_ij
+      DEALLOCATE (mp2_env%ri_grad%P_ij(my_spin)%array)
       CALL timestop(handle2)
 
       ! Now create and fill the P matrix (MO)
@@ -1594,6 +1596,9 @@ CONTAINS
       my_B_virtual_start = itmp(1)
       my_B_virtual_end = itmp(2)
 
+      ! Fill occ-occ block
+      CALL cp_fm_to_fm_submat(fm_P_ij, mp2_env%ri_grad%P_mo(my_spin)%matrix, homo, homo, 1, 1, 1, 1)
+
       CALL cp_fm_get_info(mp2_env%ri_grad%P_mo(my_spin)%matrix, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
@@ -1610,17 +1615,14 @@ CONTAINS
          j_global = col_indices(jjB)
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
-            IF (i_global <= homo .AND. j_global <= homo) THEN
-               mp2_env%ri_grad%P_mo(my_spin)%matrix%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(my_spin)%array(i_global, j_global)
-            END IF
             IF ((my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) .AND. (j_global > homo)) THEN
                mp2_env%ri_grad%P_mo(my_spin)%matrix%local_data(iiB, jjB) = &
                   mp2_env%ri_grad%P_ab(my_spin)%array(i_global - homo - my_B_virtual_start + 1, j_global - homo)
             END IF
          END DO
       END DO
-      ! deallocate the local P_ij
-      DEALLOCATE (mp2_env%ri_grad%P_ij(my_spin)%array)
+      ! deallocate the P_ij
+      CALL cp_fm_release(fm_P_ij)
 
       ! send around the sub_group the local data and check if we
       ! have to update our block with external elements
