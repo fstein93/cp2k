@@ -94,6 +94,7 @@ MODULE qs_2nd_kernel_ao
    PUBLIC :: apply_hfx_ao
    PUBLIC :: apply_xc_admm_ao
    PUBLIC :: admm_aux_reponse_density
+   PUBLIC :: admm_projection_derivative
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'qs_2nd_kernel_ao'
 
@@ -467,7 +468,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param qs_env ...
-!> \param matrix_hz HFX part of the Fock matrix using the response density
+!> \param matrix_hz Fock matrix part using the response density in admm basis
 !> \param matrix_pz response density in orbital basis
 ! **************************************************************************************************
    SUBROUTINE admm_projection_derivative(qs_env, matrix_hz, matrix_pz)

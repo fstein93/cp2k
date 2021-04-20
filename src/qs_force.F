@@ -309,7 +309,7 @@ CONTAINS
       END IF
 
       ! Compute grid-based forces
-      CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE., add_mp2_admm = .TRUE.)
+      CALL qs_ks_update_qs_env(qs_env, calculate_forces=.TRUE.)
 
       ! MP2 Code
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
