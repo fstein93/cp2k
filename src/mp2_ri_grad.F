@@ -382,7 +382,7 @@ CONTAINS
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
 
-            ! calculate potential associted to the single aux function
+            ! calculate potential associated to the single aux function
             CALL timeset(routineN//"_wf_pot", handle3)
             wf_vector = 0.0_dp
             wf_vector(LLL) = 1.0_dp
@@ -395,8 +395,10 @@ CONTAINS
                                            external_vector=wf_vector)
                rho_r%pw%cr3d = rho_r%pw%cr3d+psi_L%pw%cr3d
             ENDDO
-            IF (alpha_beta) rho_r%pw%cr3d = rho_r%pw%cr3d*0.5_dp
-
+            IF (alpha_beta) THEN
+               rho_r%pw%cr3d = rho_r%pw%cr3d*0.5_dp
+               CALL pw_transfer(rho_r%pw, rho_g%pw)
+            END IF
             CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega)
             CALL timestop(handle3)
 
@@ -615,9 +617,7 @@ CONTAINS
                                     ks_env=ks_env)
             ! calculate associated hartree potential
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-            CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-            CALL pw_transfer(pot_g%pw, rho_r%pw)
-            CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
+            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega)
             CALL timestop(handle3)
 
             IF (use_virial) THEN

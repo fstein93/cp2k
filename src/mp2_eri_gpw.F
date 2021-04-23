@@ -23,6 +23,7 @@ MODULE mp2_eri_gpw
                                               dbcsr_set
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_potential_coulomb,&
+                                              do_potential_id,&
                                               do_potential_long
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
@@ -133,8 +134,6 @@ CONTAINS
                                   basis_type="RI_AUX", &
                                   external_vector=external_vector)
 
-      rho_r%pw%cr3d = psi_L%pw%cr3d
-
       CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, ri_metric, omega_metric)
 
       ! and finally (K|mu nu)
@@ -231,7 +230,6 @@ CONTAINS
                                      external_vector=wf_vector)
 
          CALL timeset(routineN//"_pot_lm", handle2)
-         rho_r%pw%cr3d = psi_L%pw%cr3d
 
          CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, ri_metric, omega)
 
@@ -542,16 +540,16 @@ CONTAINS
    END SUBROUTINE cleanup_gpw
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param rho_r ...
-!> \param rho_g ...
+!> \brief ...1
+!> \param pot_r on output: potential in r space
+!> \param rho_g on input: rho in g space
 !> \param poisson_env ...
-!> \param pot_g ...
+!> \param pot_g on output: potential in g space
 !> \param potential_type ...
 !> \param omega ...
 ! **************************************************************************************************
-   SUBROUTINE calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega)
-      TYPE(pw_p_type), INTENT(IN)                        :: rho_r, rho_g
+   SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_type, omega)
+      TYPE(pw_p_type), INTENT(IN)                        :: pot_r, rho_g
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_p_type), INTENT(IN)                        :: pot_g
       INTEGER, INTENT(IN), OPTIONAL                      :: potential_type
@@ -574,13 +572,15 @@ CONTAINS
       ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
       ! overlap metric, we do not need the Coulomb operator
       IF (my_potential_type == do_potential_coulomb .OR. my_potential_type == do_potential_long) THEN
-         CALL pw_transfer(rho_r%pw, rho_g%pw)
          CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g%pw)
          IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g%pw, omega)
-         CALL pw_transfer(pot_g%pw, rho_r%pw)
+         CALL pw_transfer(pot_g%pw, pot_r%pw)
+      ELSE IF (my_potential_type == do_potential_id) THEN
+         ! If we use an overlap metric, make sure to use the correct potential=density on output
+         CALL pw_transfer(rho_g%pw, pot_r%pw)
       END IF
 
-      CALL pw_scale(rho_r%pw, rho_r%pw%pw_grid%dvol)
+      CALL pw_scale(pot_r%pw, pot_r%pw%pw_grid%dvol)
       CALL timestop(handle)
 
    END SUBROUTINE calc_potential_gpw

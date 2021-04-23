@@ -50,6 +50,7 @@ MODULE mp2_gpw_method
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
                                               pw_pool_type
+   USE pw_methods,                      ONLY: pw_transfer
    USE pw_types,                        ONLY: REALDATA3D,&
                                               REALSPACE,&
                                               pw_p_type,&
@@ -444,6 +445,7 @@ CONTAINS
 
             ! potential
             rho_r%pw%cr3d = psi_i(i)%pw%cr3d*psi_a%pw%cr3d
+            CALL pw_transfer(rho_r%pw, rho_g%pw)
             CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega)
 
             ! and finally (ia|munu)
