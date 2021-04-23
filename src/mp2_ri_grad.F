@@ -283,16 +283,13 @@ CONTAINS
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
-            ALLOCATE (matrix_P_munu_local(L_counter)%matrix)
             ALLOCATE (mat_munu_local(L_counter)%matrix)
-            CALL dbcsr_create(matrix_P_munu_local(L_counter)%matrix, template=mat_munu%matrix, &
-                              matrix_type=dbcsr_type_symmetric)
             CALL dbcsr_create(mat_munu_local(L_counter)%matrix, template=mat_munu%matrix, &
                               matrix_type=dbcsr_type_symmetric)
             CALL dbcsr_copy(mat_munu_local(L_counter)%matrix, mat_munu%matrix)
             CALL dbcsr_set(mat_munu_local(L_counter)%matrix, 0.0_dp)
 
-            CALL G_P_transform_MO_to_AO(matrix_P_munu_local(L_counter), matrix_P_munu_nosym, mat_munu, &
+            CALL G_P_transform_MO_to_AO(matrix_P_munu_local(L_counter)%matrix, matrix_P_munu_nosym, mat_munu, &
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
          ENDDO
@@ -342,10 +339,6 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(mat_munu_local)
 
       ELSEIF (eri_method == do_eri_gpw) THEN
-         ALLOCATE (matrix_P_munu%matrix)
-         CALL dbcsr_create(matrix_P_munu%matrix, template=mat_munu%matrix, &
-                           matrix_type=dbcsr_type_symmetric)
-
          CALL get_qs_env(qs_env, ks_env=ks_env)
 
          natom = SIZE(particle_set)
@@ -387,7 +380,7 @@ CONTAINS
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
 
-            CALL G_P_transform_MO_to_AO(matrix_P_munu, matrix_P_munu_nosym, mat_munu, &
+            CALL G_P_transform_MO_to_AO(matrix_P_munu%matrix, matrix_P_munu_nosym, mat_munu, &
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
 
@@ -890,8 +883,8 @@ CONTAINS
    END SUBROUTINE calc_ri_mp2_nonsep
 
 ! **************************************************************************************************
-!> \brief ...
-!> \param G_P_munu ...
+!> \brief Transforms G_P_ia to G_P_munu
+!> \param G_P_munu The container for G_P_munu, will be allocated and created if not allocated on entry
 !> \param G_P_munu_nosym ...
 !> \param mat_munu ...
 !> \param G_P_ia ...
@@ -902,7 +895,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE G_P_transform_MO_to_AO(G_P_munu, G_P_munu_nosym, mat_munu, G_P_ia, G_P_inu, &
                                      mo_coeff_v, mo_coeff_o, eps_filter)
-      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: G_P_munu, G_P_munu_nosym, mat_munu
+      TYPE(dbcsr_type), POINTER                          :: G_P_munu
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: G_P_munu_nosym, mat_munu
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: G_P_ia
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_inu
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_v, mo_coeff_o
@@ -912,17 +906,23 @@ CONTAINS
 
       INTEGER                                            :: handle
 
+      IF (.NOT. ASSOCIATED(G_P_munu)) THEN
+         ALLOCATE (G_P_munu)
+         CALL dbcsr_create(G_P_munu, template=mat_munu%matrix, &
+                           matrix_type=dbcsr_type_symmetric)
+      END IF
+
       CALL G_P_transform_alpha_beta(G_P_ia, G_P_inu, G_P_munu_nosym, mo_coeff_v, mo_coeff_o, eps_filter)
 
       ! symmetrize
       CALL timeset(routineN//"_symmetrize", handle)
-      CALL dbcsr_set(G_P_munu%matrix, 0.0_dp)
-      CALL dbcsr_transposed(G_P_munu%matrix, G_P_munu_nosym%matrix)
-      CALL dbcsr_add(G_P_munu%matrix, G_P_munu_nosym%matrix, &
+      CALL dbcsr_set(G_P_munu, 0.0_dp)
+      CALL dbcsr_transposed(G_P_munu, G_P_munu_nosym%matrix)
+      CALL dbcsr_add(G_P_munu, G_P_munu_nosym%matrix, &
                      alpha_scalar=2.0_dp, beta_scalar=2.0_dp)
       ! this is a trick to avoid that integrate_v_rspace starts to cry
-      CALL dbcsr_copy_into_existing(mat_munu%matrix, G_P_munu%matrix)
-      CALL dbcsr_copy(G_P_munu%matrix, mat_munu%matrix)
+      CALL dbcsr_copy_into_existing(mat_munu%matrix, G_P_munu)
+      CALL dbcsr_copy(G_P_munu, mat_munu%matrix)
 
       CALL timestop(handle)
 
