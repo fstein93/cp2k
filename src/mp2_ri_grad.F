@@ -35,7 +35,7 @@ MODULE mp2_ri_grad
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: &
         dbcsr_add, dbcsr_copy, dbcsr_copy_into_existing, dbcsr_create, dbcsr_multiply, &
-        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type_no_symmetry, &
+        dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, &
         dbcsr_type_symmetric
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_eri_gpw,&
@@ -175,11 +175,13 @@ CONTAINS
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(dbcsr_p_type)                                 :: matrix_P_munu, matrix_P_munu_nosym
-      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: Lag_mu_i_1, Lag_nu_a_2, matrix_P_inu, &
-                                                            mo_coeff_o, mo_coeff_v
-      TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:, :)   :: G_P_ia
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local, matrix_P_munu_local
+      TYPE(dbcsr_p_type)                                 :: matrix_P_munu
+      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: mo_coeff_o, mo_coeff_v
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local, &
+                                                            matrix_P_munu_local
+      TYPE(dbcsr_p_type), DIMENSION(:, :), ALLOCATABLE   :: G_P_ia
+      TYPE(dbcsr_type)                                   :: matrix_P_munu_nosym
+      TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE        :: Lag_mu_i_1, Lag_nu_a_2, matrix_P_inu
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_3c_aux, force_3c_orb_mu, &
@@ -248,28 +250,24 @@ CONTAINS
       ! create matrix holding the back transformation (G_P_inu)
       ALLOCATE (matrix_P_inu(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (matrix_P_inu(ispin)%matrix)
-         CALL dbcsr_create(matrix_P_inu(ispin)%matrix, template=mo_coeff_o(ispin)%matrix)
+         CALL dbcsr_create(matrix_P_inu(ispin), template=mo_coeff_o(ispin)%matrix)
       ENDDO
 
       ! non symmetric matrix
-      ALLOCATE (matrix_P_munu_nosym%matrix)
-      CALL dbcsr_create(matrix_P_munu_nosym%matrix, template=mat_munu%matrix, &
+      CALL dbcsr_create(matrix_P_munu_nosym, template=mat_munu%matrix, &
                         matrix_type=dbcsr_type_no_symmetry)
 
       ! create Lagrangian matrices in mixed AO/MO formalism
       ALLOCATE (Lag_mu_i_1(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (Lag_mu_i_1(ispin)%matrix)
-         CALL dbcsr_create(Lag_mu_i_1(ispin)%matrix, template=mo_coeff_o(ispin)%matrix)
-         CALL dbcsr_set(Lag_mu_i_1(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_create(Lag_mu_i_1(ispin), template=mo_coeff_o(ispin)%matrix)
+         CALL dbcsr_set(Lag_mu_i_1(ispin), 0.0_dp)
       ENDDO
 
       ALLOCATE (Lag_nu_a_2(nspins))
       DO ispin = 1, nspins
-         ALLOCATE (Lag_nu_a_2(ispin)%matrix)
-         CALL dbcsr_create(Lag_nu_a_2(ispin)%matrix, template=mo_coeff_v(ispin)%matrix)
-         CALL dbcsr_set(Lag_nu_a_2(ispin)%matrix, 0.0_dp)
+         CALL dbcsr_create(Lag_nu_a_2(ispin), template=mo_coeff_v(ispin)%matrix)
+         CALL dbcsr_set(Lag_nu_a_2(ispin), 0.0_dp)
       ENDDO
 
       ! get forces
@@ -289,7 +287,7 @@ CONTAINS
             CALL dbcsr_copy(mat_munu_local(L_counter)%matrix, mat_munu%matrix)
             CALL dbcsr_set(mat_munu_local(L_counter)%matrix, 0.0_dp)
 
-            CALL G_P_transform_MO_to_AO(matrix_P_munu_local(L_counter)%matrix, matrix_P_munu_nosym, mat_munu, &
+            CALL G_P_transform_MO_to_AO(matrix_P_munu_local(L_counter)%matrix, matrix_P_munu_nosym, mat_munu%matrix, &
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
          ENDDO
@@ -315,11 +313,11 @@ CONTAINS
             ! we recompute matrix_P_inu
             DO ispin = 1, nspins
                CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin, L_counter)%matrix, &
-                                   0.0_dp, matrix_P_inu(ispin)%matrix, filter_eps=eps_filter)
+                                   0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
             ENDDO
 
             ! The matrices of G_P_ia are deallocated here
-            CALL update_lagrangian(mat_munu_local(L_counter), matrix_P_inu, Lag_mu_i_1, &
+            CALL update_lagrangian(mat_munu_local(L_counter)%matrix, matrix_P_inu, Lag_mu_i_1, &
                                    G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
                                    eps_filter)
          ENDDO
@@ -380,7 +378,7 @@ CONTAINS
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
 
-            CALL G_P_transform_MO_to_AO(matrix_P_munu%matrix, matrix_P_munu_nosym, mat_munu, &
+            CALL G_P_transform_MO_to_AO(matrix_P_munu%matrix, matrix_P_munu_nosym, mat_munu%matrix, &
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
 
@@ -565,7 +563,7 @@ CONTAINS
             CALL timestop(handle3)
 
             ! The matrices of G_P_ia are deallocated here
-            CALL update_lagrangian(mat_munu, matrix_P_inu, Lag_mu_i_1, &
+            CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
                                    G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
                                    eps_filter)
 
@@ -816,12 +814,10 @@ CONTAINS
 
       DEALLOCATE (G_PQ_local)
 
-      CALL dbcsr_release(matrix_P_munu_nosym%matrix)
-      DEALLOCATE (matrix_P_munu_nosym%matrix)
+      CALL dbcsr_release(matrix_P_munu_nosym)
 
       DO ispin = 1, nspins
-         CALL dbcsr_release(matrix_P_inu(ispin)%matrix)
-         DEALLOCATE (matrix_P_inu(ispin)%matrix)
+         CALL dbcsr_release(matrix_P_inu(ispin))
       ENDDO
       DEALLOCATE (matrix_P_inu, G_P_ia)
 
@@ -848,11 +844,10 @@ CONTAINS
          CALL cp_fm_create(L1_mu_i(ispin)%matrix, fm_struct_tmp, name="Lag_mu_i")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_set_all(L1_mu_i(ispin)%matrix, 0.0_dp)
-         CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1(ispin)%matrix, fm=L1_mu_i(ispin)%matrix)
+         CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1(ispin), fm=L1_mu_i(ispin)%matrix)
 
          ! release Lag_mu_i_1
-         CALL dbcsr_release(Lag_mu_i_1(ispin)%matrix)
-         DEALLOCATE (Lag_mu_i_1(ispin)%matrix)
+         CALL dbcsr_release(Lag_mu_i_1(ispin))
 
          NULLIFY (L2_nu_a(ispin)%matrix, fm_struct_tmp)
          CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
@@ -860,11 +855,10 @@ CONTAINS
          CALL cp_fm_create(L2_nu_a(ispin)%matrix, fm_struct_tmp, name="Lag_nu_a")
          CALL cp_fm_struct_release(fm_struct_tmp)
          CALL cp_fm_set_all(L2_nu_a(ispin)%matrix, 0.0_dp)
-         CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2(ispin)%matrix, fm=L2_nu_a(ispin)%matrix)
+         CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2(ispin), fm=L2_nu_a(ispin)%matrix)
 
          ! release Lag_nu_a_2
-         CALL dbcsr_release(Lag_nu_a_2(ispin)%matrix)
-         DEALLOCATE (Lag_nu_a_2(ispin)%matrix)
+         CALL dbcsr_release(Lag_nu_a_2(ispin))
       ENDDO
       DEALLOCATE (Lag_mu_i_1, Lag_nu_a_2)
 
@@ -896,9 +890,10 @@ CONTAINS
    SUBROUTINE G_P_transform_MO_to_AO(G_P_munu, G_P_munu_nosym, mat_munu, G_P_ia, G_P_inu, &
                                      mo_coeff_v, mo_coeff_o, eps_filter)
       TYPE(dbcsr_type), POINTER                          :: G_P_munu
-      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: G_P_munu_nosym, mat_munu
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: G_P_munu_nosym
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_munu
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: G_P_ia
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_inu
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: G_P_inu
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_v, mo_coeff_o
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
@@ -908,7 +903,7 @@ CONTAINS
 
       IF (.NOT. ASSOCIATED(G_P_munu)) THEN
          ALLOCATE (G_P_munu)
-         CALL dbcsr_create(G_P_munu, template=mat_munu%matrix, &
+         CALL dbcsr_create(G_P_munu, template=mat_munu, &
                            matrix_type=dbcsr_type_symmetric)
       END IF
 
@@ -917,12 +912,12 @@ CONTAINS
       ! symmetrize
       CALL timeset(routineN//"_symmetrize", handle)
       CALL dbcsr_set(G_P_munu, 0.0_dp)
-      CALL dbcsr_transposed(G_P_munu, G_P_munu_nosym%matrix)
-      CALL dbcsr_add(G_P_munu, G_P_munu_nosym%matrix, &
+      CALL dbcsr_transposed(G_P_munu, G_P_munu_nosym)
+      CALL dbcsr_add(G_P_munu, G_P_munu_nosym, &
                      alpha_scalar=2.0_dp, beta_scalar=2.0_dp)
       ! this is a trick to avoid that integrate_v_rspace starts to cry
-      CALL dbcsr_copy_into_existing(mat_munu%matrix, G_P_munu)
-      CALL dbcsr_copy(G_P_munu, mat_munu%matrix)
+      CALL dbcsr_copy_into_existing(mat_munu, G_P_munu)
+      CALL dbcsr_copy(G_P_munu, mat_munu)
 
       CALL timestop(handle)
 
@@ -939,8 +934,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE G_P_transform_alpha_beta(G_P_ia, G_P_inu, G_P_munu, mo_coeff_v, mo_coeff_o, eps_filter)
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: G_P_ia
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_inu
-      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: G_P_munu
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: G_P_inu
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: G_P_munu
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_v, mo_coeff_o
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
@@ -953,16 +948,16 @@ CONTAINS
 
       factor = 1.0_dp/REAL(SIZE(G_P_ia), dp)
 
-      CALL dbcsr_set(G_P_munu%matrix, 0.0_dp)
+      CALL dbcsr_set(G_P_munu, 0.0_dp)
 
       DO ispin = 1, SIZE(G_P_ia)
          ! first back-transformation a->nu
          CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
-                             0.0_dp, G_P_inu(ispin)%matrix, filter_eps=eps_filter)
+                             0.0_dp, G_P_inu(ispin), filter_eps=eps_filter)
 
          ! second back-transformation i->mu
-         CALL dbcsr_multiply("N", "T", factor, G_P_inu(ispin)%matrix, mo_coeff_o(ispin)%matrix, &
-                             1.0_dp, G_P_munu%matrix, filter_eps=eps_filter)
+         CALL dbcsr_multiply("N", "T", factor, G_P_inu(ispin), mo_coeff_o(ispin)%matrix, &
+                             1.0_dp, G_P_munu, filter_eps=eps_filter)
       END DO
 
       CALL timestop(handle)
@@ -982,10 +977,11 @@ CONTAINS
    SUBROUTINE update_lagrangian(mat_munu, matrix_P_inu, Lag_mu_i_1, &
                                 G_P_ia, mo_coeff_o, Lag_nu_a_2, &
                                 eps_filter)
-      TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_munu
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: matrix_P_inu, Lag_mu_i_1, G_P_ia
-      TYPE(dbcsr_p_type), DIMENSION(:)                   :: mo_coeff_o
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: Lag_nu_a_2
+      TYPE(dbcsr_type), INTENT(IN)                       :: mat_munu
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: matrix_P_inu, Lag_mu_i_1
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_ia
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: Lag_nu_a_2
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_lagrangian'
@@ -998,18 +994,18 @@ CONTAINS
       DO ispin = 1, SIZE(G_P_ia)
          ! first contract mat_munu with the half back transformed Gamma_i_nu
          ! in order to update Lag_mu_i_1
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, matrix_P_inu(ispin)%matrix, &
-                             1.0_dp, Lag_mu_i_1(ispin)%matrix, filter_eps=eps_filter)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, matrix_P_inu(ispin), &
+                             1.0_dp, Lag_mu_i_1(ispin), filter_eps=eps_filter)
 
          ! transform first index of mat_munu and store the result into matrix_P_inu
-         CALL dbcsr_set(matrix_P_inu(ispin)%matrix, 0.0_dp)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu%matrix, mo_coeff_o(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin)%matrix, filter_eps=eps_filter)
+         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
 
          ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
          ! in order to update Lag_nu_a_2
-         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin)%matrix, G_P_ia(ispin)%matrix, &
-                             1.0_dp, Lag_nu_a_2(ispin)%matrix, filter_eps=eps_filter)
+         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
+                             1.0_dp, Lag_nu_a_2(ispin), filter_eps=eps_filter)
 
          ! release the actual gamma_P_ia
          CALL dbcsr_release(G_P_ia(ispin)%matrix)
