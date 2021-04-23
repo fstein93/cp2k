@@ -293,7 +293,7 @@ CONTAINS
       nspins = SIZE(homo)
 
       IF ((ri_metric%potential_type == do_potential_short .OR. ri_metric%potential_type == do_potential_truncated) &
-          .AND. .NOT. do_im_time) THEN
+          .AND. .NOT. do_im_time .AND. .NOT. eri_method == do_eri_gpw) THEN
          CPABORT("TRUNCATED and SHORTRANGE RI metrics not yet implemented")
       ENDIF
 

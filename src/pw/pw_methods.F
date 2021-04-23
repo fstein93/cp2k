@@ -65,7 +65,7 @@ MODULE pw_methods
 
    PUBLIC :: pw_zero, pw_structure_factor, pw_smoothing
    PUBLIC :: pw_copy, pw_axpy, pw_transfer, pw_scale
-   PUBLIC :: pw_gauss_damp, pw_derive, pw_dr2, pw_write, pw_multiply
+   PUBLIC :: pw_gauss_damp, pw_compl_gauss_damp, pw_derive, pw_dr2, pw_write, pw_multiply
    PUBLIC :: pw_integral_ab, pw_integral_a2b
    PUBLIC :: pw_dr2_gg, pw_integrate_function
    PUBLIC :: pw_set
@@ -436,6 +436,67 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_gauss_damp
+
+! **************************************************************************************************
+!> \brief Multiply all data points with a Gaussian damping factor
+!>        Needed for longrange Coulomb potential
+!>        V(\vec r)=erf(omega*r)/r
+!>        V(\vec g)=\frac{4*\pi}{g**2}*exp(-g**2/omega**2)
+!> \param pw ...
+!> \param omega ...
+!> \par History
+!>      Frederick Stein (12-04-2019) created
+!> \author Frederick Stein (12-Apr-2019)
+!> \note
+!>      Performs a Gaussian damping
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_compl_gauss_damp(pw, omega)
+
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: omega
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_compl_gauss_damp'
+
+      INTEGER                                            :: cnt, handle, i, n_exp
+      REAL(KIND=dp)                                      :: flop, omega_2, tmp
+
+      CALL timeset(routineN, handle)
+      CPASSERT(pw%ref_count > 0)
+      CPASSERT(omega >= 0)
+
+      flop = 0.0_dp
+      n_exp = 0
+
+      omega_2 = omega*omega
+      omega_2 = 0.25_dp/omega_2
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+         cnt = SIZE(pw%cc)
+
+!$OMP PARALLEL DO PRIVATE(i, tmp) DEFAULT(NONE) SHARED(cnt, pw, omega_2)
+         DO i = 1, cnt
+            tmp = -omega_2*pw%pw_grid%gsq(i)
+            IF (ABS(tmp) > 1.0e-5) THEN
+               pw%cc(i) = pw%cc(i)*(1.0_dp - EXP(tmp))
+            ELSE
+               pw%cc(i) = pw%cc(i)*(tmp+0.5_dp*tmp*(tmp+(1.0_dp/3.0_dp)*tmp**2))
+            END IF
+         END DO
+         flop = flop + 2*cnt
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      flop = flop*1.e-6_dp
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_compl_gauss_damp
 
 ! **************************************************************************************************
 !> \brief Calculate the derivative of a plane wave vector

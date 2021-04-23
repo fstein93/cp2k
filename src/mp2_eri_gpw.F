@@ -24,7 +24,8 @@ MODULE mp2_eri_gpw
    USE gaussian_gridlevels,             ONLY: gaussian_gridlevel
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
-                                              do_potential_long
+                                              do_potential_long,&
+                                              do_potential_short
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
@@ -34,7 +35,8 @@ MODULE mp2_eri_gpw
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_release,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_gauss_damp,&
+   USE pw_methods,                      ONLY: pw_compl_gauss_damp,&
+                                              pw_gauss_damp,&
                                               pw_scale,&
                                               pw_transfer
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
@@ -571,11 +573,12 @@ CONTAINS
 
       ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
       ! overlap metric, we do not need the Coulomb operator
-      IF (my_potential_type == do_potential_coulomb .OR. my_potential_type == do_potential_long) THEN
+      IF (my_potential_type /= do_potential_id) THEN
          CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g%pw)
          IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g%pw, omega)
+         IF (my_potential_type == do_potential_short) CALL pw_compl_gauss_damp(pot_g%pw, omega)
          CALL pw_transfer(pot_g%pw, pot_r%pw)
-      ELSE IF (my_potential_type == do_potential_id) THEN
+      ELSE
          ! If we use an overlap metric, make sure to use the correct potential=density on output
          CALL pw_transfer(rho_g%pw, pot_r%pw)
       END IF
