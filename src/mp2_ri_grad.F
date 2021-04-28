@@ -51,6 +51,7 @@ MODULE mp2_ri_grad
                                               mp2_eri_force
    USE mp2_eri_gpw,                     ONLY: calc_potential_gpw,&
                                               cleanup_gpw,&
+                                              integrate_potential,&
                                               prepare_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
@@ -418,140 +419,8 @@ CONTAINS
 
             ! integrate the potential of the single gaussian and update
             ! 2-center forces with Gamma_PQ
-            CALL timeset(routineN//"_int_PQ", handle3)
-            NULLIFY (rs_v)
-            NULLIFY (rs_descs)
-            CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
-            DO i = 1, SIZE(rs_v)
-               CALL rs_grid_retain(rs_v(i)%rs_grid)
-            END DO
-            CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
-
-            offset = 0
-            DO iatom = 1, natom
-               ikind = kind_of(iatom)
-               atom_a = atom_of_kind(iatom)
-               CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, &
-                                basis_type="RI_AUX")
-
-               first_sgfa => basis_set_a%first_sgf
-               la_max => basis_set_a%lmax
-               la_min => basis_set_a%lmin
-               npgfa => basis_set_a%npgf
-               nseta = basis_set_a%nset
-               nsgfa => basis_set_a%nsgf_set
-               rpgfa => basis_set_a%pgf_radius
-               set_radius_a => basis_set_a%set_radius
-               sphi_a => basis_set_a%sphi
-               zeta => basis_set_a%zet
-
-               ra(:) = pbc(particle_set(iatom)%r, cell)
-
-               force_a(:) = 0.0_dp
-               force_b(:) = 0.0_dp
-               IF (use_virial) THEN
-                  my_virial_a = 0.0_dp
-                  my_virial_b = 0.0_dp
-               END IF
-
-               DO iset = 1, nseta
-                  ncoa = npgfa(iset)*ncoset(la_max(iset))
-                  sgfa = first_sgfa(1, iset)
-
-                  ALLOCATE (I_tmp2(ncoa, 1))
-                  I_tmp2 = 0.0_dp
-                  ALLOCATE (I_ab(nsgfa(iset), 1))
-                  I_ab = 0.0_dp
-                  ALLOCATE (pab(ncoa, 1))
-                  pab = 0.0_dp
-
-                  I_ab(1:nsgfa(iset), 1) = -4.0_dp*G_PQ_local(offset + 1:offset + nsgfa(iset), L_counter)
-
-                  CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), &
-                             1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                             I_ab(1, 1), SIZE(I_ab, 1), &
-                             0.0_dp, pab(1, 1), SIZE(pab, 1))
-
-                  I_ab = 0.0_dp
-
-                  igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
-                  map_it_here = .FALSE.
-                  IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
-                     DO dir = 1, 3
-                        ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                        tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                        tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                        IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir) + rs_v(igrid_level)%rs_grid%desc%border
-                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir) - rs_v(igrid_level)%rs_grid%desc%border
-                        ELSE
-                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
-                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
-                        ENDIF
-                        ! distributed grid, only map if it is local to the grid
-                        location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
-                     ENDDO
-                     IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                         lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                         lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                        map_it_here = .TRUE.
-                     ENDIF
-                  ELSE
-                     ! not distributed, just a round-robin distribution over the full set of CPUs
-                     IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-                  ENDIF
-
-                  offset = offset + nsgfa(iset)
-
-                  IF (map_it_here) THEN
-                     DO ipgf = 1, npgfa(iset)
-                        na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
-                        na2 = ipgf*ncoset(la_max(iset))
-                        igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
-
-                        radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
-                                                          lb_min=0, lb_max=0, ra=ra, rb=ra, rp=ra, &
-                                                          zetp=zeta(ipgf, iset), &
-                                                          eps=dft_control%qs_control%eps_gvg_rspace, &
-                                                          prefactor=1.0_dp, cutoff=1.0_dp)
-
-                        CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
-                                                   lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                                   ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                   rsgrid=rs_v(igrid_level)%rs_grid, &
-                                                   cell=cell, &
-                                                   cube_info=pw_env_sub%cube_info(igrid_level), &
-                                                   hab=I_tmp2, &
-                                                   pab=pab, &
-                                                   o1=na1 - 1, &
-                                                   o2=0, &
-                                                   radius=radius, &
-                                                   calculate_forces=.TRUE., &
-                                                   force_a=force_a, force_b=force_b, &
-                                                   use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
-
-                     END DO
-
-                  END IF
-
-                  DEALLOCATE (I_tmp2)
-                  DEALLOCATE (I_ab)
-                  DEALLOCATE (pab)
-
-               END DO
-
-               force(ikind)%rho_elec(:, atom_a) = &
-                  force(ikind)%rho_elec(:, atom_a) + force_a(:) + force_b
-               IF (use_virial) THEN
-                  virial%pv_mp2 = virial%pv_mp2 + my_virial_a + my_virial_b
-                  virial%pv_virial = virial%pv_virial + my_virial_a + my_virial_b
-               END IF
-            END DO
-
-            DO i = 1, SIZE(rs_v)
-               CALL rs_grid_release(rs_v(i)%rs_grid)
-            END DO
-            CALL timestop(handle3)
+            CALL integrate_potential(pw_env_sub, rho_r, kind_of, atom_of_kind, particle_set, qs_kind_set, &
+                                  G_PQ_local(:, L_counter), cell, force, virial, para_env_sub, dft_control)
             ! here we are done with the 2 centers
 
             ! integrate the potential of the single gaussian and update
@@ -711,7 +580,7 @@ CONTAINS
                              1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
                              I_ab(1, 1), SIZE(I_ab, 1), &
                              0.0_dp, pab(1, 1), SIZE(pab, 1))
-                  I_ab = 0.0_dp
+                  DEALLOCATE(I_ab)
 
                   igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
                   map_it_here = .FALSE.
@@ -772,7 +641,6 @@ CONTAINS
                   END IF
 
                   DEALLOCATE (I_tmp2)
-                  DEALLOCATE (I_ab)
                   DEALLOCATE (pab)
 
                END DO
