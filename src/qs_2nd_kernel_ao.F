@@ -157,11 +157,10 @@ CONTAINS
       LOGICAL                                            :: my_calc_forces, my_recalc_integrals
       REAL(KIND=dp)                                      :: alpha
       TYPE(admm_type), POINTER                           :: admm_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho1, work_hmat, rho_ao, rho_ao_aux
-      TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: hrho
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s, rho1, work_hmat, rho_ao
       TYPE(dbcsr_type)                                   :: work_hmat2
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
+      TYPE(qs_rho_type), POINTER                         :: rho
 
       CALL timeset(routineN, handle)
 
@@ -194,6 +193,9 @@ CONTAINS
       END DO
 
       IF (dft_control%do_admm) THEN
+         DO ispin = 1, nspins
+            CPASSERT(ASSOCIATED(rho1_ao_admm(ispin)%matrix))
+         END DO
          rho1 => rho1_ao_admm
       ELSE
          rho1 => rho1_ao
@@ -239,33 +241,11 @@ CONTAINS
          END DO
          CALL dbcsr_release(work_hmat2)
 
- 
          IF (my_calc_forces) THEN
-            ALLOCATE(hrho(nspins))
-            DO ispin = 1, nspins
-               NULLIFY(hrho(nspins)%matrix)
-               ALLOCATE (hrho(ispin)%matrix)
-               CALL dbcsr_create(hrho(ispin)%matrix, template=work_hmat(ispin)%matrix)
-               CALL dbcsr_copy(hrho(ispin)%matrix, work_hmat(ispin)%matrix)
-               CALL dbcsr_set(hrho(ispin)%matrix, 0.0_dp)
-            END DO
-
-            CALL get_qs_env(qs_env, rho=rho, rho_aux_fit=rho_aux_fit)
+            CALL get_qs_env(qs_env, rho=rho)
             CALL qs_rho_get(rho, rho_ao=rho_ao)
-            CALL qs_rho_get(rho_aux_fit, rho_ao=rho_ao_aux)
-
-            CALL tddft_hfx_matrix(hrho, rho_ao_aux, qs_env, .FALSE., my_recalc_integrals)
-
-            CALL admm_projection_derivative(qs_env, hrho, rho1_ao)
             CALL admm_projection_derivative(qs_env, work_hmat, rho_ao)
-
-            DO ispin = 1, nspins
-               CALL dbcsr_release(hrho(ispin)%matrix)
-               DEALLOCATE(hrho(ispin)%matrix)
-            END DO
-            DEALLOCATE(hrho)
          END IF
-
       ELSE
          DO ispin = 1, nspins
             CALL dbcsr_add(h1_mat(ispin)%matrix, work_hmat(ispin)%matrix, 1.0_dp, alpha)
@@ -473,7 +453,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE admm_projection_derivative(qs_env, matrix_hz, matrix_pz)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: matrix_hz
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_hz
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_pz
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_projection_derivative'
