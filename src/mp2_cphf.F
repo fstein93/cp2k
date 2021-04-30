@@ -1386,14 +1386,10 @@ CONTAINS
 
       END DO
 
-      deb(:) = force(1)%rho_elec(:, 1)
       DO ikind = 1, SIZE(force)
          force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%rho_elec
          force(ikind)%rho_elec = 0.0_dp
       ENDDO
-      IF (iounit > 0) WRITE(iounit,*) "p1*K'"
-      CALL mp_sum(deb, para_env%group)
-      IF (iounit > 0) WRITE(iounit,*) deb
 
       IF (dft_control%do_admm) THEN
 
@@ -1439,14 +1435,10 @@ CONTAINS
                                        task_list_external=task_list_aux_fit)
             END DO
 
-            IF (iounit > 0) WRITE(iounit,*) "rho_elec admm p1*K'"
-            deb(:) = force(1)%rho_elec(:, 1)
             DO ikind = 1, SIZE(force)
                force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%rho_elec
                force(ikind)%rho_elec = 0.0_dp
             ENDDO
-            CALL mp_sum(deb, para_env%group)
-            IF (iounit > 0) WRITE(iounit,*) deb
 
             CALL admm_projection_derivative(qs_env, matrix_h_aux, rho_ao)
 
@@ -1461,7 +1453,7 @@ CONTAINS
 
             NULLIFY(v_rspace_aux_fit, v_tau_rspace_aux_fit)
             ! here we ignore a possible vdW section in admm_env%xc_section_aux
-            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho, xc_section=xc_section, &
+            CALL qs_vxc_create(ks_env=ks_env, rho_struct=rho_aux, xc_section=xc_section, &
                                vxc_rho=v_rspace_aux_fit, vxc_tau=v_tau_rspace_aux_fit, exc=e_xc)
 
             DO ispin = 1, nspins
@@ -1479,7 +1471,7 @@ CONTAINS
                DO ispin = 1, nspins
                   CALL pw_scale(v_tau_rspace_aux_fit(ispin)%pw, v_tau_rspace_aux_fit(ispin)%pw%pw_grid%dvol)
                   CALL integrate_v_rspace(qs_env=qs_env, v_rspace=v_tau_rspace_aux_fit(ispin), &
-                                          hmat=matrix_h_aux(ispin), pmat=matrix_p_mp2(ispin), &
+                                          hmat=matrix_h_aux(ispin), pmat=matrix_p_mp2_admm(ispin), &
                                           calculate_forces=.FALSE., compute_tau=.TRUE.)
                   CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau_rspace_aux_fit(ispin)%pw)
                END DO
@@ -1513,16 +1505,10 @@ CONTAINS
          ! Now, add the correction of the derivatives from the projector
          CALL apply_hfx_ao(qs_env, matrix_p_mp2, matrix_p_mp2_admm, matrix_ks, .FALSE., .TRUE.)
 
-         deb(:) = force(1)%overlap_admm(:, 1)
          DO ikind = 1, SIZE(force)
             force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%overlap_admm
             force(ikind)%overlap_admm = 0.0_dp
          END DO
-
-         IF (iounit > 0) WRITE(iounit,*) "overlap_admm"
-         CALL mp_sum(deb, para_env%group)
-         IF (iounit > 0) WRITE(iounit,*) deb
-
       END IF
 
       DO ispin = 1, nspins
