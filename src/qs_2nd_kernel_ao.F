@@ -145,11 +145,12 @@ CONTAINS
 !> \param h1_mat the resulting kernel matrix in AO basis (on output, it will have added the hfx kernel)
 !> \param recalc_integrals whether the integrals are to be recalculated (default: no)
 ! **************************************************************************************************
-   SUBROUTINE apply_hfx_ao(qs_env, rho1_ao, rho1_ao_admm, h1_mat, recalc_integrals, calc_forces)
+   SUBROUTINE apply_hfx_ao(qs_env, rho1_ao, rho1_ao_admm, h1_mat, recalc_integrals, calc_forces, matrix_h_aux)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), &
          TARGET                                          :: rho1_ao, rho1_ao_admm, h1_mat
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_integrals, calc_forces
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN), OPTIONAL       :: matrix_h_aux
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_hfx_ao', routineP = moduleN//':'//routineN
 
@@ -244,7 +245,15 @@ CONTAINS
          IF (my_calc_forces) THEN
             CALL get_qs_env(qs_env, rho=rho)
             CALL qs_rho_get(rho, rho_ao=rho_ao)
-            CALL admm_projection_derivative(qs_env, work_hmat, rho_ao)
+
+            IF (PRESENT(matrix_h_aux)) THEN
+               DO ispin = 1, nspins
+                  CALL dbcsr_add(matrix_h_aux(ispin)%matrix, work_hmat(ispin)%matrix, 1.0_dp, 1.0_dp)
+               END DO
+               CALL admm_projection_derivative(qs_env, matrix_h_aux, rho_ao)
+            ELSE
+               CALL admm_projection_derivative(qs_env, work_hmat, rho_ao)
+            END IF
          END IF
       ELSE
          DO ispin = 1, nspins

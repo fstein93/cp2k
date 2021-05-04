@@ -1222,7 +1222,7 @@ CONTAINS
                                                             ispin, nspins
       INTEGER, DIMENSION(3)                              :: comp
       LOGICAL                                            :: use_virial
-      REAL(KIND=dp)                                      :: e_hartree, e_xc, pair_energy, tot_rho_r
+      REAL(KIND=dp)                                      :: e_dummy, e_hartree, e_xc, pair_energy, tot_rho_r
       REAL(KIND=dp), DIMENSION(3)                        :: deb
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_dummy, h_stress
       TYPE(admm_type), POINTER                           :: admm_env
@@ -1237,7 +1237,8 @@ CONTAINS
       TYPE(pw_p_type), ALLOCATABLE, DIMENSION(:)         :: tau_mp2_g, tau_mp2_r
       TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_g, rho_mp2_g, rho_mp2_r, rho_r, &
                                                             tau_r, v_rho, v_tau, &
-                                                            v_xc, rho_mp2_g_aux, rho_mp2_r_aux
+                                                            v_xc, rho_mp2_g_aux, rho_mp2_r_aux, &
+                                                            tau_mp2_r_aux, tau_mp2_g_aux, rho_r_aux, rho_g_aux, tau_r_aux
       TYPE(pw_p_type), POINTER                           :: rho_core
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
@@ -1391,6 +1392,14 @@ CONTAINS
       ENDDO
 
       IF (dft_control%do_admm) THEN
+         ALLOCATE(matrix_h_aux(nspins))
+         DO ispin = 1, nspins
+            NULLIFY(matrix_h_aux(ispin)%matrix)
+            ALLOCATE(matrix_h_aux(ispin)%matrix)
+            CALL dbcsr_create(matrix_h_aux(ispin)%matrix, template=matrix_p_mp2_admm(ispin)%matrix)
+            CALL dbcsr_copy(matrix_h_aux(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix)
+            CALL dbcsr_set(matrix_h_aux(ispin)%matrix, 0.0_dp)
+         END DO
 
          IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
             CALL get_qs_env(qs_env, ks_env=ks_env, rho_aux_fit=rho_aux, &
@@ -1408,14 +1417,6 @@ CONTAINS
                CALL pw_zero(rho_mp2_g_aux(ispin)%pw)
             ENDDO
             CALL qs_rho_get(rho_aux, rho_ao=rho_ao_aux)
-            ALLOCATE(matrix_h_aux(nspins))
-            DO ispin = 1, nspins
-               NULLIFY(matrix_h_aux(ispin)%matrix)
-               ALLOCATE(matrix_h_aux(ispin)%matrix)
-               CALL dbcsr_create(matrix_h_aux(ispin)%matrix, template=matrix_p_mp2_admm(ispin)%matrix)
-               CALL dbcsr_copy(matrix_h_aux(ispin)%matrix, matrix_p_mp2_admm(ispin)%matrix)
-               CALL dbcsr_set(matrix_h_aux(ispin)%matrix, 0.0_dp)
-            END DO
 
             DO ispin = 1, nspins
                CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_p_mp2_admm(ispin)%matrix, &
@@ -1439,32 +1440,21 @@ CONTAINS
                force(ikind)%rho_elec = 0.0_dp
             ENDDO
 
-            CALL admm_projection_derivative(qs_env, matrix_h_aux, rho_ao)
-
-            IF (iounit > 0) WRITE(iounit,*) "admm overlap p1*K'"
-            deb(:) = force(1)%overlap_admm(:, 1)
-            DO ikind = 1, SIZE(force)
-               force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%overlap_admm
-               force(ikind)%overlap_admm = 0.0_dp
-            ENDDO
-            CALL mp_sum(deb, para_env%group)
-            IF (iounit > 0) WRITE(iounit,*) deb
-
             DO ispin = 1, nspins
                CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_mp2_r_aux(ispin)%pw)
                CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_mp2_g_aux(ispin)%pw)
             END DO
             DEALLOCATE(rho_mp2_r_aux, rho_mp2_g_aux)
-            DO ispin = 1, nspins
-               CALL dbcsr_release(matrix_h_aux(ispin)%matrix)
-               DEALLOCATE(matrix_h_aux(ispin)%matrix)
-            END DO
-            DEALLOCATE(matrix_h_aux)
-
          END IF
 
          ! Now, add the correction of the derivatives from the projector
-         CALL apply_hfx_ao(qs_env, matrix_p_mp2, matrix_p_mp2_admm, matrix_ks, .FALSE., .TRUE.)
+         CALL apply_hfx_ao(qs_env, matrix_p_mp2, matrix_p_mp2_admm, matrix_ks, .FALSE., .TRUE., matrix_h_aux)
+
+         DO ispin = 1, nspins
+            CALL dbcsr_release(matrix_h_aux(ispin)%matrix)
+            DEALLOCATE(matrix_h_aux(ispin)%matrix)
+         END DO
+         DEALLOCATE(matrix_h_aux)
 
          DO ikind = 1, SIZE(force)
             force(ikind)%mp2_sep = force(ikind)%mp2_sep + force(ikind)%overlap_admm
@@ -1562,7 +1552,7 @@ CONTAINS
          ! Add the contributions of the XC kernel
          NULLIFY (v_rho, v_tau)
          CALL qs_rho_get(rho, tau_r=tau_r)
-         CALL xc_vxc_pw_create(v_rho, v_tau, e_xc, rho_r, rho_g, tau_r, xc_section, auxbas_pw_pool, .FALSE., h_dummy)
+         CALL xc_vxc_pw_create(v_rho, v_tau, e_dummy, rho_r, rho_g, tau_r, xc_section, auxbas_pw_pool, .FALSE., h_dummy)
 
          ! For tau-dependent functionals, we need the perturbed kinetic energy densities
          IF (ASSOCIATED(v_tau)) THEN
@@ -1594,6 +1584,70 @@ CONTAINS
             e_xc = e_xc + pw_integral_ab(rho_mp2_r(ispin)%pw, v_rho(ispin)%pw)
             IF (ASSOCIATED(v_tau)) e_xc = e_xc + pw_integral_ab(tau_mp2_r(ispin)%pw, v_tau(ispin)%pw)
          END DO
+
+         IF (dft_control%do_admm) THEN
+
+         IF (dft_control%admm_control%aux_exch_func /= do_admm_aux_exch_func_none) THEN
+            CALL get_qs_env(qs_env, ks_env=ks_env, rho_aux_fit=rho_aux, &
+                            matrix_s_aux_fit=matrix_s_aux, task_list_aux_fit=task_list_aux_fit)
+            xc_section => admm_env%xc_section_aux
+            NULLIFY (rho_mp2_g_aux, rho_mp2_r_aux)
+            ALLOCATE (rho_mp2_r_aux(nspins), rho_mp2_g_aux(nspins))
+            DO ispin = 1, nspins
+               NULLIFY (rho_mp2_r_aux(ispin)%pw, rho_mp2_g_aux(ispin)%pw)
+               CALL pw_pool_create_pw(auxbas_pw_pool, rho_mp2_r_aux(ispin)%pw, &
+                                      use_data=REALDATA3D, in_space=REALSPACE)
+               CALL pw_pool_create_pw(auxbas_pw_pool, rho_mp2_g_aux(ispin)%pw, &
+                                      use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+               CALL pw_zero(rho_mp2_r_aux(ispin)%pw)
+               CALL pw_zero(rho_mp2_g_aux(ispin)%pw)
+            ENDDO
+            CALL qs_rho_get(rho_aux, rho_r=rho_r_aux, rho_g=rho_g_aux, tau_r=tau_r_aux)
+
+            DO ispin = 1, nspins
+               CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_p_mp2_admm(ispin)%matrix, &
+                                       rho=rho_mp2_r_aux(ispin), rho_gspace=rho_mp2_g_aux(ispin), &
+                                       total_rho=tot_rho_r, basis_type="AUX_FIT", &
+                                       task_list_external=task_list_aux_fit)
+            END DO
+
+            CALL xc_vxc_pw_create(v_rho, v_tau, e_dummy, rho_r_aux, rho_g_aux, tau_r_aux, xc_section, &
+                                  auxbas_pw_pool, .FALSE., h_dummy)
+            IF (ASSOCIATED(v_tau)) THEN
+               ALLOCATE (tau_mp2_r_aux(nspins), tau_mp2_g_aux(nspins))
+               DO ispin = 1, nspins
+                  NULLIFY (tau_mp2_r_aux(ispin)%pw, tau_mp2_g_aux(ispin)%pw)
+                  CALL pw_pool_create_pw(auxbas_pw_pool, tau_mp2_r_aux(ispin)%pw, &
+                                         use_data=REALDATA3D, in_space=REALSPACE)
+                  CALL pw_pool_create_pw(auxbas_pw_pool, tau_mp2_g_aux(ispin)%pw, &
+                                         use_data=COMPLEXDATA1D, in_space=RECIPROCALSPACE)
+                  CALL pw_zero(tau_mp2_r_aux(ispin)%pw)
+                  CALL pw_zero(tau_mp2_g_aux(ispin)%pw)
+                  CALL calculate_rho_elec(ks_env=ks_env, matrix_p=matrix_p_mp2_admm(ispin)%matrix, &
+                                          rho=tau_mp2_r_aux(ispin), rho_gspace=tau_mp2_g_aux(ispin), &
+                                          total_rho=tot_rho_r, basis_type="AUX_FIT", &
+                                          compute_tau=.TRUE., task_list_external=task_list_aux_fit)
+               END DO
+            END IF
+
+            DO ispin = 1, nspins
+            e_xc = e_xc + pw_integral_ab(rho_mp2_r_aux(ispin)%pw, v_rho(ispin)%pw)
+            IF (ASSOCIATED(v_tau)) e_xc = e_xc + pw_integral_ab(tau_mp2_r_aux(ispin)%pw, v_tau(ispin)%pw)
+
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_mp2_r_aux(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_mp2_g_aux(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rho(ispin)%pw)
+            IF (ASSOCIATED(v_tau)) THEN
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_mp2_r_aux(ispin)%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_mp2_g_aux(ispin)%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau(ispin)%pw)
+            END IF
+
+         END DO
+            DEALLOCATE(rho_mp2_r_aux, rho_mp2_g_aux, v_rho)
+            IF (ASSOCIATED(v_tau)) DEALLOCATE(tau_mp2_r_aux, tau_mp2_g_aux, v_tau)
+         END IF
+         END IF
 
          DO alpha = 1, 3
             h_stress(alpha, alpha) = h_stress(alpha, alpha) - e_xc
