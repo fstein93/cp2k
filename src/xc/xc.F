@@ -2997,6 +2997,7 @@ WRITE(*,*) "v ", virial_xc-h_debug
          deriv_att => xc_dset_get_derivative(deriv_set, "(norm_drho)")
          IF (ASSOCIATED(deriv_att)) THEN
             CALL xc_derivative_get(deriv_att, deriv_data=deriv_data)
+            CALL xc_derivative_get(deriv_att, deriv_data=e_norm_drho)
             IF (my_compute_virial) THEN
                CALL pw_pool_create_pw(pw_pool, virial_pw, &
                                       use_data=REALDATA3D, &
