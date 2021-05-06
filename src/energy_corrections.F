@@ -1065,11 +1065,13 @@ CONTAINS
 !> \param rho1_r ...
 !> \param rho1_g ...
 ! **************************************************************************************************
-   SUBROUTINE calc_ks_response_potentials(v_xc, xc_section, qs_env, rho1_r, rho1_g)
+   SUBROUTINE calc_ks_response_potentials(v_xc, xc_section, qs_env, rho1_r, rho1_g, compute_virial, virial)
       TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: v_xc
       TYPE(section_vals_type), INTENT(IN), POINTER       :: xc_section
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(pw_p_type), DIMENSION(:), INTENT(IN), POINTER :: rho1_r, rho1_g
+      LOGICAL, INTENT(IN), OPTIONAL :: compute_virial
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT), OPTIONAL :: virial
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ks_response_potentials'
 
@@ -1111,7 +1113,7 @@ CONTAINS
                              section_get_ival(xc_section, "XC_GRID%XC_SMOOTH_RHO"), &
                              auxbas_pw_pool)
       CALL xc_calc_2nd_deriv(v_xc, deriv_set, rho_set, &
-                             rho1_set, auxbas_pw_pool, xc_section=xc_section)
+                             rho1_set, auxbas_pw_pool, xc_section=xc_section, compute_virial=compute_virial, virial_xc=virial)
       CALL xc_dset_release(deriv_set)
       CALL xc_rho_set_release(rho_set)
       CALL xc_rho_set_release(rho1_set)

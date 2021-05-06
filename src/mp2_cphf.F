@@ -1251,6 +1251,8 @@ CONTAINS
          CALL pw_pool_create_pw(auxbas_pw_pool, rho_mp2_g(ispin)%pw, &
                                 use_data=COMPLEXDATA1D, &
                                 in_space=RECIPROCALSPACE)
+         CALL pw_zero(rho_mp2_r(ispin)%pw)
+         CALL pw_zero(rho_mp2_g(ispin)%pw)
       END DO
       CALL pw_pool_create_pw(auxbas_pw_pool, pot_r%pw, &
                              use_data=REALDATA3D, &
@@ -1311,7 +1313,13 @@ CONTAINS
       ELSE
          xc_section => section_vals_get_subs_vals(input, "DFT%XC")
       END IF
-      CALL calc_ks_response_potentials(v_xc, xc_section, qs_env, rho_mp2_r, rho_mp2_g)
+      IF (use_virial) h_stress = 0.0_dp
+      CALL calc_ks_response_potentials(v_xc, xc_section, qs_env, rho_mp2_r, rho_mp2_g, compute_virial=use_virial, virial=h_stress)
+      ! Update the virial
+      IF (use_virial) THEN
+         virial%pv_mp2 = virial%pv_mp2 + h_stress
+         virial%pv_virial = virial%pv_virial + h_stress
+      END IF
       !
       ! vtot = v_xc(ispin) + dv_hartree
       CALL qs_rho_get(rho, rho_ao=rho_ao)
