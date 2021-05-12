@@ -75,6 +75,7 @@ MODULE mp2_cphf
                                               pw_pool_p_type,&
                                               pw_pool_type
    USE pw_types,                        ONLY: COMPLEXDATA1D,&
+                                              REALDATA1D,&
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
@@ -109,6 +110,7 @@ MODULE mp2_cphf
                                               qs_rho_release,&
                                               qs_rho_type
    USE virial_types,                    ONLY: virial_type
+   USE xc,                              ONLY: xc_vxc_pw_create
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num, omp_get_num_threads
 
@@ -1191,9 +1193,9 @@ CONTAINS
       INTEGER :: alpha, beta, handle, handle2, i, ikind, ispin, nspins
       INTEGER, DIMENSION(3)                              :: comp
       LOGICAL                                            :: use_virial
-      REAL(KIND=dp)                                      :: e_hartree, &
+      REAL(KIND=dp)                                      :: e_hartree, e_xc, &
                                                             pair_energy, tot_rho_r
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_dummy, h_stress
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks, matrix_p_mp2, &
                                                             matrix_s, matrix_w_mp2, &
@@ -1204,8 +1206,8 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_p_type)                                    :: dvg(3), temp_pw_g, rho_tot_r, rho_tot_g, pot_g, pot_r
-      TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE         :: rho_g, rho_r
-      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_mp2_g, rho_mp2_r, v_xc
+      TYPE(pw_p_type), DIMENSION(:), ALLOCATABLE         :: tau_mp2_g, tau_mp2_r
+      TYPE(pw_p_type), DIMENSION(:), POINTER             :: rho_mp2_g, rho_mp2_r, v_xc, rho_g, rho_r, v_rho, v_tau, tau_r
       TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
@@ -1281,7 +1283,6 @@ CONTAINS
                                  ks_env=ks_env, &
                                  soft_valid=.FALSE.)
 
-         CALL pw_axpy(rho_mp2_r(ispin)%pw, rho_tot_r%pw)
          CALL pw_axpy(rho_mp2_g(ispin)%pw, rho_tot_g%pw)
       END DO
 
@@ -1298,6 +1299,7 @@ CONTAINS
       ENDDO
 
       ! Calculate XC part
+      NULLIFY(v_xc)
       ALLOCATE (v_xc(nspins))
       DO ispin = 1, nspins
          NULLIFY (v_xc(ispin)%pw)
@@ -1336,6 +1338,11 @@ CONTAINS
          force(ikind)%rho_elec = 0.0_dp
       ENDDO
 
+      DO ispin = 1, nspins
+         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
+      END DO
+      DEALLOCATE(v_xc)
+
       IF (use_virial) THEN
          ! update virial if necessary with the volume term
          ! first create pw auxiliary stuff
@@ -1364,6 +1371,7 @@ CONTAINS
          CALL pw_zero(rho_tot_r%pw)
          CALL pw_zero(rho_tot_g%pw)
 
+         NULLIFY(rho_r, rho_g)
          ALLOCATE(rho_r(nspins), rho_g(nspins))
          DO ispin = 1, nspins
             NULLIFY(rho_r(ispin)%pw, rho_g(ispin)%pw)
@@ -1391,13 +1399,6 @@ CONTAINS
          CALL pw_axpy(rho_core%pw, rho_tot_g%pw)
          CALL pw_poisson_solve(poisson_env, rho_tot_g%pw, vhartree=pot_g%pw)
 
-         ! release stuff
-         DO ispin = 1, nspins
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin)%pw)
-            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g(ispin)%pw)
-         END DO
-         DEALLOCATE(rho_r, rho_g)
-
          ! finally update virial with the volume contribution
          e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
          h_stress = 0.0_dp
@@ -1413,6 +1414,48 @@ CONTAINS
                h_stress(beta, alpha) = h_stress(alpha, beta)
             END DO
          END DO
+
+         ! Add the contributions of the XC kernel
+         NULLIFY(v_rho, v_tau)
+         CALL qs_rho_get(rho, tau_r=tau_r)
+         CALL xc_vxc_pw_create(v_rho, v_tau, e_xc, rho_r, rho_g, tau_r, xc_section, auxbas_pw_pool, .FALSE., h_dummy)
+
+         ! For tau-dependent functionals, we need the perturbed kinetic energy densities
+         IF (ASSOCIATED(v_tau)) THEN
+            ALLOCATE(tau_mp2_r(nspins))
+            ALLOCATE(tau_mp2_g(nspins))
+            DO ispin = 1, nspins
+               NULLIFY(tau_mp2_r(ispin)%pw)
+               NULLIFY(tau_mp2_g(ispin)%pw)
+               CALL pw_pool_create_pw(auxbas_pw_pool, tau_mp2_r(ispin)%pw, &
+                                      use_data=REALDATA3D, &
+                                      in_space=REALSPACE)
+               CALL pw_pool_create_pw(auxbas_pw_pool, tau_mp2_g(ispin)%pw, &
+                                      use_data=COMPLEXDATA1D, &
+                                      in_space=RECIPROCALSPACE)
+
+               CALL calculate_rho_elec(matrix_p=matrix_p_mp2(ispin)%matrix, &
+                                       rho=tau_mp2_r(ispin), &
+                                       rho_gspace=tau_mp2_g(ispin), &
+                                       total_rho=tot_rho_r, &
+                                       ks_env=ks_env, &
+                                       soft_valid=.FALSE., &
+                                       compute_tau=.TRUE.)
+
+            END DO
+         END IF
+
+         e_xc = 0.0_dp
+         DO ispin = 1, nspins
+            e_xc = e_xc + pw_integral_ab(rho_mp2_r(ispin)%pw, v_rho(ispin)%pw)
+            IF (ASSOCIATED(v_tau)) e_xc = e_xc + pw_integral_ab(tau_mp2_r(ispin)%pw, v_tau(ispin)%pw)   
+         END DO
+
+         DO alpha = 1, 3
+            h_stress(alpha, alpha) = h_stress(alpha, alpha) - e_xc
+         END DO
+
+         ! Update the virial
          virial%pv_mp2 = virial%pv_mp2 + h_stress/REAL(para_env%num_pe, dp)
          virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env%num_pe, dp)
 
@@ -1421,6 +1464,28 @@ CONTAINS
          DO i = 1, 3
             CALL pw_pool_give_back_pw(auxbas_pw_pool, dvg(i)%pw)
          END DO
+
+         ! release stuff
+         DO ispin = 1, nspins
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_r(ispin)%pw)
+            CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_g(ispin)%pw)
+         END DO
+         DEALLOCATE(rho_r, rho_g)
+
+         IF (ASSOCIATED(v_rho)) THEN
+            DO ispin = 1, nspins
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_rho(ispin)%pw)
+            END DO
+            DEALLOCATE(v_rho)
+         END IF
+         IF (ASSOCIATED(v_tau)) THEN
+            DO ispin = 1, nspins
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, v_tau(ispin)%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_mp2_r(ispin)%pw)
+               CALL pw_pool_give_back_pw(auxbas_pw_pool, tau_mp2_g(ispin)%pw)
+            END DO
+            DEALLOCATE(v_tau)
+         END IF
          CALL timestop(handle2)
       END IF
 
@@ -1437,10 +1502,6 @@ CONTAINS
          CALL pw_pool_give_back_pw(auxbas_pw_pool, rho_mp2_g(ispin)%pw)
       END DO
       DEALLOCATE(rho_mp2_r, rho_mp2_g)
-      DO ispin = 1, nspins
-         CALL pw_pool_give_back_pw(auxbas_pw_pool, v_xc(ispin)%pw)
-      END DO
-      DEALLOCATE(v_xc)
 
       CALL timestop(handle)
 
