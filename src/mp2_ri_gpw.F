@@ -353,15 +353,9 @@ CONTAINS
                      my_flop_rate = my_flop_rate + actual_flop_rate
                      my_num_dgemm_call = my_num_dgemm_call + 1
                      ! Additional integrals only for alpha_beta case and forces
-                     IF ((my_alpha_beta_case) .AND. (calc_forces)) THEN
-                        t_start = m_walltime()
-                        CALL dgemm('T', 'N', my_B_size(2), my_B_size(1), dimen_RI, 1.0_dp, &
-                                   local_j_aL(:, :, iiB), dimen_RI, local_i_aL(:, :, jjB), dimen_RI, &
-                                   0.0_dp, local_ba(my_B_virtual_start(2):my_B_virtual_end(2), 1:my_B_size(1)), my_B_size(2))
-                        t_end = m_walltime()
-                        actual_flop_rate = 2.0_dp*my_B_size(1)*my_B_size(2)*REAL(dimen_RI, KIND=dp)/(MAX(0.01_dp, t_end - t_start))
-                        my_flop_rate = my_flop_rate + actual_flop_rate
-                        my_num_dgemm_call = my_num_dgemm_call + 1
+                     IF (my_alpha_beta_case .AND. calc_forces) THEN
+                        local_ba(my_B_virtual_start(2):my_B_virtual_end(2), 1:my_B_size(1)) = &
+                           TRANSPOSE(local_ab(my_B_virtual_start(1):my_B_virtual_end(1), 1:my_B_size(2)))
                      ENDIF
                      ! ... and from the other of my subgroup
                      DO proc_shift = 1, para_env_sub%num_pe - 1
