@@ -108,7 +108,7 @@ CONTAINS
          mem_for_rep, mem_min, mem_per_group, mem_real, my_Emp2_Cou, my_Emp2_EX, my_flop_rate, &
          null_mat_rec(2, 2, 2), null_mat_send(2, 2, 2), sym_fac, t_end, t_start
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: external_ab, external_i_aL, local_ab, &
-                                                            local_ba, t_ab
+                                                            local_ba, t_ab, my_local_i_aL, my_local_j_aL
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_ia_Q, B_ia_Q_beta, BI_C_rec, &
                                                             local_i_aL, local_j_aL, Y_i_aP, &
                                                             Y_j_aP, Y_j_aP_beta
@@ -335,10 +335,16 @@ CONTAINS
                END DO
                CALL timestop(handle3)
 
+               ALLOCATE(my_local_i_aL(dimen_RI, my_B_size(1)), my_local_j_aL(dimen_RI, my_B_size(2)))
+
                ! loop over the block elements
                DO iiB = 1, my_block_size
                   DO jjB = 1, my_block_size
                      CALL timeset(routineN//"_expansion", handle3)
+
+                     my_local_i_aL(:, :) = local_i_aL(:, :, iiB)
+                     my_local_j_aL(:, :) = local_j_aL(:, :, iiB)
+
                      ! calculate the integrals (ia|jb) strating from my local data ...
                      local_ab = 0.0_dp
                      IF ((my_alpha_beta_case) .AND. (calc_forces)) THEN
@@ -346,7 +352,7 @@ CONTAINS
                      ENDIF
                      t_start = m_walltime()
                      CALL dgemm('T', 'N', my_B_size(1), my_B_size(2), dimen_RI, 1.0_dp, &
-                                local_i_aL(:, :, iiB), dimen_RI, local_j_aL(:, :, jjB), dimen_RI, &
+                                my_local_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
                                 0.0_dp, local_ab(my_B_virtual_start(1):my_B_virtual_end(1), 1:my_B_size(2)), my_B_size(1))
                      t_end = m_walltime()
                      actual_flop_rate = 2.0_dp*my_B_size(1)*my_B_size(2)*REAL(dimen_RI, KIND=dp)/(MAX(0.01_dp, t_end - t_start))
@@ -367,13 +373,13 @@ CONTAINS
                         ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
                         external_i_aL = 0.0_dp
 
-                        CALL mp_sendrecv(local_i_aL(:, :, iiB), proc_send, &
+                        CALL mp_sendrecv(my_local_i_aL, proc_send, &
                                          external_i_aL, proc_receive, &
                                          para_env_sub%group)
 
                         t_start = m_walltime()
                         CALL dgemm('T', 'N', rec_B_size, my_B_size(2), dimen_RI, 1.0_dp, &
-                                   external_i_aL, dimen_RI, local_j_aL(:, :, jjB), dimen_RI, &
+                                   external_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
                                    0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(2)), rec_B_size)
 
                         t_end = m_walltime()
@@ -390,13 +396,13 @@ CONTAINS
                            ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
                            external_i_aL = 0.0_dp
 
-                           CALL mp_sendrecv(local_j_aL(:, :, jjB), proc_send, &
+                           CALL mp_sendrecv(my_local_j_aL, proc_send, &
                                             external_i_aL, proc_receive, &
                                             para_env_sub%group)
 
                            t_start = m_walltime()
                            CALL dgemm('T', 'N', rec_B_size, my_B_size(1), dimen_RI, 1.0_dp, &
-                                      external_i_aL, dimen_RI, local_i_aL(:, :, iiB), dimen_RI, &
+                                      external_i_aL, dimen_RI, my_local_i_aL, dimen_RI, &
                                       0.0_dp, local_ba(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(1)), rec_B_size)
                            t_end = m_walltime()
                            actual_flop_rate = 2.0_dp*rec_B_size*my_B_size(1)*REAL(dimen_RI, KIND=dp)/(MAX(0.01_dp, t_end - t_start))
@@ -487,7 +493,7 @@ CONTAINS
                            CALL mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual(ispin), &
                                                    Eigenval(:, ispin), homo(ispin), dimen_RI, iiB, jjB, my_B_size(1), &
                                                    my_B_virtual_end(1), my_B_virtual_start(1), my_i, my_j, virtual(ispin), &
-                                                   sub_proc_map, local_ab, t_ab, local_i_aL, local_j_aL, &
+                                                   sub_proc_map, local_ab, t_ab, my_local_i_aL, my_local_j_aL, &
                                                    my_open_shell_ss, my_alpha_alpha_case, my_beta_beta_case, Y_i_aP, Y_j_aP)
                         ELSE
                            Y_i_aP = 0.0_dp
@@ -496,7 +502,8 @@ CONTAINS
                                                    Eigenval(:, ispin), homo(ispin), dimen_RI, iiB, jjB, my_B_size(1), &
                                                    my_B_virtual_end(1), my_B_virtual_start(1), my_i, my_j, &
                                                    virtual(ispin), sub_proc_map, &
-                                                   local_ab, t_ab, local_i_aL, local_j_aL, my_open_shell_ss, my_alpha_alpha_case, &
+                                                   local_ab, t_ab, my_local_i_aL, my_local_j_aL, &
+                                                   my_open_shell_ss, my_alpha_alpha_case, &
                                                    my_beta_beta_case, Y_i_aP, Y_j_aP_beta, &
                                                    Eigenval(:, jspin), homo(jspin), my_B_size(2), &
                                                    gd_B_virtual(jspin), &
@@ -507,6 +514,8 @@ CONTAINS
 
                   END DO ! jjB
                END DO ! iiB
+
+              DEALLOCATE(my_local_i_aL, my_local_j_aL)
 
             ELSE
                ! No work to do and we know that we have to receive nothing, but send something
@@ -1448,8 +1457,8 @@ CONTAINS
 !> \param sub_proc_map ...
 !> \param local_ab ...
 !> \param t_ab ...
-!> \param local_i_aL ...
-!> \param local_j_aL ...
+!> \param my_local_i_aL ...
+!> \param my_local_j_aL ...
 !> \param open_ss ...
 !> \param alpha_alpha ...
 !> \param beta_beta ...
@@ -1467,7 +1476,7 @@ CONTAINS
    SUBROUTINE mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual, &
                                  Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
                                  my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, sub_proc_map, local_ab, &
-                                 t_ab, local_i_aL, local_j_aL, open_ss, alpha_alpha, beta_beta, Y_i_aP, Y_j_aP, &
+                                 t_ab, my_local_i_aL, my_local_j_aL, open_ss, alpha_alpha, beta_beta, Y_i_aP, Y_j_aP, &
                                  eigenval_beta, homo_beta, my_B_size_beta, gd_B_virtual_beta, &
                                  my_B_virtual_start_beta, my_B_virtual_end_beta, virtual_beta, local_ba)
       TYPE(mp2_type), POINTER                            :: mp2_env
@@ -1481,9 +1490,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: local_ab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(IN)                                      :: t_ab
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(IN)                                      :: local_i_aL, local_j_aL
+         INTENT(IN)                                      :: t_ab, my_local_i_aL, my_local_j_aL
       LOGICAL, INTENT(IN)                                :: open_ss, alpha_alpha, beta_beta
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(INOUT)                                   :: Y_i_aP, Y_j_aP
@@ -1704,16 +1711,16 @@ CONTAINS
          ! Alpha-alpha, beta-beta and closed shell
          CALL dgemm('N', 'T', my_B_size, dimen_RI, my_B_size, 1.0_dp, &
                     t_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size), my_B_size, &
-                    local_j_aL(1:dimen_RI, 1:my_B_size, jjB), dimen_RI, &
+                    my_local_j_aL, dimen_RI, &
                     1.0_dp, Y_i_aP(1:my_B_size, 1:dimen_RI, iiB), my_B_size)
       ELSE ! Alpha-beta
          CALL dgemm('N', 'T', my_B_size, dimen_RI, my_B_size_beta, mp2_env%scale_S, &
                     local_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size_beta), my_B_size, &
-                    local_j_aL(1:dimen_RI, 1:my_B_size_beta, jjB), dimen_RI, &
+                    my_local_j_aL, dimen_RI, &
                     1.0_dp, Y_i_aP(1:my_B_size, 1:dimen_RI, iiB), my_B_size)
          CALL dgemm('T', 'T', my_B_size_beta, dimen_RI, my_B_size, mp2_env%scale_S, &
                     local_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size_beta), my_B_size, &
-                    local_i_aL(1:dimen_RI, 1:my_B_size, jjB), dimen_RI, &
+                    my_local_i_aL, dimen_RI, &
                     1.0_dp, Y_j_aP(1:my_B_size_beta, 1:dimen_RI, jjB), my_B_size_beta)
 
       ENDIF
@@ -1734,7 +1741,7 @@ CONTAINS
             send_ab = 0.0_dp
             CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size, 1.0_dp, &
                        t_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size), send_B_size, &
-                       local_j_aL(1:dimen_RI, 1:my_B_size, jjB), dimen_RI, &
+                       my_local_j_aL, dimen_RI, &
                        0.0_dp, send_ab(1:send_B_size, 1:dimen_RI), send_B_size)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
             ! Alpha-alpha, beta-beta and closed shell
@@ -1749,7 +1756,7 @@ CONTAINS
             send_ab = 0.0_dp
             CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size_beta, mp2_env%scale_S, &
                        local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size_beta), send_B_size, &
-                       local_j_aL(1:dimen_RI, 1:my_B_size_beta, jjB), dimen_RI, &
+                       my_local_j_aL, dimen_RI, &
                        0.0_dp, send_ab(1:send_B_size, 1:dimen_RI), send_B_size)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
             Y_i_aP(1:my_B_size, 1:dimen_RI, iiB) = &
@@ -1773,7 +1780,7 @@ CONTAINS
 
             CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size, mp2_env%scale_S, &
                        local_ba(send_B_virtual_start:send_B_virtual_end, 1:my_B_size), send_B_size, &
-                       local_i_aL(1:dimen_RI, 1:my_B_size, jjB), dimen_RI, &
+                       my_local_i_aL, dimen_RI, &
                        0.0_dp, send_ab(1:send_B_size, 1:dimen_RI), send_B_size)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
             Y_j_aP(1:my_B_size_beta, 1:dimen_RI, jjB) = &
@@ -1788,7 +1795,7 @@ CONTAINS
          ! Alpha-alpha, beta-beta and closed shell
          CALL dgemm('T', 'T', my_B_size, dimen_RI, my_B_size, 1.0_dp, &
                     t_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size), my_B_size, &
-                    local_i_aL(1:dimen_RI, 1:my_B_size, iiB), dimen_RI, &
+                    my_local_i_aL, dimen_RI, &
                     1.0_dp, Y_j_aP(1:my_B_size, 1:dimen_RI, jjB), my_B_size)
 
          DO proc_shift = 1, para_env_sub%num_pe - 1
@@ -1800,7 +1807,7 @@ CONTAINS
             ALLOCATE (external_ab(dimen_RI, rec_B_size))
             external_ab = 0.0_dp
 
-            CALL mp_sendrecv(local_i_aL(1:dimen_RI, 1:my_B_size, iiB), proc_send, &
+            CALL mp_sendrecv(my_local_i_aL, proc_send, &
                              external_ab, proc_receive, para_env_sub%group)
 
             ! Alpha-alpha, beta-beta and closed shell
