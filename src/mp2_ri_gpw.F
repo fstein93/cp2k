@@ -494,7 +494,8 @@ CONTAINS
                                                    Eigenval(:, ispin), homo(ispin), dimen_RI, iiB, jjB, my_B_size(1), &
                                                    my_B_virtual_end(1), my_B_virtual_start(1), my_i, my_j, virtual(ispin), &
                                                    sub_proc_map, local_ab, t_ab, my_local_i_aL, my_local_j_aL, &
-                                                   my_open_shell_ss, my_alpha_alpha_case, my_beta_beta_case, Y_i_aP, Y_j_aP)
+                                                   my_open_shell_ss, my_alpha_alpha_case, my_beta_beta_case, &
+                                                   Y_i_aP(:, :, iiB), Y_j_aP(:, :, jjB))
                         ELSE
                            Y_i_aP = 0.0_dp
                            Y_j_aP_beta = 0.0_dp
@@ -504,7 +505,7 @@ CONTAINS
                                                    virtual(ispin), sub_proc_map, &
                                                    local_ab, t_ab, my_local_i_aL, my_local_j_aL, &
                                                    my_open_shell_ss, my_alpha_alpha_case, &
-                                                   my_beta_beta_case, Y_i_aP, Y_j_aP_beta, &
+                                                   my_beta_beta_case, Y_i_aP(:, :, iiB), Y_j_aP_beta(:, :, jjB), &
                                                    Eigenval(:, jspin), homo(jspin), my_B_size(2), &
                                                    gd_B_virtual(jspin), &
                                                    my_B_virtual_start(2), my_B_virtual_end(2), virtual(jspin), local_ba)
@@ -1492,8 +1493,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: t_ab, my_local_i_aL, my_local_j_aL
       LOGICAL, INTENT(IN)                                :: open_ss, alpha_alpha, beta_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: Y_i_aP, Y_j_aP
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Y_i_aP, Y_j_aP
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
       INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta, my_B_size_beta
       TYPE(group_dist_d1_type), INTENT(IN), OPTIONAL     :: gd_B_virtual_beta
@@ -1712,16 +1712,16 @@ CONTAINS
          CALL dgemm('N', 'T', my_B_size, dimen_RI, my_B_size, 1.0_dp, &
                     t_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size), my_B_size, &
                     my_local_j_aL, dimen_RI, &
-                    1.0_dp, Y_i_aP(1:my_B_size, 1:dimen_RI, iiB), my_B_size)
+                    1.0_dp, Y_i_aP(1:my_B_size, 1:dimen_RI), my_B_size)
       ELSE ! Alpha-beta
          CALL dgemm('N', 'T', my_B_size, dimen_RI, my_B_size_beta, mp2_env%scale_S, &
                     local_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size_beta), my_B_size, &
                     my_local_j_aL, dimen_RI, &
-                    1.0_dp, Y_i_aP(1:my_B_size, 1:dimen_RI, iiB), my_B_size)
+                    1.0_dp, Y_i_aP(1:my_B_size, 1:dimen_RI), my_B_size)
          CALL dgemm('T', 'T', my_B_size_beta, dimen_RI, my_B_size, mp2_env%scale_S, &
                     local_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size_beta), my_B_size, &
                     my_local_i_aL, dimen_RI, &
-                    1.0_dp, Y_j_aP(1:my_B_size_beta, 1:dimen_RI, jjB), my_B_size_beta)
+                    1.0_dp, Y_j_aP(1:my_B_size_beta, 1:dimen_RI), my_B_size_beta)
 
       ENDIF
 
@@ -1746,8 +1746,7 @@ CONTAINS
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
             ! Alpha-alpha, beta-beta and closed shell
 
-            Y_i_aP(1:my_B_size, 1:dimen_RI, iiB) = &
-               Y_i_aP(1:my_B_size, 1:dimen_RI, iiB) + external_ab
+            Y_i_aP(1:my_B_size, 1:dimen_RI) = Y_i_aP(1:my_B_size, 1:dimen_RI) + external_ab
 
             DEALLOCATE (send_ab)
          ELSE ! Alpha-beta case
@@ -1759,8 +1758,7 @@ CONTAINS
                        my_local_j_aL, dimen_RI, &
                        0.0_dp, send_ab(1:send_B_size, 1:dimen_RI), send_B_size)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
-            Y_i_aP(1:my_B_size, 1:dimen_RI, iiB) = &
-               Y_i_aP(1:my_B_size, 1:dimen_RI, iiB) + external_ab
+            Y_i_aP(1:my_B_size, 1:dimen_RI) = Y_i_aP(1:my_B_size, 1:dimen_RI) + external_ab
             DEALLOCATE (send_ab)
          ENDIF
       END DO
@@ -1783,8 +1781,7 @@ CONTAINS
                        my_local_i_aL, dimen_RI, &
                        0.0_dp, send_ab(1:send_B_size, 1:dimen_RI), send_B_size)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
-            Y_j_aP(1:my_B_size_beta, 1:dimen_RI, jjB) = &
-               Y_j_aP(1:my_B_size_beta, 1:dimen_RI, jjB) + external_ab
+            Y_j_aP(1:my_B_size_beta, 1:dimen_RI) = Y_j_aP(1:my_B_size_beta, 1:dimen_RI) + external_ab
             DEALLOCATE (send_ab)
 
          END DO
@@ -1796,7 +1793,7 @@ CONTAINS
          CALL dgemm('T', 'T', my_B_size, dimen_RI, my_B_size, 1.0_dp, &
                     t_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size), my_B_size, &
                     my_local_i_aL, dimen_RI, &
-                    1.0_dp, Y_j_aP(1:my_B_size, 1:dimen_RI, jjB), my_B_size)
+                    1.0_dp, Y_j_aP(1:my_B_size, 1:dimen_RI), my_B_size)
 
          DO proc_shift = 1, para_env_sub%num_pe - 1
             proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -1814,7 +1811,7 @@ CONTAINS
             CALL dgemm('T', 'T', my_B_size, dimen_RI, rec_B_size, 1.0_dp, &
                        t_ab(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size), rec_B_size, &
                        external_ab(1:dimen_RI, 1:rec_B_size), dimen_RI, &
-                       1.0_dp, Y_j_aP(1:my_B_size, 1:dimen_RI, jjB), my_B_size)
+                       1.0_dp, Y_j_aP(1:my_B_size, 1:dimen_RI), my_B_size)
 
             DEALLOCATE (external_ab)
          END DO
