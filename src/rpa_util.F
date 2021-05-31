@@ -59,6 +59,7 @@ MODULE rpa_util
    USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_sum
    USE mp2_laplace,                     ONLY: calc_fm_mat_S_laplace
+   USE mp2_types,                       ONLY: dgemm_counter_type, dgemm_counter_start, dgemm_counter_stop
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE rpa_gw_kpoints,                  ONLY: compute_wkp_W
@@ -570,16 +571,14 @@ CONTAINS
 !> \param alpha ...
 !> \param fm_mat_Q ...
 !> \param fm_mat_Q_gemm ...
-!> \param para_env_RPA ...
 !> \param do_bse ...
 !> \param fm_mat_Q_static_bse_gemm ...
-!> \param my_num_dgemm_call ...
-!> \param my_flop_rate ...
+!> \param dgemm_counter ...
 ! **************************************************************************************************
    SUBROUTINE calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
                          Eigenval, Eigenval_last, Eigenval_scf, &
                          homo, omega, omega_old, jquad, mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, &
-                         para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, my_num_dgemm_call, my_flop_rate)
+                         do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter)
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, first_cycle
       INTEGER, INTENT(IN)                                :: count_ev_sc_GW, iter_sc_GW0, virtual
@@ -589,11 +588,9 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q, fm_mat_Q_gemm
-      TYPE(cp_para_env_type), INTENT(IN), POINTER        :: para_env_RPA
       LOGICAL, INTENT(IN)                                :: do_bse
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q_static_bse_gemm
-      INTEGER, INTENT(INOUT)                             :: my_num_dgemm_call
-      REAL(KIND=dp), INTENT(INOUT)                       :: my_flop_rate
+      TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_mat_Q'
 
@@ -614,8 +611,8 @@ CONTAINS
          END IF
       END IF
 
-      CALL contract_S_to_Q(mm_style, dimen_RI, dimen_ia, alpha, fm_mat_S, fm_mat_Q_gemm, para_env_RPA, &
-                           my_num_dgemm_call, fm_mat_Q, my_flop_rate)
+      CALL contract_S_to_Q(mm_style, dimen_RI, dimen_ia, alpha, fm_mat_S, fm_mat_Q_gemm, &
+                           fm_mat_Q, dgemm_counter)
 
       IF (do_bse .AND. jquad == 1) THEN
          CALL cp_fm_to_fm(fm_mat_Q_gemm, fm_mat_Q_static_bse_gemm)
@@ -736,30 +733,25 @@ CONTAINS
 !> \param alpha ...
 !> \param fm_mat_S ...
 !> \param fm_mat_Q_gemm ...
-!> \param para_env_RPA ...
-!> \param my_num_dgemm_call ...
 !> \param fm_mat_Q ...
-!> \param my_flop_rate ...
+!> \param dgemm_counter ...
 ! **************************************************************************************************
-   SUBROUTINE contract_S_to_Q(mm_style, dimen_RI, dimen_ia, alpha, fm_mat_S, fm_mat_Q_gemm, para_env_RPA, my_num_dgemm_call, &
-                              fm_mat_Q, my_flop_rate)
+   SUBROUTINE contract_S_to_Q(mm_style, dimen_RI, dimen_ia, alpha, fm_mat_S, fm_mat_Q_gemm, &
+                              fm_mat_Q, dgemm_counter)
 
       INTEGER, INTENT(IN)                                :: mm_style, dimen_RI, dimen_ia
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(cp_fm_type), POINTER                          :: fm_mat_S, fm_mat_Q_gemm
-      TYPE(cp_para_env_type), POINTER                    :: para_env_RPA
-      INTEGER, INTENT(INOUT)                             :: my_num_dgemm_call
       TYPE(cp_fm_type), POINTER                          :: fm_mat_Q
-      REAL(KIND=dp), INTENT(INOUT)                       :: my_flop_rate
+      TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_S_to_Q'
 
       INTEGER                                            :: handle
-      REAL(KIND=dp)                                      :: actual_flop_rate, t_end, t_start
 
       CALL timeset(routineN, handle)
 
-      t_start = m_walltime()
+      CALL dgemm_counter_start(dgemm_counter)
       SELECT CASE (mm_style)
       CASE (wfc_mm_style_gemm)
          ! waste-fully computes the full symmetrix matrix, but maybe faster than cp_fm_syrk for optimized cp_fm_gemm
@@ -773,10 +765,7 @@ CONTAINS
       CASE DEFAULT
          CPABORT("")
       END SELECT
-      t_end = m_walltime()
-      actual_flop_rate = 2.0_dp*REAL(dimen_ia, KIND=dp)*dimen_RI*REAL(dimen_RI, KIND=dp)/(MAX(0.01_dp, t_end - t_start))
-      IF (para_env_RPA%mepos == 0) my_flop_rate = my_flop_rate + actual_flop_rate
-      my_num_dgemm_call = my_num_dgemm_call + 1
+      CALL dgemm_counter_stop(dgemm_counter, dimen_ia, dimen_ia, dimen_RI)
 
       ! copy/redistribute fm_mat_Q_gemm to fm_mat_Q
       CALL cp_fm_set_all(matrix=fm_mat_Q, alpha=0.0_dp)

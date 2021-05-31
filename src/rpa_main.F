@@ -66,7 +66,7 @@ MODULE rpa_main
                                               get_minimax_grid
    USE mp2_laplace,                     ONLY: SOS_MP2_postprocessing
    USE mp2_ri_grad_util,                ONLY: array2fm
-   USE mp2_types,                       ONLY: mp2_type
+   USE mp2_types,                       ONLY: mp2_type, dgemm_counter_type, dgemm_counter_write, dgemm_counter_init
    USE qs_environment_types,            ONLY: qs_environment_type
    USE rpa_axk,                         ONLY: compute_axk_ener
    USE rpa_gw,                          ONLY: GW_matrix_operations,&
@@ -1323,7 +1323,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: vec_Sigma_c_gw, vec_Sigma_c_gw_beta
       INTEGER :: count_ev_sc_GW, cut_memory, group_size_P, gw_corr_lev_tot, handle, handle3, &
-         iter_evGW, iter_sc_GW0, jquad, max_iter_bse, min_bsize, mm_style, my_num_dgemm_call, nkp, &
+         iter_evGW, iter_sc_GW0, jquad, max_iter_bse, min_bsize, mm_style, nkp, &
          nkp_self_energy, nmo, num_3c_repl, num_cells_dm, num_fit_points, num_points_corr, &
          num_Z_vectors, size_P
       INTEGER(int_8)                                     :: dbcsr_nflop
@@ -1337,8 +1337,7 @@ CONTAINS
          do_kpoints_from_Gamma, do_periodic, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      REAL(dp)                                           :: dbcsr_time
-      REAL(KIND=dp) :: a_scaling, alpha, e_axk, e_axk_corr, e_fermi, e_fermi_beta, eps_filter, &
+      REAL(KIND=dp) :: a_scaling, alpha, dbcsr_time, e_axk, e_axk_corr, e_fermi, e_fermi_beta, eps_filter, &
          eps_filter_im_time, eps_min_trans, ext_scaling, fermi_level_offset, &
          fermi_level_offset_input, my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: delta_corr, Eigenval_last, Eigenval_last_beta, &
@@ -1367,6 +1366,7 @@ CONTAINS
          t_3c_overl_int_gw_RI, t_3c_overl_int_gw_RI_beta, t_3c_overl_nnP_ic, &
          t_3c_overl_nnP_ic_beta, t_3c_overl_nnP_ic_reflected, t_3c_overl_nnP_ic_reflected_beta
       TYPE(dbcsr_type), POINTER                          :: mat_W, mat_work
+      TYPE(dgemm_counter_type)                           :: dgemm_counter
       TYPE(hfx_compression_type)                         :: t_3c_O_mo_compressed, &
                                                             t_3c_O_mo_compressed_beta
 
@@ -1602,8 +1602,7 @@ CONTAINS
       IF (mp2_env%ri_rpa%do_ri_axk) e_axk = 0.0_dp
       first_cycle = .TRUE.
       omega_old = 0.0_dp
-      my_num_dgemm_call = 0
-      my_flop_rate = 0.0_dp
+      CALL dgemm_counter_init(dgemm_counter)
 
       DO count_ev_sc_GW = 1, iter_evGW
 
@@ -1752,14 +1751,14 @@ CONTAINS
                CALL calc_mat_Q(fm_mat_S, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual, &
                                Eigenval, Eigenval_last, Eigenval_scf, &
                                homo, omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia, alpha, fm_mat_Q, &
-                               fm_mat_Q_gemm, para_env_RPA, do_bse, fm_mat_Q_static_bse_gemm, my_num_dgemm_call, my_flop_rate)
+                               fm_mat_Q_gemm, do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter)
 
                IF (my_open_shell) THEN
                   CALL calc_mat_Q(fm_mat_S_beta, do_ri_sos_laplace_mp2, first_cycle, count_ev_sc_GW, iter_sc_GW0, virtual_beta, &
                                   Eigenval_beta, Eigenval_last_beta, Eigenval_scf_beta, &
                                   homo_beta, omega, omega_old, jquad, mm_style, &
-                                  dimen_RI_red, dimen_ia_beta, alpha, fm_mat_Q_beta, fm_mat_Q_gemm_beta, para_env_RPA, do_bse, &
-                                  fm_mat_Q_static_bse_gemm, my_num_dgemm_call, my_flop_rate)
+                                  dimen_RI_red, dimen_ia_beta, alpha, fm_mat_Q_beta, fm_mat_Q_gemm_beta, do_bse, &
+                                  fm_mat_Q_static_bse_gemm, dgemm_counter)
 
                   ! For SOS-MP2 we need both matrices separately
                   IF (.NOT. do_ri_sos_laplace_mp2) THEN
@@ -1862,11 +1861,8 @@ CONTAINS
 
          ELSE
 
-            IF (para_env_RPA%mepos == 0) my_flop_rate = my_flop_rate/REAL(MAX(my_num_dgemm_call, 1), KIND=dp)/1.0E9_dp
-            CALL mp_sum(my_flop_rate, para_env%group)
-            my_flop_rate = my_flop_rate/para_env%num_pe
-            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.2)") &
-               "PERFORMANCE| PDGEMM flop rate (Gflops / MPI rank):", my_flop_rate
+            CALL dgemm_counter_write(dgemm_counter, para_env, unit_nr)
+
          END IF
 
          ! GW: Compute self-energy Sigma, analytic continuation from iw -> w and correction of quasiparticle energies

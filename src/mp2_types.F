@@ -15,6 +15,7 @@ MODULE mp2_types
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_finalize,&
                                               cp_eri_mme_param
    USE cp_fm_types,                     ONLY: cp_fm_p_type
+   USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_type
    USE hfx_types,                       ONLY: hfx_release,&
@@ -30,6 +31,8 @@ MODULE mp2_types
                                               ri_rpa_method_gpw
    USE kinds,                           ONLY: dp
    USE libint_2c_3c,                    ONLY: libint_potential_type
+   USE machine,                         ONLY: m_walltime
+   USE message_passing,                 ONLY: mp_sum
 #include "./base/base_uses.f90"
 
    IMPLICIT NONE
@@ -55,7 +58,12 @@ MODULE mp2_types
              one_dim_int_array, &
              two_dim_int_array, &
              two_dim_real_array, &
-             three_dim_real_array
+             three_dim_real_array, &
+             dgemm_counter_type, &
+             dgemm_counter_init, &
+             dgemm_counter_start, &
+             dgemm_counter_stop, &
+             dgemm_counter_write
 
    INTEGER, SAVE                                         :: init_TShPSC_lmax = -1
 
@@ -244,6 +252,12 @@ MODULE mp2_types
       INTEGER :: n_element
    END TYPE pair_list_type_mp2
 
+   TYPE dgemm_counter_type
+      PRIVATE
+      REAL(KIND=dp) :: flop_rate, t_start
+      INTEGER :: num_dgemm_call
+   END TYPE
+
 CONTAINS
 
 ! **************************************************************************************************
@@ -297,5 +311,75 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE mp2_env_create
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dgemm_counter ...
+! **************************************************************************************************
+   ELEMENTAL SUBROUTINE dgemm_counter_init(dgemm_counter)
+      TYPE(dgemm_counter_type), INTENT(OUT)              :: dgemm_counter
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dgemm_counter_init'
+
+
+      dgemm_counter%num_dgemm_call = 0
+      dgemm_counter%flop_rate = 0.0
+
+   END SUBROUTINE dgemm_counter_init
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dgemm_counter ...
+! **************************************************************************************************
+   SUBROUTINE dgemm_counter_start(dgemm_counter)
+      TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dgemm_counter_start'
+
+
+      dgemm_counter%t_start = m_walltime()
+
+   END SUBROUTINE dgemm_counter_start
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dgemm_counter ...
+!> \param size1 ...
+!> \param size2 ...
+!> \param size3 ...
+! **************************************************************************************************
+   SUBROUTINE dgemm_counter_stop(dgemm_counter, size1, size2, size3)
+      TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
+      INTEGER, INTENT(IN)                                :: size1, size2, size3
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dgemm_counter_stop'
+
+      REAL(KIND=dp)                                      :: flop_rate, t_end
+
+      t_end = m_walltime()
+      flop_rate = 2.0_dp*REAL(size1, dp)*REAL(size2, dp)*REAL(size3, dp)/MAX(0.001_dp, t_end-dgemm_counter%t_start)
+      dgemm_counter%flop_rate = dgemm_counter%flop_rate + flop_rate
+      dgemm_counter%num_dgemm_call = dgemm_counter%num_dgemm_call + 1
+
+   END SUBROUTINE dgemm_counter_stop
+
+! **************************************************************************************************
+!> \brief ...
+!> \param dgemm_counter ...
+! **************************************************************************************************
+   SUBROUTINE dgemm_counter_write(dgemm_counter, para_env, unit_nr)
+      TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
+      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dgemm_counter_write'
+
+      dgemm_counter%flop_rate = dgemm_counter%flop_rate/REAL(MAX(dgemm_counter%num_dgemm_call, 1), dp)/1.0E9_dp
+      CALL mp_sum(dgemm_counter%flop_rate, para_env%group)
+      dgemm_counter%flop_rate = dgemm_counter%flop_rate/REAL(para_env%num_pe, dp)
+      IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.2)") &
+         "PERFORMANCE| DGEMM flop rate (Gflops / MPI rank):", dgemm_counter%flop_rate
+
+   END SUBROUTINE dgemm_counter_write
 
 END MODULE mp2_types

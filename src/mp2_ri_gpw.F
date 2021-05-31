@@ -30,7 +30,12 @@ MODULE mp2_ri_gpw
                                               mp_sum
    USE mp2_ri_grad_util,                ONLY: complete_gamma
    USE mp2_types,                       ONLY: mp2_type,&
-                                              three_dim_real_array
+                                              three_dim_real_array,&
+             dgemm_counter_type, &
+             dgemm_counter_init, &
+             dgemm_counter_start, &
+             dgemm_counter_stop, &
+             dgemm_counter_write
 
 !$ USE OMP_LIB, ONLY: omp_get_max_threads, omp_get_thread_num
 #include "./base/base_uses.f90"
@@ -91,7 +96,7 @@ CONTAINS
          integ_group_size, irep, ispin, jjB, jspin, Lend_pos, Lstart_pos, max_ij_pairs, &
          min_integ_group_size, my_B_size(2), my_B_virtual_end(2), my_B_virtual_start(2), &
          my_block_size, my_group_L_end, my_group_L_size, my_group_L_size_orig, my_group_L_start, &
-         my_i, my_ij_pairs, my_j, my_new_group_L_size, my_num_dgemm_call, ngroup, nspins, &
+         my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, &
          num_IJ_blocks, num_integ_group, pos_integ_group, proc_receive, proc_send, proc_shift, &
          rec_B_size
       INTEGER :: rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, &
@@ -104,9 +109,9 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: ranges_info_array
       LOGICAL                                            :: my_alpha_alpha_case, my_alpha_beta_case, &
                                                             my_beta_beta_case, my_open_shell_SS
-      REAL(KIND=dp) :: actual_flop_rate, amp_fac, mem_for_aK, mem_for_comm, mem_for_iaK, &
-         mem_for_rep, mem_min, mem_per_group, mem_real, my_Emp2_Cou, my_Emp2_EX, my_flop_rate, &
-         null_mat_rec(2, 2, 2), null_mat_send(2, 2, 2), sym_fac, t_end, t_start
+      REAL(KIND=dp) :: amp_fac, mem_for_aK, mem_for_comm, mem_for_iaK, &
+         mem_for_rep, mem_min, mem_per_group, mem_real, my_Emp2_Cou, my_Emp2_EX, &
+         null_mat_rec(2, 2, 2), null_mat_send(2, 2, 2), sym_fac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: external_ab, external_i_aL, local_ab, &
                                                             local_ba, t_ab, my_local_i_aL, my_local_j_aL
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_ia_Q, B_ia_Q_beta, BI_C_rec, &
@@ -114,6 +119,7 @@ CONTAINS
                                                             Y_j_aP, Y_j_aP_beta
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_P, &
                                                             para_env_rep
+      TYPE(dgemm_counter_type)                           :: dgemm_counter
 
       CALL timeset(routineN, handle)
 
@@ -121,6 +127,8 @@ CONTAINS
 
       ALLOCATE (virtual(nspins))
       virtual(:) = nmo - homo(:)
+
+      CALL dgemm_counter_init(dgemm_counter)
 
       DO jspin = 1, nspins
       DO ispin = jspin, 1, -1
@@ -207,8 +215,6 @@ CONTAINS
          null_mat_send = 0.0_dp
          my_Emp2_Cou = 0.0_dp
          my_Emp2_EX = 0.0_dp
-         my_num_dgemm_call = 0
-         my_flop_rate = 0.0_dp
          DO ij_index = 1, max_ij_pairs
 
             IF (ij_index <= my_ij_pairs) THEN
@@ -350,14 +356,11 @@ CONTAINS
                      IF ((my_alpha_beta_case) .AND. (calc_forces)) THEN
                         local_ba = 0.0_dp
                      ENDIF
-                     t_start = m_walltime()
+                     CALL dgemm_counter_start(dgemm_counter)
                      CALL dgemm('T', 'N', my_B_size(1), my_B_size(2), dimen_RI, 1.0_dp, &
                                 my_local_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
                                 0.0_dp, local_ab(my_B_virtual_start(1):my_B_virtual_end(1), 1:my_B_size(2)), my_B_size(1))
-                     t_end = m_walltime()
-                     actual_flop_rate = 2.0_dp*my_B_size(1)*my_B_size(2)*REAL(dimen_RI, KIND=dp)/(MAX(0.01_dp, t_end - t_start))
-                     my_flop_rate = my_flop_rate + actual_flop_rate
-                     my_num_dgemm_call = my_num_dgemm_call + 1
+                     CALL dgemm_counter_stop(dgemm_counter, my_B_size(1), my_B_size(2), dimen_RI)
                      ! Additional integrals only for alpha_beta case and forces
                      IF (my_alpha_beta_case .AND. calc_forces) THEN
                         local_ba(my_B_virtual_start(2):my_B_virtual_end(2), 1:my_B_size(1)) = &
@@ -377,15 +380,11 @@ CONTAINS
                                          external_i_aL, proc_receive, &
                                          para_env_sub%group)
 
-                        t_start = m_walltime()
+                        CALL dgemm_counter_start(dgemm_counter)
                         CALL dgemm('T', 'N', rec_B_size, my_B_size(2), dimen_RI, 1.0_dp, &
                                    external_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
                                    0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(2)), rec_B_size)
-
-                        t_end = m_walltime()
-                        actual_flop_rate = 2.0_dp*rec_B_size*my_B_size(2)*REAL(dimen_RI, KIND=dp)/(MAX(0.01_dp, t_end - t_start))
-                        my_flop_rate = my_flop_rate + actual_flop_rate
-                        my_num_dgemm_call = my_num_dgemm_call + 1
+                        CALL dgemm_counter_stop(dgemm_counter, rec_B_size, my_B_size(2), dimen_RI)
 
                         DEALLOCATE (external_i_aL)
                         ! Additional integrals only for alpha_beta case and forces
@@ -400,14 +399,11 @@ CONTAINS
                                             external_i_aL, proc_receive, &
                                             para_env_sub%group)
 
-                           t_start = m_walltime()
+                           CALL dgemm_counter_start(dgemm_counter)
                            CALL dgemm('T', 'N', rec_B_size, my_B_size(1), dimen_RI, 1.0_dp, &
                                       external_i_aL, dimen_RI, my_local_i_aL, dimen_RI, &
                                       0.0_dp, local_ba(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(1)), rec_B_size)
-                           t_end = m_walltime()
-                           actual_flop_rate = 2.0_dp*rec_B_size*my_B_size(1)*REAL(dimen_RI, KIND=dp)/(MAX(0.01_dp, t_end - t_start))
-                           my_flop_rate = my_flop_rate + actual_flop_rate
-                           my_num_dgemm_call = my_num_dgemm_call + 1
+                           CALL dgemm_counter_stop(dgemm_counter, rec_B_size, my_B_size(1), dimen_RI)
 
                            DEALLOCATE (external_i_aL)
                         ENDIF
@@ -801,11 +797,7 @@ CONTAINS
       END DO
       END DO
 
-      my_flop_rate = my_flop_rate/REAL(MAX(my_num_dgemm_call, 1), KIND=dp)/1.0E9_dp
-      CALL mp_sum(my_flop_rate, para_env%group)
-      my_flop_rate = my_flop_rate/para_env%num_pe
-      IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.2)") &
-         "PERFORMANCE| DGEMM flop rate (Gflops / MPI rank):", my_flop_rate
+      CALL dgemm_counter_write(dgemm_counter, para_env, unit_nr)
 
       CALL timestop(handle)
 
