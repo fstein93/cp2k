@@ -709,25 +709,8 @@ CONTAINS
                ENDIF
 
             END DO
-            IF (.NOT. my_open_shell_ss) THEN
-               BIb_C(ispin)%array(:, :, :) = mp2_env%ri_grad%Gamma_P_ia(1)%array(1:homo(ispin), 1:my_B_size(1), 1:my_group_L_size)
-               DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(1)%array)
-               ALLOCATE (mp2_env%ri_grad%Gamma_P_ia(1)%array(homo(ispin), my_B_size(1), my_group_L_size))
-               mp2_env%ri_grad%Gamma_P_ia(1)%array(:, :, :) = BIb_C(ispin)%array
-               DEALLOCATE (BIb_C(ispin)%array)
-               IF (my_alpha_beta_case) THEN
-                 BIb_C(jspin)%array(:, :, :) = mp2_env%ri_grad%Gamma_P_ia(2)%array(1:homo(jspin), 1:my_B_size(2), 1:my_group_L_size)
-                  DEALLOCATE (mp2_env%ri_grad%Gamma_P_ia(2)%array)
-                  ALLOCATE (mp2_env%ri_grad%Gamma_P_ia(2)%array(homo(jspin), my_B_size(2), my_group_L_size))
-                  mp2_env%ri_grad%Gamma_P_ia(2)%array(:, :, :) = BIb_C(jspin)%array
-                  DEALLOCATE (BIb_C(jspin)%array)
-               ENDIF
-            ENDIF
-            ! For open shell systems, we need to pass Bib_C through the subroutine in alpha-alpha and beta-beta case.
-            ! Only for forces, as IF suggests! Here we deallocate it, but restore after complete_gamma
-            IF (my_open_shell_ss) THEN
-               DEALLOCATE (BIb_C(ispin)%array)
-            ENDIF
+            DEALLOCATE (BIb_C(ispin)%array)
+            IF (my_alpha_beta_case) DEALLOCATE (BIb_C(jspin)%array)
 
             IF (.NOT. my_open_shell_ss) THEN
                CALL complete_gamma(mp2_env, B_ia_Q, dimen_RI, homo(ispin), virtual(ispin), para_env, para_env_sub, ngroup, &
