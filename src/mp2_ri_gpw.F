@@ -93,7 +93,7 @@ CONTAINS
 
       INTEGER :: a, a_global, b, b_global, best_block_size, best_integ_group_size, block_size, &
          end_point, handle, handle2, handle3, iiB, ij_counter, ij_counter_send, ij_index, &
-         integ_group_size, irep, ispin, jjB, jspin, Lend_pos, Lstart_pos, max_ij_pairs, &
+         integ_group_size, irep, ispin, jjB, jspin, kspin, Lend_pos, Lstart_pos, max_ij_pairs, &
          min_integ_group_size, my_B_size(2), my_B_virtual_end(2), my_B_virtual_start(2), &
          my_block_size, my_group_L_end, my_group_L_size, my_group_L_size_orig, my_group_L_start, &
          my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, &
@@ -116,7 +116,7 @@ CONTAINS
                                                             local_ba, t_ab, my_local_i_aL, my_local_j_aL
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_ia_Q, B_ia_Q_beta, BI_C_rec, &
                                                             local_i_aL, local_j_aL, Y_i_aP, &
-                                                            Y_j_aP, Y_j_aP_beta
+                                                            Y_j_aP
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_P, &
                                                             para_env_rep
       TYPE(dgemm_counter_type)                           :: dgemm_counter
@@ -205,7 +205,7 @@ CONTAINS
          ELSE
             CALL mp2_ri_allocate(local_ab, t_ab, mp2_env, homo(ispin), virtual(ispin), dimen_RI, my_B_size(1), &
                                  block_size, my_B_size(2), my_group_L_size, local_i_aL, &
-                                 local_j_aL, calc_forces, Y_i_aP, Y_j_aP_beta, &
+                                 local_j_aL, calc_forces, Y_i_aP, Y_j_aP, &
                                  ispin, jspin, &
                                  local_ba, virtual(jspin))
          ENDIF
@@ -494,14 +494,14 @@ CONTAINS
                                                    Y_i_aP(:, :, iiB), Y_j_aP(:, :, jjB))
                         ELSE
                            Y_i_aP = 0.0_dp
-                           Y_j_aP_beta = 0.0_dp
+                           Y_j_aP = 0.0_dp
                            CALL mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual(ispin), &
                                                    Eigenval(:, ispin), homo(ispin), dimen_RI, iiB, jjB, my_B_size(1), &
                                                    my_B_virtual_end(1), my_B_virtual_start(1), my_i, my_j, &
                                                    virtual(ispin), sub_proc_map, &
                                                    local_ab, t_ab, my_local_i_aL, my_local_j_aL, &
                                                    my_open_shell_ss, my_alpha_alpha_case, &
-                                                   my_beta_beta_case, Y_i_aP(:, :, iiB), Y_j_aP_beta(:, :, jjB), &
+                                                   my_beta_beta_case, Y_i_aP(:, :, iiB), Y_j_aP(:, :, jjB), &
                                                    Eigenval(:, jspin), homo(jspin), my_B_size(2), &
                                                    gd_B_virtual(jspin), &
                                                    my_B_virtual_start(2), my_B_virtual_end(2), virtual(jspin), local_ba)
@@ -512,7 +512,7 @@ CONTAINS
                   END DO ! jjB
                END DO ! iiB
 
-              DEALLOCATE(my_local_i_aL, my_local_j_aL)
+               DEALLOCATE(my_local_i_aL, my_local_j_aL)
 
             ELSE
                ! No work to do and we know that we have to receive nothing, but send something
@@ -570,7 +570,7 @@ CONTAINS
                   CALL mp2_redistribute_gamma(mp2_env, ij_index, my_B_size(1), &
                                               my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
                                               num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
-                                              ij_map, ranges_info_array, Y_i_aP, Y_j_aP_beta, para_env_exchange, &
+                                              ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
                                               null_mat_rec, null_mat_send, gd_array%sizes, my_alpha_alpha_case, my_beta_beta_case, &
                                               my_alpha_beta_case, my_open_shell_ss, my_B_size(2))
                ENDIF
@@ -586,11 +586,7 @@ CONTAINS
 
          IF (calc_forces) THEN
             DEALLOCATE (Y_i_aP)
-            IF (.NOT. my_alpha_beta_case) THEN
-               DEALLOCATE (Y_j_aP)
-            ELSE
-               DEALLOCATE (Y_j_aP_beta)
-            ENDIF
+            DEALLOCATE (Y_j_aP)
             IF (ALLOCATED(t_ab)) THEN
                DEALLOCATE (t_ab)
             ENDIF
@@ -676,8 +672,9 @@ CONTAINS
             ENDIF
 
             ! sum Gamma and dereplicate
-            ALLOCATE (BIb_C(ispin)%array(homo(ispin), my_B_size(1), my_group_L_size))
-            IF (my_alpha_beta_case) ALLOCATE (BIb_C(jspin)%array(homo(jspin), my_B_size(2), my_group_L_size))
+            DO kspin = ispin, jspin
+               ALLOCATE (BIb_C(kspin)%array(homo(kspin), my_B_size(kspin), my_group_L_size))
+            END DO
             DO proc_shift = 1, para_env_rep%num_pe - 1
                ! invert order
                proc_send = proc_map_rep(para_env_rep%mepos - proc_shift)
@@ -686,28 +683,13 @@ CONTAINS
                start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
                end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
 
-               BIb_C(ispin)%array = 0.0_dp
-               ! Closed shell, alpha-alpha, and alpha-alpha part in alpha-beta case
-               IF (my_alpha_alpha_case .OR. (.NOT. my_open_shell_ss)) THEN
-                  CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(1)%array(1:homo(ispin), 1:my_B_size(1), start_point:end_point), &
-                                   proc_send, BIb_C(ispin)%array, proc_receive, para_env_rep%group)
-                  mp2_env%ri_grad%Gamma_P_ia(1)%array(1:homo(ispin), 1:my_B_size(1), 1:my_group_L_size) = &
-                     mp2_env%ri_grad%Gamma_P_ia(1)%array(1:homo(ispin), 1:my_B_size(1), 1:my_group_L_size) + BIb_C(ispin)%array
-               ENDIF
-               ! Beta-beta
-               IF (my_beta_beta_case) THEN
-                  CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(2)%array(1:homo(ispin), 1:my_B_size(1), start_point:end_point), &
-                                   proc_send, BIb_C(ispin)%array, proc_receive, para_env_rep%group)
-                  mp2_env%ri_grad%Gamma_P_ia(2)%array(1:homo(ispin), 1:my_B_size(1), 1:my_group_L_size) = &
-                     mp2_env%ri_grad%Gamma_P_ia(2)%array(1:homo(ispin), 1:my_B_size(1), 1:my_group_L_size) + BIb_C(ispin)%array
-               ENDIF
-               IF (my_alpha_beta_case) THEN ! Beta-beta part of alpha-beta case
-                  CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(2)%array(1:homo(jspin), 1:my_B_size(2), start_point:end_point), &
-                                   proc_send, BIb_C(jspin)%array, proc_receive, para_env_rep%group)
-                  mp2_env%ri_grad%Gamma_P_ia(2)%array(1:homo(jspin), 1:my_B_size(2), 1:my_group_L_size) = &
-                     mp2_env%ri_grad%Gamma_P_ia(2)%array(1:homo(jspin), 1:my_B_size(2), 1:my_group_L_size) + BIb_C(jspin)%array
-               ENDIF
-
+               DO kspin = ispin, jspin
+                  CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(kspin)%array(:, :, start_point:end_point), &
+                                   proc_send, BIb_C(kspin)%array, proc_receive, para_env_rep%group)
+                  mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) = &
+                     mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) &
+                     + BIb_C(kspin)%array(:, :, :)
+               END DO
             END DO
             DEALLOCATE (BIb_C(ispin)%array)
             IF (my_alpha_beta_case) DEALLOCATE (BIb_C(jspin)%array)
