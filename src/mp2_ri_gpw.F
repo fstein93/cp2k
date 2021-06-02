@@ -1621,7 +1621,7 @@ CONTAINS
             send_ab = 0.0_dp
 
             CALL dgemm('N', 'T', send_B_size, virtual, my_B_size, 1.0_dp, &
-                       t_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size), send_B_size, &
+                       t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                        local_ab, virtual, 0.0_dp, send_ab, send_B_size)
 
             CALL mp_sendrecv(send_ab, proc_send, &
@@ -1648,18 +1648,15 @@ CONTAINS
       IF (.NOT. alpha_beta) THEN
          ! Alpha-alpha, beta-beta and closed shell
          CALL dgemm('N', 'T', my_B_size, dimen_RI, my_B_size, 1.0_dp, &
-                    t_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size), my_B_size, &
-                    my_local_j_aL, dimen_RI, &
-                    1.0_dp, Y_i_aP(1:my_B_size, 1:dimen_RI), my_B_size)
+                    t_ab(my_B_virtual_start:my_B_virtual_end, :), my_B_size, &
+                    my_local_j_aL, dimen_RI, 1.0_dp, Y_i_aP, my_B_size)
       ELSE ! Alpha-beta
          CALL dgemm('N', 'T', my_B_size, dimen_RI, my_B_size_beta, mp2_env%scale_S, &
-                    local_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size_beta), my_B_size, &
-                    my_local_j_aL, dimen_RI, &
-                    1.0_dp, Y_i_aP(1:my_B_size, 1:dimen_RI), my_B_size)
+                    local_ab(my_B_virtual_start:my_B_virtual_end, :), my_B_size, &
+                    my_local_j_aL, dimen_RI, 1.0_dp, Y_i_aP, my_B_size)
          CALL dgemm('T', 'T', my_B_size_beta, dimen_RI, my_B_size, mp2_env%scale_S, &
-                    local_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size_beta), my_B_size, &
-                    my_local_i_aL, dimen_RI, &
-                    1.0_dp, Y_j_aP(1:my_B_size_beta, 1:dimen_RI), my_B_size_beta)
+                    local_ab(my_B_virtual_start:my_B_virtual_end, :), my_B_size, &
+                    my_local_i_aL, dimen_RI, 1.0_dp, Y_j_aP, my_B_size_beta)
 
       ENDIF
 
@@ -1671,34 +1668,22 @@ CONTAINS
          proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
          CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
-
          CALL get_group_dist(gd_B_virtual, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
+         ALLOCATE (send_ab(send_B_size, dimen_RI))
+         send_ab = 0.0_dp
          IF (.NOT. alpha_beta) THEN
-            ALLOCATE (send_ab(send_B_size, dimen_RI))
-            send_ab = 0.0_dp
             CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size, 1.0_dp, &
-                       t_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size), send_B_size, &
-                       my_local_j_aL, dimen_RI, &
-                       0.0_dp, send_ab(1:send_B_size, 1:dimen_RI), send_B_size)
-            CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
-            ! Alpha-alpha, beta-beta and closed shell
-
-            Y_i_aP(1:my_B_size, 1:dimen_RI) = Y_i_aP(1:my_B_size, 1:dimen_RI) + external_ab
-
-            DEALLOCATE (send_ab)
+                       t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
+                       my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size)
          ELSE ! Alpha-beta case
-            ! Alpha-alpha part
-            ALLOCATE (send_ab(send_B_size, dimen_RI))
-            send_ab = 0.0_dp
             CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size_beta, mp2_env%scale_S, &
-                       local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size_beta), send_B_size, &
-                       my_local_j_aL, dimen_RI, &
-                       0.0_dp, send_ab(1:send_B_size, 1:dimen_RI), send_B_size)
-            CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
-            Y_i_aP(1:my_B_size, 1:dimen_RI) = Y_i_aP(1:my_B_size, 1:dimen_RI) + external_ab
-            DEALLOCATE (send_ab)
+                       local_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
+                       my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size)
          ENDIF
+         CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
+         Y_i_aP(:, :) = Y_i_aP + external_ab
+         DEALLOCATE (send_ab)
       END DO
       DEALLOCATE (external_ab)
 
@@ -1715,11 +1700,10 @@ CONTAINS
             send_ab = 0.0_dp
 
             CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size, mp2_env%scale_S, &
-                       local_ba(send_B_virtual_start:send_B_virtual_end, 1:my_B_size), send_B_size, &
-                       my_local_i_aL, dimen_RI, &
-                       0.0_dp, send_ab(1:send_B_size, 1:dimen_RI), send_B_size)
+                       local_ba(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
+                       my_local_i_aL, dimen_RI, 0.0_dp, send_B_size)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
-            Y_j_aP(1:my_B_size_beta, 1:dimen_RI) = Y_j_aP(1:my_B_size_beta, 1:dimen_RI) + external_ab
+            Y_j_aP(:, :) = Y_j_aP + external_ab
             DEALLOCATE (send_ab)
 
          END DO
@@ -1729,9 +1713,8 @@ CONTAINS
       IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
          ! Alpha-alpha, beta-beta and closed shell
          CALL dgemm('T', 'T', my_B_size, dimen_RI, my_B_size, 1.0_dp, &
-                    t_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size), my_B_size, &
-                    my_local_i_aL, dimen_RI, &
-                    1.0_dp, Y_j_aP(1:my_B_size, 1:dimen_RI), my_B_size)
+                    t_ab(my_B_virtual_start:my_B_virtual_end, :), my_B_size, &
+                    my_local_i_aL, dimen_RI, 1.0_dp, Y_j_aP, my_B_size)
 
          DO proc_shift = 1, para_env_sub%num_pe - 1
             proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -1747,9 +1730,8 @@ CONTAINS
 
             ! Alpha-alpha, beta-beta and closed shell
             CALL dgemm('T', 'T', my_B_size, dimen_RI, rec_B_size, 1.0_dp, &
-                       t_ab(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size), rec_B_size, &
-                       external_ab(1:dimen_RI, 1:rec_B_size), dimen_RI, &
-                       1.0_dp, Y_j_aP(1:my_B_size, 1:dimen_RI), my_B_size)
+                       t_ab(rec_B_virtual_start:rec_B_virtual_end, :), rec_B_size, &
+                       external_ab, dimen_RI, 1.0_dp, Y_j_aP, my_B_size)
 
             DEALLOCATE (external_ab)
          END DO
