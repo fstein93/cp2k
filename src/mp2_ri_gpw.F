@@ -591,7 +591,7 @@ CONTAINS
                CALL quasi_degenerate_P_ij( &
                   mp2_env, Eigenval(:, ispin), homo(ispin), virtual(ispin), my_open_shell_ss, &
                   my_beta_beta_case, my_alpha_beta_case, Bib_C(ispin)%array, unit_nr, dimen_RI, &
-                  my_B_size(1), ngroup, num_integ_group, my_group_L_size, &
+                  my_B_size(1), ngroup, num_integ_group, &
                   color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
                   my_B_virtual_start(ispin), my_B_virtual_end(ispin), gd_array%sizes, gd_B_virtual(ispin), &
                   sub_proc_map, integ_group_pos2color_sub, local_ab)
@@ -599,7 +599,7 @@ CONTAINS
                CALL quasi_degenerate_P_ij( &
                   mp2_env, Eigenval(:, ispin), homo(ispin), virtual(ispin), my_open_shell_ss, &
                   my_beta_beta_case, my_alpha_beta_case, Bib_C(ispin)%array, unit_nr, dimen_RI, &
-                  my_B_size(1), ngroup, num_integ_group, my_group_L_size, &
+                  my_B_size(1), ngroup, num_integ_group, &
                   color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
                   my_B_virtual_start(ispin), my_B_virtual_end(ispin), gd_array%sizes, gd_B_virtual(ispin), &
                   sub_proc_map, integ_group_pos2color_sub, local_ab, BIb_C(jspin)%array, my_B_size(jspin), &
@@ -2104,8 +2104,7 @@ CONTAINS
                               mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, :, kkk) = &
                                  mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, :, kkk) + &
                                  BI_C_rec(jjB + rec_block_size, :, kkk)
-                           ENDIF
-                           IF (beta_beta) THEN
+                           ELSE IF (beta_beta) THEN
                               mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) = &
                                  mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) + &
                                  BI_C_rec(jjB + rec_block_size, :, kkk)
@@ -2162,7 +2161,6 @@ CONTAINS
 !> \param my_B_size ...
 !> \param ngroup ...
 !> \param num_integ_group ...
-!> \param my_group_L_size ...
 !> \param color_sub ...
 !> \param ranges_info_array ...
 !> \param para_env_exchange ...
@@ -2186,7 +2184,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE quasi_degenerate_P_ij(mp2_env, Eigenval, homo, virtual, open_shell, &
                                     beta_beta, alpha_beta, Bib_C, unit_nr, dimen_RI, &
-                                    my_B_size, ngroup, num_integ_group, my_group_L_size, &
+                                    my_B_size, ngroup, num_integ_group, &
                                     color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
                                     my_B_virtual_start, my_B_virtual_end, sizes_array, gd_B_virtual, &
                                     sub_proc_map, integ_group_pos2color_sub, &
@@ -2200,8 +2198,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: BIb_C
       INTEGER, INTENT(IN)                                :: unit_nr, dimen_RI, my_B_size, ngroup, &
-                                                            num_integ_group, my_group_L_size, &
-                                                            color_sub
+                                                            num_integ_group, color_sub
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: ranges_info_array
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_sub
@@ -2310,18 +2307,18 @@ CONTAINS
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 
                   IF (.NOT. alpha_beta) THEN
-                     local_i_aL(Lstart_pos:Lend_pos, 1:size_B_i) = BIb_C(start_point:end_point, 1:size_B_i, my_i)
-                     local_j_aL(Lstart_pos:Lend_pos, 1:size_B_j) = BIb_C(start_point:end_point, 1:size_B_j, my_j)
-                     local_k_aL(Lstart_pos:Lend_pos, 1:size_B_k) = BIb_C(start_point:end_point, 1:size_B_k, my_k)
+                     local_i_aL(Lstart_pos:Lend_pos, :) = BIb_C(start_point:end_point, :, my_i)
+                     local_j_aL(Lstart_pos:Lend_pos, :) = BIb_C(start_point:end_point, :, my_j)
+                     local_k_aL(Lstart_pos:Lend_pos, :) = BIb_C(start_point:end_point, :, my_k)
                   ELSE
                      IF (iloops .EQ. 1) THEN ! For alpha-alpha density
-                        local_i_aL(Lstart_pos:Lend_pos, 1:size_B_i) = BIb_C(start_point:end_point, 1:size_B_i, my_i)
-                        local_j_aL(Lstart_pos:Lend_pos, 1:size_B_j) = BIb_C(start_point:end_point, 1:size_B_j, my_j)
-                        local_k_aL(Lstart_pos:Lend_pos, 1:size_B_k) = BIb_C_beta(start_point:end_point, 1:size_B_k, my_k)
+                        local_i_aL(Lstart_pos:Lend_pos, :) = BIb_C(start_point:end_point, :, my_i)
+                        local_j_aL(Lstart_pos:Lend_pos, :) = BIb_C(start_point:end_point, :, my_j)
+                        local_k_aL(Lstart_pos:Lend_pos, :) = BIb_C_beta(start_point:end_point, :, my_k)
                      ELSE ! For beta-beta density
-                        local_i_aL(Lstart_pos:Lend_pos, 1:size_B_i) = BIb_C_beta(start_point:end_point, 1:size_B_i, my_i)
-                        local_j_aL(Lstart_pos:Lend_pos, 1:size_B_j) = BIb_C_beta(start_point:end_point, 1:size_B_j, my_j)
-                        local_k_aL(Lstart_pos:Lend_pos, 1:size_B_k) = BIb_C(start_point:end_point, 1:size_B_k, my_k)
+                        local_i_aL(Lstart_pos:Lend_pos, :) = BIb_C_beta(start_point:end_point, :, my_i)
+                        local_j_aL(Lstart_pos:Lend_pos, :) = BIb_C_beta(start_point:end_point, :, my_j)
+                        local_k_aL(Lstart_pos:Lend_pos, :) = BIb_C(start_point:end_point, :, my_k)
                      ENDIF
                   ENDIF
                END DO
@@ -2355,18 +2352,15 @@ CONTAINS
                   BI_C_rec = 0.0_dp
                   IF (ijk_index <= send_ijk_index) THEN
                      IF (iloops .EQ. 1) THEN
-                        CALL mp_sendrecv(BIb_C(1:my_group_L_size, 1:size_B_i, send_i), proc_send, &
-                                         BI_C_rec(1:rec_L_size, 1:size_B_i), proc_receive, &
+                        CALL mp_sendrecv(BIb_C(:, :, send_i), proc_send, BI_C_rec, proc_receive, &
                                          para_env_exchange%group)
                      ELSE
-                        CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_i, send_i), proc_send, &
-                                         BI_C_rec(1:rec_L_size, 1:size_B_i), proc_receive, &
+                        CALL mp_sendrecv(BIb_C_beta(:, :, send_i), proc_send, BI_C_rec, proc_receive, &
                                          para_env_exchange%group)
                      ENDIF
                   ELSE
                      ! nothing to send
-                     CALL mp_sendrecv(null_mat_send(:, :), proc_send, &
-                                      BI_C_rec(1:rec_L_size, 1:size_B_i), proc_receive, &
+                     CALL mp_sendrecv(null_mat_send, proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group)
                   END IF
                   DO irep = 0, num_integ_group - 1
@@ -2375,25 +2369,22 @@ CONTAINS
                      start_point = ranges_info_array(3, irep, proc_receive)
                      end_point = ranges_info_array(4, irep, proc_receive)
 
-                     local_i_aL(Lstart_pos:Lend_pos, 1:size_B_i) = BI_C_rec(start_point:end_point, 1:size_B_i)
+                     local_i_aL(Lstart_pos:Lend_pos, :) = BI_C_rec(start_point:end_point, :)
                   END DO
 
                   ! occupied j
                   BI_C_rec = 0.0_dp
                   IF (ijk_index <= send_ijk_index) THEN
                      IF (iloops .EQ. 1) THEN
-                        CALL mp_sendrecv(BIb_C(1:my_group_L_size, 1:size_B_j, send_j), proc_send, &
-                                         BI_C_rec(1:rec_L_size, 1:size_B_j), proc_receive, &
+                        CALL mp_sendrecv(BIb_C(:, :, send_j), proc_send, BI_C_rec, proc_receive, &
                                          para_env_exchange%group)
                      ELSE ! For beta_beta density, the size is different now
-                        CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_j, send_j), proc_send, &
-                                         BI_C_rec(1:rec_L_size, 1:size_B_j), proc_receive, &
+                        CALL mp_sendrecv(BIb_C_beta(:, :, send_j), proc_send, BI_C_rec, proc_receive, &
                                          para_env_exchange%group)
                      ENDIF
                   ELSE
                      ! nothing to send
-                     CALL mp_sendrecv(null_mat_send, proc_send, &
-                                      BI_C_rec(1:rec_L_size, 1:size_B_j), proc_receive, &
+                     CALL mp_sendrecv(null_mat_send, proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group)
                   END IF
                   DO irep = 0, num_integ_group - 1
@@ -2402,7 +2393,7 @@ CONTAINS
                      start_point = ranges_info_array(3, irep, proc_receive)
                      end_point = ranges_info_array(4, irep, proc_receive)
 
-                     local_j_aL(Lstart_pos:Lend_pos, 1:size_B_j) = BI_C_rec(start_point:end_point, 1:size_B_j)
+                     local_j_aL(Lstart_pos:Lend_pos, :) = BI_C_rec(start_point:end_point, :)
                   END DO
 
                   ! occupied k
@@ -2413,25 +2404,21 @@ CONTAINS
                   IF (ijk_index <= send_ijk_index) THEN
                      IF (iloops .EQ. 1) THEN
                         IF (.NOT. alpha_beta) THEN
-                           CALL mp_sendrecv(BIb_C(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
-                                            BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, &
+                           CALL mp_sendrecv(BIb_C(:, :, send_k), proc_send, BI_C_rec, proc_receive, &
                                             para_env_exchange%group)
                         ELSE
-                           CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
-                                            BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, &
+                           CALL mp_sendrecv(BIb_C_beta(:, :, send_k), proc_send, BI_C_rec, proc_receive, &
                                             para_env_exchange%group)
                         ENDIF
                      ELSE ! For beta_beta density, the size is different now
                         BI_C_rec = 0.0_dp
-                        CALL mp_sendrecv(BIb_C(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
-                                         BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, &
+                        CALL mp_sendrecv(BIb_C(:, :, send_k), proc_send, BI_C_rec, proc_receive, &
                                          para_env_exchange%group)
                      ENDIF
                   ELSE
                      ! nothing to send
                      BI_C_rec = 0.0_dp
-                     CALL mp_sendrecv(null_mat_send, proc_send, &
-                                      BI_C_rec(1:rec_L_size, 1:size_B_k), proc_receive, &
+                     CALL mp_sendrecv(null_mat_send, proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group)
                   END IF
                   DO irep = 0, num_integ_group - 1
@@ -2440,7 +2427,7 @@ CONTAINS
                      start_point = ranges_info_array(3, irep, proc_receive)
                      end_point = ranges_info_array(4, irep, proc_receive)
 
-                     local_k_aL(Lstart_pos:Lend_pos, 1:size_B_k) = BI_C_rec(start_point:end_point, 1:size_B_k)
+                     local_k_aL(Lstart_pos:Lend_pos, :) = BI_C_rec(start_point:end_point, :)
                   END DO
 
                   DEALLOCATE (BI_C_rec)
@@ -2454,12 +2441,12 @@ CONTAINS
                   ALLOCATE (local_ab(virtual_beta, size_B_k))
                   local_ab = 0.0_dp
                   CALL dgemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
-                             local_i_aL(:, :), dimen_RI, local_k_aL(:, :), dimen_RI, &
-                             0.0_dp, local_ab(my_B_virtual_start_beta:my_B_virtual_end_beta, 1:size_B_k), size_B_i)
+                             local_i_aL, dimen_RI, local_k_aL, dimen_RI, &
+                             0.0_dp, local_ab(my_B_virtual_start_beta:my_B_virtual_end_beta, :), size_B_i)
                ELSE
                   CALL dgemm('T', 'N', size_B_i, size_B_k, dimen_RI, 1.0_dp, &
-                             local_i_aL(:, :), dimen_RI, local_k_aL(:, :), dimen_RI, &
-                             0.0_dp, local_ab(my_B_virtual_start:my_B_virtual_end, 1:size_B_k), size_B_i)
+                             local_i_aL, dimen_RI, local_k_aL, dimen_RI, &
+                             0.0_dp, local_ab(my_B_virtual_start:my_B_virtual_end, :), size_B_i)
                ENDIF
                DO proc_shift = 1, para_env_sub%num_pe - 1
                   proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -2474,13 +2461,12 @@ CONTAINS
                   ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
                   external_i_aL = 0.0_dp
 
-                  CALL mp_sendrecv(local_i_aL(:, :), proc_send, &
-                                   external_i_aL, proc_receive, &
+                  CALL mp_sendrecv(local_i_aL, proc_send, external_i_aL, proc_receive, &
                                    para_env_sub%group)
 
                   CALL dgemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
-                             external_i_aL, dimen_RI, local_k_aL(:, :), dimen_RI, &
-                             0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size)
+                             external_i_aL, dimen_RI, local_k_aL, dimen_RI, &
+                             0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, :), rec_B_size)
 
                   DEALLOCATE (external_i_aL)
                END DO
@@ -2532,8 +2518,8 @@ CONTAINS
 
                      ALLOCATE (external_ab(size_B_i, rec_B_size))
                      external_ab = 0.0_dp
-                     CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:size_B_k), proc_send, &
-                                      external_ab(1:size_B_i, 1:rec_B_size), proc_receive, para_env_sub%group)
+                     CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, :), proc_send, &
+                                      external_ab, proc_receive, para_env_sub%group)
 
                      DO b = 1, my_B_size
                         b_global = b + my_B_virtual_start - 1
@@ -2555,12 +2541,12 @@ CONTAINS
 
                IF (iloops .EQ. 2) THEN ! In alpha-beta case for beta-beta density the dimensions are different
                   CALL dgemm('T', 'N', size_B_j, size_B_k, dimen_RI, 1.0_dp, &
-                             local_j_aL(:, :), dimen_RI, local_k_aL(:, :), dimen_RI, &
-                             0.0_dp, local_ab(my_B_virtual_start_beta:my_B_virtual_end_beta, 1:size_B_k), size_B_j)
+                             local_j_aL, dimen_RI, local_k_aL, dimen_RI, &
+                             0.0_dp, local_ab(my_B_virtual_start_beta:my_B_virtual_end_beta, :), size_B_j)
                ELSE
                   CALL dgemm('T', 'N', size_B_j, size_B_k, dimen_RI, 1.0_dp, &
-                             local_j_aL(:, :), dimen_RI, local_k_aL(:, :), dimen_RI, &
-                             0.0_dp, local_ab(my_B_virtual_start:my_B_virtual_end, 1:size_B_k), size_B_j)
+                             local_j_aL, dimen_RI, local_k_aL, dimen_RI, &
+                             0.0_dp, local_ab(my_B_virtual_start:my_B_virtual_end, :), size_B_j)
                ENDIF
 
                DO proc_shift = 1, para_env_sub%num_pe - 1
@@ -2576,13 +2562,12 @@ CONTAINS
                   ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
                   external_i_aL = 0.0_dp
 
-                  CALL mp_sendrecv(local_j_aL(:, :), proc_send, &
-                                   external_i_aL, proc_receive, &
+                  CALL mp_sendrecv(local_j_aL, proc_send, external_i_aL, proc_receive, &
                                    para_env_sub%group)
 
                   CALL dgemm('T', 'N', rec_B_size, size_B_k, dimen_RI, 1.0_dp, &
-                             external_i_aL, dimen_RI, local_k_aL(:, :), dimen_RI, &
-                             0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:size_B_k), rec_B_size)
+                             external_i_aL, dimen_RI, local_k_aL, dimen_RI, &
+                             0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, :), rec_B_size)
 
                   DEALLOCATE (external_i_aL)
                END DO
@@ -2659,31 +2644,31 @@ CONTAINS
                      ENDIF
                      ! occupied i
                      IF (iloops .EQ. 1) THEN
-                        CALL mp_sendrecv(BIb_C(1:my_group_L_size, 1:size_B_i, send_i), proc_send, &
+                        CALL mp_sendrecv(BIb_C(:, :, send_i), proc_send, &
                                          null_mat_rec, proc_receive, para_env_exchange%group)
                      ELSE
-                        CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_i, send_i), proc_send, &
+                        CALL mp_sendrecv(BIb_C_beta(:, :, send_i), proc_send, &
                                          null_mat_rec, proc_receive, para_env_exchange%group)
                      ENDIF
                      ! occupied j
                      IF (iloops .EQ. 1) THEN
-                        CALL mp_sendrecv(BIb_C(1:my_group_L_size, 1:size_B_j, send_j), proc_send, &
+                        CALL mp_sendrecv(BIb_C(:, :, send_j), proc_send, &
                                          null_mat_rec, proc_receive, para_env_exchange%group)
                      ELSE ! For beta_beta density, the size is different now
-                        CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_j, send_j), proc_send, &
+                        CALL mp_sendrecv(BIb_C_beta(:, :, send_j), proc_send, &
                                          null_mat_rec, proc_receive, para_env_exchange%group)
                      ENDIF
                      ! occupied k
                      IF (iloops .EQ. 1) THEN
                         IF (.NOT. alpha_beta) THEN
-                           CALL mp_sendrecv(BIb_C(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
+                           CALL mp_sendrecv(BIb_C(:, :, send_k), proc_send, &
                                             null_mat_rec, proc_receive, para_env_exchange%group)
                         ELSE
-                           CALL mp_sendrecv(BIb_C_beta(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
+                           CALL mp_sendrecv(BIb_C_beta(:, :, send_k), proc_send, &
                                             null_mat_rec, proc_receive, para_env_exchange%group)
                         ENDIF
                      ELSE ! For beta_beta density, the size is different now
-                        CALL mp_sendrecv(BIb_C(1:my_group_L_size, 1:size_B_k, send_k), proc_send, &
+                        CALL mp_sendrecv(BIb_C(:, :, send_k), proc_send, &
                                          null_mat_rec, proc_receive, para_env_exchange%group)
                      ENDIF
 
