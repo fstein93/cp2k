@@ -369,7 +369,7 @@ CONTAINS
                         CALL dgemm_counter_start(dgemm_counter)
                         CALL dgemm('T', 'N', rec_B_size, my_B_size(jspin), dimen_RI, 1.0_dp, &
                                    external_i_aL, dimen_RI, my_local_j_aL, dimen_RI, &
-                                   0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(jspin)), rec_B_size)
+                                   0.0_dp, local_ab(rec_B_virtual_start:rec_B_virtual_end, :), rec_B_size)
                         CALL dgemm_counter_stop(dgemm_counter, rec_B_size, my_B_size(jspin), dimen_RI)
 
                         DEALLOCATE (external_i_aL)
@@ -388,7 +388,7 @@ CONTAINS
                            CALL dgemm_counter_start(dgemm_counter)
                            CALL dgemm('T', 'N', rec_B_size, my_B_size(ispin), dimen_RI, 1.0_dp, &
                                       external_i_aL, dimen_RI, my_local_i_aL, dimen_RI, &
-                                      0.0_dp, local_ba(rec_B_virtual_start:rec_B_virtual_end, 1:my_B_size(ispin)), rec_B_size)
+                                      0.0_dp, local_ba(rec_B_virtual_start:rec_B_virtual_end, :), rec_B_size)
                            CALL dgemm_counter_stop(dgemm_counter, rec_B_size, my_B_size(ispin), dimen_RI)
 
                            DEALLOCATE (external_i_aL)
@@ -406,7 +406,7 @@ CONTAINS
                      IF (my_i == my_j) sym_fac = 1.0_dp
                      IF (my_alpha_beta_case) sym_fac = 0.5_dp
                      DO b = 1, my_B_size(2)
-                        b_global = b + my_B_virtual_start(2) - 1
+                        b_global = b + my_B_virtual_start(jspin) - 1
                         DO a = 1, virtual(ispin)
                            my_Emp2_Cou = my_Emp2_Cou - sym_fac*2.0_dp*local_ab(a, b)**2/ &
                                          (Eigenval(homo(ispin) + a, ispin) + Eigenval(homo(jspin) + b_global, jspin) - &
@@ -418,10 +418,10 @@ CONTAINS
                         ! contract integrals with orbital energies for exchange MP2 energy
                         ! starting with local ...
                         IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) t_ab = 0.0_dp
-                        DO b = 1, my_B_size(1)
-                           b_global = b + my_B_virtual_start(1) - 1
-                           DO a = 1, my_B_size(1)
-                              a_global = a + my_B_virtual_start(1) - 1
+                        DO b = 1, my_B_size(ispin)
+                           b_global = b + my_B_virtual_start(ispin) - 1
+                           DO a = 1, my_B_size(ispin)
+                              a_global = a + my_B_virtual_start(ispin) - 1
                               my_Emp2_Ex = my_Emp2_Ex + sym_fac*local_ab(a_global, b)*local_ab(b_global, a)/ &
                                            (Eigenval(homo(ispin) + a_global, ispin) + Eigenval(homo(ispin) + b_global, ispin) - &
                                             Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
@@ -437,18 +437,17 @@ CONTAINS
                            proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
                            proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
-                          CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+                          CALL get_group_dist(gd_B_virtual(ispin), proc_receive, sizes=rec_B_size)
                           CALL get_group_dist(gd_B_virtual(ispin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
                            ALLOCATE (external_ab(my_B_size(1), rec_B_size))
                            external_ab = 0.0_dp
 
-                           CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(1)), proc_send, &
-                                            external_ab(1:my_B_size(1), 1:rec_B_size), proc_receive, &
-                                            para_env_sub%group)
+                           CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, :), proc_send, &
+                                            external_ab, proc_receive, para_env_sub%group)
 
-                           DO b = 1, my_B_size(1)
-                              b_global = b + my_B_virtual_start(1) - 1
+                           DO b = 1, my_B_size(ispin)
+                              b_global = b + my_B_virtual_start(ispin) - 1
                               DO a = 1, rec_B_size
                                  a_global = a + rec_B_virtual_start - 1
                                  my_Emp2_Ex = my_Emp2_Ex + sym_fac*local_ab(a_global, b)*external_ab(b, a)/ &
@@ -650,7 +649,7 @@ CONTAINS
                ALLOCATE (B_ia_Q_beta(homo(jspin), my_B_size(jspin), my_group_L_size))
                B_ia_Q_beta = 0.0_dp
                DO jjB = 1, homo(jspin)
-                  DO iiB = 1, my_B_size(2)
+                  DO iiB = 1, my_B_size(jspin)
                      B_ia_Q_beta(jjB, iiB, 1:my_group_L_size) = &
                         BIb_C(jspin)%array(1:my_group_L_size, iiB, jjB)
                   END DO
@@ -701,8 +700,8 @@ CONTAINS
                ! copy the integrals (ia|Q) back
                DO jjB = 1, homo(ispin)
                   DO iiB = 1, my_B_size(ispin)
-                     BIb_C(ispin)%array(1:my_group_L_size, iiB, jjB) = &
-                        B_ia_Q(jjB, iiB, 1:my_group_L_size)
+                     BIb_C(ispin)%array(:, iiB, jjB) = &
+                        B_ia_Q(jjB, iiB, :)
                   END DO
                END DO
             ENDIF
@@ -968,7 +967,7 @@ CONTAINS
             ALLOCATE (t_ab(virtual(ispin), my_B_size(jspin)))
 
             ! That is just a dummy
-            ALLOCATE( local_ba(1,1))
+            ALLOCATE (local_ba(1,1))
          ELSE
             ! We need more integrals
             ALLOCATE (local_ba(virtual(jspin), my_B_size(ispin)))
