@@ -1505,30 +1505,30 @@ CONTAINS
       ! Alpha_alpha or closed-shell case
       IF (((.NOT. open_ss) .AND. (.NOT. alpha_beta)) .OR. alpha_alpha) THEN
          CALL dgemm('T', 'N', my_B_size, my_B_size, virtual, 1.0_dp, &
-                    t_ab(:, :), virtual, local_ab(:, :), virtual, &
-                    1.0_dp, mp2_env%ri_grad%P_ab(1)%array(1:my_B_size, my_B_virtual_start:my_B_virtual_end), my_B_size)
+                    t_ab, virtual, local_ab, virtual, &
+                    1.0_dp, mp2_env%ri_grad%P_ab(1)%array(:, my_B_virtual_start:my_B_virtual_end), my_B_size)
          mp2_env%ri_grad%P_ij(1)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(1)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
       ENDIF
       ! Beta_beta case
       IF (beta_beta) THEN
          CALL dgemm('T', 'N', my_B_size, my_B_size, virtual, 1.0_dp, &
-                    t_ab(:, :), virtual, local_ab(:, :), virtual, &
-                    1.0_dp, mp2_env%ri_grad%P_ab(2)%array(1:my_B_size, my_B_virtual_start:my_B_virtual_end), my_B_size)
+                    t_ab, virtual, local_ab, virtual, &
+                    1.0_dp, mp2_env%ri_grad%P_ab(2)%array(:, my_B_virtual_start:my_B_virtual_end), my_B_size)
          mp2_env%ri_grad%P_ij(2)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(2)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
       ENDIF
       ! Alpha_beta case
       IF (alpha_beta) THEN
          CALL dgemm('T', 'N', my_B_size, my_B_size, virtual_beta, mp2_env%scale_S, &
-                    local_ba(:, :), virtual_beta, local_ba(:, :), virtual_beta, 1.0_dp, &
-                    mp2_env%ri_grad%P_ab(1)%array(1:my_B_size, my_B_virtual_start: &
+                    local_ba, virtual_beta, local_ba, virtual_beta, 1.0_dp, &
+                    mp2_env%ri_grad%P_ab(1)%array(:, my_B_virtual_start: &
                                                   my_B_virtual_end), my_B_size)
          mp2_env%ri_grad%P_ij(1)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(1)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
          CALL dgemm('T', 'N', my_B_size_beta, my_B_size_beta, virtual, mp2_env%scale_S, &
-                    local_ab(:, :), virtual, local_ab(:, :), virtual, 1.0_dp, &
-                    mp2_env%ri_grad%P_ab(2)%array(1:my_B_size_beta, my_B_virtual_start_beta: &
+                    local_ab, virtual, local_ab, virtual, 1.0_dp, &
+                    mp2_env%ri_grad%P_ab(2)%array(:, my_B_virtual_start_beta: &
                                                   my_B_virtual_end_beta), my_B_size_beta)
          mp2_env%ri_grad%P_ij(2)%array(my_j + jjB - 1, my_j + jjB - 1) = &
             mp2_env%ri_grad%P_ij(2)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
@@ -1538,20 +1538,20 @@ CONTAINS
       ! due to spin in alpha-beta case.
       IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
          ! Alpha_alpha or closed-shell case
-         IF (((.NOT. open_ss) .AND. (.NOT. alpha_beta)) .OR. alpha_alpha) THEN
+         IF ((.NOT. open_ss) .OR. alpha_alpha) THEN
             CALL dgemm('N', 'T', my_B_size, virtual, my_B_size, 1.0_dp, &
-                       t_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size), my_B_size, &
-                       local_ab(:, :), virtual, &
-                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array(1:my_B_size, 1:virtual), my_B_size)
+                       t_ab(my_B_virtual_start:my_B_virtual_end, :), my_B_size, &
+                       local_ab, virtual, &
+                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array, my_B_size)
             mp2_env%ri_grad%P_ij(1)%array(my_j + jjB - 1, my_j + jjB - 1) = &
                mp2_env%ri_grad%P_ij(1)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
          ENDIF
          ! Beta_beta_case
          IF (beta_beta) THEN
             CALL dgemm('N', 'T', my_B_size, virtual, my_B_size, mp2_env%scale_S, &
-                       t_ab(my_B_virtual_start:my_B_virtual_end, 1:my_B_size), my_B_size, &
-                       local_ab(:, :), virtual, &
-                       1.0_dp, mp2_env%ri_grad%P_ab(2)%array(1:my_B_size, 1:virtual), my_B_size)
+                       t_ab(my_B_virtual_start:my_B_virtual_end, :), my_B_size, &
+                       local_ab, virtual, &
+                       1.0_dp, mp2_env%ri_grad%P_ab(2)%array, my_B_size)
             mp2_env%ri_grad%P_ij(2)%array(my_j + jjB - 1, my_j + jjB - 1) = &
                mp2_env%ri_grad%P_ij(2)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
          ENDIF
@@ -1572,31 +1572,29 @@ CONTAINS
          external_ab = 0.0_dp
 
          IF (.NOT. alpha_beta) THEN
-            CALL mp_sendrecv(local_ab(1:virtual, 1:my_B_size), proc_send, &
-                             external_ab(1:virtual, 1:rec_B_size), proc_receive, &
+            CALL mp_sendrecv(local_ab, proc_send, external_ab, proc_receive, &
                              para_env_sub%group)
          ELSE
-            CALL mp_sendrecv(local_ab(1:virtual, 1:my_B_size_beta), proc_send, &
-                             external_ab(1:virtual, 1:rec_B_size), proc_receive, &
+            CALL mp_sendrecv(local_ab, proc_send, external_ab, proc_receive, &
                              para_env_sub%group)
          ENDIF
 
          ! Alpha-alpha or closed-shell case
          IF (((.NOT. open_ss) .AND. (.NOT. alpha_beta)) .OR. alpha_alpha) &
             CALL dgemm('T', 'N', my_B_size, rec_B_size, virtual, 1.0_dp, &
-                       t_ab(:, :), virtual, external_ab(:, :), virtual, &
-                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array(1:my_B_size, rec_B_virtual_start:rec_B_virtual_end), my_B_size)
+                       t_ab, virtual, external_ab, virtual, &
+                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size)
          ! Beta-beta case
          IF (beta_beta) &
             CALL dgemm('T', 'N', my_B_size, rec_B_size, virtual, 1.0_dp, &
-                       t_ab(:, :), virtual, external_ab(:, :), virtual, &
-                       1.0_dp, mp2_env%ri_grad%P_ab(2)%array(1:my_B_size, rec_B_virtual_start:rec_B_virtual_end), my_B_size)
+                       t_ab, virtual, external_ab, virtual, &
+                       1.0_dp, mp2_env%ri_grad%P_ab(2)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size)
          ! Alpha-beta case
          IF (alpha_beta) THEN
             ! Alpha-beta part of beta-beta density
             CALL dgemm('T', 'N', my_B_size_beta, rec_B_size, virtual, mp2_env%scale_S, &
-                       local_ab(:, :), virtual, external_ab(:, :), virtual, &
-                       1.0_dp, mp2_env%ri_grad%P_ab(2)%array(1:my_B_size_beta, rec_B_virtual_start:rec_B_virtual_end), &
+                       local_ab, virtual, external_ab, virtual, &
+                       1.0_dp, mp2_env%ri_grad%P_ab(2)%array(:, rec_B_virtual_start:rec_B_virtual_end), &
                        my_B_size_beta)
 
             ! For alpha-beta part of alpha-density we need a new parallel code
@@ -1606,12 +1604,11 @@ CONTAINS
             CALL get_group_dist(gd_B_virtual, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
             ALLOCATE (external_ab(virtual_beta, rec_B_size))
             external_ab = 0.0_dp
-            CALL mp_sendrecv(local_ba(1:virtual_beta, 1:my_B_size), proc_send, &
-                             external_ab(1:virtual_beta, 1:rec_B_size), proc_receive, &
+            CALL mp_sendrecv(local_ba, proc_send, external_ab, proc_receive, &
                              para_env_sub%group)
             CALL dgemm('T', 'N', my_B_size, rec_B_size, virtual_beta, mp2_env%scale_S, &
-                       local_ba(:, :), virtual_beta, external_ab(:, :), virtual_beta, &
-                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array(1:my_B_size, rec_B_virtual_start:rec_B_virtual_end), my_B_size)
+                       local_ba, virtual_beta, external_ab, virtual_beta, &
+                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size)
          ENDIF
 
          DEALLOCATE (external_ab)
@@ -1625,8 +1622,7 @@ CONTAINS
 
             CALL dgemm('N', 'T', send_B_size, virtual, my_B_size, 1.0_dp, &
                        t_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size), send_B_size, &
-                       local_ab(:, :), virtual, &
-                       0.0_dp, send_ab(1:send_B_size, 1:virtual), send_B_size)
+                       local_ab, virtual, 0.0_dp, send_ab, send_B_size)
 
             CALL mp_sendrecv(send_ab, proc_send, &
                              external_ab, proc_receive, &
