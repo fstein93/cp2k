@@ -223,8 +223,8 @@ CONTAINS
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 
-                  local_i_aL(Lstart_pos:Lend_pos, 1:my_B_size(ispin), 1:my_block_size) = &
-                     BIb_C(ispin)%array(start_point:end_point, 1:my_B_size(ispin), my_i:my_i + my_block_size - 1)
+                  local_i_aL(Lstart_pos:Lend_pos, :, :) = &
+                     BIb_C(ispin)%array(start_point:end_point, :, my_i:my_i + my_block_size - 1)
                END DO
 
                local_j_aL = 0.0_dp
@@ -234,8 +234,8 @@ CONTAINS
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 
-                  local_j_aL(Lstart_pos:Lend_pos, 1:my_B_size(jspin), 1:my_block_size) = &
-                     BIb_C(jspin)%array(start_point:end_point, 1:my_B_size(jspin), my_j:my_j + my_block_size - 1)
+                  local_j_aL(Lstart_pos:Lend_pos, :, :) = &
+                     BIb_C(jspin)%array(start_point:end_point, :, my_j:my_j + my_block_size - 1)
                END DO
 
                ! collect data from other proc
@@ -267,8 +267,7 @@ CONTAINS
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
-                        local_i_aL(Lstart_pos:Lend_pos, 1:my_B_size(ispin), 1:my_block_size) = &
-                           BI_C_rec(start_point:end_point, 1:my_B_size(ispin), 1:my_block_size)
+                        local_i_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(ispin), :)
 
                      END DO
 
@@ -284,8 +283,7 @@ CONTAINS
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
-                        local_j_aL(Lstart_pos:Lend_pos, 1:my_B_size(jspin), 1:my_block_size) = &
-                           BI_C_rec(start_point:end_point, 1:my_B_size(jspin), 1:my_block_size)
+                        local_j_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(jspin), :)
 
                      END DO
 
@@ -294,8 +292,7 @@ CONTAINS
 
                      ! occupied i
                      BI_C_rec = 0.0_dp
-                     CALL mp_sendrecv(null_mat_send, proc_send, &
-                                      BI_C_rec(1:rec_L_size, 1:my_B_size(ispin), 1:my_block_size), proc_receive, &
+                     CALL mp_sendrecv(null_mat_send, proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group)
 
                      DO irep = 0, num_integ_group - 1
@@ -304,15 +301,13 @@ CONTAINS
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
-                        local_i_aL(Lstart_pos:Lend_pos, 1:my_B_size(ispin), 1:my_block_size) = &
-                           BI_C_rec(start_point:end_point, 1:my_B_size(ispin), 1:my_block_size)
+                        local_i_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(ispin), :)
 
                      END DO
 
                      ! occupied j
                      BI_C_rec = 0.0_dp
-                     CALL mp_sendrecv(null_mat_send, proc_send, &
-                                      BI_C_rec(1:rec_L_size, 1:my_B_size(jspin), 1:my_block_size), proc_receive, &
+                     CALL mp_sendrecv(null_mat_send, proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group)
 
                      DO irep = 0, num_integ_group - 1
@@ -321,8 +316,7 @@ CONTAINS
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
-                        local_j_aL(Lstart_pos:Lend_pos, 1:my_B_size(jspin), 1:my_block_size) = &
-                           BI_C_rec(start_point:end_point, 1:my_B_size(jspin), 1:my_block_size)
+                        local_j_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(jspin), :)
 
                      END DO
 
