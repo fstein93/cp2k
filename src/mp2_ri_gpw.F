@@ -1819,19 +1819,19 @@ CONTAINS
             DO iiB = 1, my_block_size
 !$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
 !$OMP                                     SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                            mp2_env,my_i,iiB,my_B_size,Y_i_aP,&
+!$OMP                                            mp2_env,my_i,iiB,Y_i_aP,&
 !$OMP                                     alpha_alpha,beta_beta,open_shell)
                DO kkk = start_point, end_point
                   lll = kkk - start_point + Lstart_pos
                   IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                     mp2_env%ri_grad%Gamma_P_ia(1)%array(my_i + iiB - 1, 1:my_B_size, kkk) = &
-                        mp2_env%ri_grad%Gamma_P_ia(1)%array(my_i + iiB - 1, 1:my_B_size, kkk) + &
-                        Y_i_aP(1:my_B_size, lll, iiB)
+                     mp2_env%ri_grad%Gamma_P_ia(1)%array(my_i + iiB - 1, :, kkk) = &
+                        mp2_env%ri_grad%Gamma_P_ia(1)%array(my_i + iiB - 1, :, kkk) + &
+                        Y_i_aP(:, lll, iiB)
                   ENDIF
                   IF (beta_beta) THEN
-                     mp2_env%ri_grad%Gamma_P_ia(2)%array(my_i + iiB - 1, 1:my_B_size, kkk) = &
-                        mp2_env%ri_grad%Gamma_P_ia(2)%array(my_i + iiB - 1, 1:my_B_size, kkk) + &
-                        Y_i_aP(1:my_B_size, lll, iiB)
+                     mp2_env%ri_grad%Gamma_P_ia(2)%array(my_i + iiB - 1, :, kkk) = &
+                        mp2_env%ri_grad%Gamma_P_ia(2)%array(my_i + iiB - 1, :, kkk) + &
+                        Y_i_aP(:, lll, iiB)
                   ENDIF
                END DO
 !$OMP           END PARALLEL DO
@@ -1840,31 +1840,31 @@ CONTAINS
                IF (.NOT. alpha_beta) THEN
 !$OMP              PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
 !$OMP                                        SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                               mp2_env,my_j,jjB,my_B_size,Y_j_aP,&
+!$OMP                                               mp2_env,my_j,jjB,Y_j_aP,&
 !$OMP                                        alpha_alpha,beta_beta,open_shell)
                   DO kkk = start_point, end_point
                      lll = kkk - start_point + Lstart_pos
                      IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                        mp2_env%ri_grad%Gamma_P_ia(1)%array(my_j + jjB - 1, 1:my_B_size, kkk) = &
-                           mp2_env%ri_grad%Gamma_P_ia(1)%array(my_j + jjB - 1, 1:my_B_size, kkk) + &
-                           Y_j_aP(1:my_B_size, lll, jjB)
+                        mp2_env%ri_grad%Gamma_P_ia(1)%array(my_j + jjB - 1, :, kkk) = &
+                           mp2_env%ri_grad%Gamma_P_ia(1)%array(my_j + jjB - 1, :, kkk) + &
+                           Y_j_aP(:, lll, jjB)
                      ENDIF
                      IF (beta_beta) THEN
-                        mp2_env%ri_grad%Gamma_P_ia(2)%array(my_j + jjB - 1, 1:my_B_size, kkk) = &
-                           mp2_env%ri_grad%Gamma_P_ia(2)%array(my_j + jjB - 1, 1:my_B_size, kkk) + &
-                           Y_j_aP(1:my_B_size, lll, jjB)
+                        mp2_env%ri_grad%Gamma_P_ia(2)%array(my_j + jjB - 1, :, kkk) = &
+                           mp2_env%ri_grad%Gamma_P_ia(2)%array(my_j + jjB - 1, :, kkk) + &
+                           Y_j_aP(:, lll, jjB)
                      ENDIF
                   END DO
 !$OMP              END PARALLEL DO
                ELSE
 !$OMP              PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
 !$OMP                                        SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                               mp2_env,my_j,jjB,my_B_size_beta,Y_j_aP)
+!$OMP                                               mp2_env,my_j,jjB,Y_j_aP)
                   DO kkk = start_point, end_point
                      lll = kkk - start_point + Lstart_pos
-                     mp2_env%ri_grad%Gamma_P_ia(2)%array(my_j + jjB - 1, 1:my_B_size_beta, kkk) = &
-                        mp2_env%ri_grad%Gamma_P_ia(2)%array(my_j + jjB - 1, 1:my_B_size_beta, kkk) + &
-                        Y_j_aP(1:my_B_size_beta, lll, jjB)
+                     mp2_env%ri_grad%Gamma_P_ia(2)%array(my_j + jjB - 1, :, kkk) = &
+                        mp2_env%ri_grad%Gamma_P_ia(2)%array(my_j + jjB - 1, :, kkk) + &
+                        Y_j_aP(:, lll, jjB)
                   ENDDO
 !$OMP              END PARALLEL DO
                ENDIF
@@ -1896,10 +1896,10 @@ CONTAINS
                DO iiB = 1, my_block_size
 !$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
 !$OMP                                       SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                              BI_C_send,iiB,my_B_size,Y_i_aP)
+!$OMP                                              BI_C_send,iiB,Y_i_aP)
                   DO kkk = start_point, end_point
                      lll = kkk - start_point + Lstart_pos
-                     BI_C_send(iiB, 1:my_B_size, kkk) = Y_i_aP(1:my_B_size, lll, iiB)
+                     BI_C_send(iiB, :, kkk) = Y_i_aP(:, lll, iiB)
                   END DO
 !$OMP             END PARALLEL DO
                END DO
@@ -1907,19 +1907,19 @@ CONTAINS
                   IF (.NOT. alpha_beta) THEN
 !$OMP                PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
 !$OMP                                          SHARED(start_point,end_point,Lstart_pos,Lend_pos,my_block_size,&
-!$OMP                                                 BI_C_send,jjB,my_B_size,Y_j_aP)
+!$OMP                                                 BI_C_send,jjB,Y_j_aP)
                      DO kkk = start_point, end_point
                         lll = kkk - start_point + Lstart_pos
-                        BI_C_send(jjB + my_block_size, 1:my_B_size, kkk) = Y_j_aP(1:my_B_size, lll, jjB)
+                        BI_C_send(jjB + my_block_size, :, kkk) = Y_j_aP(:, lll, jjB)
                      END DO
 !$OMP                END PARALLEL DO
                   ELSE
 !$OMP                PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
 !$OMP                                          SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                                 BI_C_send_beta,jjB,my_B_size_beta,Y_j_aP)
+!$OMP                                                 BI_C_send_beta,jjB,Y_j_aP)
                      DO kkk = start_point, end_point
                         lll = kkk - start_point + Lstart_pos
-                        BI_C_send_beta(jjB, 1:my_B_size_beta, kkk) = Y_j_aP(1:my_B_size_beta, lll, jjB)
+                        BI_C_send_beta(jjB, :, kkk) = Y_j_aP(:, lll, jjB)
                      END DO
 !$OMP                END PARALLEL DO
                   ENDIF
@@ -1948,12 +1948,10 @@ CONTAINS
                BI_C_rec = 0.0_dp
                IF (alpha_beta) BI_C_rec_beta = 0.0_dp
 
-               CALL mp_sendrecv(BI_C_send, proc_send, &
-                                BI_C_rec, proc_receive, &
+               CALL mp_sendrecv(BI_C_send, proc_send, BI_C_rec, proc_receive, &
                                 para_env_exchange%group)
                IF (alpha_beta) THEN
-                  CALL mp_sendrecv(BI_C_send_beta, proc_send, &
-                                   BI_C_rec_beta, proc_receive, &
+                  CALL mp_sendrecv(BI_C_send_beta, proc_send, BI_C_rec_beta, proc_receive, &
                                    para_env_exchange%group)
                ENDIF
 
@@ -1966,18 +1964,18 @@ CONTAINS
                   DO iiB = 1, rec_block_size
 !$OMP               PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                         SHARED(start_point,end_point,&
-!$OMP                                                mp2_env,rec_i,iiB,my_B_size,BI_C_rec,&
+!$OMP                                                mp2_env,rec_i,iiB,BI_C_rec,&
 !$OMP                                         alpha_alpha,beta_beta,open_shell)
                      DO kkk = start_point, end_point
                         IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                           mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_i + iiB - 1, 1:my_B_size, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_i + iiB - 1, 1:my_B_size, kkk) + &
-                              BI_C_rec(iiB, 1:my_B_size, kkk)
+                           mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_i + iiB - 1, :, kkk) = &
+                              mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_i + iiB - 1, :, kkk) + &
+                              BI_C_rec(iiB, :, kkk)
                         ENDIF
                         IF (beta_beta) THEN
-                           mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_i + iiB - 1, 1:my_B_size, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_i + iiB - 1, 1:my_B_size, kkk) + &
-                              BI_C_rec(iiB, 1:my_B_size, kkk)
+                           mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_i + iiB - 1, :, kkk) = &
+                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_i + iiB - 1, :, kkk) + &
+                              BI_C_rec(iiB, :, kkk)
                         ENDIF
                      END DO
 !$OMP               END PARALLEL DO
@@ -1986,29 +1984,29 @@ CONTAINS
                      IF (.NOT. alpha_beta) THEN
 !$OMP                   PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                             SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                                    mp2_env,rec_j,jjB,my_B_size,BI_C_rec,&
+!$OMP                                                    mp2_env,rec_j,jjB,BI_C_rec,&
 !$OMP                                             alpha_alpha,beta_beta,open_shell)
                         DO kkk = start_point, end_point
                            IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                              mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, 1:my_B_size, kkk) = &
-                                 mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, 1:my_B_size, kkk) + &
-                                 BI_C_rec(jjB + rec_block_size, 1:my_B_size, kkk)
+                              mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, :, kkk) = &
+                                 mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, :, kkk) + &
+                                 BI_C_rec(jjB + rec_block_size, :, kkk)
                            ENDIF
                            IF (beta_beta) THEN
-                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, 1:my_B_size, kkk) = &
-                                 mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, 1:my_B_size, kkk) + &
-                                 BI_C_rec(jjB + rec_block_size, 1:my_B_size, kkk)
+                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) = &
+                                 mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) + &
+                                 BI_C_rec(jjB + rec_block_size, :, kkk)
                            ENDIF
                         END DO
 !$OMP                   END PARALLEL DO
                      ELSE
 !$OMP                   PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                             SHARED(start_point,end_point,&
-!$OMP                                           mp2_env,rec_j,jjB,my_B_size_beta,BI_C_rec_beta)
+!$OMP                                           mp2_env,rec_j,jjB,BI_C_rec_beta)
                         DO kkk = start_point, end_point
-                           mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, 1:my_B_size_beta, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, 1:my_B_size_beta, kkk) + &
-                              BI_C_rec_beta(jjB, 1:my_B_size_beta, kkk)
+                           mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) = &
+                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) + &
+                              BI_C_rec_beta(jjB, :, kkk)
                         END DO
 !$OMP                   END PARALLEL DO
                      ENDIF
@@ -2022,12 +2020,10 @@ CONTAINS
             ELSE
                ! we have something to send but nothing to receive
 
-               CALL mp_sendrecv(BI_C_send, proc_send, &
-                                null_mat_rec, proc_receive, &
+               CALL mp_sendrecv(BI_C_send, proc_send, null_mat_rec, proc_receive, &
                                 para_env_exchange%group)
                IF (alpha_beta) THEN
-                  CALL mp_sendrecv(BI_C_send_beta, proc_send, &
-                                   null_mat_rec, proc_receive, &
+                  CALL mp_sendrecv(BI_C_send_beta, proc_send, null_mat_rec, proc_receive, &
                                    para_env_exchange%group)
                ENDIF
 
@@ -2081,18 +2077,18 @@ CONTAINS
                   DO iiB = 1, rec_block_size
 !$OMP               PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                         SHARED(start_point,end_point,&
-!$OMP                                                mp2_env,rec_i,iiB,my_B_size,BI_C_rec,&
+!$OMP                                                mp2_env,rec_i,iiB,BI_C_rec,&
 !$OMP                                         alpha_alpha,beta_beta,open_shell)
                      DO kkk = start_point, end_point
                         IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                           mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_i + iiB - 1, 1:my_B_size, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_i + iiB - 1, 1:my_B_size, kkk) + &
-                              BI_C_rec(iiB, 1:my_B_size, kkk)
+                           mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_i + iiB - 1, :, kkk) = &
+                              mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_i + iiB - 1, :, kkk) + &
+                              BI_C_rec(iiB, :, kkk)
                         ENDIF
                         IF (beta_beta) THEN
-                           mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_i + iiB - 1, 1:my_B_size, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_i + iiB - 1, 1:my_B_size, kkk) + &
-                              BI_C_rec(iiB, 1:my_B_size, kkk)
+                           mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_i + iiB - 1, :, kkk) = &
+                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_i + iiB - 1, :, kkk) + &
+                              BI_C_rec(iiB, :, kkk)
                         ENDIF
                      END DO
 !$OMP               END PARALLEL DO
@@ -2101,29 +2097,29 @@ CONTAINS
                      IF (.NOT. alpha_beta) THEN
 !$OMP                  PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                         SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                                mp2_env,rec_j,jjB,my_B_size,BI_C_rec,&
+!$OMP                                                mp2_env,rec_j,jjB,BI_C_rec,&
 !$OMP                                            alpha_alpha,beta_beta,open_shell)
                         DO kkk = start_point, end_point
                            IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                              mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, 1:my_B_size, kkk) = &
-                                 mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, 1:my_B_size, kkk) + &
-                                 BI_C_rec(jjB + rec_block_size, 1:my_B_size, kkk)
+                              mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, :, kkk) = &
+                                 mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, :, kkk) + &
+                                 BI_C_rec(jjB + rec_block_size, :, kkk)
                            ENDIF
                            IF (beta_beta) THEN
-                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, 1:my_B_size, kkk) = &
-                                 mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, 1:my_B_size, kkk) + &
-                                 BI_C_rec(jjB + rec_block_size, 1:my_B_size, kkk)
+                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) = &
+                                 mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) + &
+                                 BI_C_rec(jjB + rec_block_size, :, kkk)
                            ENDIF
                         END DO
 !$OMP                  END PARALLEL DO
                      ELSE
 !$OMP                  PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                         SHARED(start_point,end_point,&
-!$OMP                                       mp2_env,rec_j,jjB,my_B_size_beta,BI_C_rec_beta)
+!$OMP                                       mp2_env,rec_j,jjB,BI_C_rec_beta)
                         DO kkk = start_point, end_point
-                           mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, 1:my_B_size_beta, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, 1:my_B_size_beta, kkk) + &
-                              BI_C_rec_beta(jjB, 1:my_B_size_beta, kkk)
+                           mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) = &
+                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) + &
+                              BI_C_rec_beta(jjB, :, kkk)
                         END DO
 !$OMP                  END PARALLEL DO
                      ENDIF
@@ -2136,12 +2132,10 @@ CONTAINS
 
             ELSE
                ! nothing to send nothing to receive
-               CALL mp_sendrecv(null_mat_send, proc_send, &
-                                null_mat_rec, proc_receive, &
+               CALL mp_sendrecv(null_mat_send, proc_send, null_mat_rec, proc_receive, &
                                 para_env_exchange%group)
                IF (alpha_beta) THEN
-                  CALL mp_sendrecv(null_mat_send, proc_send, &
-                                   null_mat_rec, proc_receive, &
+                  CALL mp_sendrecv(null_mat_send, proc_send, null_mat_rec, proc_receive, &
                                    para_env_exchange%group)
                ENDIF
 
