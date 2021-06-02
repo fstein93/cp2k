@@ -468,30 +468,14 @@ CONTAINS
 
                      IF (calc_forces) THEN
                         ! update P_ab, Gamma_P_ia
-                        IF (.NOT. my_alpha_beta_case) THEN
-                           Y_i_aP = 0.0_dp
-                           Y_j_aP = 0.0_dp
-                           CALL mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual(ispin), &
-                                                   Eigenval(:, ispin), homo(ispin), dimen_RI, iiB, jjB, my_B_size(ispin), &
-                                                   my_B_virtual_end(ispin), my_B_virtual_start(ispin), my_i, my_j, virtual(ispin), &
-                                                   sub_proc_map, local_ab, t_ab, my_local_i_aL, my_local_j_aL, &
-                                                   my_open_shell_ss, my_alpha_alpha_case, my_beta_beta_case, &
-                                                   Y_i_aP(:, :, iiB), Y_j_aP(:, :, jjB))
-                        ELSE
-                           Y_i_aP = 0.0_dp
-                           Y_j_aP = 0.0_dp
-                           CALL mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual(ispin), &
-                                                   Eigenval(:, ispin), homo(ispin), dimen_RI, iiB, jjB, my_B_size(ispin), &
-                                                   my_B_virtual_end(ispin), my_B_virtual_start(ispin), my_i, my_j, &
-                                                   virtual(ispin), sub_proc_map, &
-                                                   local_ab, t_ab, my_local_i_aL, my_local_j_aL, &
-                                                   my_open_shell_ss, my_alpha_alpha_case, &
-                                                   my_beta_beta_case, Y_i_aP(:, :, iiB), Y_j_aP(:, :, jjB), &
-                                                   Eigenval(:, jspin), homo(jspin), my_B_size(2), &
-                                                   gd_B_virtual(jspin), &
-                                                   my_B_virtual_start(jspin), my_B_virtual_end(jspin), virtual(jspin), local_ba)
-                        ENDIF
-
+                        Y_i_aP = 0.0_dp
+                        Y_j_aP = 0.0_dp
+                        CALL mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual, &
+                                                Eigenval, homo, dimen_RI, ispin, jspin, iiB, jjB, my_B_size, &
+                                                my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, &
+                                                sub_proc_map, local_ab, t_ab, my_local_i_aL, my_local_j_aL, &
+                                                my_open_shell_ss, my_alpha_alpha_case, my_beta_beta_case, &
+                                                Y_i_aP(:, :, iiB), Y_j_aP(:, :, jjB), local_ba)
                      END IF
 
                   END DO ! jjB
@@ -1370,11 +1354,9 @@ CONTAINS
       END IF
 
       num_integ_group = ngroup/integ_group_size
-
       pos_integ_group = MOD(color_sub, integ_group_size)
 
       CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
-
       CALL get_group_dist(gd_B_virtual, para_env_sub%mepos, my_B_virtual_start, my_B_virtual_end, my_B_size)
 
       CALL timestop(handle)
@@ -1389,6 +1371,8 @@ CONTAINS
 !> \param Eigenval ...
 !> \param homo ...
 !> \param dimen_RI ...
+!> \param ispin ...
+!> \param jspin ...
 !> \param iiB ...
 !> \param jjB ...
 !> \param my_B_size ...
@@ -1417,32 +1401,24 @@ CONTAINS
 !> \param local_ba ...
 ! **************************************************************************************************
    SUBROUTINE mp2_update_P_gamma(mp2_env, para_env_sub, gd_B_virtual, &
-                                 Eigenval, homo, dimen_RI, iiB, jjB, my_B_size, &
+                                 Eigenval, homo, dimen_RI, ispin, jspin, iiB, jjB, my_B_size, &
                                  my_B_virtual_end, my_B_virtual_start, my_i, my_j, virtual, sub_proc_map, local_ab, &
                                  t_ab, my_local_i_aL, my_local_j_aL, open_ss, alpha_alpha, beta_beta, Y_i_aP, Y_j_aP, &
-                                 eigenval_beta, homo_beta, my_B_size_beta, gd_B_virtual_beta, &
-                                 my_B_virtual_start_beta, my_B_virtual_end_beta, virtual_beta, local_ba)
+                                 local_ba)
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
-      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_B_virtual
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      INTEGER, INTENT(IN)                                :: homo, dimen_RI, iiB, jjB, my_B_size, &
-                                                            my_B_virtual_end, my_B_virtual_start, &
-                                                            my_i, my_j, virtual
+      TYPE(group_dist_d1_type), DIMENSION(:), INTENT(IN) :: gd_B_virtual
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      INTEGER, INTENT(IN)                                :: dimen_RI, iiB, jjB, ispin, jspin, &
+                                                            my_i, my_j
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual, my_B_size, my_B_virtual_end, my_B_virtual_start
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sub_proc_map
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(INOUT)                                   :: local_ab
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: t_ab, my_local_i_aL, my_local_j_aL
       LOGICAL, INTENT(IN)                                :: open_ss, alpha_alpha, beta_beta
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Y_i_aP, Y_j_aP
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: Eigenval_beta
-      INTEGER, INTENT(IN), OPTIONAL                      :: homo_beta, my_B_size_beta
-      TYPE(group_dist_d1_type), INTENT(IN), OPTIONAL     :: gd_B_virtual_beta
-      INTEGER, INTENT(IN), OPTIONAL                      :: my_B_virtual_start_beta, &
-                                                            my_B_virtual_end_beta, virtual_beta
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
-         INTENT(INOUT), OPTIONAL                         :: local_ba
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: Y_i_aP, Y_j_aP, local_ba
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_update_P_gamma'
 
@@ -1459,9 +1435,7 @@ CONTAINS
 
       CALL timeset(routineN//"_Pia", handle)
 ! Find out whether we have an alpha-beta case
-      alpha_beta = .FALSE.
-      IF (PRESENT(Eigenval_beta) .AND. PRESENT(homo_beta) .AND. PRESENT(my_B_size_beta)) &
-         alpha_beta = .TRUE.
+      alpha_beta = (ispin /= jspin)
 ! update P_ab, Gamma_P_ia
 ! First, P_ab
       IF (open_ss) THEN
@@ -1471,31 +1445,34 @@ CONTAINS
       ENDIF
       ! divide the (ia|jb) integrals by Delta_ij^ab
       IF (.NOT. alpha_beta) THEN
-         DO b = 1, my_B_size
-            b_global = b + my_B_virtual_start - 1
-            DO a = 1, virtual
+         DO b = 1, my_B_size(ispin)
+            b_global = b + my_B_virtual_start(ispin) - 1
+            DO a = 1, virtual(ispin)
                local_ab(a, b) = -local_ab(a, b)/ &
-                              (Eigenval(homo + a) + Eigenval(homo + b_global) - Eigenval(my_i + iiB - 1) - Eigenval(my_j + jjB - 1))
+                              (Eigenval(homo(ispin) + a, ispin) + Eigenval(homo(ispin) + b_global, ispin) &
+                              - Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
             END DO
          END DO
          ! update diagonal part of P_ij
          P_ij_diag = -SUM(local_ab*t_ab)*factor
       ELSE
-         DO b = 1, my_B_size_beta
-            b_global = b + my_B_virtual_start_beta - 1
-            DO a = 1, virtual
+         DO b = 1, my_B_size(jspin)
+            b_global = b + my_B_virtual_start(jspin) - 1
+            DO a = 1, virtual(ispin)
                local_ab(a, b) = -local_ab(a, b)/ &
-               (Eigenval(homo + a) + Eigenval_beta(homo_beta + b_global) - Eigenval(my_i + iiB - 1) - Eigenval_beta(my_j + jjB - 1))
+               (Eigenval(homo(ispin) + a, ispin) + Eigenval(homo(jspin) + b_global, jspin) &
+               - Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, jspin))
             END DO
          END DO
          ! update diagonal part of P_ij
          P_ij_diag = -SUM(local_ab*local_ab)*mp2_env%scale_S
          ! More integrals needed only for alpha-beta case: local_ba
-         DO b = 1, my_B_size
-            b_global = b + my_B_virtual_start - 1
-            DO a = 1, virtual_beta
+         DO b = 1, my_B_size(ispin)
+            b_global = b + my_B_virtual_start(ispin) - 1
+            DO a = 1, virtual(jspin)
                local_ba(a, b) = -local_ba(a, b)/ &
-               (Eigenval_beta(homo_beta + a) + Eigenval(homo + b_global) - Eigenval(my_i + iiB - 1) - Eigenval_beta(my_j + jjB - 1))
+               (Eigenval(homo(jspin) + a, jspin) + Eigenval(homo(ispin) + b_global, ispin) &
+               - Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, jspin))
             END DO
          END DO
       ENDIF
@@ -1504,32 +1481,32 @@ CONTAINS
 
       ! Alpha_alpha or closed-shell case
       IF (((.NOT. open_ss) .AND. (.NOT. alpha_beta)) .OR. alpha_alpha) THEN
-         CALL dgemm('T', 'N', my_B_size, my_B_size, virtual, 1.0_dp, &
-                    t_ab, virtual, local_ab, virtual, &
-                    1.0_dp, mp2_env%ri_grad%P_ab(1)%array(:, my_B_virtual_start:my_B_virtual_end), my_B_size)
+         CALL dgemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(ispin), 1.0_dp, &
+                    t_ab, virtual(ispin), local_ab, virtual(ispin), &
+                    1.0_dp, mp2_env%ri_grad%P_ab(1)%array(:, my_B_virtual_start(ispin):my_B_virtual_end(ispin)), my_B_size(ispin))
          mp2_env%ri_grad%P_ij(1)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(1)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
       ENDIF
       ! Beta_beta case
       IF (beta_beta) THEN
-         CALL dgemm('T', 'N', my_B_size, my_B_size, virtual, 1.0_dp, &
-                    t_ab, virtual, local_ab, virtual, &
-                    1.0_dp, mp2_env%ri_grad%P_ab(2)%array(:, my_B_virtual_start:my_B_virtual_end), my_B_size)
+         CALL dgemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(ispin), 1.0_dp, &
+                    t_ab, virtual(ispin), local_ab, virtual(ispin), &
+                    1.0_dp, mp2_env%ri_grad%P_ab(2)%array(:, my_B_virtual_start(ispin):my_B_virtual_end(ispin)), my_B_size(jspin))
          mp2_env%ri_grad%P_ij(2)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(2)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
       ENDIF
       ! Alpha_beta case
       IF (alpha_beta) THEN
-         CALL dgemm('T', 'N', my_B_size, my_B_size, virtual_beta, mp2_env%scale_S, &
-                    local_ba, virtual_beta, local_ba, virtual_beta, 1.0_dp, &
-                    mp2_env%ri_grad%P_ab(1)%array(:, my_B_virtual_start: &
-                                                  my_B_virtual_end), my_B_size)
+         CALL dgemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(jspin), mp2_env%scale_S, &
+                    local_ba, virtual(jspin), local_ba, virtual(jspin), 1.0_dp, &
+                    mp2_env%ri_grad%P_ab(1)%array(:, my_B_virtual_start(ispin): &
+                                                  my_B_virtual_end(ispin)), my_B_size(ispin))
          mp2_env%ri_grad%P_ij(1)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(1)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
-         CALL dgemm('T', 'N', my_B_size_beta, my_B_size_beta, virtual, mp2_env%scale_S, &
-                    local_ab, virtual, local_ab, virtual, 1.0_dp, &
-                    mp2_env%ri_grad%P_ab(2)%array(:, my_B_virtual_start_beta: &
-                                                  my_B_virtual_end_beta), my_B_size_beta)
+         CALL dgemm('T', 'N', my_B_size(jspin), my_B_size(jspin), virtual(ispin), mp2_env%scale_S, &
+                    local_ab, virtual(ispin), local_ab, virtual(ispin), 1.0_dp, &
+                    mp2_env%ri_grad%P_ab(2)%array(:, my_B_virtual_start(jspin): &
+                                                  my_B_virtual_end(jspin)), my_B_size(jspin))
          mp2_env%ri_grad%P_ij(2)%array(my_j + jjB - 1, my_j + jjB - 1) = &
             mp2_env%ri_grad%P_ij(2)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
       ENDIF
@@ -1539,19 +1516,19 @@ CONTAINS
       IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
          ! Alpha_alpha or closed-shell case
          IF ((.NOT. open_ss) .OR. alpha_alpha) THEN
-            CALL dgemm('N', 'T', my_B_size, virtual, my_B_size, 1.0_dp, &
-                       t_ab(my_B_virtual_start:my_B_virtual_end, :), my_B_size, &
-                       local_ab, virtual, &
-                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array, my_B_size)
+            CALL dgemm('N', 'T', my_B_size(ispin), virtual(ispin), my_B_size(ispin), 1.0_dp, &
+                       t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
+                       local_ab, virtual(ispin), &
+                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array, my_B_size(ispin))
             mp2_env%ri_grad%P_ij(1)%array(my_j + jjB - 1, my_j + jjB - 1) = &
                mp2_env%ri_grad%P_ij(1)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
          ENDIF
          ! Beta_beta_case
          IF (beta_beta) THEN
-            CALL dgemm('N', 'T', my_B_size, virtual, my_B_size, mp2_env%scale_S, &
-                       t_ab(my_B_virtual_start:my_B_virtual_end, :), my_B_size, &
-                       local_ab, virtual, &
-                       1.0_dp, mp2_env%ri_grad%P_ab(2)%array, my_B_size)
+            CALL dgemm('N', 'T', my_B_size(ispin), virtual(ispin), my_B_size(ispin), mp2_env%scale_S, &
+                       t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
+                       local_ab, virtual(ispin), &
+                       1.0_dp, mp2_env%ri_grad%P_ab(2)%array, my_B_size(ispin))
             mp2_env%ri_grad%P_ij(2)%array(my_j + jjB - 1, my_j + jjB - 1) = &
                mp2_env%ri_grad%P_ij(2)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
          ENDIF
@@ -1561,14 +1538,14 @@ CONTAINS
          proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
          ! Alpha-alpha, beta-beta, closed shell
          IF (.NOT. alpha_beta) THEN
-            CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
-            CALL get_group_dist(gd_B_virtual, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
+            CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+            CALL get_group_dist(gd_B_virtual(ispin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
          ELSE ! Alpha-beta case
-            CALL get_group_dist(gd_B_virtual_beta, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
-            CALL get_group_dist(gd_B_virtual_beta, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
+            CALL get_group_dist(gd_B_virtual(jspin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+            CALL get_group_dist(gd_B_virtual(jspin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
          ENDIF
 
-         ALLOCATE (external_ab(virtual, rec_B_size))
+         ALLOCATE (external_ab(virtual(ispin), rec_B_size))
          external_ab = 0.0_dp
 
          IF (.NOT. alpha_beta) THEN
@@ -1581,48 +1558,48 @@ CONTAINS
 
          ! Alpha-alpha or closed-shell case
          IF (((.NOT. open_ss) .AND. (.NOT. alpha_beta)) .OR. alpha_alpha) &
-            CALL dgemm('T', 'N', my_B_size, rec_B_size, virtual, 1.0_dp, &
-                       t_ab, virtual, external_ab, virtual, &
-                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size)
+            CALL dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(ispin), 1.0_dp, &
+                       t_ab, virtual(ispin), external_ab, virtual(ispin), &
+                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
          ! Beta-beta case
          IF (beta_beta) &
-            CALL dgemm('T', 'N', my_B_size, rec_B_size, virtual, 1.0_dp, &
-                       t_ab, virtual, external_ab, virtual, &
-                       1.0_dp, mp2_env%ri_grad%P_ab(2)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size)
+            CALL dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(ispin), 1.0_dp, &
+                       t_ab, virtual(ispin), external_ab, virtual(ispin), &
+                       1.0_dp, mp2_env%ri_grad%P_ab(2)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
          ! Alpha-beta case
          IF (alpha_beta) THEN
             ! Alpha-beta part of beta-beta density
-            CALL dgemm('T', 'N', my_B_size_beta, rec_B_size, virtual, mp2_env%scale_S, &
-                       local_ab, virtual, external_ab, virtual, &
+            CALL dgemm('T', 'N', my_B_size(jspin), rec_B_size, virtual(ispin), mp2_env%scale_S, &
+                       local_ab, virtual(ispin), external_ab, virtual(ispin), &
                        1.0_dp, mp2_env%ri_grad%P_ab(2)%array(:, rec_B_virtual_start:rec_B_virtual_end), &
-                       my_B_size_beta)
+                       my_B_size(jspin))
 
             ! For alpha-beta part of alpha-density we need a new parallel code
             DEALLOCATE (external_ab)
             ! And new external_ab (of a different size)
-            CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
-            CALL get_group_dist(gd_B_virtual, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
-            ALLOCATE (external_ab(virtual_beta, rec_B_size))
+            CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+            CALL get_group_dist(gd_B_virtual(ispin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
+            ALLOCATE (external_ab(virtual(jspin), rec_B_size))
             external_ab = 0.0_dp
             CALL mp_sendrecv(local_ba, proc_send, external_ab, proc_receive, &
                              para_env_sub%group)
-            CALL dgemm('T', 'N', my_B_size, rec_B_size, virtual_beta, mp2_env%scale_S, &
-                       local_ba, virtual_beta, external_ab, virtual_beta, &
-                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size)
+            CALL dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(jspin), mp2_env%scale_S, &
+                       local_ba, virtual(jspin), external_ab, virtual(jspin), &
+                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
          ENDIF
 
          DEALLOCATE (external_ab)
 
          IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
-            ALLOCATE (external_ab(my_B_size, virtual))
+            ALLOCATE (external_ab(my_B_size(ispin), virtual(ispin)))
             external_ab = 0.0_dp
 
-            ALLOCATE (send_ab(send_B_size, virtual))
+            ALLOCATE (send_ab(send_B_size, virtual(ispin)))
             send_ab = 0.0_dp
 
-            CALL dgemm('N', 'T', send_B_size, virtual, my_B_size, 1.0_dp, &
+            CALL dgemm('N', 'T', send_B_size, virtual(ispin), my_B_size(ispin), 1.0_dp, &
                        t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
-                       local_ab, virtual, 0.0_dp, send_ab, send_B_size)
+                       local_ab, virtual(ispin), 0.0_dp, send_ab, send_B_size)
 
             CALL mp_sendrecv(send_ab, proc_send, &
                              external_ab, proc_receive, &
@@ -1647,37 +1624,37 @@ CONTAINS
       CALL timeset(routineN//"_Gamma", handle)
       IF (.NOT. alpha_beta) THEN
          ! Alpha-alpha, beta-beta and closed shell
-         CALL dgemm('N', 'T', my_B_size, dimen_RI, my_B_size, 1.0_dp, &
-                    t_ab(my_B_virtual_start:my_B_virtual_end, :), my_B_size, &
-                    my_local_j_aL, dimen_RI, 1.0_dp, Y_i_aP, my_B_size)
+         CALL dgemm('N', 'T', my_B_size(ispin), dimen_RI, my_B_size, 1.0_dp, &
+                    t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
+                    my_local_j_aL, dimen_RI, 1.0_dp, Y_i_aP, my_B_size(ispin))
       ELSE ! Alpha-beta
-         CALL dgemm('N', 'T', my_B_size, dimen_RI, my_B_size_beta, mp2_env%scale_S, &
-                    local_ab(my_B_virtual_start:my_B_virtual_end, :), my_B_size, &
-                    my_local_j_aL, dimen_RI, 1.0_dp, Y_i_aP, my_B_size)
-         CALL dgemm('T', 'T', my_B_size_beta, dimen_RI, my_B_size, mp2_env%scale_S, &
-                    local_ab(my_B_virtual_start:my_B_virtual_end, :), my_B_size, &
-                    my_local_i_aL, dimen_RI, 1.0_dp, Y_j_aP, my_B_size_beta)
+         CALL dgemm('N', 'T', my_B_size(ispin), dimen_RI, my_B_size(jspin), mp2_env%scale_S, &
+                    local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
+                    my_local_j_aL, dimen_RI, 1.0_dp, Y_i_aP, my_B_size(ispin))
+         CALL dgemm('T', 'T', my_B_size(jspin), dimen_RI, my_B_size(ispin), mp2_env%scale_S, &
+                    local_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
+                    my_local_i_aL, dimen_RI, 1.0_dp, Y_j_aP, my_B_size(jspin))
 
       ENDIF
 
-      ALLOCATE (external_ab(my_B_size, dimen_RI))
+      ALLOCATE (external_ab(my_B_size(ispin), dimen_RI))
       external_ab = 0.0_dp
       !
       DO proc_shift = 1, para_env_sub%num_pe - 1
          proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
          proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
-         CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
-         CALL get_group_dist(gd_B_virtual, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
+         CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+         CALL get_group_dist(gd_B_virtual(ispin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
          ALLOCATE (send_ab(send_B_size, dimen_RI))
          send_ab = 0.0_dp
          IF (.NOT. alpha_beta) THEN
-            CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size, 1.0_dp, &
+            CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(ispin), 1.0_dp, &
                        t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                        my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size)
          ELSE ! Alpha-beta case
-            CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size_beta, mp2_env%scale_S, &
+            CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(jspin), mp2_env%scale_S, &
                        local_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                        my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size)
          ENDIF
@@ -1689,17 +1666,17 @@ CONTAINS
 
       IF (alpha_beta) THEN
          ! For beta-beta part (in alpha-beta case) we need a new parallel code
-         ALLOCATE (external_ab(my_B_size_beta, dimen_RI))
+         ALLOCATE (external_ab(my_B_size(jspin), dimen_RI))
          external_ab = 0.0_dp
          DO proc_shift = 1, para_env_sub%num_pe - 1
             proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
             proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
-            CALL get_group_dist(gd_B_virtual_beta, proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
+            CALL get_group_dist(gd_B_virtual(jspin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
             ALLOCATE (send_ab(send_B_size, dimen_RI))
             send_ab = 0.0_dp
 
-            CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size, mp2_env%scale_S, &
+            CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(ispin), mp2_env%scale_S, &
                        local_ba(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                        my_local_i_aL, dimen_RI, 0.0_dp, send_B_size)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
@@ -1712,15 +1689,15 @@ CONTAINS
 
       IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
          ! Alpha-alpha, beta-beta and closed shell
-         CALL dgemm('T', 'T', my_B_size, dimen_RI, my_B_size, 1.0_dp, &
-                    t_ab(my_B_virtual_start:my_B_virtual_end, :), my_B_size, &
-                    my_local_i_aL, dimen_RI, 1.0_dp, Y_j_aP, my_B_size)
+         CALL dgemm('T', 'T', my_B_size(ispin), dimen_RI, my_B_size(ispin), 1.0_dp, &
+                    t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
+                    my_local_i_aL, dimen_RI, 1.0_dp, Y_j_aP, my_B_size(ispin))
 
          DO proc_shift = 1, para_env_sub%num_pe - 1
             proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
             proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
-            CALL get_group_dist(gd_B_virtual, proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
+            CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
 
             ALLOCATE (external_ab(dimen_RI, rec_B_size))
             external_ab = 0.0_dp
@@ -1729,9 +1706,9 @@ CONTAINS
                              external_ab, proc_receive, para_env_sub%group)
 
             ! Alpha-alpha, beta-beta and closed shell
-            CALL dgemm('T', 'T', my_B_size, dimen_RI, rec_B_size, 1.0_dp, &
+            CALL dgemm('T', 'T', my_B_size(ispin), dimen_RI, rec_B_size, 1.0_dp, &
                        t_ab(rec_B_virtual_start:rec_B_virtual_end, :), rec_B_size, &
-                       external_ab, dimen_RI, 1.0_dp, Y_j_aP, my_B_size)
+                       external_ab, dimen_RI, 1.0_dp, Y_j_aP, my_B_size(ispin))
 
             DEALLOCATE (external_ab)
          END DO
