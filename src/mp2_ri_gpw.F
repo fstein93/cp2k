@@ -529,7 +529,7 @@ CONTAINS
                IF ((.NOT. my_alpha_beta_case)) THEN
                   CALL mp2_redistribute_gamma(mp2_env, ij_index, my_B_size(ispin), &
                                               my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
-                                              num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
+                                              num_integ_group, ispin, jspin, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                               ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
                                               null_mat_rec, null_mat_send, gd_array%sizes, my_alpha_alpha_case, &
                                               my_beta_beta_case, my_alpha_beta_case, my_open_shell_ss)
@@ -537,7 +537,7 @@ CONTAINS
                   ! Alpha-beta case
                   CALL mp2_redistribute_gamma(mp2_env, ij_index, my_B_size(ispin), &
                                               my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
-                                              num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
+                                              num_integ_group, ispin, jspin, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                               ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
                                               null_mat_rec, null_mat_send, gd_array%sizes, my_alpha_alpha_case, my_beta_beta_case, &
                                               my_alpha_beta_case, my_open_shell_ss, my_B_size(jspin))
@@ -1666,6 +1666,8 @@ CONTAINS
 !> \param my_j ...
 !> \param ngroup ...
 !> \param num_integ_group ...
+!> \param ispin ...
+!> \param jspin ...
 !> \param integ_group_pos2color_sub ...
 !> \param num_ij_pairs ...
 !> \param proc_map ...
@@ -1685,7 +1687,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mp2_redistribute_gamma(mp2_env, ij_index, my_B_size, &
                                      my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
-                                     num_integ_group, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
+                                     num_integ_group, ispin, jspin, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                      ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
                                      null_mat_rec, null_mat_send, sizes_array, alpha_alpha, beta_beta, &
                                      alpha_beta, open_shell, my_b_size_beta)
@@ -1693,7 +1695,7 @@ CONTAINS
       TYPE(mp2_type), POINTER                            :: mp2_env
       INTEGER, INTENT(IN)                                :: ij_index, my_B_size, my_block_size, &
                                                             my_group_L_size, my_i, my_ij_pairs, &
-                                                            my_j, ngroup, num_integ_group
+                                                            my_j, ngroup, num_integ_group,ispin,jspin
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: integ_group_pos2color_sub, num_ij_pairs
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: ij_map
       INTEGER, DIMENSION(:, 0:, 0:), INTENT(IN)          :: ranges_info_array
@@ -1702,7 +1704,7 @@ CONTAINS
       INTEGER, DIMENSION(-para_env_exchange%num_pe:), INTENT(IN) :: proc_map
       REAL(KIND=dp), INTENT(INOUT)                       :: null_mat_rec(:, :, :), &
                                                             null_mat_send(:, :, :)
-      INTEGER, DIMENSION(0:), INTENT(IN)                  :: sizes_array
+      INTEGER, DIMENSION(0:), INTENT(IN)                 :: sizes_array
       LOGICAL, INTENT(IN)                                :: alpha_alpha, beta_beta, alpha_beta, &
                                                             open_shell
       INTEGER, INTENT(IN), OPTIONAL                      :: my_B_size_beta
@@ -1730,18 +1732,18 @@ CONTAINS
             DO iiB = 1, my_block_size
 !$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
 !$OMP                                     SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                            mp2_env,my_i,iiB,Y_i_aP,&
+!$OMP                                            mp2_env,my_i,iiB,Y_i_aP,ispin,&
 !$OMP                                     alpha_alpha,beta_beta,open_shell)
                DO kkk = start_point, end_point
                   lll = kkk - start_point + Lstart_pos
                   IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                     mp2_env%ri_grad%Gamma_P_ia(1)%array(my_i + iiB - 1, :, kkk) = &
-                        mp2_env%ri_grad%Gamma_P_ia(1)%array(my_i + iiB - 1, :, kkk) + &
+                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, :, kkk) = &
+                        mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, :, kkk) + &
                         Y_i_aP(:, lll, iiB)
                   ENDIF
                   IF (beta_beta) THEN
-                     mp2_env%ri_grad%Gamma_P_ia(2)%array(my_i + iiB - 1, :, kkk) = &
-                        mp2_env%ri_grad%Gamma_P_ia(2)%array(my_i + iiB - 1, :, kkk) + &
+                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, :, kkk) = &
+                        mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, :, kkk) + &
                         Y_i_aP(:, lll, iiB)
                   ENDIF
                END DO
@@ -1751,18 +1753,18 @@ CONTAINS
                IF (.NOT. alpha_beta) THEN
 !$OMP              PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
 !$OMP                                        SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                               mp2_env,my_j,jjB,Y_j_aP,&
+!$OMP                                               mp2_env,my_j,jjB,Y_j_aP,jspin,&
 !$OMP                                        alpha_alpha,beta_beta,open_shell)
                   DO kkk = start_point, end_point
                      lll = kkk - start_point + Lstart_pos
                      IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                        mp2_env%ri_grad%Gamma_P_ia(1)%array(my_j + jjB - 1, :, kkk) = &
-                           mp2_env%ri_grad%Gamma_P_ia(1)%array(my_j + jjB - 1, :, kkk) + &
+                        mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) = &
+                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) + &
                            Y_j_aP(:, lll, jjB)
                      ENDIF
                      IF (beta_beta) THEN
-                        mp2_env%ri_grad%Gamma_P_ia(2)%array(my_j + jjB - 1, :, kkk) = &
-                           mp2_env%ri_grad%Gamma_P_ia(2)%array(my_j + jjB - 1, :, kkk) + &
+                        mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) = &
+                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) + &
                            Y_j_aP(:, lll, jjB)
                      ENDIF
                   END DO
@@ -1770,11 +1772,11 @@ CONTAINS
                ELSE
 !$OMP              PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
 !$OMP                                        SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                               mp2_env,my_j,jjB,Y_j_aP)
+!$OMP                                               mp2_env,my_j,jjB,Y_j_aP,jspin)
                   DO kkk = start_point, end_point
                      lll = kkk - start_point + Lstart_pos
-                     mp2_env%ri_grad%Gamma_P_ia(2)%array(my_j + jjB - 1, :, kkk) = &
-                        mp2_env%ri_grad%Gamma_P_ia(2)%array(my_j + jjB - 1, :, kkk) + &
+                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) = &
+                        mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) + &
                         Y_j_aP(:, lll, jjB)
                   ENDDO
 !$OMP              END PARALLEL DO
