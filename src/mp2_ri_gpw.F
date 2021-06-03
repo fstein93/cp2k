@@ -1583,7 +1583,6 @@ CONTAINS
          proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
          proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
 
-         CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
          CALL get_group_dist(gd_B_virtual(ispin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
          ALLOCATE (send_ab(send_B_size, dimen_RI))
@@ -1624,9 +1623,7 @@ CONTAINS
 
          END DO
          DEALLOCATE (external_ab)
-      ENDIF
-
-      IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
+      ELSE IF (my_i /= my_j) THEN
          ! Alpha-alpha, beta-beta and closed shell
          CALL dgemm('T', 'T', my_B_size(ispin), dimen_RI, my_B_size(ispin), 1.0_dp, &
                     t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
@@ -1697,17 +1694,15 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ij_index, my_B_size, my_block_size, &
                                                             my_group_L_size, my_i, my_ij_pairs, &
                                                             my_j, ngroup, num_integ_group
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: integ_group_pos2color_sub, num_ij_pairs, &
-                                                            proc_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(IN)  :: ij_map
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(IN)                                      :: ranges_info_array
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(IN)                                      :: Y_i_aP, Y_j_aP
+      INTEGER, DIMENSION(0:), INTENT(IN)                 :: integ_group_pos2color_sub, num_ij_pairs
+      INTEGER, DIMENSION(:, :), INTENT(IN)               :: ij_map
+      INTEGER, DIMENSION(:, 0:, 0:), INTENT(IN)          :: ranges_info_array
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Y_i_aP, Y_j_aP
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
+      INTEGER, DIMENSION(-para_env_exchange%num_pe:), INTENT(IN) :: proc_map
       REAL(KIND=dp), INTENT(INOUT)                       :: null_mat_rec(:, :, :), &
                                                             null_mat_send(:, :, :)
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(IN)     :: sizes_array
+      INTEGER, DIMENSION(0:), INTENT(IN)                  :: sizes_array
       LOGICAL, INTENT(IN)                                :: alpha_alpha, beta_beta, alpha_beta, &
                                                             open_shell
       INTEGER, INTENT(IN), OPTIONAL                      :: my_B_size_beta
