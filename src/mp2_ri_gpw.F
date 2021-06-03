@@ -525,23 +525,12 @@ CONTAINS
 
             ! redistribute gamma
             IF (calc_forces) THEN
-               ! Closed shell, alpha-alpha or beta-beta case
-               IF ((.NOT. my_alpha_beta_case)) THEN
-                  CALL mp2_redistribute_gamma(mp2_env, ij_index, my_B_size(ispin), &
-                                              my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
-                                              num_integ_group, ispin, jspin, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
-                                              ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
-                                              null_mat_rec, null_mat_send, gd_array%sizes, my_alpha_alpha_case, &
-                                              my_beta_beta_case, my_alpha_beta_case, my_open_shell_ss)
-               ELSE
-                  ! Alpha-beta case
-                  CALL mp2_redistribute_gamma(mp2_env, ij_index, my_B_size(ispin), &
-                                              my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
-                                              num_integ_group, ispin, jspin, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
-                                              ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
-                                              null_mat_rec, null_mat_send, gd_array%sizes, my_alpha_alpha_case, my_beta_beta_case, &
-                                              my_alpha_beta_case, my_open_shell_ss, my_B_size(jspin))
-               ENDIF
+               CALL mp2_redistribute_gamma(mp2_env, ij_index, my_B_size, &
+                                           my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
+                                           num_integ_group, ispin, jspin, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
+                                           ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
+                                           null_mat_rec, null_mat_send, gd_array%sizes, my_alpha_alpha_case, &
+                                           my_beta_beta_case, my_alpha_beta_case, my_open_shell_ss)
             END IF
 
          END DO
@@ -1683,17 +1672,16 @@ CONTAINS
 !> \param beta_beta ...
 !> \param alpha_beta ...
 !> \param open_shell ...
-!> \param my_b_size_beta ...
 ! **************************************************************************************************
    SUBROUTINE mp2_redistribute_gamma(mp2_env, ij_index, my_B_size, &
                                      my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
                                      num_integ_group, ispin, jspin, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                      ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
                                      null_mat_rec, null_mat_send, sizes_array, alpha_alpha, beta_beta, &
-                                     alpha_beta, open_shell, my_b_size_beta)
+                                     alpha_beta, open_shell)
 
       TYPE(mp2_type), POINTER                            :: mp2_env
-      INTEGER, INTENT(IN)                                :: ij_index, my_B_size, my_block_size, &
+      INTEGER, INTENT(IN)                                :: ij_index, my_B_size(2), my_block_size, &
                                                             my_group_L_size, my_i, my_ij_pairs, &
                                                             my_j, ngroup, num_integ_group,ispin,jspin
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: integ_group_pos2color_sub, num_ij_pairs
@@ -1707,13 +1695,12 @@ CONTAINS
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: sizes_array
       LOGICAL, INTENT(IN)                                :: alpha_alpha, beta_beta, alpha_beta, &
                                                             open_shell
-      INTEGER, INTENT(IN), OPTIONAL                      :: my_B_size_beta
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
       INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, jjb, kkk, Lend_pos, lll, &
          Lstart_pos, proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, &
-         rec_j, send_L_size, start_point
+         rec_j, send_L_size, start_point, my_B_size_i, my_B_size_j
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, BI_C_rec_beta, BI_C_send, &
                                                             BI_C_send_beta
 
@@ -1757,6 +1744,8 @@ CONTAINS
          CALL timestop(handle2)
 
          ! Y_i_aP(my_B_size,dimen_RI,block_size)
+         my_B_size_i = my_B_size(ispin)
+         my_B_size_j = my_B_size(jspin)
 
          DO proc_shift = 1, para_env_exchange%num_pe - 1
             proc_send = proc_map(para_env_exchange%mepos + proc_shift)
@@ -1764,10 +1753,10 @@ CONTAINS
 
             send_L_size = sizes_array(proc_send)
             IF (.NOT. alpha_beta) THEN
-               ALLOCATE (BI_C_send(2*my_block_size, my_B_size, send_L_size))
+               ALLOCATE (BI_C_send(2*my_block_size, my_B_size_i, send_L_size))
             ELSE
-               ALLOCATE (BI_C_send(my_block_size, my_B_size, send_L_size))
-               ALLOCATE (BI_C_send_beta(my_block_size, my_B_size_beta, send_L_size))
+               ALLOCATE (BI_C_send(my_block_size, my_B_size_i, send_L_size))
+               ALLOCATE (BI_C_send_beta(my_block_size, my_B_size_j, send_L_size))
             ENDIF
             CALL timeset(routineN//"_comm2_w", handle2)
             BI_C_send = 0.0_dp
@@ -1823,10 +1812,10 @@ CONTAINS
                rec_block_size = ij_map(ij_counter_rec, 3)
 
                IF (.NOT. alpha_beta) THEN
-                  ALLOCATE (BI_C_rec(2*rec_block_size, my_B_size, my_group_L_size))
+                  ALLOCATE (BI_C_rec(2*rec_block_size, my_B_size_i, my_group_L_size))
                ELSE
-                  ALLOCATE (BI_C_rec(rec_block_size, my_B_size, my_group_L_size))
-                  ALLOCATE (BI_C_rec_beta(rec_block_size, my_B_size_beta, my_group_L_size))
+                  ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i, my_group_L_size))
+                  ALLOCATE (BI_C_rec_beta(rec_block_size, my_B_size_j, my_group_L_size))
                ENDIF
 
                BI_C_rec = 0.0_dp
@@ -1922,10 +1911,10 @@ CONTAINS
                rec_block_size = ij_map(ij_counter_rec, 3)
 
                IF (.NOT. alpha_beta) THEN
-                  ALLOCATE (BI_C_rec(2*rec_block_size, my_B_size, my_group_L_size))
+                  ALLOCATE (BI_C_rec(2*rec_block_size, my_B_size_i, my_group_L_size))
                ELSE
-                  ALLOCATE (BI_C_rec(rec_block_size, my_B_size, my_group_L_size))
-                  ALLOCATE (BI_C_rec_beta(rec_block_size, my_B_size_beta, my_group_L_size))
+                  ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i, my_group_L_size))
+                  ALLOCATE (BI_C_rec_beta(rec_block_size, my_B_size_j, my_group_L_size))
                ENDIF
 
                BI_C_rec = 0.0_dp
