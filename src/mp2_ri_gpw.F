@@ -529,8 +529,7 @@ CONTAINS
                                            my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
                                            num_integ_group, ispin, jspin, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                            ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
-                                           null_mat_rec, null_mat_send, gd_array%sizes, my_alpha_alpha_case, &
-                                           my_beta_beta_case, my_alpha_beta_case, my_open_shell_ss)
+                                           null_mat_rec, null_mat_send, gd_array%sizes)
             END IF
 
          END DO
@@ -1458,6 +1457,15 @@ CONTAINS
                                                    my_B_size(ispin))
          mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) = &
             mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
+
+         IF (my_i /= my_j) THEN
+            CALL dgemm('N', 'T', my_B_size(ispin), virtual(ispin), my_B_size(ispin), 1.0_dp, &
+                       t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
+                       local_ab, virtual(ispin), &
+                       1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array, my_B_size(ispin))
+            mp2_env%ri_grad%P_ij(ispin)%array(my_j + jjB - 1, my_j + jjB - 1) = &
+               mp2_env%ri_grad%P_ij(ispin)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
+         END IF
       ELSE ! Alpha-beta case
          CALL dgemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(jspin), mp2_env%scale_S, &
                     local_ba, virtual(jspin), local_ba, virtual(jspin), 1.0_dp, &
@@ -1472,17 +1480,6 @@ CONTAINS
          mp2_env%ri_grad%P_ij(2)%array(my_j + jjB - 1, my_j + jjB - 1) = &
             mp2_env%ri_grad%P_ij(2)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
       ENDIF
-      ! The summation is over unique pairs. In alpha-beta case, all pairs are unique: subroutine is called for
-      ! both i^alpha,j^beta and i^beta,j^alpha. Formally, my_i can be equal to my_j, but they are different
-      ! due to spin in alpha-beta case.
-      IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
-         CALL dgemm('N', 'T', my_B_size(ispin), virtual(ispin), my_B_size(ispin), 1.0_dp, &
-                    t_ab(my_B_virtual_start(ispin):my_B_virtual_end(ispin), :), my_B_size(ispin), &
-                    local_ab, virtual(ispin), &
-                    1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array, my_B_size(ispin))
-         mp2_env%ri_grad%P_ij(ispin)%array(my_j + jjB - 1, my_j + jjB - 1) = &
-            mp2_env%ri_grad%P_ij(ispin)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
-      END IF
       DO proc_shift = 1, para_env_sub%num_pe - 1
          proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
          proc_receive = sub_proc_map(para_env_sub%mepos - proc_shift)
@@ -1500,6 +1497,27 @@ CONTAINS
             CALL dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(ispin), 1.0_dp, &
                        t_ab, virtual(ispin), external_ab, virtual(ispin), &
                        1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
+
+            IF (my_i /= my_j) THEN
+               DEALLOCATE(external_ab)
+               ALLOCATE (external_ab(my_B_size(ispin), virtual(ispin)))
+               external_ab = 0.0_dp
+
+               ALLOCATE (send_ab(send_B_size, virtual(ispin)))
+               send_ab = 0.0_dp
+
+               CALL dgemm('N', 'T', send_B_size, virtual(ispin), my_B_size(ispin), 1.0_dp, &
+                          t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
+                          local_ab, virtual(ispin), 0.0_dp, send_ab, send_B_size)
+
+               CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, &
+                                para_env_sub%group)
+
+               mp2_env%ri_grad%P_ab(ispin)%array(:, :) = mp2_env%ri_grad%P_ab(ispin)%array + external_ab
+
+               DEALLOCATE (external_ab)
+               DEALLOCATE (send_ab)
+            END IF
          ELSE
             ! Alpha-beta part of beta-beta density
             CALL dgemm('T', 'N', my_B_size(jspin), rec_B_size, virtual(ispin), mp2_env%scale_S, &
@@ -1511,7 +1529,6 @@ CONTAINS
             DEALLOCATE (external_ab)
             ! And new external_ab (of a different size)
             CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
-            CALL get_group_dist(gd_B_virtual(ispin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
             ALLOCATE (external_ab(virtual(jspin), rec_B_size))
             external_ab = 0.0_dp
             CALL mp_sendrecv(local_ba, proc_send, external_ab, proc_receive, &
@@ -1519,30 +1536,9 @@ CONTAINS
             CALL dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(jspin), mp2_env%scale_S, &
                        local_ba, virtual(jspin), external_ab, virtual(jspin), &
                        1.0_dp, mp2_env%ri_grad%P_ab(1)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
+
+            DEALLOCATE(external_ab)
          ENDIF
-
-         DEALLOCATE (external_ab)
-
-         IF ((my_i /= my_j) .AND. (.NOT. alpha_beta)) THEN
-            ALLOCATE (external_ab(my_B_size(ispin), virtual(ispin)))
-            external_ab = 0.0_dp
-
-            ALLOCATE (send_ab(send_B_size, virtual(ispin)))
-            send_ab = 0.0_dp
-
-            CALL dgemm('N', 'T', send_B_size, virtual(ispin), my_B_size(ispin), 1.0_dp, &
-                       t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
-                       local_ab, virtual(ispin), 0.0_dp, send_ab, send_B_size)
-
-            CALL mp_sendrecv(send_ab, proc_send, &
-                             external_ab, proc_receive, &
-                             para_env_sub%group)
-
-            mp2_env%ri_grad%P_ab(ispin)%array(:, :) = mp2_env%ri_grad%P_ab(ispin)%array + external_ab
-
-            DEALLOCATE (external_ab)
-            DEALLOCATE (send_ab)
-         END IF
 
       END DO
       CALL timestop(handle)
@@ -1668,17 +1664,12 @@ CONTAINS
 !> \param null_mat_rec ...
 !> \param null_mat_send ...
 !> \param sizes_array ...
-!> \param alpha_alpha ...
-!> \param beta_beta ...
-!> \param alpha_beta ...
-!> \param open_shell ...
 ! **************************************************************************************************
    SUBROUTINE mp2_redistribute_gamma(mp2_env, ij_index, my_B_size, &
                                      my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
                                      num_integ_group, ispin, jspin, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                      ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
-                                     null_mat_rec, null_mat_send, sizes_array, alpha_alpha, beta_beta, &
-                                     alpha_beta, open_shell)
+                                     null_mat_rec, null_mat_send, sizes_array)
 
       TYPE(mp2_type), POINTER                            :: mp2_env
       INTEGER, INTENT(IN)                                :: ij_index, my_B_size(2), my_block_size, &
@@ -1693,16 +1684,13 @@ CONTAINS
       REAL(KIND=dp), INTENT(INOUT)                       :: null_mat_rec(:, :, :), &
                                                             null_mat_send(:, :, :)
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: sizes_array
-      LOGICAL, INTENT(IN)                                :: alpha_alpha, beta_beta, alpha_beta, &
-                                                            open_shell
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
       INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, jjb, kkk, Lend_pos, lll, &
          Lstart_pos, proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, &
          rec_j, send_L_size, start_point, my_B_size_i, my_B_size_j
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, BI_C_rec_beta, BI_C_send, &
-                                                            BI_C_send_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, BI_C_send
 
 ! In alpha-beta case Y_i_aP_beta is sent as Y_j_aP
 
@@ -1752,15 +1740,9 @@ CONTAINS
             proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
             send_L_size = sizes_array(proc_send)
-            IF (.NOT. alpha_beta) THEN
-               ALLOCATE (BI_C_send(2*my_block_size, my_B_size_i, send_L_size))
-            ELSE
-               ALLOCATE (BI_C_send(my_block_size, my_B_size_i, send_L_size))
-               ALLOCATE (BI_C_send_beta(my_block_size, my_B_size_j, send_L_size))
-            ENDIF
+            ALLOCATE (BI_C_send(my_block_size, my_B_size_i+my_B_size_j, send_L_size))
             CALL timeset(routineN//"_comm2_w", handle2)
             BI_C_send = 0.0_dp
-            IF (alpha_beta) BI_C_send_beta = 0.0_dp
             DO irep = 0, num_integ_group - 1
                Lstart_pos = ranges_info_array(1, irep, proc_send)
                Lend_pos = ranges_info_array(2, irep, proc_send)
@@ -1769,33 +1751,13 @@ CONTAINS
                DO iiB = 1, my_block_size
 !$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
 !$OMP                                       SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                              BI_C_send,iiB,Y_i_aP)
+!$OMP                                              BI_C_send,iiB,Y_i_aP,my_B_size_i,Y_j_aP)
                   DO kkk = start_point, end_point
                      lll = kkk - start_point + Lstart_pos
-                     BI_C_send(iiB, :, kkk) = Y_i_aP(:, lll, iiB)
+                     BI_C_send(iiB, :my_B_size_i, kkk) = Y_i_aP(:, lll, iiB)
+                     BI_C_send(iiB, my_B_size_i+1:, kkk) = Y_j_aP(:, lll, iiB)
                   END DO
 !$OMP             END PARALLEL DO
-               END DO
-               DO jjB = 1, my_block_size
-                  IF (.NOT. alpha_beta) THEN
-!$OMP                PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
-!$OMP                                          SHARED(start_point,end_point,Lstart_pos,Lend_pos,my_block_size,&
-!$OMP                                                 BI_C_send,jjB,Y_j_aP)
-                     DO kkk = start_point, end_point
-                        lll = kkk - start_point + Lstart_pos
-                        BI_C_send(jjB + my_block_size, :, kkk) = Y_j_aP(:, lll, jjB)
-                     END DO
-!$OMP                END PARALLEL DO
-                  ELSE
-!$OMP                PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
-!$OMP                                          SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                                 BI_C_send_beta,jjB,Y_j_aP)
-                     DO kkk = start_point, end_point
-                        lll = kkk - start_point + Lstart_pos
-                        BI_C_send_beta(jjB, :, kkk) = Y_j_aP(:, lll, jjB)
-                     END DO
-!$OMP                END PARALLEL DO
-                  ENDIF
                END DO
             END DO
             CALL timestop(handle2)
@@ -1811,22 +1773,11 @@ CONTAINS
                rec_j = ij_map(ij_counter_rec, 2)
                rec_block_size = ij_map(ij_counter_rec, 3)
 
-               IF (.NOT. alpha_beta) THEN
-                  ALLOCATE (BI_C_rec(2*rec_block_size, my_B_size_i, my_group_L_size))
-               ELSE
-                  ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i, my_group_L_size))
-                  ALLOCATE (BI_C_rec_beta(rec_block_size, my_B_size_j, my_group_L_size))
-               ENDIF
-
+               ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i+my_B_size_j, my_group_L_size))
                BI_C_rec = 0.0_dp
-               IF (alpha_beta) BI_C_rec_beta = 0.0_dp
 
                CALL mp_sendrecv(BI_C_send, proc_send, BI_C_rec, proc_receive, &
                                 para_env_exchange%group)
-               IF (alpha_beta) THEN
-                  CALL mp_sendrecv(BI_C_send_beta, proc_send, BI_C_rec_beta, proc_receive, &
-                                   para_env_exchange%group)
-               ENDIF
 
                CALL timeset(routineN//"_comm2_w", handle2)
                DO irep = 0, num_integ_group - 1
@@ -1837,61 +1788,30 @@ CONTAINS
                   DO iiB = 1, rec_block_size
 !$OMP               PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                         SHARED(start_point,end_point,&
-!$OMP                                                mp2_env,rec_i,iiB,BI_C_rec,ispin,&
-!$OMP                                         alpha_alpha,beta_beta,open_shell)
+!$OMP                                                mp2_env,rec_i,rec_j,iiB,BI_C_rec,ispin,jspin,my_B_size_i)
                      DO kkk = start_point, end_point
                         mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i + iiB - 1, :, kkk) = &
                            mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i + iiB - 1, :, kkk) + &
-                           BI_C_rec(iiB, :, kkk)
+                           BI_C_rec(iiB, :my_B_size_i, kkk)
+                        mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + iiB - 1, :, kkk) = &
+                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + iiB - 1, :, kkk) + &
+                           BI_C_rec(iiB, my_B_size_i+1:, kkk)
                      END DO
-!$OMP               END PARALLEL DO
+!$OMP                END PARALLEL DO
                   END DO
-                  IF (.NOT. alpha_beta) THEN
-                     DO jjB = 1, rec_block_size
-!$OMP                   PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
-!$OMP                                             SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                                    mp2_env,rec_j,jjB,BI_C_rec,jspin,&
-!$OMP                                             alpha_alpha,beta_beta,open_shell)
-                        DO kkk = start_point, end_point
-                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) + &
-                              BI_C_rec(jjB + rec_block_size, :, kkk)
-                        END DO
-!$OMP                   END PARALLEL DO
-                     END DO
-                  ELSE
-                     DO jjB = 1, rec_block_size
-!$OMP                   PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
-!$OMP                                             SHARED(start_point,end_point,&
-!$OMP                                           mp2_env,rec_j,jjB,BI_C_rec_beta,jspin)
-                        DO kkk = start_point, end_point
-                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) + &
-                              BI_C_rec_beta(jjB, :, kkk)
-                        END DO
-!$OMP                   END PARALLEL DO
-                     END DO
-                  END IF
                END DO
                CALL timestop(handle2)
 
                DEALLOCATE (BI_C_rec)
-               IF (alpha_beta) DEALLOCATE (BI_C_rec_beta)
 
             ELSE
                ! we have something to send but nothing to receive
-
                CALL mp_sendrecv(BI_C_send, proc_send, null_mat_rec, proc_receive, &
                                 para_env_exchange%group)
-               IF (alpha_beta) THEN
-                  CALL mp_sendrecv(BI_C_send_beta, proc_send, null_mat_rec, proc_receive, &
-                                   para_env_exchange%group)
-               ENDIF
 
             END IF
 
             DEALLOCATE (BI_C_send)
-            IF (alpha_beta) DEALLOCATE (BI_C_send_beta)
          END DO
 
       ELSE
@@ -1910,24 +1830,12 @@ CONTAINS
                rec_j = ij_map(ij_counter_rec, 2)
                rec_block_size = ij_map(ij_counter_rec, 3)
 
-               IF (.NOT. alpha_beta) THEN
-                  ALLOCATE (BI_C_rec(2*rec_block_size, my_B_size_i, my_group_L_size))
-               ELSE
-                  ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i, my_group_L_size))
-                  ALLOCATE (BI_C_rec_beta(rec_block_size, my_B_size_j, my_group_L_size))
-               ENDIF
-
+               ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i+my_B_size_j, my_group_L_size))
                BI_C_rec = 0.0_dp
-               IF (alpha_beta) BI_C_rec_beta = 0.0_dp
 
                CALL mp_sendrecv(null_mat_send, proc_send, &
                                 BI_C_rec, proc_receive, &
                                 para_env_exchange%group)
-               IF (alpha_beta) THEN
-                  CALL mp_sendrecv(null_mat_send, proc_send, &
-                                   BI_C_rec_beta, proc_receive, &
-                                   para_env_exchange%group)
-               ENDIF
 
                CALL timeset(routineN//"_comm2_w", handle2)
                DO irep = 0, num_integ_group - 1
@@ -1938,55 +1846,26 @@ CONTAINS
                   DO iiB = 1, rec_block_size
 !$OMP               PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                         SHARED(start_point,end_point,&
-!$OMP                                                mp2_env,rec_i,iiB,BI_C_rec,ispin,&
-!$OMP                                         alpha_alpha,beta_beta,open_shell)
+!$OMP                                                mp2_env,rec_i,iiB,BI_C_rec,ispin,my_B_size_i,jspin,rec_j)
                      DO kkk = start_point, end_point
                         mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i + iiB - 1, :, kkk) = &
                            mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i + iiB - 1, :, kkk) + &
-                           BI_C_rec(iiB, :, kkk)
+                           BI_C_rec(iiB, :my_B_size_i, kkk)
+                        mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + iiB - 1, :, kkk) = &
+                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + iiB - 1, :, kkk) + &
+                           BI_C_rec(iiB, my_B_size_i+1:, kkk)
                      END DO
-!$OMP               END PARALLEL DO
+!$OMP                END PARALLEL DO
                   END DO
-                  IF (.NOT. alpha_beta) THEN
-                     DO jjB = 1, rec_block_size
-!$OMP                  PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
-!$OMP                                         SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                                mp2_env,rec_j,jjB,BI_C_rec,jspin,&
-!$OMP                                            alpha_alpha,beta_beta,open_shell)
-                        DO kkk = start_point, end_point
-                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) + &
-                              BI_C_rec(jjB + rec_block_size, :, kkk)
-                        END DO
-!$OMP                  END PARALLEL DO
-                     END DO
-                  ELSE
-                     DO jjB = 1, rec_block_size
-!$OMP                  PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
-!$OMP                                         SHARED(start_point,end_point,&
-!$OMP                                       mp2_env,rec_j,jjB,BI_C_rec_beta,jspin)
-                        DO kkk = start_point, end_point
-                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) + &
-                              BI_C_rec_beta(jjB, :, kkk)
-                        END DO
-!$OMP                  END PARALLEL DO
-                     END DO
-                  END IF
                END DO
                CALL timestop(handle2)
 
                DEALLOCATE (BI_C_rec)
-               IF (alpha_beta) DEALLOCATE (BI_C_rec_beta)
 
             ELSE
                ! nothing to send nothing to receive
                CALL mp_sendrecv(null_mat_send, proc_send, null_mat_rec, proc_receive, &
                                 para_env_exchange%group)
-               IF (alpha_beta) THEN
-                  CALL mp_sendrecv(null_mat_send, proc_send, null_mat_rec, proc_receive, &
-                                   para_env_exchange%group)
-               ENDIF
 
             END IF
          END DO
