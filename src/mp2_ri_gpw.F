@@ -1732,55 +1732,26 @@ CONTAINS
             DO iiB = 1, my_block_size
 !$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
 !$OMP                                     SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                            mp2_env,my_i,iiB,Y_i_aP,ispin,&
-!$OMP                                     alpha_alpha,beta_beta,open_shell)
+!$OMP                                            mp2_env,my_i,iiB,Y_i_aP,ispin)
                DO kkk = start_point, end_point
                   lll = kkk - start_point + Lstart_pos
-                  IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, :, kkk) = &
-                        mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, :, kkk) + &
-                        Y_i_aP(:, lll, iiB)
-                  ENDIF
-                  IF (beta_beta) THEN
-                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, :, kkk) = &
-                        mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, :, kkk) + &
-                        Y_i_aP(:, lll, iiB)
-                  ENDIF
+                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, :, kkk) = &
+                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, :, kkk) + &
+                     Y_i_aP(:, lll, iiB)
                END DO
 !$OMP           END PARALLEL DO
             END DO
             DO jjB = 1, my_block_size
-               IF (.NOT. alpha_beta) THEN
-!$OMP              PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
-!$OMP                                        SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                               mp2_env,my_j,jjB,Y_j_aP,jspin,&
-!$OMP                                        alpha_alpha,beta_beta,open_shell)
-                  DO kkk = start_point, end_point
-                     lll = kkk - start_point + Lstart_pos
-                     IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                        mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) = &
-                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) + &
-                           Y_j_aP(:, lll, jjB)
-                     ENDIF
-                     IF (beta_beta) THEN
-                        mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) = &
-                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) + &
-                           Y_j_aP(:, lll, jjB)
-                     ENDIF
-                  END DO
-!$OMP              END PARALLEL DO
-               ELSE
-!$OMP              PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
-!$OMP                                        SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                               mp2_env,my_j,jjB,Y_j_aP,jspin)
-                  DO kkk = start_point, end_point
-                     lll = kkk - start_point + Lstart_pos
-                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) = &
-                        mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) + &
-                        Y_j_aP(:, lll, jjB)
-                  ENDDO
-!$OMP              END PARALLEL DO
-               ENDIF
+!$OMP          PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
+!$OMP                                    SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
+!$OMP                                           mp2_env,my_j,jjB,Y_j_aP,jspin)
+               DO kkk = start_point, end_point
+                  lll = kkk - start_point + Lstart_pos
+                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) = &
+                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) + &
+                     Y_j_aP(:, lll, jjB)
+               END DO
+!$OMP          END PARALLEL DO
             END DO
          END DO
          CALL timestop(handle2)
@@ -1877,53 +1848,41 @@ CONTAINS
                   DO iiB = 1, rec_block_size
 !$OMP               PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                         SHARED(start_point,end_point,&
-!$OMP                                                mp2_env,rec_i,iiB,BI_C_rec,&
+!$OMP                                                mp2_env,rec_i,iiB,BI_C_rec,ispin,&
 !$OMP                                         alpha_alpha,beta_beta,open_shell)
                      DO kkk = start_point, end_point
-                        IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                           mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_i + iiB - 1, :, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_i + iiB - 1, :, kkk) + &
-                              BI_C_rec(iiB, :, kkk)
-                        ENDIF
-                        IF (beta_beta) THEN
-                           mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_i + iiB - 1, :, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_i + iiB - 1, :, kkk) + &
-                              BI_C_rec(iiB, :, kkk)
-                        ENDIF
+                        mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i + iiB - 1, :, kkk) = &
+                           mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i + iiB - 1, :, kkk) + &
+                           BI_C_rec(iiB, :, kkk)
                      END DO
 !$OMP               END PARALLEL DO
                   END DO
-                  DO jjB = 1, rec_block_size
-                     IF (.NOT. alpha_beta) THEN
+                  IF (.NOT. alpha_beta) THEN
+                     DO jjB = 1, rec_block_size
 !$OMP                   PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                             SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                                    mp2_env,rec_j,jjB,BI_C_rec,&
+!$OMP                                                    mp2_env,rec_j,jjB,BI_C_rec,jspin,&
 !$OMP                                             alpha_alpha,beta_beta,open_shell)
                         DO kkk = start_point, end_point
-                           IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                              mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, :, kkk) = &
-                                 mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, :, kkk) + &
-                                 BI_C_rec(jjB + rec_block_size, :, kkk)
-                           ENDIF
-                           IF (beta_beta) THEN
-                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) = &
-                                 mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) + &
-                                 BI_C_rec(jjB + rec_block_size, :, kkk)
-                           ENDIF
+                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) = &
+                              mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) + &
+                              BI_C_rec(jjB + rec_block_size, :, kkk)
                         END DO
 !$OMP                   END PARALLEL DO
-                     ELSE
+                     END DO
+                  ELSE
+                     DO jjB = 1, rec_block_size
 !$OMP                   PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                             SHARED(start_point,end_point,&
-!$OMP                                           mp2_env,rec_j,jjB,BI_C_rec_beta)
+!$OMP                                           mp2_env,rec_j,jjB,BI_C_rec_beta,jspin)
                         DO kkk = start_point, end_point
-                           mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) + &
+                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) = &
+                              mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) + &
                               BI_C_rec_beta(jjB, :, kkk)
                         END DO
 !$OMP                   END PARALLEL DO
-                     ENDIF
-                  END DO
+                     END DO
+                  END IF
                END DO
                CALL timestop(handle2)
 
@@ -1990,52 +1949,41 @@ CONTAINS
                   DO iiB = 1, rec_block_size
 !$OMP               PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                         SHARED(start_point,end_point,&
-!$OMP                                                mp2_env,rec_i,iiB,BI_C_rec,&
+!$OMP                                                mp2_env,rec_i,iiB,BI_C_rec,ispin,&
 !$OMP                                         alpha_alpha,beta_beta,open_shell)
                      DO kkk = start_point, end_point
-                        IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                           mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_i + iiB - 1, :, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_i + iiB - 1, :, kkk) + &
-                              BI_C_rec(iiB, :, kkk)
-                        ENDIF
-                        IF (beta_beta) THEN
-                           mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_i + iiB - 1, :, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_i + iiB - 1, :, kkk) + &
-                              BI_C_rec(iiB, :, kkk)
-                        ENDIF
+                        mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i + iiB - 1, :, kkk) = &
+                           mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i + iiB - 1, :, kkk) + &
+                           BI_C_rec(iiB, :, kkk)
                      END DO
 !$OMP               END PARALLEL DO
                   END DO
-                  DO jjB = 1, rec_block_size
-                     IF (.NOT. alpha_beta) THEN
+                  IF (.NOT. alpha_beta) THEN
+                     DO jjB = 1, rec_block_size
 !$OMP                  PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                         SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                                mp2_env,rec_j,jjB,BI_C_rec,&
+!$OMP                                                mp2_env,rec_j,jjB,BI_C_rec,jspin,&
 !$OMP                                            alpha_alpha,beta_beta,open_shell)
                         DO kkk = start_point, end_point
-                           IF (alpha_alpha .OR. (.NOT. open_shell)) THEN
-                              mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, :, kkk) = &
-                                 mp2_env%ri_grad%Gamma_P_ia(1)%array(rec_j + jjB - 1, :, kkk) + &
-                                 BI_C_rec(jjB + rec_block_size, :, kkk)
-                           ELSE IF (beta_beta) THEN
-                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) = &
-                                 mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) + &
-                                 BI_C_rec(jjB + rec_block_size, :, kkk)
-                           ENDIF
+                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) = &
+                              mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) + &
+                              BI_C_rec(jjB + rec_block_size, :, kkk)
                         END DO
 !$OMP                  END PARALLEL DO
-                     ELSE
+                     END DO
+                  ELSE
+                     DO jjB = 1, rec_block_size
 !$OMP                  PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
 !$OMP                                         SHARED(start_point,end_point,&
-!$OMP                                       mp2_env,rec_j,jjB,BI_C_rec_beta)
+!$OMP                                       mp2_env,rec_j,jjB,BI_C_rec_beta,jspin)
                         DO kkk = start_point, end_point
-                           mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(2)%array(rec_j + jjB - 1, :, kkk) + &
+                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) = &
+                              mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, :, kkk) + &
                               BI_C_rec_beta(jjB, :, kkk)
                         END DO
 !$OMP                  END PARALLEL DO
-                     ENDIF
-                  END DO
+                     END DO
+                  END IF
                END DO
                CALL timestop(handle2)
 
