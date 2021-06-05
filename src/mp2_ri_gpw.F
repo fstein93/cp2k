@@ -26,6 +26,8 @@ MODULE mp2_ri_gpw
                                               m_walltime
    USE message_passing,                 ONLY: mp_allgather,&
                                               mp_min,&
+                                              mp_recv,&
+                                              mp_send,&
                                               mp_sendrecv,&
                                               mp_sum
    USE mp2_ri_grad_util,                ONLY: complete_gamma
@@ -98,7 +100,7 @@ CONTAINS
          my_block_size, my_group_L_end, my_group_L_size, my_group_L_size_orig, my_group_L_start, &
          my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, &
          num_IJ_blocks, num_integ_group, pos_integ_group, proc_receive, proc_send, proc_shift, &
-         rec_B_size
+         rec_B_size, tag
       INTEGER :: rec_B_virtual_end, rec_B_virtual_start, rec_L_size, send_B_size, &
          send_B_virtual_end, send_B_virtual_start, send_block_size, send_i, send_ij_index, send_j, &
          start_point, sub_P_color, sub_sub_color, total_ij_pairs
@@ -111,7 +113,7 @@ CONTAINS
                                                             my_beta_beta_case, my_open_shell_SS
       REAL(KIND=dp) :: amp_fac, mem_for_aK, mem_for_comm, mem_for_iaK, &
          mem_for_rep, mem_min, mem_per_group, mem_real, my_Emp2_Cou, my_Emp2_EX, &
-         null_mat_rec(2, 2, 2), null_mat_send(2, 2, 2), sym_fac
+         sym_fac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: external_ab, external_i_aL, local_ab, &
                                                             local_ba, t_ab, my_local_i_aL, my_local_j_aL
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_ia_Q, B_ia_Q_beta, BI_C_rec, &
@@ -129,6 +131,9 @@ CONTAINS
       virtual(:) = nmo - homo(:)
 
       CALL dgemm_counter_init(dgemm_counter)
+
+      ! We have to store the recv tag in a variable because recv tag will be changed in mp_recv
+      tag = 42
 
       DO jspin = 1, nspins
       DO ispin = jspin, 1, -1
@@ -203,8 +208,6 @@ CONTAINS
                               ispin, jspin, local_ba)
 
          CALL timeset(routineN//"_RI_loop", handle2)
-         null_mat_rec = 0.0_dp
-         null_mat_send = 0.0_dp
          my_Emp2_Cou = 0.0_dp
          my_Emp2_EX = 0.0_dp
          DO ij_index = 1, max_ij_pairs
@@ -260,7 +263,7 @@ CONTAINS
                      BI_C_rec = 0.0_dp
                      CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
                                       proc_send, BI_C_rec, proc_receive, &
-                                      para_env_exchange%group)
+                                      para_env_exchange%group, tag)
                      DO irep = 0, num_integ_group - 1
                         Lstart_pos = ranges_info_array(1, irep, proc_receive)
                         Lend_pos = ranges_info_array(2, irep, proc_receive)
@@ -275,7 +278,7 @@ CONTAINS
                      BI_C_rec = 0.0_dp
                      CALL mp_sendrecv(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), &
                                       proc_send, BI_C_rec, proc_receive, &
-                                      para_env_exchange%group)
+                                      para_env_exchange%group, tag)
 
                      DO irep = 0, num_integ_group - 1
                         Lstart_pos = ranges_info_array(1, irep, proc_receive)
@@ -288,12 +291,9 @@ CONTAINS
                      END DO
 
                   ELSE
-                     ! we send the null matrix while we know that we have to receive something
-
                      ! occupied i
                      BI_C_rec = 0.0_dp
-                     CALL mp_sendrecv(null_mat_send, proc_send, BI_C_rec, proc_receive, &
-                                      para_env_exchange%group)
+                     CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
 
                      DO irep = 0, num_integ_group - 1
                         Lstart_pos = ranges_info_array(1, irep, proc_receive)
@@ -307,8 +307,7 @@ CONTAINS
 
                      ! occupied j
                      BI_C_rec = 0.0_dp
-                     CALL mp_sendrecv(null_mat_send, proc_send, BI_C_rec, proc_receive, &
-                                      para_env_exchange%group)
+                     CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
 
                      DO irep = 0, num_integ_group - 1
                         Lstart_pos = ranges_info_array(1, irep, proc_receive)
@@ -364,7 +363,7 @@ CONTAINS
 
                         CALL mp_sendrecv(my_local_i_aL, proc_send, &
                                          external_i_aL, proc_receive, &
-                                         para_env_sub%group)
+                                         para_env_sub%group, tag)
 
                         CALL dgemm_counter_start(dgemm_counter)
                         CALL dgemm('T', 'N', rec_B_size, my_B_size(jspin), dimen_RI, 1.0_dp, &
@@ -383,7 +382,7 @@ CONTAINS
 
                            CALL mp_sendrecv(my_local_j_aL, proc_send, &
                                             external_i_aL, proc_receive, &
-                                            para_env_sub%group)
+                                            para_env_sub%group, tag)
 
                            CALL dgemm_counter_start(dgemm_counter)
                            CALL dgemm('T', 'N', rec_B_size, my_B_size(ispin), dimen_RI, 1.0_dp, &
@@ -500,24 +499,11 @@ CONTAINS
                      send_block_size = ij_map(ij_counter_send, 3)
 
                      ! occupied i
-                     CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
-                                      proc_send, null_mat_rec, proc_receive, &
-                                      para_env_exchange%group)
+                     CALL mp_send(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), proc_send, tag, &
+                                  para_env_exchange%group)
                      ! occupied j
-                     CALL mp_sendrecv(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), &
-                                      proc_send, null_mat_rec, proc_receive, &
-                                      para_env_exchange%group)
-
-                  ELSE
-                     ! nothing to send
-                     ! occupied i
-                     CALL mp_sendrecv(null_mat_send, proc_send, &
-                                      null_mat_rec, proc_receive, &
-                                      para_env_exchange%group)
-                     ! occupied j
-                     CALL mp_sendrecv(null_mat_send, proc_send, &
-                                      null_mat_rec, proc_receive, &
-                                      para_env_exchange%group)
+                     CALL mp_send(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), proc_send, tag, &
+                                  para_env_exchange%group)
 
                   END IF
                END DO
@@ -529,7 +515,7 @@ CONTAINS
                                            my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
                                            num_integ_group, ispin, jspin, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                            ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
-                                           null_mat_rec, null_mat_send, gd_array%sizes)
+                                           gd_array%sizes)
             END IF
 
          END DO
@@ -1661,15 +1647,13 @@ CONTAINS
 !> \param Y_i_aP ...
 !> \param Y_j_aP ...
 !> \param para_env_exchange ...
-!> \param null_mat_rec ...
-!> \param null_mat_send ...
 !> \param sizes_array ...
 ! **************************************************************************************************
    SUBROUTINE mp2_redistribute_gamma(mp2_env, ij_index, my_B_size, &
                                      my_block_size, my_group_L_size, my_i, my_ij_pairs, my_j, ngroup, &
                                      num_integ_group, ispin, jspin, integ_group_pos2color_sub, num_ij_pairs, proc_map, &
                                      ij_map, ranges_info_array, Y_i_aP, Y_j_aP, para_env_exchange, &
-                                     null_mat_rec, null_mat_send, sizes_array)
+                                     sizes_array)
 
       TYPE(mp2_type), POINTER                            :: mp2_env
       INTEGER, INTENT(IN)                                :: ij_index, my_B_size(2), my_block_size, &
@@ -1681,20 +1665,21 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Y_i_aP, Y_j_aP
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange
       INTEGER, DIMENSION(-para_env_exchange%num_pe:), INTENT(IN) :: proc_map
-      REAL(KIND=dp), INTENT(INOUT)                       :: null_mat_rec(:, :, :), &
-                                                            null_mat_send(:, :, :)
       INTEGER, DIMENSION(0:), INTENT(IN)                 :: sizes_array
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
       INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, jjb, kkk, Lend_pos, lll, &
          Lstart_pos, proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, &
-         rec_j, send_L_size, start_point, my_B_size_i, my_B_size_j
+         rec_j, send_L_size, start_point, my_B_size_i, my_B_size_j, tag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, BI_C_send
 
 ! In alpha-beta case Y_i_aP_beta is sent as Y_j_aP
 
       CALL timeset(routineN//"_comm2", handle)
+
+      tag = 42
+
       IF (ij_index <= my_ij_pairs) THEN
          ! somethig to send
          ! start with myself
@@ -1806,8 +1791,7 @@ CONTAINS
 
             ELSE
                ! we have something to send but nothing to receive
-               CALL mp_sendrecv(BI_C_send, proc_send, null_mat_rec, proc_receive, &
-                                para_env_exchange%group)
+               CALL mp_send(BI_C_send, proc_send, tag, para_env_exchange%group)
 
             END IF
 
@@ -1833,9 +1817,7 @@ CONTAINS
                ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i+my_B_size_j, my_group_L_size))
                BI_C_rec = 0.0_dp
 
-               CALL mp_sendrecv(null_mat_send, proc_send, &
-                                BI_C_rec, proc_receive, &
-                                para_env_exchange%group)
+               CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
 
                CALL timeset(routineN//"_comm2_w", handle2)
                DO irep = 0, num_integ_group - 1
@@ -1861,11 +1843,6 @@ CONTAINS
                CALL timestop(handle2)
 
                DEALLOCATE (BI_C_rec)
-
-            ELSE
-               ! nothing to send nothing to receive
-               CALL mp_sendrecv(null_mat_send, proc_send, null_mat_rec, proc_receive, &
-                                para_env_exchange%group)
 
             END IF
          END DO
@@ -1954,11 +1931,10 @@ CONTAINS
          max_ijk_loop, my_i, my_ijk, my_ijk_beta, my_j, my_k, my_virtual, nloops, proc_receive, &
          proc_send, proc_shift, rec_B_size, rec_B_virtual_end, rec_B_virtual_start, rec_L_size, &
          send_B_size, send_B_virtual_end, send_B_virtual_start, send_i, send_ijk_index, send_j, &
-         send_k, size_B_i, size_B_j, size_B_k, start_point
+         send_k, size_B_i, size_B_j, size_B_k, start_point, tag
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: num_ijk, num_ijk_beta
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ijk_map, ijk_map_beta
-      REAL(KIND=dp)                                      :: amp_fac, null_mat_rec(2, 2), &
-                                                            null_mat_send(2, 2), P_ij_elem
+      REAL(KIND=dp)                                      :: amp_fac, P_ij_elem
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: external_ab, external_i_aL, t_ab, &
        BI_C_rec, local_i_aL, local_j_aL, &
                                                             local_k_aL
@@ -1970,6 +1946,8 @@ CONTAINS
 
       nloops = 1
       IF (alpha_beta) nloops = 2
+
+      tag = 42
 
       ! Find the number of quasi-degenerate orbitals and orbital triplets
 
@@ -2089,8 +2067,7 @@ CONTAINS
                      ENDIF
                   ELSE
                      ! nothing to send
-                     CALL mp_sendrecv(null_mat_send, proc_send, BI_C_rec, proc_receive, &
-                                      para_env_exchange%group)
+                     CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
                   END IF
                   DO irep = 0, num_integ_group - 1
                      Lstart_pos = ranges_info_array(1, irep, proc_receive)
@@ -2113,8 +2090,7 @@ CONTAINS
                      ENDIF
                   ELSE
                      ! nothing to send
-                     CALL mp_sendrecv(null_mat_send, proc_send, BI_C_rec, proc_receive, &
-                                      para_env_exchange%group)
+                     CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
                   END IF
                   DO irep = 0, num_integ_group - 1
                      Lstart_pos = ranges_info_array(1, irep, proc_receive)
@@ -2147,8 +2123,7 @@ CONTAINS
                   ELSE
                      ! nothing to send
                      BI_C_rec = 0.0_dp
-                     CALL mp_sendrecv(null_mat_send, proc_send, BI_C_rec, proc_receive, &
-                                      para_env_exchange%group)
+                     CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
                   END IF
                   DO irep = 0, num_integ_group - 1
                      Lstart_pos = ranges_info_array(1, irep, proc_receive)
@@ -2373,48 +2348,27 @@ CONTAINS
                      ENDIF
                      ! occupied i
                      IF (iloops .EQ. 1) THEN
-                        CALL mp_sendrecv(BIb_C(:, :, send_i), proc_send, &
-                                         null_mat_rec, proc_receive, para_env_exchange%group)
+                        CALL mp_send(BIb_C(:, :, send_i), proc_send, tag, para_env_exchange%group)
                      ELSE
-                        CALL mp_sendrecv(BIb_C_beta(:, :, send_i), proc_send, &
-                                         null_mat_rec, proc_receive, para_env_exchange%group)
+                        CALL mp_send(BIb_C_beta(:, :, send_i), proc_send, tag, para_env_exchange%group)
                      ENDIF
                      ! occupied j
                      IF (iloops .EQ. 1) THEN
-                        CALL mp_sendrecv(BIb_C(:, :, send_j), proc_send, &
-                                         null_mat_rec, proc_receive, para_env_exchange%group)
+                        CALL mp_send(BIb_C(:, :, send_j), proc_send, tag, para_env_exchange%group)
                      ELSE ! For beta_beta density, the size is different now
-                        CALL mp_sendrecv(BIb_C_beta(:, :, send_j), proc_send, &
-                                         null_mat_rec, proc_receive, para_env_exchange%group)
+                        CALL mp_send(BIb_C_beta(:, :, send_j), proc_send, tag, para_env_exchange%group)
                      ENDIF
                      ! occupied k
                      IF (iloops .EQ. 1) THEN
                         IF (.NOT. alpha_beta) THEN
-                           CALL mp_sendrecv(BIb_C(:, :, send_k), proc_send, &
-                                            null_mat_rec, proc_receive, para_env_exchange%group)
+                           CALL mp_send(BIb_C(:, :, send_k), proc_send, tag, para_env_exchange%group)
                         ELSE
-                           CALL mp_sendrecv(BIb_C_beta(:, :, send_k), proc_send, &
-                                            null_mat_rec, proc_receive, para_env_exchange%group)
+                           CALL mp_send(BIb_C_beta(:, :, send_k), proc_send, tag, para_env_exchange%group)
                         ENDIF
                      ELSE ! For beta_beta density, the size is different now
-                        CALL mp_sendrecv(BIb_C(:, :, send_k), proc_send, &
-                                         null_mat_rec, proc_receive, para_env_exchange%group)
+                        CALL mp_send(BIb_C(:, :, send_k), proc_send, tag, para_env_exchange%group)
                      ENDIF
 
-                  ELSE
-                     ! nothing to send
-                     ! occupied i
-                     CALL mp_sendrecv(null_mat_send, proc_send, &
-                                      null_mat_rec, proc_receive, &
-                                      para_env_exchange%group)
-                     ! occupied j
-                     CALL mp_sendrecv(null_mat_send, proc_send, &
-                                      null_mat_rec, proc_receive, &
-                                      para_env_exchange%group)
-                     ! occupied k
-                     CALL mp_sendrecv(null_mat_send, proc_send, &
-                                      null_mat_rec, proc_receive, &
-                                      para_env_exchange%group)
                   END IF
 
                END DO ! proc loop
