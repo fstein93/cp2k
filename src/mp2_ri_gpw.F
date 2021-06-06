@@ -116,12 +116,12 @@ CONTAINS
          sym_fac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: external_ab, external_i_aL, local_ab, &
                                                             local_ba, t_ab, my_local_i_aL, my_local_j_aL
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_ia_Q, B_ia_Q_beta, BI_C_rec, &
-                                                            local_i_aL, local_j_aL, Y_i_aP, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, local_i_aL, local_j_aL, Y_i_aP, &
                                                             Y_j_aP
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_P, &
                                                             para_env_rep
       TYPE(dgemm_counter_type)                           :: dgemm_counter
+      TYPE(three_dim_real_array), ALLOCATABLE, DIMENSION(:) :: B_ia_Q
 
       CALL timeset(routineN, handle)
 
@@ -547,81 +547,66 @@ CONTAINS
 
             ! make a copy of the original integrals (ia|Q)
             my_group_L_size = my_group_L_size_orig
-            ALLOCATE (B_ia_Q(homo(ispin), my_B_size(ispin), my_group_L_size))
-            B_ia_Q = 0.0_dp
-            DO jjB = 1, homo(ispin)
-               DO iiB = 1, my_B_size(ispin)
-                  B_ia_Q(jjB, iiB, 1:my_group_L_size) = BIb_C(ispin)%array(1:my_group_L_size, iiB, jjB)
-               END DO
-            END DO
-            DEALLOCATE (BIb_C(ispin)%array)
-            IF (my_alpha_beta_case) THEN
-               ALLOCATE (B_ia_Q_beta(homo(jspin), my_B_size(jspin), my_group_L_size))
-               B_ia_Q_beta = 0.0_dp
-               DO jjB = 1, homo(jspin)
-                  DO iiB = 1, my_B_size(jspin)
-                     B_ia_Q_beta(jjB, iiB, 1:my_group_L_size) = &
-                        BIb_C(jspin)%array(1:my_group_L_size, iiB, jjB)
+            ALLOCATE(B_ia_Q(ispin:jspin))
+            DO kspin = ispin, jspin
+               ALLOCATE (B_ia_Q(kspin)%array(homo(kspin), my_B_size(kspin), my_group_L_size))
+               B_ia_Q(kspin)%array = 0.0_dp
+               DO jjB = 1, homo(kspin)
+                  DO iiB = 1, my_B_size(kspin)
+                     B_ia_Q(kspin)%array(jjB, iiB, 1:my_group_L_size) = BIb_C(kspin)%array(1:my_group_L_size, iiB, jjB)
                   END DO
                END DO
-               DEALLOCATE (BIb_C(jspin)%array)
-            ENDIF
+               DEALLOCATE (BIb_C(kspin)%array)
+            END DO
 
             ! sum Gamma and dereplicate
             DO kspin = ispin, jspin
                ALLOCATE (BIb_C(kspin)%array(homo(kspin), my_B_size(kspin), my_group_L_size))
-            END DO
-            DO proc_shift = 1, para_env_rep%num_pe - 1
-               ! invert order
-               proc_send = proc_map_rep(para_env_rep%mepos - proc_shift)
-               proc_receive = proc_map_rep(para_env_rep%mepos + proc_shift)
+               DO proc_shift = 1, para_env_rep%num_pe - 1
+                  ! invert order
+                  proc_send = proc_map_rep(para_env_rep%mepos - proc_shift)
+                  proc_receive = proc_map_rep(para_env_rep%mepos + proc_shift)
 
-               start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
-               end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
+                  start_point = ranges_info_array(3, proc_shift, para_env_exchange%mepos)
+                  end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
 
-               DO kspin = ispin, jspin
                   CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(kspin)%array(:, :, start_point:end_point), &
                                    proc_send, BIb_C(kspin)%array, proc_receive, para_env_rep%group)
                   mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) = &
                      mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) &
                      + BIb_C(kspin)%array(:, :, :)
                END DO
+               DEALLOCATE (BIb_C(kspin)%array)
             END DO
-            DEALLOCATE (BIb_C(ispin)%array)
-            IF (my_alpha_beta_case) DEALLOCATE (BIb_C(jspin)%array)
 
             IF (.NOT. my_open_shell_ss) THEN
-               CALL complete_gamma(mp2_env, B_ia_Q, dimen_RI, homo(ispin), virtual(ispin), para_env, para_env_sub, ngroup, &
-                                   my_group_L_size, my_group_L_start, my_group_L_end, &
-                                   my_B_size(ispin), my_B_virtual_start(ispin), &
-                                   gd_array, gd_B_virtual(ispin), &
-                                   sub_proc_map, .TRUE.)
-               IF (my_alpha_beta_case) THEN
-                  CALL complete_gamma(mp2_env, B_ia_Q_beta, dimen_RI, homo(jspin), virtual(jspin), para_env, para_env_sub, &
-                                      ngroup, my_group_L_size, my_group_L_start, my_group_L_end, &
-                                      my_B_size(jspin), my_B_virtual_start(jspin), &
-                                      gd_array, gd_B_virtual(jspin), sub_proc_map, .FALSE.)
-               ENDIF
-            ENDIF
-            ! Here we restore BIb_C
-            IF (my_open_shell_ss) THEN
+               DO kspin = ispin, jspin
+                  ! B_ia_Q will be deallocated on exit
+                  CALL complete_gamma(mp2_env, B_ia_Q(kspin)%array, dimen_RI, homo(kspin), virtual(kspin), &
+                                      para_env, para_env_sub, ngroup, &
+                                      my_group_L_size, my_group_L_start, my_group_L_end, &
+                                      my_B_size(kspin), my_B_virtual_start(kspin), &
+                                      gd_array, gd_B_virtual(kspin), &
+                                      sub_proc_map, kspin)
+               ENDDO
+            ELSE
+               ! Here we restore BIb_C
                ALLOCATE (BIb_C(ispin)%array(my_group_L_size, my_B_size(ispin), homo(ispin)))
                BIb_C(ispin)%array = 0.0_dp
                ! copy the integrals (ia|Q) back
                DO jjB = 1, homo(ispin)
                   DO iiB = 1, my_B_size(ispin)
                      BIb_C(ispin)%array(:, iiB, jjB) = &
-                        B_ia_Q(jjB, iiB, :)
+                        B_ia_Q(ispin)%array(jjB, iiB, :)
                   END DO
                END DO
-            ENDIF
-
-            IF (ALLOCATED(B_ia_Q)) DEALLOCATE (B_ia_Q)
-            IF (ALLOCATED(B_ia_Q_beta)) DEALLOCATE (B_ia_Q_beta)
+               DEALLOCATE(B_ia_Q(ispin)%array)
+            END IF
+            DEALLOCATE(B_ia_Q)
 
          END IF
 
-         IF (my_open_shell_SS .OR. my_alpha_beta_case) THEN
+         IF (nspins == 2) THEN
             IF (my_alpha_beta_case) THEN
                Emp2_S = Emp2_S + my_Emp2_Cou
                Emp2_Cou = Emp2_Cou + my_Emp2_Cou
@@ -646,10 +631,9 @@ CONTAINS
             ! keep the array for the next calculations
             IF (ALLOCATED(BIb_C(ispin)%array)) DEALLOCATE (BIb_C(ispin)%array)
             CALL release_group_dist(gd_array)
-            CALL release_group_dist(gd_B_virtual(ispin))
-            IF (my_alpha_beta_case) THEN
-               CALL release_group_dist(gd_B_virtual(jspin))
-            END IF
+            DO kspin = ispin, jspin
+               CALL release_group_dist(gd_B_virtual(kspin))
+            END DO
          END IF
 
          CALL cp_para_env_release(para_env_exchange)
@@ -1482,7 +1466,7 @@ CONTAINS
             ! Alpha-beta part of beta-beta density
             CALL dgemm('T', 'N', my_B_size(jspin), rec_B_size, virtual(ispin), mp2_env%scale_S, &
                        local_ab, virtual(ispin), external_ab, virtual(ispin), &
-                       1.0_dp, mp2_env%ri_grad%P_ab(2)%array(:, rec_B_virtual_start:rec_B_virtual_end), &
+                       1.0_dp, mp2_env%ri_grad%P_ab(jspin)%array(:, rec_B_virtual_start:rec_B_virtual_end), &
                        my_B_size(jspin))
 
             ! For alpha-beta part of alpha-density we need a new parallel code
@@ -1495,7 +1479,7 @@ CONTAINS
                              para_env_sub%group)
             CALL dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(jspin), mp2_env%scale_S, &
                        local_ba, virtual(jspin), external_ab, virtual(jspin), &
-                       1.0_dp, mp2_env%ri_grad%P_ab(1)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
+                       1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
 
             DEALLOCATE(external_ab)
          ENDIF
@@ -1643,7 +1627,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
-      INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, kkk, Lend_pos, lll, &
+      INTEGER :: end_point, handle, iiB, ij_counter_rec, irep, kkk, Lend_pos, lll, &
          Lstart_pos, proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, &
          rec_j, send_L_size, start_point, my_B_size_i, my_B_size_j, tag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, BI_C_send
@@ -1657,7 +1641,6 @@ CONTAINS
       IF (ij_index <= my_ij_pairs) THEN
          ! somethig to send
          ! start with myself
-         CALL timeset(routineN//"_comm2_w", handle2)
          DO irep = 0, num_integ_group - 1
             Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
             Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
@@ -1679,7 +1662,6 @@ CONTAINS
 !$OMP          END PARALLEL DO
             END DO
          END DO
-         CALL timestop(handle2)
 
          ! Y_i_aP(my_B_size,dimen_RI,block_size)
          my_B_size_i = my_B_size(ispin)
@@ -1691,7 +1673,6 @@ CONTAINS
 
             send_L_size = sizes_array(proc_send)
             ALLOCATE (BI_C_send(my_block_size, my_B_size_i+my_B_size_j, send_L_size))
-            CALL timeset(routineN//"_comm2_w", handle2)
             BI_C_send = 0.0_dp
             DO irep = 0, num_integ_group - 1
                Lstart_pos = ranges_info_array(1, irep, proc_send)
@@ -1710,7 +1691,6 @@ CONTAINS
 !$OMP             END PARALLEL DO
                END DO
             END DO
-            CALL timestop(handle2)
 
             rec_ij_index = num_ij_pairs(proc_receive)
 
@@ -1729,7 +1709,6 @@ CONTAINS
                CALL mp_sendrecv(BI_C_send, proc_send, BI_C_rec, proc_receive, &
                                 para_env_exchange%group)
 
-               CALL timeset(routineN//"_comm2_w", handle2)
                DO irep = 0, num_integ_group - 1
                   Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
                   Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
@@ -1750,7 +1729,6 @@ CONTAINS
 !$OMP                END PARALLEL DO
                   END DO
                END DO
-               CALL timestop(handle2)
 
                DEALLOCATE (BI_C_rec)
 
@@ -1784,7 +1762,6 @@ CONTAINS
 
                CALL mp_recv(BI_C_rec, proc_receive, tag, para_env_exchange%group)
 
-               CALL timeset(routineN//"_comm2_w", handle2)
                DO irep = 0, num_integ_group - 1
                   Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
                   Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
@@ -1805,7 +1782,6 @@ CONTAINS
 !$OMP                END PARALLEL DO
                   END DO
                END DO
-               CALL timestop(handle2)
 
                DEALLOCATE (BI_C_rec)
 
