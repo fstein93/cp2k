@@ -1671,30 +1671,30 @@ CONTAINS
             proc_send = proc_map(para_env_exchange%mepos + proc_shift)
             proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
-            send_L_size = sizes_array(proc_send)
-            ALLOCATE (BI_C_send(my_block_size, my_B_size_i+my_B_size_j, send_L_size))
-            BI_C_send = 0.0_dp
-            DO irep = 0, num_integ_group - 1
-               Lstart_pos = ranges_info_array(1, irep, proc_send)
-               Lend_pos = ranges_info_array(2, irep, proc_send)
-               start_point = ranges_info_array(3, irep, proc_send)
-               end_point = ranges_info_array(4, irep, proc_send)
-               DO iiB = 1, my_block_size
-!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
-!$OMP                                       SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                              BI_C_send,iiB,Y_i_aP,my_B_size_i,Y_j_aP)
-                  DO kkk = start_point, end_point
-                     lll = kkk - start_point + Lstart_pos
-                     BI_C_send(iiB, :my_B_size_i, kkk) = Y_i_aP(:, lll, iiB)
-                     BI_C_send(iiB, my_B_size_i+1:, kkk) = Y_j_aP(:, lll, iiB)
-                  END DO
-!$OMP             END PARALLEL DO
-               END DO
-            END DO
-
             rec_ij_index = num_ij_pairs(proc_receive)
 
             IF (ij_index <= rec_ij_index) THEN
+               send_L_size = sizes_array(proc_send)
+               ALLOCATE (BI_C_send(my_block_size, my_B_size_i+my_B_size_j, send_L_size))
+               BI_C_send = 0.0_dp
+               DO irep = 0, num_integ_group - 1
+                  Lstart_pos = ranges_info_array(1, irep, proc_send)
+                  Lend_pos = ranges_info_array(2, irep, proc_send)
+                  start_point = ranges_info_array(3, irep, proc_send)
+                  end_point = ranges_info_array(4, irep, proc_send)
+                  DO iiB = 1, my_block_size
+!$OMP                PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
+!$OMP                                          SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
+!$OMP                                                 BI_C_send,iiB,Y_i_aP,my_B_size_i,Y_j_aP)
+                     DO kkk = start_point, end_point
+                        lll = kkk - start_point + Lstart_pos
+                        BI_C_send(iiB, :my_B_size_i, kkk) = Y_i_aP(:, lll, iiB)
+                        BI_C_send(iiB, my_B_size_i+1:, kkk) = Y_j_aP(:, lll, iiB)
+                     END DO
+!$OMP                END PARALLEL DO
+                  END DO
+               END DO
+
                ! we know that proc_receive has something to send for us, let's see what
                ij_counter_rec = &
                   (ij_index - MIN(1, integ_group_pos2color_sub(proc_receive)))*ngroup + integ_group_pos2color_sub(proc_receive)
