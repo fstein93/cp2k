@@ -109,7 +109,7 @@ CONTAINS
                                                             sizes_array_orig, sub_proc_map, virtual
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: ranges_info_array
-      LOGICAL                                            :: my_alpha_alpha_case, my_alpha_beta_case, &
+      LOGICAL                                            :: my_alpha_beta_case, &
                                                             my_beta_beta_case, my_open_shell_SS
       REAL(KIND=dp) :: amp_fac, mem_for_aK, mem_for_comm, mem_for_iaK, &
          mem_for_rep, mem_min, mem_per_group, mem_real, my_Emp2_Cou, my_Emp2_EX, &
@@ -144,13 +144,11 @@ CONTAINS
          ! If we calculate the gradient we need to distinguish
          ! between alpha-alpha and beta-beta cases for UMP2
 
-         my_alpha_alpha_case = .FALSE.
          my_beta_beta_case = .FALSE.
          my_alpha_beta_case = .FALSE.
          IF (ispin /= jspin) THEN
             my_alpha_beta_case = .TRUE.
          ELSE IF (my_open_shell_SS) THEN
-            IF (ispin == 1) my_alpha_alpha_case = .TRUE.
             IF (ispin == 2) my_beta_beta_case = .TRUE.
          END IF
 
@@ -1645,7 +1643,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
-      INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, jjb, kkk, Lend_pos, lll, &
+      INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, kkk, Lend_pos, lll, &
          Lstart_pos, proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, &
          rec_j, send_L_size, start_point, my_B_size_i, my_B_size_j, tag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, BI_C_send
@@ -1668,24 +1666,15 @@ CONTAINS
             DO iiB = 1, my_block_size
 !$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
 !$OMP                                     SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                            mp2_env,my_i,iiB,Y_i_aP,ispin)
+!$OMP                                            mp2_env,my_i,my_j,iiB,Y_i_aP,Y_j_aP,ispin,jspin)
                DO kkk = start_point, end_point
                   lll = kkk - start_point + Lstart_pos
                   mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, :, kkk) = &
                      mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, :, kkk) + &
                      Y_i_aP(:, lll, iiB)
-               END DO
-!$OMP           END PARALLEL DO
-            END DO
-            DO jjB = 1, my_block_size
-!$OMP          PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
-!$OMP                                    SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                           mp2_env,my_j,jjB,Y_j_aP,jspin)
-               DO kkk = start_point, end_point
-                  lll = kkk - start_point + Lstart_pos
-                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) = &
-                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, :, kkk) + &
-                     Y_j_aP(:, lll, jjB)
+                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + iiB - 1, :, kkk) = &
+                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + iiB - 1, :, kkk) + &
+                     Y_j_aP(:, lll, iiB)
                END DO
 !$OMP          END PARALLEL DO
             END DO
