@@ -357,7 +357,11 @@ CONTAINS
                      sym_fac = 2.0_dp
                      IF (my_i == my_j) sym_fac = 1.0_dp
                      IF (my_alpha_beta_case) sym_fac = 0.5_dp
-                     DO b = 1, my_B_size(2)
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(b,b_global,a) & 
+!$OMP             REDUCTION(+:my_Emp2_Cou) &
+!$OMP             SHARED(my_B_size,jspin,my_B_virtual_start,sym_fac,local_ab,Eigenval,my_i,my_j,ispin,iiB,jjB,virtual,homo) 
+                     DO b = 1, my_B_size(jspin)
                         b_global = b + my_B_virtual_start(jspin) - 1
                         DO a = 1, virtual(ispin)
                            my_Emp2_Cou = my_Emp2_Cou - sym_fac*2.0_dp*local_ab(a, b)**2/ &
@@ -365,11 +369,17 @@ CONTAINS
                                           Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, jspin))
                         END DO
                      END DO
+!$OMP END PARALLEL DO
 
                      IF (calc_ex) THEN
                         ! contract integrals with orbital energies for exchange MP2 energy
                         ! starting with local ...
                         IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) t_ab = 0.0_dp
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(b,b_global,a,a_global) & 
+!$OMP             REDUCTION(+:my_Emp2_Ex) &
+!$OMP             SHARED(my_B_size,ispin,my_B_virtual_start,sym_fac,local_ab,Eigenval,my_i,my_j,&
+!$OMP                    homo,iiB,jjB,mp2_env,calc_forces,my_alpha_beta_case,t_ab,amp_fac)
                         DO b = 1, my_B_size(ispin)
                            b_global = b + my_B_virtual_start(ispin) - 1
                            DO a = 1, my_B_size(ispin)
@@ -384,6 +394,7 @@ CONTAINS
                                                       Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
                            END DO
                         END DO
+!$OMP END PARALLEL DO
                         ! ... and then with external data
                         DO proc_shift = 1, para_env_sub%num_pe - 1
                            proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -398,6 +409,12 @@ CONTAINS
                            CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, :), proc_send, &
                                             external_ab, proc_receive, para_env_sub%group)
 
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(b,b_global,a,a_global) &
+!$OMP             SHARED(my_B_size,ispin,my_B_virtual_start,sym_fac,local_ab,Eigenval,my_i,my_j,&
+!$OMP                    homo,iiB,jjB,mp2_env,calc_forces,my_alpha_beta_case,t_ab,rec_B_size,&
+!$OMP                    rec_B_virtual_start,external_ab,amp_fac) &
+!$OMP REDUCTION(+:my_Emp2_Ex)
                            DO b = 1, my_B_size(ispin)
                               b_global = b + my_B_virtual_start(ispin) - 1
                               DO a = 1, rec_B_size
@@ -412,6 +429,7 @@ CONTAINS
                                                          Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
                               END DO
                            END DO
+!$OMP END PARALLEL DO
 
                            DEALLOCATE (external_ab)
                         END DO
@@ -551,11 +569,15 @@ CONTAINS
             DO kspin = ispin, jspin
                ALLOCATE (B_ia_Q(kspin)%array(homo(kspin), my_B_size(kspin), my_group_L_size))
                B_ia_Q(kspin)%array = 0.0_dp
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(jjB,iiB) &
+!$OMP             SHARED(homo,ispin,my_B_size,kspin,B_ia_Q,BIb_C,my_group_L_size)
                DO jjB = 1, homo(kspin)
                   DO iiB = 1, my_B_size(kspin)
                      B_ia_Q(kspin)%array(jjB, iiB, 1:my_group_L_size) = BIb_C(kspin)%array(1:my_group_L_size, iiB, jjB)
                   END DO
                END DO
+!$OMP END PARALLEL DO
                DEALLOCATE (BIb_C(kspin)%array)
             END DO
 
@@ -572,9 +594,11 @@ CONTAINS
 
                   CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(kspin)%array(:, :, start_point:end_point), &
                                    proc_send, BIb_C(kspin)%array, proc_receive, para_env_rep%group)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(mp2_env,kspin,homo,my_B_size,my_group_L_size,BIb_C)
                   mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) = &
                      mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) &
                      + BIb_C(kspin)%array(:, :, :)
+!$OMP END PARALLEL WORKSHARE
                END DO
                DEALLOCATE (BIb_C(kspin)%array)
             END DO
@@ -594,12 +618,16 @@ CONTAINS
                ALLOCATE (BIb_C(ispin)%array(my_group_L_size, my_B_size(ispin), homo(ispin)))
                BIb_C(ispin)%array = 0.0_dp
                ! copy the integrals (ia|Q) back
+!$OMP PARALLEL DO DEFAULT(NONE) &
+!$OMP             PRIVATE(iiB,jjB) &
+!$OMP             SHARED(homo,ispin,my_B_size,BIb_C,B_ia_Q)
                DO jjB = 1, homo(ispin)
                   DO iiB = 1, my_B_size(ispin)
                      BIb_C(ispin)%array(:, iiB, jjB) = &
                         B_ia_Q(ispin)%array(jjB, iiB, :)
                   END DO
                END DO
+!$OMP END PARALLEL DO
                DEALLOCATE(B_ia_Q(ispin)%array)
             END IF
             DEALLOCATE(B_ia_Q)
@@ -648,7 +676,7 @@ CONTAINS
 
    END SUBROUTINE mp2_ri_gpw_compute_en
 
-   PURE SUBROUTINE copy_BIC_to_local_aL(local_aL, BI_C, info_array, my_B_size)
+   SUBROUTINE copy_BIC_to_local_aL(local_aL, BI_C, info_array, my_B_size)
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT) :: local_aL
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)    :: BI_C
       INTEGER, DIMENSION(:, :), INTENT(IN)             :: info_array
@@ -663,7 +691,9 @@ CONTAINS
          start_point = info_array(3, irep)
          end_point = info_array(4, irep)
 
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(local_aL,Lstart_pos,Lend_pos,BI_C,start_point,end_point,my_B_size)
          local_aL(Lstart_pos:Lend_pos, :, :) = BI_C(start_point:end_point, 1:my_B_size, :)
+!$OMP END PARALLEL WORKSHARE
   
       END DO
 
@@ -802,8 +832,10 @@ CONTAINS
          start_point = my_info(3, proc_shift)
          end_point = my_info(4, proc_shift)
 
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(BIb_C,BIb_C_gather,start_point,end_point,my_B_size,homo,proc_receive)
          BIb_C(start_point:end_point, 1:my_B_size, 1:homo) = &
             BIb_C_gather(1:end_point - start_point + 1, 1:my_B_size, 1:homo, proc_receive)
+!$OMP END PARALLEL WORKSHARE
 
       END DO
 
@@ -1366,6 +1398,8 @@ CONTAINS
          factor = 2.0_dp
       ENDIF
       ! divide the (ia|jb) integrals by Delta_ij^ab
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(b,b_global,a) &
+!$OMP             SHARED(my_B_size,jspin,ispin,my_B_virtual_start,virtual,local_ab,Eigenval,homo,my_i,my_j,iiB,jjB)
       DO b = 1, my_B_size(jspin)
          b_global = b + my_B_virtual_start(ispin) - 1
          DO a = 1, virtual(ispin)
@@ -1374,6 +1408,7 @@ CONTAINS
                            - Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, jspin))
          END DO
       END DO
+!$OMP END PARALLEL DO
       IF (.NOT. alpha_beta) THEN
          ! update diagonal part of P_ij
          P_ij_diag = -SUM(local_ab*t_ab)*factor
@@ -1381,6 +1416,8 @@ CONTAINS
          ! update diagonal part of P_ij
          P_ij_diag = -SUM(local_ab*local_ab)*mp2_env%scale_S
          ! More integrals needed only for alpha-beta case: local_ba
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(b,b_global,a) &
+!$OMP             SHARED(my_B_size,jspin,ispin,my_B_virtual_start,virtual,local_ba,Eigenval,homo,my_i,my_j,iiB,jjB)
          DO b = 1, my_B_size(ispin)
             b_global = b + my_B_virtual_start(ispin) - 1
             DO a = 1, virtual(jspin)
@@ -1389,6 +1426,7 @@ CONTAINS
                - Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, jspin))
             END DO
          END DO
+!$OMP END PARALLEL DO
       ENDIF
 
       ! P_ab and add diagonal part of P_ij
@@ -1413,16 +1451,16 @@ CONTAINS
       ELSE ! Alpha-beta case
          CALL dgemm('T', 'N', my_B_size(ispin), my_B_size(ispin), virtual(jspin), mp2_env%scale_S, &
                     local_ba, virtual(jspin), local_ba, virtual(jspin), 1.0_dp, &
-                    mp2_env%ri_grad%P_ab(1)%array(:, my_B_virtual_start(ispin): &
+                    mp2_env%ri_grad%P_ab(ispin)%array(:, my_B_virtual_start(ispin): &
                                                   my_B_virtual_end(ispin)), my_B_size(ispin))
-         mp2_env%ri_grad%P_ij(1)%array(my_i + iiB - 1, my_i + iiB - 1) = &
-            mp2_env%ri_grad%P_ij(1)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
+         mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) = &
+            mp2_env%ri_grad%P_ij(ispin)%array(my_i + iiB - 1, my_i + iiB - 1) + P_ij_diag
          CALL dgemm('T', 'N', my_B_size(jspin), my_B_size(jspin), virtual(ispin), mp2_env%scale_S, &
                     local_ab, virtual(ispin), local_ab, virtual(ispin), 1.0_dp, &
-                    mp2_env%ri_grad%P_ab(2)%array(:, my_B_virtual_start(jspin): &
+                    mp2_env%ri_grad%P_ab(jspin)%array(:, my_B_virtual_start(jspin): &
                                                   my_B_virtual_end(jspin)), my_B_size(jspin))
-         mp2_env%ri_grad%P_ij(2)%array(my_j + jjB - 1, my_j + jjB - 1) = &
-            mp2_env%ri_grad%P_ij(2)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
+         mp2_env%ri_grad%P_ij(jspin)%array(my_j + jjB - 1, my_j + jjB - 1) = &
+            mp2_env%ri_grad%P_ij(jspin)%array(my_j + jjB - 1, my_j + jjB - 1) + P_ij_diag
       ENDIF
       DO proc_shift = 1, para_env_sub%num_pe - 1
          proc_send = sub_proc_map(para_env_sub%mepos + proc_shift)
@@ -1457,7 +1495,9 @@ CONTAINS
                CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, &
                                 para_env_sub%group)
 
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(mp2_env,ispin,external_ab)
                mp2_env%ri_grad%P_ab(ispin)%array(:, :) = mp2_env%ri_grad%P_ab(ispin)%array + external_ab
+!$OMP END PARALLEL WORKSHARE
 
                DEALLOCATE (external_ab)
                DEALLOCATE (send_ab)
@@ -1526,7 +1566,9 @@ CONTAINS
                        my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size)
          ENDIF
          CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(Y_i_aP,external_ab)
          Y_i_aP(:, :) = Y_i_aP + external_ab
+!$OMP END PARALLEL WORKSHARE
          DEALLOCATE (send_ab)
       END DO
       DEALLOCATE (external_ab)
@@ -1547,7 +1589,9 @@ CONTAINS
                        local_ba(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                        my_local_i_aL, dimen_RI, 0.0_dp, send_B_size)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
+!$OMP PARALLEL WORKSHARE DEFAULT(NONE) SHARED(Y_j_aP,external_ab)
             Y_j_aP(:, :) = Y_j_aP + external_ab
+!$OMP END PARALLEL WORKSHARE
             DEALLOCATE (send_ab)
 
          END DO
