@@ -166,7 +166,7 @@ CONTAINS
                                                             use_virial
       REAL(KIND=dp)                                      :: cutoff_old, e_hartree, eps_filter, &
                                                             factor, omega, pair_energy, radius, &
-                                                            relative_cutoff_old, total_rho
+                                                            rcutoff, relative_cutoff_old, total_rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, I_ab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
@@ -214,6 +214,7 @@ CONTAINS
       virtual(:) = dimen - homo(:)
       potential_type = mp2_env%potential_parameter%potential_type
       omega = mp2_env%potential_parameter%omega
+      rcutoff = mp2_env%potential_parameter%cutoff_radius
       eps_filter = mp2_env%mp2_gpw%eps_filter
       ALLOCATE (mo_coeff_o(nspins), mo_coeff_v(nspins), G_P_ia(nspins, my_group_L_size))
       DO ispin = 1, nspins
@@ -400,7 +401,7 @@ CONTAINS
                rho_r%pw%cr3d = rho_r%pw%cr3d*0.5_dp
                CALL pw_transfer(rho_r%pw, rho_g%pw)
             END IF
-            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega)
+            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega, rcutoff)
             CALL timestop(handle3)
 
             IF (use_virial) THEN
@@ -486,7 +487,7 @@ CONTAINS
                                     ks_env=ks_env)
             ! calculate associated hartree potential
             !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega)
+            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega, rcutoff)
             CALL timestop(handle3)
 
             IF (use_virial) THEN

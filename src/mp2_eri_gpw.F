@@ -25,7 +25,8 @@ MODULE mp2_eri_gpw
    USE input_constants,                 ONLY: do_potential_coulomb,&
                                               do_potential_id,&
                                               do_potential_long,&
-                                              do_potential_short
+                                              do_potential_short,&
+                                              do_potential_truncated
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
@@ -38,7 +39,8 @@ MODULE mp2_eri_gpw
    USE pw_methods,                      ONLY: pw_compl_gauss_damp,&
                                               pw_gauss_damp,&
                                               pw_scale,&
-                                              pw_transfer
+                                              pw_transfer,&
+                                              pw_truncated
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -101,12 +103,14 @@ CONTAINS
 !> \param pot_g ...
 !> \param ri_metric ...
 !> \param omega_metric ...
+!> \param rcutoff_metric ...
 !> \param mat_munu ...
 !> \param qs_env ...
 !> \param task_list_sub ...
 ! **************************************************************************************************
    SUBROUTINE mp2_eri_3c_integrate_gpw(mo_coeff, psi_L, rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
-                                       pw_env_sub, external_vector, poisson_env, rho_r, pot_g, ri_metric, omega_metric, mat_munu, &
+                                       pw_env_sub, external_vector, poisson_env, rho_r, pot_g, &
+                                       ri_metric, omega_metric, rcutoff_metric, mat_munu, &
                                        qs_env, task_list_sub)
 
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -121,7 +125,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, pot_g
       INTEGER, INTENT(IN)                                :: ri_metric
-      REAL(KIND=dp), INTENT(IN)                          :: omega_metric
+      REAL(KIND=dp), INTENT(IN)                          :: omega_metric, rcutoff_metric
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
@@ -138,7 +142,7 @@ CONTAINS
                                   basis_type="RI_AUX", &
                                   external_vector=external_vector)
 
-      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, ri_metric, omega_metric)
+      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, ri_metric, omega_metric, rcutoff_metric)
 
       ! and finally (K|mu nu)
       CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
@@ -166,7 +170,7 @@ CONTAINS
 !> \param kind_of ...
 ! **************************************************************************************************
    SUBROUTINE mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, dimen_RI, mo_coeff, my_group_L_start, my_group_L_end, ri_metric, &
-                                       natom, omega, sab_orb_sub, L_local_col, kind_of)
+                                       natom, omega, rcutoff, sab_orb_sub, L_local_col, kind_of)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
@@ -174,7 +178,7 @@ CONTAINS
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
                                                             ri_metric, natom
-      REAL(KIND=dp), INTENT(IN)                          :: omega
+      REAL(KIND=dp), INTENT(IN)                          :: omega, rcutoff
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: L_local_col
@@ -235,7 +239,7 @@ CONTAINS
 
          CALL timeset(routineN//"_pot_lm", handle2)
 
-         CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, ri_metric, omega)
+         CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, ri_metric, omega, rcutoff)
 
          NULLIFY (rs_v)
          NULLIFY (rs_descs)
@@ -722,13 +726,14 @@ CONTAINS
 !> \param pot_g on output: potential in g space
 !> \param potential_type ...
 !> \param omega ...
+!> \param rcutoff ...
 ! **************************************************************************************************
-   SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_type, omega)
+   SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_type, omega, rcutoff)
       TYPE(pw_p_type), INTENT(IN)                        :: pot_r, rho_g
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_p_type), INTENT(IN)                        :: pot_g
       INTEGER, INTENT(IN), OPTIONAL                      :: potential_type
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega
+      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega, rcutoff
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_potential_gpw'
 
@@ -750,6 +755,7 @@ CONTAINS
          CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g%pw)
          IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g%pw, omega)
          IF (my_potential_type == do_potential_short) CALL pw_compl_gauss_damp(pot_g%pw, omega)
+         IF (my_potential_type == do_potential_truncated) CALL pw_truncated(pot_g%pw, rcutoff)
          CALL pw_transfer(pot_g%pw, pot_r%pw)
       ELSE
          ! If we use an overlap metric, make sure to use the correct potential=density on output

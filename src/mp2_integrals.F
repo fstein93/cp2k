@@ -631,7 +631,8 @@ CONTAINS
 
                CALL mp2_eri_3c_integrate_gpw(mo_coeff(1)%matrix, psi_L, rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, &
                                              particle_set, pw_env_sub, my_Lrows(:, i_counter), poisson_env, rho_r, pot_g, &
-                                             ri_metric%potential_type, ri_metric%omega, mat_munu, qs_env, task_list_sub)
+                                             ri_metric%potential_type, ri_metric%omega, ri_metric%cutoff_radius, &
+                                             mat_munu, qs_env, task_list_sub)
 
                DO ispin = 1, nspins
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, intermed_mat(ispin), &

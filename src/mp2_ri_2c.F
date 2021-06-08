@@ -792,7 +792,7 @@ CONTAINS
 
          CALL mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, dimen_RI, mo_coeff, my_group_L_start, my_group_L_end, &
                                        potential_type, &
-                                       natom, potential%omega, sab_orb_sub, L_local_col, kind_of)
+                                       natom, potential%omega, potential%cutoff_radius, sab_orb_sub, L_local_col, kind_of)
 
       ELSE
          CPABORT("unknown ERI method")

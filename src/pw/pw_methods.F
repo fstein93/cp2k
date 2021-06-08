@@ -68,7 +68,7 @@ MODULE pw_methods
    PUBLIC :: pw_gauss_damp, pw_compl_gauss_damp, pw_derive, pw_dr2, pw_write, pw_multiply
    PUBLIC :: pw_integral_ab, pw_integral_a2b
    PUBLIC :: pw_dr2_gg, pw_integrate_function
-   PUBLIC :: pw_set
+   PUBLIC :: pw_set, pw_truncated
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'pw_methods'
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
@@ -497,6 +497,62 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_compl_gauss_damp
+
+! **************************************************************************************************
+!> \brief Multiply all data points with a complementary cosine
+!>        Needed for truncated Coulomb potential
+!>        V(\vec r)=1/r if r<rc, 0 else
+!>        V(\vec g)=\frac{4*\pi}{g**2}*(1-cos(g*rc))
+!> \param pw ...
+!> \param omega ...
+!> \par History
+!>      Frederick Stein (07-06-2021) created
+!> \author Frederick Stein (07-Jun-2021)
+!> \note
+!>      Multiplies by complementary cosine
+!>      PW has to be in RECIPROCALSPACE and data in use is COMPLEXDATA1D
+! **************************************************************************************************
+   SUBROUTINE pw_truncated(pw, rcutoff)
+
+      TYPE(pw_type), INTENT(INOUT)                       :: pw
+      REAL(KIND=dp), INTENT(IN)                          :: rcutoff
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gauss_damp'
+
+      INTEGER                                            :: cnt, handle, i, n_cos, n_sqrt
+      REAL(KIND=dp)                                      :: flop
+
+      CALL timeset(routineN, handle)
+      CPASSERT(pw%ref_count > 0)
+      CPASSERT(rcutoff >= 0)
+
+      flop = 0.0_dp
+      n_cos = 0
+      n_sqrt = 0
+
+      IF (pw%in_space == RECIPROCALSPACE .AND. &
+          pw%in_use == COMPLEXDATA1D) THEN
+
+         cnt = SIZE(pw%cc)
+
+!$OMP PARALLEL DO PRIVATE(i) DEFAULT(NONE) SHARED(cnt, pw, rcutoff)
+         DO i = 1, cnt
+            pw%cc(i) = pw%cc(i)*(1.0_dp-COS(SQRT(pw%pw_grid%gsq(i))*rcutoff))
+         END DO
+         flop = flop + 2*cnt
+         n_sqrt = n_sqrt + cnt
+         n_cos = n_cos + cnt
+
+      ELSE
+
+         CPABORT("No suitable data field")
+
+      END IF
+
+      flop = flop*1.e-6_dp
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_truncated
 
 ! **************************************************************************************************
 !> \brief Calculate the derivative of a plane wave vector
