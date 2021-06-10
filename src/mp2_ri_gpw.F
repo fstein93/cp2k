@@ -1803,7 +1803,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
-      INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, jjb, kkk, Lend_pos, lll, &
+      INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, kkk, lll, &
          Lstart_pos, proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, &
          rec_j, send_L_size, start_point, my_B_size_i, my_B_size_j
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, BI_C_send
@@ -1821,33 +1821,23 @@ CONTAINS
          CALL timeset(routineN//"_comm2_w", handle2)
          DO irep = 0, num_integ_group - 1
             Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
-            Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
             start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
             end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
-            DO iiB = 1, my_block_size
-!$OMP           PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
-!$OMP                                     SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                            mp2_env,my_i,iiB,my_B_size_i,Y_i_aP,ispin)
-               DO kkk = start_point, end_point
-                  lll = kkk - start_point + Lstart_pos
+!$OMP       PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll,iiB) &
+!$OMP                                 SHARED(start_point,end_point,Lstart_pos,my_block_size,&
+!$OMP                                        mp2_env,my_i,my_j,my_B_size_i,my_B_size_j,Y_i_aP,Y_j_aP,ispin,jspin)
+            DO kkk = start_point, end_point
+               lll = kkk - start_point + Lstart_pos
+               DO iiB = 1, my_block_size
                   mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, 1:my_B_size_i, kkk) = &
                      mp2_env%ri_grad%Gamma_P_ia(ispin)%array(my_i + iiB - 1, 1:my_B_size_i, kkk) + &
                      Y_i_aP(1:my_B_size_i, lll, iiB)
+                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + iiB - 1, 1:my_B_size_j, kkk) = &
+                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + iiB - 1, 1:my_B_size_j, kkk) + &
+                     Y_j_aP(1:my_B_size_j, lll, iiB)
                END DO
-!$OMP           END PARALLEL DO
             END DO
-            DO jjB = 1, my_block_size
-!$OMP              PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
-!$OMP                                        SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                               mp2_env,my_j,jjB,my_B_size_j,Y_j_aP,jspin)
-                  DO kkk = start_point, end_point
-                     lll = kkk - start_point + Lstart_pos
-                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, 1:my_B_size_j, kkk) = &
-                        mp2_env%ri_grad%Gamma_P_ia(jspin)%array(my_j + jjB - 1, 1:my_B_size_j, kkk) + &
-                        Y_j_aP(1:my_B_size_j, lll, jjB)
-                  END DO
 !$OMP              END PARALLEL DO
-            END DO
          END DO
          CALL timestop(handle2)
 
@@ -1863,29 +1853,19 @@ CONTAINS
             BI_C_send = 0.0_dp
             DO irep = 0, num_integ_group - 1
                Lstart_pos = ranges_info_array(1, irep, proc_send)
-               Lend_pos = ranges_info_array(2, irep, proc_send)
                start_point = ranges_info_array(3, irep, proc_send)
                end_point = ranges_info_array(4, irep, proc_send)
-               DO iiB = 1, my_block_size
-!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
-!$OMP                                       SHARED(start_point,end_point,Lstart_pos,Lend_pos,&
-!$OMP                                              BI_C_send,iiB,my_B_size_i,Y_i_aP)
-                  DO kkk = start_point, end_point
-                     lll = kkk - start_point + Lstart_pos
+!$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll,iiB) &
+!$OMP                                       SHARED(start_point,end_point,Lstart_pos,my_block_size,&
+!$OMP                                              BI_C_send,my_B_size_i,my_B_size_j,Y_i_aP,Y_j_aP)
+               DO kkk = start_point, end_point
+                  lll = kkk - start_point + Lstart_pos
+                  DO iiB = 1, my_block_size
                      BI_C_send(iiB, 1:my_B_size_i, kkk) = Y_i_aP(1:my_B_size_i, lll, iiB)
+                     BI_C_send(iiB, my_B_size_i+1:, kkk) = Y_j_aP(1:my_B_size_j, lll, iiB)
                   END DO
-!$OMP             END PARALLEL DO
                END DO
-               DO jjB = 1, my_block_size
-!$OMP                PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll) &
-!$OMP                                          SHARED(start_point,end_point,Lstart_pos,Lend_pos,my_block_size,&
-!$OMP                                                 BI_C_send,jjB,my_B_size_i,my_B_size_j,Y_j_aP)
-                     DO kkk = start_point, end_point
-                        lll = kkk - start_point + Lstart_pos
-                        BI_C_send(jjB, my_B_size_i+1:, kkk) = Y_j_aP(1:my_B_size_j, lll, jjB)
-                     END DO
 !$OMP                END PARALLEL DO
-               END DO
             END DO
             CALL timestop(handle2)
 
@@ -1909,32 +1889,21 @@ CONTAINS
 
                CALL timeset(routineN//"_comm2_w", handle2)
                DO irep = 0, num_integ_group - 1
-                  Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
-                  Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
-                  DO iiB = 1, rec_block_size
-!$OMP               PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
-!$OMP                                         SHARED(start_point,end_point,&
-!$OMP                                                mp2_env,rec_i,iiB,my_B_size_i,BI_C_rec, ispin)
-                     DO kkk = start_point, end_point
-                        mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i + iiB - 1, 1:my_B_size_i, kkk) = &
-                           mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i + iiB - 1, 1:my_B_size_i, kkk) + &
-                           BI_C_rec(iiB, 1:my_B_size_i, kkk)
-                     END DO
-!$OMP               END PARALLEL DO
-                  END DO
-                  DO jjB = 1, rec_block_size
-!$OMP                   PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
-!$OMP                                             SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                                    mp2_env,rec_j,jjB,my_B_size_j,my_B_size_i,BI_C_rec, jspin)
-                        DO kkk = start_point, end_point
-                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, 1:my_B_size_j, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, 1:my_B_size_j, kkk) + &
-                              BI_C_rec(jjB, my_B_size_i+1:, kkk)
-                        END DO
-!$OMP                   END PARALLEL DO
-                  END DO
+!$OMP             PARALLEL DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
+!$OMP                                           mp2_env,rec_i,rec_j,iiB,my_B_size_i,BI_C_rec,ispin,jspin)
+!$OMP             WORKSHARE
+                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i+rec_block_size - 1, :, start_point:end_point) = &
+                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i+rec_block_size - 1, :, start_point:end_point) + &
+                     BI_C_rec(:, 1:my_B_size_i, start_point:end_point)
+!$OMP             END WORKSHARE NOWAIT
+!$OMP             WORKSHARE
+                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j+rec_block_size - 1, :, start_point:end_point) = &
+                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j+rec_block_size - 1, :, start_point:end_point) + &
+                     BI_C_rec(:, my_B_size_i+1:, start_point:end_point)
+!$OMP             END WORKSHARE NOWAIT
+!$OMP             END PARALLEL
                END DO
                CALL timestop(handle2)
 
@@ -1978,32 +1947,21 @@ CONTAINS
 
                CALL timeset(routineN//"_comm2_w", handle2)
                DO irep = 0, num_integ_group - 1
-                  Lstart_pos = ranges_info_array(1, irep, para_env_exchange%mepos)
-                  Lend_pos = ranges_info_array(2, irep, para_env_exchange%mepos)
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
-                  DO iiB = 1, rec_block_size
-!$OMP               PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
-!$OMP                                         SHARED(start_point,end_point,&
-!$OMP                                                mp2_env,rec_i,iiB,my_B_size_i,BI_C_rec,ispin)
-                     DO kkk = start_point, end_point
-                        mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i + iiB - 1, 1:my_B_size_i, kkk) = &
-                           mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i + iiB - 1, 1:my_B_size_i, kkk) + &
-                           BI_C_rec(iiB, 1:my_B_size_i, kkk)
-                     END DO
-!$OMP               END PARALLEL DO
-                  END DO
-                  DO jjB = 1, rec_block_size
-!$OMP                  PARALLEL DO DEFAULT(NONE) PRIVATE(kkk) &
-!$OMP                                         SHARED(start_point,end_point,rec_block_size,&
-!$OMP                                                mp2_env,rec_j,jjB,my_B_size_i,my_B_size_j,BI_C_rec,jspin)
-                        DO kkk = start_point, end_point
-                           mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, 1:my_B_size_j, kkk) = &
-                              mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j + jjB - 1, 1:my_B_size_j, kkk) + &
-                              BI_C_rec(jjB, my_B_size_i+1:, kkk)
-                        END DO
-!$OMP                  END PARALLEL DO
-                  END DO
+!$OMP             PARALLEL DEFAULT(NONE) SHARED(start_point,end_point,rec_block_size,&
+!$OMP                                           mp2_env,rec_i,rec_j,iiB,my_B_size_i,BI_C_rec,ispin,jspin)
+!$OMP             WORKSHARE
+                  mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i+rec_block_size - 1, :, start_point:end_point) = &
+                     mp2_env%ri_grad%Gamma_P_ia(ispin)%array(rec_i:rec_i+rec_block_size - 1, :, start_point:end_point) + &
+                     BI_C_rec(:, 1:my_B_size_i, start_point:end_point)
+!$OMP             END WORKSHARE NOWAIT
+!$OMP             WORKSHARE
+                  mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j+rec_block_size - 1, :, start_point:end_point) = &
+                     mp2_env%ri_grad%Gamma_P_ia(jspin)%array(rec_j:rec_j+rec_block_size - 1, :, start_point:end_point) + &
+                     BI_C_rec(:, my_B_size_i+1:, start_point:end_point)
+!$OMP             END WORKSHARE NOWAIT
+!$OMP             END PARALLEL
                END DO
                CALL timestop(handle2)
 
