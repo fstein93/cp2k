@@ -96,7 +96,7 @@ CONTAINS
       INTEGER :: a, a_global, b, b_global, best_block_size, best_integ_group_size, block_size, &
          end_point, handle, handle2, handle3, iiB, ij_counter, ij_counter_send, ij_index, &
          integ_group_size, irep, ispin, jjB, jspin, kspin, Lend_pos, Lstart_pos, max_ij_pairs, &
-         min_integ_group_size, my_B_size(2), my_B_virtual_end(2), my_B_virtual_start(2), &
+         min_integ_group_size, &
          my_block_size, my_group_L_end, my_group_L_size, my_group_L_size_orig, my_group_L_start, &
          my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, &
          num_IJ_blocks, num_integ_group, pos_integ_group, proc_receive, proc_send, proc_shift, &
@@ -106,7 +106,8 @@ CONTAINS
          start_point, sub_P_color, sub_sub_color, tag, total_ij_pairs
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: integ_group_pos2color_sub, num_ij_pairs, &
                                                             proc_map, proc_map_rep, &
-                                                            sizes_array_orig, sub_proc_map, virtual
+                                                            sizes_array_orig, sub_proc_map, virtual, &
+                                                            my_B_size, my_B_virtual_start, my_B_virtual_end
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: ij_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: ranges_info_array
       LOGICAL                                            :: my_alpha_alpha_case, my_alpha_beta_case, &
@@ -128,6 +129,12 @@ CONTAINS
 
       ALLOCATE (virtual(nspins))
       virtual(:) = nmo - homo(:)
+
+      ALLOCATE(my_B_size(nspins), my_B_virtual_start(nspins), my_B_virtual_end(nspins))
+      DO ispin = 1, nspins
+         CALL get_group_dist(gd_B_virtual(ispin), para_env_sub%mepos, &
+                             my_B_virtual_start(ispin), my_B_virtual_end(ispin), my_B_size(ispin))
+      END DO
 
       CALL dgemm_counter_init(dgemm_counter)
 
@@ -163,15 +170,6 @@ CONTAINS
             my_group_L_start, my_group_L_end, ngroup, num_IJ_blocks, &
             num_integ_group, pos_integ_group, virtual(ispin), my_alpha_beta_case, &
             my_open_shell_SS, mem_for_aK, mem_for_comm, mem_for_iaK, mem_for_rep, mem_min, mem_per_group, mem_real)
-
-         IF (my_alpha_beta_case) THEN
-            CALL get_group_dist(gd_B_virtual(jspin), para_env_sub%mepos, &
-                                my_B_virtual_start(jspin), my_B_virtual_end(jspin), my_B_size(jspin))
-         ELSE
-            my_B_virtual_start(2) = my_B_virtual_start(1)
-            my_B_virtual_end(2) = my_B_virtual_end(1)
-            my_B_size(2) = my_B_size(1)
-         END IF
 
          ! now create a group that contains all the proc that have the same virtual starting point
          ! in the integ group
@@ -327,7 +325,7 @@ CONTAINS
                END DO
                CALL timestop(handle3)
 
-               ALLOCATE(my_local_i_aL(dimen_RI, my_B_size(1)), my_local_j_aL(dimen_RI, my_B_size(2)))
+               ALLOCATE(my_local_i_aL(dimen_RI, my_B_size(ispin)), my_local_j_aL(dimen_RI, my_B_size(jspin)))
 
                ! loop over the block elements
                DO iiB = 1, my_block_size
@@ -405,8 +403,8 @@ CONTAINS
                      sym_fac = 2.0_dp
                      IF (my_i == my_j) sym_fac = 1.0_dp
                      IF (my_alpha_beta_case) sym_fac = 0.5_dp
-                     DO b = 1, my_B_size(2)
-                        b_global = b + my_B_virtual_start(2) - 1
+                     DO b = 1, my_B_size(jspin)
+                        b_global = b + my_B_virtual_start(jspin) - 1
                         DO a = 1, virtual(ispin)
                            my_Emp2_Cou = my_Emp2_Cou - sym_fac*2.0_dp*local_ab(a, b)**2/ &
                                          (Eigenval(homo(ispin) + a, ispin) + Eigenval(homo(jspin) + b_global, jspin) - &
@@ -488,7 +486,7 @@ CONTAINS
                                                    local_ab, t_ab, my_local_i_aL, my_local_j_aL, &
                                                    my_open_shell_ss, my_alpha_alpha_case, &
                                                    my_beta_beta_case, Y_i_aP(:, :, iiB), Y_j_aP(:, :, jjB), &
-                                                   Eigenval(:, jspin), homo(jspin), my_B_size(2), &
+                                                   Eigenval(:, jspin), homo(jspin), my_B_size(jspin), &
                                                    gd_B_virtual(jspin), &
                                                    my_B_virtual_start(jspin), my_B_virtual_end(jspin), virtual(jspin), local_ba)
                         ENDIF
@@ -624,7 +622,7 @@ CONTAINS
                ALLOCATE (B_ia_Q_beta(homo(jspin), my_B_size(jspin), my_group_L_size))
                B_ia_Q_beta = 0.0_dp
                DO jjB = 1, homo(jspin)
-                  DO iiB = 1, my_B_size(2)
+                  DO iiB = 1, my_B_size(jspin)
                      B_ia_Q_beta(jjB, iiB, 1:my_group_L_size) = &
                         BIb_C(jspin)%array(1:my_group_L_size, iiB, jjB)
                   END DO
@@ -1832,7 +1830,7 @@ CONTAINS
             proc_receive = proc_map(para_env_exchange%mepos - proc_shift)
 
             send_L_size = sizes_array(proc_send)
-            ALLOCATE (BI_C_send(my_block_size, SUM(my_B_size), send_L_size))
+            ALLOCATE (BI_C_send(my_block_size, my_B_size_i+my_B_size_j, send_L_size))
             CALL timeset(routineN//"_comm2_w", handle2)
             BI_C_send = 0.0_dp
             DO irep = 0, num_integ_group - 1
@@ -1841,7 +1839,7 @@ CONTAINS
                end_point = ranges_info_array(4, irep, proc_send)
 !$OMP             PARALLEL DO DEFAULT(NONE) PRIVATE(kkk,lll,iiB) &
 !$OMP                                       SHARED(start_point,end_point,Lstart_pos,my_block_size,&
-!$OMP                                              BI_C_send,my_B_size_i,my_B_size_j,Y_i_aP,Y_j_aP)
+!$OMP                                              BI_C_send,my_B_size_i,my_B_size_j,Y_i_aP,Y_j_aP,my_B_size)
                DO kkk = start_point, end_point
                   lll = kkk - start_point + Lstart_pos
                   DO iiB = 1, my_block_size
@@ -1864,7 +1862,7 @@ CONTAINS
                rec_j = ij_map(ij_counter_rec, 2)
                rec_block_size = ij_map(ij_counter_rec, 3)
 
-               ALLOCATE (BI_C_rec(rec_block_size, SUM(my_B_size), my_group_L_size))
+               ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i+my_B_size_j, my_group_L_size))
                BI_C_rec = 0.0_dp
 
                CALL mp_sendrecv(BI_C_send, proc_send, &
@@ -1918,7 +1916,7 @@ CONTAINS
                rec_j = ij_map(ij_counter_rec, 2)
                rec_block_size = ij_map(ij_counter_rec, 3)
 
-               ALLOCATE (BI_C_rec(rec_block_size, SUM(my_B_size), my_group_L_size))
+               ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i+my_B_size_j, my_group_L_size))
 
                BI_C_rec = 0.0_dp
 
