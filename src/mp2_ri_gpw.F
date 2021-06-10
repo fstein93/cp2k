@@ -416,10 +416,10 @@ CONTAINS
                         ! contract integrals with orbital energies for exchange MP2 energy
                         ! starting with local ...
                         IF (calc_forces .AND. (.NOT. my_alpha_beta_case)) t_ab = 0.0_dp
-                        DO b = 1, my_B_size(1)
-                           b_global = b + my_B_virtual_start(1) - 1
-                           DO a = 1, my_B_size(1)
-                              a_global = a + my_B_virtual_start(1) - 1
+                        DO b = 1, my_B_size(ispin)
+                           b_global = b + my_B_virtual_start(ispin) - 1
+                           DO a = 1, my_B_size(ispin)
+                              a_global = a + my_B_virtual_start(ispin) - 1
                               my_Emp2_Ex = my_Emp2_Ex + sym_fac*local_ab(a_global, b)*local_ab(b_global, a)/ &
                                            (Eigenval(homo(ispin) + a_global, ispin) + Eigenval(homo(ispin) + b_global, ispin) - &
                                             Eigenval(my_i + iiB - 1, ispin) - Eigenval(my_j + jjB - 1, ispin))
@@ -438,15 +438,15 @@ CONTAINS
                           CALL get_group_dist(gd_B_virtual(ispin), proc_receive, rec_B_virtual_start, rec_B_virtual_end, rec_B_size)
                           CALL get_group_dist(gd_B_virtual(ispin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
 
-                           ALLOCATE (external_ab(my_B_size(1), rec_B_size))
+                           ALLOCATE (external_ab(my_B_size(ispin), rec_B_size))
                            external_ab = 0.0_dp
 
-                           CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(1)), proc_send, &
-                                            external_ab(1:my_B_size(1), 1:rec_B_size), proc_receive, &
+                           CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(ispin)), proc_send, &
+                                            external_ab(1:my_B_size(ispin), 1:rec_B_size), proc_receive, &
                                             para_env_sub%group)
 
-                           DO b = 1, my_B_size(1)
-                              b_global = b + my_B_virtual_start(1) - 1
+                           DO b = 1, my_B_size(ispin)
+                              b_global = b + my_B_virtual_start(ispin) - 1
                               DO a = 1, rec_B_size
                                  a_global = a + rec_B_virtual_start - 1
                                  my_Emp2_Ex = my_Emp2_Ex + sym_fac*local_ab(a_global, b)*external_ab(b, a)/ &
@@ -564,7 +564,7 @@ CONTAINS
                CALL quasi_degenerate_P_ij( &
                   mp2_env, Eigenval(:, ispin), homo(ispin), virtual(ispin), my_open_shell_ss, &
                   my_beta_beta_case, my_alpha_beta_case, Bib_C(ispin)%array, unit_nr, dimen_RI, &
-                  my_B_size(1), ngroup, num_integ_group, my_group_L_size, &
+                  my_B_size(ispin), ngroup, num_integ_group, my_group_L_size, &
                   color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
                   my_B_virtual_start(ispin), my_B_virtual_end(ispin), gd_array%sizes, gd_B_virtual(ispin), &
                   sub_proc_map, integ_group_pos2color_sub, local_ab)
@@ -572,7 +572,7 @@ CONTAINS
                CALL quasi_degenerate_P_ij( &
                   mp2_env, Eigenval(:, ispin), homo(ispin), virtual(ispin), my_open_shell_ss, &
                   my_beta_beta_case, my_alpha_beta_case, Bib_C(ispin)%array, unit_nr, dimen_RI, &
-                  my_B_size(1), ngroup, num_integ_group, my_group_L_size, &
+                  my_B_size(ispin), ngroup, num_integ_group, my_group_L_size, &
                   color_sub, ranges_info_array, para_env_exchange, para_env_sub, proc_map, &
                   my_B_virtual_start(ispin), my_B_virtual_end(ispin), gd_array%sizes, gd_B_virtual(ispin), &
                   sub_proc_map, integ_group_pos2color_sub, local_ab, BIb_C(jspin)%array, my_B_size(jspin), &
