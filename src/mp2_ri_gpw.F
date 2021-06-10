@@ -288,7 +288,7 @@ CONTAINS
                      END DO
 
                   ELSE
-                     ! we send the null matrix while we know that we have to receive something
+                     ! we send nothing while we know that we have to receive something
 
                      ! occupied i
                      BI_C_rec = 0.0_dp
