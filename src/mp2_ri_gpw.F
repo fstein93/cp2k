@@ -116,12 +116,12 @@ CONTAINS
          mem_for_rep, mem_min, mem_per_group, mem_real, my_Emp2_Cou, my_Emp2_EX, sym_fac
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: external_ab, external_i_aL, local_ab, &
                                                             local_ba, t_ab, my_local_i_aL, my_local_j_aL
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: B_ia_Q, B_ia_Q_beta, BI_C_rec, &
-                                                            local_i_aL, local_j_aL, Y_i_aP, &
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, local_i_aL, local_j_aL, Y_i_aP, &
                                                             Y_j_aP
       TYPE(cp_para_env_type), POINTER                    :: para_env_exchange, para_env_P, &
                                                             para_env_rep
       TYPE(dgemm_counter_type)                           :: dgemm_counter
+      TYPE(three_dim_real_array), ALLOCATABLE, DIMENSION(:) :: B_ia_Q
 
       CALL timeset(routineN, handle)
 
@@ -594,25 +594,18 @@ CONTAINS
 
             ! make a copy of the original integrals (ia|Q)
             my_group_L_size = my_group_L_size_orig
-            ALLOCATE (B_ia_Q(homo(ispin), my_B_size(ispin), my_group_L_size))
-            B_ia_Q = 0.0_dp
-            DO jjB = 1, homo(ispin)
-               DO iiB = 1, my_B_size(ispin)
-                  B_ia_Q(jjB, iiB, 1:my_group_L_size) = BIb_C(ispin)%array(1:my_group_L_size, iiB, jjB)
-               END DO
-            END DO
-            DEALLOCATE (BIb_C(ispin)%array)
-            IF (my_alpha_beta_case) THEN
-               ALLOCATE (B_ia_Q_beta(homo(jspin), my_B_size(jspin), my_group_L_size))
-               B_ia_Q_beta = 0.0_dp
-               DO jjB = 1, homo(jspin)
-                  DO iiB = 1, my_B_size(jspin)
-                     B_ia_Q_beta(jjB, iiB, 1:my_group_L_size) = &
-                        BIb_C(jspin)%array(1:my_group_L_size, iiB, jjB)
+            ALLOCATE(B_ia_Q(ispin:jspin))
+            DO kspin = ispin, jspin
+               ALLOCATE (B_ia_Q(kspin)%array(homo(kspin), my_B_size(kspin), my_group_L_size))
+               B_ia_Q(kspin)%array = 0.0_dp
+               DO jjB = 1, homo(kspin)
+                  DO iiB = 1, my_B_size(kspin)
+                     B_ia_Q(kspin)%array(jjB, iiB, 1:my_group_L_size) = &
+                        BIb_C(kspin)%array(1:my_group_L_size, iiB, jjB)
                   END DO
                END DO
-               DEALLOCATE (BIb_C(jspin)%array)
-            ENDIF
+               DEALLOCATE (BIb_C(kspin)%array)
+            ENDDO
 
             ! sum Gamma and dereplicate
             DO kspin = ispin, jspin
@@ -638,33 +631,29 @@ CONTAINS
             IF (my_alpha_beta_case) DEALLOCATE (BIb_C(jspin)%array)
 
             IF (.NOT. my_open_shell_ss) THEN
-               CALL complete_gamma(mp2_env, B_ia_Q, dimen_RI, homo(ispin), virtual(ispin), para_env, para_env_sub, ngroup, &
-                                   my_group_L_size, my_group_L_start, my_group_L_end, &
-                                   my_B_size(ispin), my_B_virtual_start(ispin), &
-                                   gd_array, gd_B_virtual(ispin), &
-                                   sub_proc_map, .TRUE.)
-               IF (my_alpha_beta_case) THEN
-                  CALL complete_gamma(mp2_env, B_ia_Q_beta, dimen_RI, homo(jspin), virtual(jspin), para_env, para_env_sub, &
-                                      ngroup, my_group_L_size, my_group_L_start, my_group_L_end, &
-                                      my_B_size(jspin), my_B_virtual_start(jspin), &
-                                      gd_array, gd_B_virtual(jspin), sub_proc_map, .FALSE.)
-               ENDIF
-            ENDIF
-            ! Here we restore BIb_C
-            IF (my_open_shell_ss) THEN
+               ! B_ia_Q(kspin)%array will be deallocated inside of complete_gamma
+               DO kspin = ispin, jspin
+                  CALL complete_gamma(mp2_env, B_ia_Q(kspin)%array, dimen_RI, homo(kspin), &
+                                      virtual(kspin), para_env, para_env_sub, ngroup, &
+                                      my_group_L_size, my_group_L_start, my_group_L_end, &
+                                      my_B_size(kspin), my_B_virtual_start(kspin), &
+                                      gd_array, gd_B_virtual(kspin), &
+                                      sub_proc_map, kspin)
+               END DO
+            ELSE
                ALLOCATE (BIb_C(ispin)%array(my_group_L_size, my_B_size(ispin), homo(ispin)))
                BIb_C(ispin)%array = 0.0_dp
                ! copy the integrals (ia|Q) back
                DO jjB = 1, homo(ispin)
                   DO iiB = 1, my_B_size(ispin)
                      BIb_C(ispin)%array(1:my_group_L_size, iiB, jjB) = &
-                        B_ia_Q(jjB, iiB, 1:my_group_L_size)
+                        B_ia_Q(ispin)%array(jjB, iiB, 1:my_group_L_size)
                   END DO
                END DO
+               ! There is only one B_ia_Q allocated in this case
+               DEALLOCATE(B_ia_Q(ispin)%array)
             ENDIF
-
-            IF (ALLOCATED(B_ia_Q)) DEALLOCATE (B_ia_Q)
-            IF (ALLOCATED(B_ia_Q_beta)) DEALLOCATE (B_ia_Q_beta)
+            DEALLOCATE (B_ia_Q)
 
          END IF
 
