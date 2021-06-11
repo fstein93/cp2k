@@ -239,10 +239,9 @@ CONTAINS
          G_PQ_local(my_P_start:my_P_end, 1:my_group_L_size) = &
             0.50_dp*(mp2_env%ri_grad%Gamma_PQ(1)%array + mp2_env%ri_grad%Gamma_PQ(2)%array)
       ENDIF
-      DEALLOCATE (mp2_env%ri_grad%Gamma_PQ(1)%array)
-      IF (alpha_beta) THEN
-         DEALLOCATE (mp2_env%ri_grad%Gamma_PQ(2)%array)
-      ENDIF
+      DO ispin = 1, nspins
+         DEALLOCATE (mp2_env%ri_grad%Gamma_PQ(ispin)%array)
+      END DO
       CALL mp_sum(G_PQ_local, para_env_sub%group)
 
       ! deallocate here PQ_half, maybe useful in the future
@@ -738,7 +737,7 @@ CONTAINS
       DO ispin = 1, nspins
          CALL create_W_P(qs_env, mp2_env, mo_coeff(ispin)%matrix, homo(ispin), virtual(ispin), dimen, para_env, &
                          para_env_sub, Eigenval(:, ispin), L1_mu_i(ispin)%matrix, L2_nu_a(ispin)%matrix, &
-                         factor, ispin /= 1)
+                         factor, ispin)
       ENDDO
 
       CALL timestop(handle)
@@ -899,10 +898,10 @@ CONTAINS
 !> \param L1_mu_i ...
 !> \param L2_nu_a ...
 !> \param factor ...
-!> \param alpha_beta ...
+!> \param kspin ...
 ! **************************************************************************************************
    SUBROUTINE create_W_P(qs_env, mp2_env, mo_coeff, homo, virtual, dimen, para_env, para_env_sub, &
-                         Eigenval, L1_mu_i, L2_nu_a, factor, alpha_beta)
+                         Eigenval, L1_mu_i, L2_nu_a, factor, kspin)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type), POINTER                            :: mp2_env
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
@@ -911,13 +910,13 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       TYPE(cp_fm_type), POINTER                          :: L1_mu_i, L2_nu_a
       REAL(KIND=dp), INTENT(IN)                          :: factor
-      LOGICAL, INTENT(IN)                                :: alpha_beta
+      INTEGER, INTENT(IN)                                :: kspin
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_W_P'
 
       INTEGER :: color_exchange, dummy_proc, handle, handle2, handle3, i, i_global, i_local, iiB, &
          iii, iproc, ispin, itmp(2), j_global, j_local, jjB, max_col_size, max_row_size, &
-         my_B_virtual_end, my_B_virtual_start, my_spin, mypcol, myprow, ncol_block, ncol_block_1i, &
+         my_B_virtual_end, my_B_virtual_start, mypcol, myprow, ncol_block, ncol_block_1i, &
          ncol_block_2a, ncol_local, ncol_local_1i, ncol_local_2a, npcol, npcol_1i, npcol_2a, &
          nprow, nprow_1i, nprow_2a, nrow_block, nrow_block_1i, nrow_block_2a, nrow_local, &
          nrow_local_1i, nrow_local_2a, number_of_rec, number_of_send, proc_receive, &
@@ -947,9 +946,6 @@ CONTAINS
          DIMENSION(:)                                    :: buffer_cyclic
 
       CALL timeset(routineN, handle)
-
-      my_spin = 1
-      IF (alpha_beta) my_spin = 2
 
       ! create the globally distributed mixed lagrangian
       NULLIFY (blacs_env)
@@ -1421,7 +1417,7 @@ CONTAINS
                           row_indices=row_indices, &
                           col_indices=col_indices)
 
-      CALL mp_sum(mp2_env%ri_grad%P_ij(my_spin)%array, para_env%group)
+      CALL mp_sum(mp2_env%ri_grad%P_ij(kspin)%array, para_env%group)
 
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
@@ -1429,7 +1425,7 @@ CONTAINS
             i_global = row_indices(iiB)
             ! diagonal elements and nearly degenerate ij pairs already updated
             IF (j_global == i_global .OR. (ABS(Eigenval(j_global) - Eigenval(i_global)) < mp2_env%ri_mp2%eps_canonical)) THEN
-               fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(my_spin)%array(i_global, j_global)
+               fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(kspin)%array(i_global, j_global)
             ELSE
                fm_P_ij%local_data(iiB, jjB) = &
                   factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global) - Eigenval(i_global))
@@ -1437,7 +1433,7 @@ CONTAINS
          END DO
       END DO
       ! deallocate the local P_ij
-      DEALLOCATE (mp2_env%ri_grad%P_ij(my_spin)%array)
+      DEALLOCATE (mp2_env%ri_grad%P_ij(kspin)%array)
       CALL timestop(handle2)
 
       ! Now create and fill the P matrix (MO)
@@ -1453,8 +1449,8 @@ CONTAINS
       NULLIFY (fm_struct_tmp)
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=dimen, ncol_global=dimen)
-      CALL cp_fm_create(mp2_env%ri_grad%P_mo(my_spin)%matrix, fm_struct_tmp, name="P_MP2_MO")
-      CALL cp_fm_set_all(mp2_env%ri_grad%P_mo(my_spin)%matrix, 0.0_dp)
+      CALL cp_fm_create(mp2_env%ri_grad%P_mo(kspin)%matrix, fm_struct_tmp, name="P_MP2_MO")
+      CALL cp_fm_set_all(mp2_env%ri_grad%P_mo(kspin)%matrix, 0.0_dp)
 
       ! start with the (easy) occ-occ block and locally held P_ab elements
       itmp = get_limit(virtual, para_env_sub%num_pe, para_env_sub%mepos)
@@ -1462,27 +1458,27 @@ CONTAINS
       my_B_virtual_end = itmp(2)
 
       ! Fill occ-occ block
-      CALL cp_fm_to_fm_submat(fm_P_ij, mp2_env%ri_grad%P_mo(my_spin)%matrix, homo, homo, 1, 1, 1, 1)
+      CALL cp_fm_to_fm_submat(fm_P_ij, mp2_env%ri_grad%P_mo(kspin)%matrix, homo, homo, 1, 1, 1, 1)
 
-      CALL cp_fm_get_info(mp2_env%ri_grad%P_mo(my_spin)%matrix, &
+      CALL cp_fm_get_info(mp2_env%ri_grad%P_mo(kspin)%matrix, &
                           nrow_local=nrow_local, &
                           ncol_local=ncol_local, &
                           row_indices=row_indices, &
                           col_indices=col_indices, &
                           nrow_block=nrow_block, &
                           ncol_block=ncol_block)
-      myprow = mp2_env%ri_grad%P_mo(my_spin)%matrix%matrix_struct%context%mepos(1)
-      mypcol = mp2_env%ri_grad%P_mo(my_spin)%matrix%matrix_struct%context%mepos(2)
-      nprow = mp2_env%ri_grad%P_mo(my_spin)%matrix%matrix_struct%context%num_pe(1)
-      npcol = mp2_env%ri_grad%P_mo(my_spin)%matrix%matrix_struct%context%num_pe(2)
+      myprow = mp2_env%ri_grad%P_mo(kspin)%matrix%matrix_struct%context%mepos(1)
+      mypcol = mp2_env%ri_grad%P_mo(kspin)%matrix%matrix_struct%context%mepos(2)
+      nprow = mp2_env%ri_grad%P_mo(kspin)%matrix%matrix_struct%context%num_pe(1)
+      npcol = mp2_env%ri_grad%P_mo(kspin)%matrix%matrix_struct%context%num_pe(2)
 
       DO jjB = 1, ncol_local
          j_global = col_indices(jjB)
          DO iiB = 1, nrow_local
             i_global = row_indices(iiB)
             IF ((my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) .AND. (j_global > homo)) THEN
-               mp2_env%ri_grad%P_mo(my_spin)%matrix%local_data(iiB, jjB) = &
-                  mp2_env%ri_grad%P_ab(my_spin)%array(i_global - homo - my_B_virtual_start + 1, j_global - homo)
+               mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(iiB, jjB) = &
+                  mp2_env%ri_grad%P_ab(kspin)%array(i_global - homo - my_B_virtual_start + 1, j_global - homo)
             END IF
          END DO
       END DO
@@ -1514,16 +1510,16 @@ CONTAINS
          ! first loop over row since in this way we can cycle
          DO iiB = 1, send_row_size
             i_global = cp_fm_indxl2g(iiB, nrow_block, send_prow, &
-                                     mp2_env%ri_grad%P_mo(my_spin)%matrix%matrix_struct%first_p_pos(1), nprow)
+                                     mp2_env%ri_grad%P_mo(kspin)%matrix%matrix_struct%first_p_pos(1), nprow)
             IF (i_global <= homo) CYCLE
             i_global = i_global - homo
             IF (.NOT. (my_B_virtual_start <= i_global .AND. i_global <= my_B_virtual_end)) CYCLE
             DO jjB = 1, send_col_size
                j_global = cp_fm_indxl2g(jjB, ncol_block, send_pcol, &
-                                        mp2_env%ri_grad%P_mo(my_spin)%matrix%matrix_struct%first_p_pos(2), npcol)
+                                        mp2_env%ri_grad%P_mo(kspin)%matrix%matrix_struct%first_p_pos(2), npcol)
                IF (j_global <= homo) CYCLE
                j_global = j_global - homo
-               ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(my_spin)%array(i_global - my_B_virtual_start + 1, j_global)
+               ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(kspin)%array(i_global - my_B_virtual_start + 1, j_global)
             END DO
          END DO
 
@@ -1531,8 +1527,8 @@ CONTAINS
          CALL mp_sendrecv(ab_send, proc_send, &
                           ab_rec, proc_receive, &
                           para_env_sub%group)
-         mp2_env%ri_grad%P_mo(my_spin)%matrix%local_data(1:nrow_local, 1:ncol_local) = &
-            mp2_env%ri_grad%P_mo(my_spin)%matrix%local_data(1:nrow_local, 1:ncol_local) + &
+         mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(1:nrow_local, 1:ncol_local) = &
+            mp2_env%ri_grad%P_mo(kspin)%matrix%local_data(1:nrow_local, 1:ncol_local) + &
             ab_rec(1:nrow_local, 1:ncol_local)
 
          DEALLOCATE (ab_send)
@@ -1542,7 +1538,7 @@ CONTAINS
       DEALLOCATE (sizes)
 
       ! deallocate the local P_ab
-      DEALLOCATE (mp2_env%ri_grad%P_ab(my_spin)%array)
+      DEALLOCATE (mp2_env%ri_grad%P_ab(kspin)%array)
       CALL timestop(handle2)
 
       ! create also W_MP2_MO
@@ -1554,12 +1550,12 @@ CONTAINS
          END DO
       END IF
 
-      CALL cp_fm_create(mp2_env%ri_grad%W_mo(my_spin)%matrix, fm_struct_tmp, name="W_MP2_MO")
+      CALL cp_fm_create(mp2_env%ri_grad%W_mo(kspin)%matrix, fm_struct_tmp, name="W_MP2_MO")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ! all block
       CALL cp_gemm('T', 'N', dimen, dimen, dimen, 2.0_dp*factor, &
-                   L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo(my_spin)%matrix, &
+                   L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo(kspin)%matrix, &
                    a_first_col=1, &
                    a_first_row=1, &
                    b_first_col=1, &
@@ -1569,7 +1565,7 @@ CONTAINS
 
       ! occ-occ block
       CALL cp_gemm('T', 'N', homo, homo, dimen, -2.0_dp*factor, &
-                   L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo(my_spin)%matrix, &
+                   L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%W_mo(kspin)%matrix, &
                    a_first_col=1, &
                    a_first_row=1, &
                    b_first_col=1, &
@@ -1579,7 +1575,7 @@ CONTAINS
 
       ! occ-virt block
       CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
-                   mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%W_mo(my_spin)%matrix, &
+                   mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%W_mo(kspin)%matrix, &
                    a_first_col=1, &
                    a_first_row=1, &
                    b_first_col=homo + 1, &
@@ -1599,12 +1595,12 @@ CONTAINS
 
       CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
                                nrow_global=homo, ncol_global=virtual)
-      CALL cp_fm_create(mp2_env%ri_grad%L_jb(my_spin)%matrix, fm_struct_tmp, name="fm_L_jb")
+      CALL cp_fm_create(mp2_env%ri_grad%L_jb(kspin)%matrix, fm_struct_tmp, name="fm_L_jb")
       CALL cp_fm_struct_release(fm_struct_tmp)
 
       ! first Virtual
       CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
-                   L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%L_jb(my_spin)%matrix, &
+                   L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%L_jb(kspin)%matrix, &
                    a_first_col=1, &
                    a_first_row=1, &
                    b_first_col=homo + 1, &
@@ -1613,7 +1609,7 @@ CONTAINS
                    c_first_row=1)
       ! then occupied
       CALL cp_gemm('T', 'N', homo, virtual, dimen, 2.0_dp*factor, &
-                   mo_coeff, L_mu_q, 1.0_dp, mp2_env%ri_grad%L_jb(my_spin)%matrix, &
+                   mo_coeff, L_mu_q, 1.0_dp, mp2_env%ri_grad%L_jb(kspin)%matrix, &
                    a_first_col=1, &
                    a_first_row=1, &
                    b_first_col=homo + 1, &
