@@ -532,10 +532,7 @@ CONTAINS
             IF (ALLOCATED(t_ab)) THEN
                DEALLOCATE (t_ab)
             ENDIF
-            ! Deallocate additional integrals: alpha_beta case with forces
-            IF (ALLOCATED(local_ba)) THEN
-               DEALLOCATE (local_ba)
-            ENDIF
+            DEALLOCATE (local_ba)
 
             ! here we check if there are almost degenerate ij
             ! pairs and we update P_ij with these contribution.
@@ -912,7 +909,7 @@ CONTAINS
             ! For non-alpha-beta case we need amplitudes
             ALLOCATE (t_ab(virtual(ispin), my_B_size(jspin)))
 
-            ! That is just a dummy
+            ! That is just a dummy. In that way, we can pass it as array to other routines w/o requirement for allocatable array
             ALLOCATE (local_ba(1,1))
          ELSE
             ! We need more integrals
