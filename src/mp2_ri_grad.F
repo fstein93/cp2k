@@ -52,6 +52,7 @@ MODULE mp2_ri_grad
    USE mp2_eri_gpw,                     ONLY: calc_potential_gpw,&
                                               cleanup_gpw,&
                                               integrate_potential,&
+                                              integrate_potential_forces_2c,&
                                               prepare_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
@@ -383,45 +384,14 @@ CONTAINS
                                         G_P_ia(:, L_counter), matrix_P_inu, &
                                         mo_coeff_v, mo_coeff_o, eps_filter)
 
-            ! calculate potential associated to the single aux function
-            CALL timeset(routineN//"_wf_pot", handle3)
             wf_vector = 0.0_dp
             wf_vector(LLL) = 1.0_dp
-            ! pseudo psi_L
-            CALL pw_zero(rho_r%pw)
-            DO ispin = 1, nspins
-               CALL calculate_wavefunction(mo_coeff(ispin)%matrix, 1, psi_L, rho_g, atomic_kind_set, &
-                                           qs_kind_set, cell, dft_control, particle_set, &
-                                           pw_env_sub, basis_type='RI_AUX', &
-                                           external_vector=wf_vector)
-               rho_r%pw%cr3d = rho_r%pw%cr3d+psi_L%pw%cr3d
-            ENDDO
-            IF (alpha_beta) THEN
-               rho_r%pw%cr3d = rho_r%pw%cr3d*0.5_dp
-               CALL pw_transfer(rho_r%pw, rho_g%pw)
-            END IF
-            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega, rcutoff)
-            CALL timestop(handle3)
 
-            IF (use_virial) THEN
-               ! make a copy of the density in G space
-               ! calculate the potential derivatives in G space
-               CALL timeset(routineN//"_Virial", handle3)
-               CALL pw_copy(rho_g%pw, temp_pw_g%pw)
-               DO i = 1, 3
-                  comp = 0
-                  comp(i) = 1
-                  CALL pw_copy(pot_g%pw, dvg(i)%pw)
-                  CALL pw_derive(dvg(i)%pw, comp)
-               END DO
-               CALL timestop(handle3)
-            END IF
-
-            ! integrate the potential of the single gaussian and update
-            ! 2-center forces with Gamma_PQ
-            CALL integrate_potential(pw_env_sub, rho_r, kind_of, atom_of_kind, particle_set, qs_kind_set, &
-                                  G_PQ_local(:, L_counter), cell, force, virial, para_env_sub, dft_control)
-            ! here we are done with the 2 centers
+            CALL integrate_potential_forces_2c(rho_r, wf_vector, mo_coeff, psi_L, rho_g, atomic_kind_set, &
+                                               qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
+                                               pot_g, potential_type, omega, rcutoff, use_virial, &
+                                               temp_pw_g, dvg, kind_of, atom_of_kind, G_PQ_local(:, L_counter), &
+                                               force, virial, para_env_sub, dft_control)
 
             ! integrate the potential of the single gaussian and update
             ! 3-center forces

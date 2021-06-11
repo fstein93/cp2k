@@ -17,7 +17,8 @@ MODULE mp2_eri_gpw
    USE cell_types,                      ONLY: cell_type,&
                                               pbc
    USE cp_control_types,                ONLY: dft_control_type
-   USE cp_fm_types,                     ONLY: cp_fm_type
+   USE cp_fm_types,                     ONLY: cp_fm_p_type,&
+                                              cp_fm_type
    USE cp_para_types,                   ONLY: cp_para_env_type
    USE dbcsr_api,                       ONLY: dbcsr_p_type,&
                                               dbcsr_set
@@ -36,11 +37,15 @@ MODULE mp2_eri_gpw
    USE pw_env_types,                    ONLY: pw_env_get,&
                                               pw_env_release,&
                                               pw_env_type
-   USE pw_methods,                      ONLY: pw_compl_gauss_damp,&
+   USE pw_methods,                      ONLY: pw_axpy,&
+                                              pw_compl_gauss_damp,&
+                                              pw_copy,&
+                                              pw_derive,&
                                               pw_gauss_damp,&
                                               pw_scale,&
                                               pw_transfer,&
-                                              pw_truncated
+                                              pw_truncated,&
+                                              pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
    USE pw_pool_types,                   ONLY: pw_pool_create_pw,&
@@ -82,7 +87,8 @@ MODULE mp2_eri_gpw
 
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_eri_gpw'
 
-   PUBLIC :: mp2_eri_2c_integrate_gpw, mp2_eri_3c_integrate_gpw, calc_potential_gpw, cleanup_gpw, prepare_gpw, integrate_potential
+   PUBLIC :: mp2_eri_2c_integrate_gpw, mp2_eri_3c_integrate_gpw, calc_potential_gpw, cleanup_gpw, prepare_gpw, &
+             integrate_potential, integrate_potential_forces_2c
 
 CONTAINS
 
@@ -391,6 +397,78 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE
+
+   SUBROUTINE integrate_potential_forces_2c(rho_r, wf_vector, mo_coeff, psi_L, rho_g, atomic_kind_set, &
+                                            qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, pot_g, &
+                                            potential_type, omega, rcutoff, use_virial, temp_pw_g, dvg, &
+                                            kind_of, atom_of_kind, G_PQ_local, force, virial, para_env_sub, &
+                                            dft_control)
+
+      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, psi_L, rho_g, pot_g, temp_pw_g, dvg(3)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wf_vector
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER          :: mo_coeff
+      TYPE(cell_type), POINTER                           :: cell
+      TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
+      TYPE(pw_env_type), POINTER                         :: pw_env_sub
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      INTEGER, INTENT(IN)                                :: potential_type
+      REAL(KIND=dp), INTENT(IN)                          :: omega, rcutoff
+      LOGICAL, INTENT(IN)                                :: use_virial
+      INTEGER, DIMENSION(:)                              :: atom_of_kind, kind_of
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: G_PQ_local
+      TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
+      TYPE(virial_type), POINTER                         :: virial
+      TYPE(cp_para_env_type), POINTER                    :: para_env_sub
+      TYPE(dft_control_type), POINTER                    :: dft_control
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_2c'
+
+      INTEGER                                            :: handle, handle2, i, ispin
+      INTEGER, DIMENSION(3)                              :: comp
+
+      CALL timeset(routineN, handle)
+
+      ! calculate potential associated to the single aux function
+      CALL timeset(routineN//"_wf_pot", handle2)
+      ! pseudo psi_L
+      CALL pw_zero(rho_r%pw)
+      DO ispin = 1, SIZE(mo_coeff)
+         CALL calculate_wavefunction(mo_coeff(ispin)%matrix, 1, psi_L, rho_g, atomic_kind_set, &
+                                     qs_kind_set, cell, dft_control, particle_set, &
+                                     pw_env_sub, basis_type='RI_AUX', &
+                                     external_vector=wf_vector)
+         CALL pw_axpy(psi_L%pw, rho_r%pw)
+      ENDDO
+      IF (SIZE(mo_coeff) == 2) THEN
+         CALL pw_scale(rho_r%pw, 0.5_dp)
+         CALL pw_transfer(rho_r%pw, rho_g%pw)
+      END IF
+      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega, rcutoff)
+      CALL timestop(handle2)
+
+      IF (use_virial) THEN
+         ! make a copy of the density in G space
+         ! calculate the potential derivatives in G space
+         CALL timeset(routineN//"_Virial", handle2)
+         CALL pw_copy(rho_g%pw, temp_pw_g%pw)
+         DO i = 1, 3
+            comp = 0
+            comp(i) = 1
+            CALL pw_copy(pot_g%pw, dvg(i)%pw)
+            CALL pw_derive(dvg(i)%pw, comp)
+         END DO
+         CALL timestop(handle2)
+      END IF
+
+      ! integrate the potential of the single gaussian and update
+      ! 2-center forces with Gamma_PQ
+      CALL integrate_potential(pw_env_sub, rho_r, kind_of, atom_of_kind, particle_set, qs_kind_set, &
+                               G_PQ_local, cell, force, virial, para_env_sub, dft_control)
+
+      CALL timestop(handle)
+   END SUBROUTINE integrate_potential_forces_2c
 
    SUBROUTINE integrate_potential(pw_env_sub, pot_r, kind_of, atom_of_kind, particle_set, qs_kind_set, &
                                   G_PQ_local, cell, force, virial, para_env_sub, dft_control)
