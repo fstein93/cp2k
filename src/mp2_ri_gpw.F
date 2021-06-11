@@ -96,7 +96,7 @@ CONTAINS
       INTEGER :: a, a_global, b, b_global, best_block_size, best_integ_group_size, block_size, &
          end_point, handle, handle2, handle3, iiB, ij_counter, ij_counter_send, ij_index, &
          integ_group_size, irep, ispin, jjB, jspin, kspin, Lend_pos, Lstart_pos, max_ij_pairs, &
-         min_integ_group_size, &
+         min_integ_group_size, handle4, &
          my_block_size, my_group_L_end, my_group_L_size, my_group_L_size_orig, my_group_L_start, &
          my_i, my_ij_pairs, my_j, my_new_group_L_size, ngroup, nspins, &
          num_IJ_blocks, num_integ_group, pos_integ_group, proc_receive, proc_send, proc_shift, &
@@ -258,9 +258,11 @@ CONTAINS
 
                      ! occupied i
                      BI_C_rec = 0.0_dp
+CALL timeset(routineN//"_comm_send", handle4)
                      CALL mp_sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + send_block_size - 1), &
                                       proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group)
+CALL timestop(handle4)
                      DO irep = 0, num_integ_group - 1
                         Lstart_pos = ranges_info_array(1, irep, proc_receive)
                         Lend_pos = ranges_info_array(2, irep, proc_receive)
@@ -273,9 +275,11 @@ CONTAINS
 
                      ! occupied j
                      BI_C_rec = 0.0_dp
+CALL timeset(routineN//"_comm_send", handle4)
                      CALL mp_sendrecv(BIb_C(jspin)%array(:, :, send_j:send_j + send_block_size - 1), &
                                       proc_send, BI_C_rec, proc_receive, &
                                       para_env_exchange%group)
+CALL timestop(handle4)
 
                      DO irep = 0, num_integ_group - 1
                         Lstart_pos = ranges_info_array(1, irep, proc_receive)
@@ -360,9 +364,11 @@ CONTAINS
                         ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
                         external_i_aL = 0.0_dp
 
+CALL timeset(routineN//"_expansion_send", handle4)
                         CALL mp_sendrecv(my_local_i_aL, proc_send, &
                                          external_i_aL, proc_receive, &
                                          para_env_sub%group)
+CALL timestop(handle4)
 
                         CALL dgemm_counter_start(dgemm_counter)
                         CALL dgemm('T', 'N', rec_B_size, my_B_size(jspin), dimen_RI, 1.0_dp, &
@@ -379,9 +385,11 @@ CONTAINS
                            ALLOCATE (external_i_aL(dimen_RI, rec_B_size))
                            external_i_aL = 0.0_dp
 
+CALL timeset(routineN//"_expansion_send", handle4)
                            CALL mp_sendrecv(my_local_j_aL, proc_send, &
                                             external_i_aL, proc_receive, &
                                             para_env_sub%group)
+CALL timestop(handle4)
 
                            CALL dgemm_counter_start(dgemm_counter)
                            CALL dgemm('T', 'N', rec_B_size, my_B_size(ispin), dimen_RI, 1.0_dp, &
@@ -441,9 +449,11 @@ CONTAINS
                            ALLOCATE (external_ab(my_B_size(ispin), rec_B_size))
                            external_ab = 0.0_dp
 
+CALL timeset(routineN//"_expansion_send", handle4)
                            CALL mp_sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(ispin)), proc_send, &
                                             external_ab(1:my_B_size(ispin), 1:rec_B_size), proc_receive, &
                                             para_env_sub%group)
+CALL timestop(handle4)
 
                            DO b = 1, my_B_size(ispin)
                               b_global = b + my_B_virtual_start(ispin) - 1
@@ -617,8 +627,10 @@ CONTAINS
                end_point = ranges_info_array(4, proc_shift, para_env_exchange%mepos)
 
                DO kspin = ispin, jspin
+CALL timeset(routineN//"_B_ia_Q_send", handle4)
                   CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(kspin)%array(:, :, start_point:end_point), &
                                    proc_send, BIb_C(kspin)%array, proc_receive, para_env_rep%group)
+CALL timestop(handle4)
                   mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) = &
                      mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) &
                      + BIb_C(kspin)%array(:, :, :)
@@ -1377,7 +1389,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_update_P_gamma'
 
-      INTEGER :: a, b, b_global, handle, proc_receive, proc_send, proc_shift, rec_B_size, &
+      INTEGER :: a, b, b_global, handle, handle4, proc_receive, proc_send, proc_shift, rec_B_size, &
          rec_B_virtual_end, rec_B_virtual_start, send_B_size, send_B_virtual_end, &
          send_B_virtual_start
       LOGICAL                                            :: alpha_beta
@@ -1465,9 +1477,11 @@ CONTAINS
          ALLOCATE (external_ab(virtual(ispin), rec_B_size))
          external_ab = 0.0_dp
 
+CALL timeset(routineN//"_send", handle4)
          CALL mp_sendrecv(local_ab, proc_send, &
                           external_ab, proc_receive, &
                           para_env_sub%group)
+CALL timestop(handle4)
 
          IF (.NOT. (alpha_beta)) THEN
             CALL dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(ispin), 1.0_dp, &
@@ -1486,9 +1500,11 @@ CONTAINS
             CALL get_group_dist(gd_B_virtual(ispin), proc_send, send_B_virtual_start, send_B_virtual_end, send_B_size)
             ALLOCATE (external_ab(virtual(jspin), rec_B_size))
             external_ab = 0.0_dp
+CALL timeset(routineN//"_send", handle4)
             CALL mp_sendrecv(local_ba, proc_send, &
                              external_ab, proc_receive, &
                              para_env_sub%group)
+CALL timestop(handle4)
             CALL dgemm('T', 'N', my_B_size(ispin), rec_B_size, virtual(jspin), mp2_env%scale_S, &
                        local_ba, virtual(jspin), external_ab, virtual(jspin), &
                        1.0_dp, mp2_env%ri_grad%P_ab(ispin)%array(:, rec_B_virtual_start:rec_B_virtual_end), my_B_size(ispin))
@@ -1508,9 +1524,11 @@ CONTAINS
                        local_ab, virtual(ispin), &
                        0.0_dp, send_ab, send_B_size)
 
+CALL timeset(routineN//"_send", handle4)
             CALL mp_sendrecv(send_ab, proc_send, &
                              external_ab, proc_receive, &
                              para_env_sub%group)
+CALL timestop(handle4)
 
             mp2_env%ri_grad%P_ab(ispin)%array(:, :) = mp2_env%ri_grad%P_ab(ispin)%array + external_ab
 
@@ -1555,7 +1573,9 @@ CONTAINS
             CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(ispin), 1.0_dp, &
                        t_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                        my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size)
+CALL timeset(routineN//"_send", handle4)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
+CALL timestop(handle4)
 
             Y_i_aP(:, :) = Y_i_aP + external_ab
 
@@ -1567,7 +1587,9 @@ CONTAINS
             CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(jspin), mp2_env%scale_S, &
                        local_ab(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                        my_local_j_aL, dimen_RI, 0.0_dp, send_ab, send_B_size)
+CALL timeset(routineN//"_send", handle4)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
+CALL timestop(handle4)
             Y_i_aP(:, :) = Y_i_aP + external_ab
             DEALLOCATE (send_ab)
          ENDIF
@@ -1589,7 +1611,9 @@ CONTAINS
             CALL dgemm('N', 'T', send_B_size, dimen_RI, my_B_size(ispin), mp2_env%scale_S, &
                        local_ba(send_B_virtual_start:send_B_virtual_end, :), send_B_size, &
                        my_local_i_aL, dimen_RI, 0.0_dp, send_ab, send_B_size)
+CALL timeset(routineN//"_send", handle4)
             CALL mp_sendrecv(send_ab, proc_send, external_ab, proc_receive, para_env_sub%group)
+CALL timestop(handle4)
             Y_j_aP(:, :) = Y_j_aP + external_ab
             DEALLOCATE (send_ab)
 
@@ -1612,8 +1636,10 @@ CONTAINS
             ALLOCATE (external_ab(dimen_RI, rec_B_size))
             external_ab = 0.0_dp
 
+CALL timeset(routineN//"_send", handle4)
             CALL mp_sendrecv(my_local_i_aL, proc_send, &
                              external_ab, proc_receive, para_env_sub%group)
+CALL timestop(handle4)
 
             ! Alpha-alpha, beta-beta and closed shell
             CALL dgemm('T', 'T', my_B_size(ispin), dimen_RI, rec_B_size, 1.0_dp, &
@@ -1675,7 +1701,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'mp2_redistribute_gamma'
 
-      INTEGER :: end_point, handle, handle2, iiB, ij_counter_rec, irep, kkk, lll, &
+      INTEGER :: end_point, handle, handle2, handle4, iiB, ij_counter_rec, irep, kkk, lll, &
          Lstart_pos, proc_receive, proc_send, proc_shift, rec_block_size, rec_i, rec_ij_index, &
          rec_j, send_L_size, start_point, my_B_size_i, my_B_size_j, tag
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: BI_C_rec, BI_C_send
@@ -1757,9 +1783,11 @@ CONTAINS
                ALLOCATE (BI_C_rec(rec_block_size, my_B_size_i+my_B_size_j, my_group_L_size))
                BI_C_rec = 0.0_dp
 
+CALL timeset(routineN//"_send", handle4)
                CALL mp_sendrecv(BI_C_send, proc_send, &
                                 BI_C_rec, proc_receive, &
                                 para_env_exchange%group, tag)
+CALL timestop(handle4)
 
                CALL timeset(routineN//"_comm2_w", handle2)
                DO irep = 0, num_integ_group - 1
