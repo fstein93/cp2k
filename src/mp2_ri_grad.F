@@ -53,6 +53,7 @@ MODULE mp2_ri_grad
                                               cleanup_gpw,&
                                               integrate_potential,&
                                               integrate_potential_forces_2c,&
+                                              integrate_potential_forces_3c_1c,&
                                               prepare_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
@@ -166,7 +167,7 @@ CONTAINS
       LOGICAL                                            :: alpha_beta, map_it_here, skip_shell, &
                                                             use_virial
       REAL(KIND=dp)                                      :: cutoff_old, e_hartree, eps_filter, &
-                                                            factor, omega, pair_energy, radius, &
+                                                            factor, omega, radius, &
                                                             rcutoff, relative_cutoff_old, total_rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, I_ab
@@ -393,57 +394,19 @@ CONTAINS
                                                temp_pw_g, dvg, kind_of, atom_of_kind, G_PQ_local(:, L_counter), &
                                                force, virial, para_env_sub, dft_control)
 
-            ! integrate the potential of the single gaussian and update
-            ! 3-center forces
-            CALL timeset(routineN//"_int", handle3)
-            CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
-            CALL integrate_v_rspace(rho_r, hmat=mat_munu, pmat=matrix_P_munu, &
-                                    qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.FALSE., gapw=.FALSE., &
-                                    pw_env_external=pw_env_sub, &
-                                    task_list_external=task_list_sub)
-            CALL timestop(handle3)
+            wf_vector = 0.0_dp
+            wf_vector(:) = -2.0_dp*G_PQ_local(:, L_counter)
+
+            CALL integrate_potential_forces_3c_1c(mat_munu, rho_r, matrix_P_munu, qs_env, pw_env_sub, &
+                                                  task_list_sub, use_virial, wf_vector, mo_coeff, psi_L, &
+                                                  rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, &
+                                                  particle_set, poisson_env, pot_g, temp_pw_g, &
+                                                  dvg, virial, para_env_sub)
 
             ! The matrices of G_P_ia are deallocated here
             CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
                                    G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
                                    eps_filter)
-
-            IF (use_virial) THEN
-               ! add the volume contribution to the virial due to
-               ! the (P|Q) integrals, first we put the full gamme_PQ
-               ! pseudo wave-function into grid in order to calculate the
-               ! hartree potential derivatives
-               CALL timeset(routineN//"_Virial", handle3)
-               wf_vector = 0.0_dp
-               wf_vector(:) = -2.0_dp*G_PQ_local(:, L_counter)
-               CALL calculate_wavefunction(mo_coeff(1)%matrix, 1, psi_L, rho_g, atomic_kind_set, &
-                                           qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
-                                           basis_type="RI_AUX", &
-                                           external_vector=wf_vector)
-               ! transfer to reciprocal space and calculate potential
-               rho_r%pw%cr3d = psi_L%pw%cr3d
-               CALL pw_transfer(rho_r%pw, rho_g%pw)
-               CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
-               ! update virial with volume term (first calculate hartree like energy (diagonal part of the virial))
-               e_hartree = 0.0_dp
-               h_stress = 0.0_dp
-               e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
-               DO alpha = 1, 3
-                  comp = 0
-                  comp(alpha) = 1
-                  CALL pw_copy(pot_g%pw, rho_g%pw)
-                  CALL pw_derive(rho_g%pw, comp)
-                  h_stress(alpha, alpha) = -e_hartree
-                  DO beta = alpha, 3
-                     h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                             - 2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
-                     h_stress(beta, alpha) = h_stress(alpha, beta)
-                  END DO
-               END DO
-               virial%pv_mp2 = virial%pv_mp2 + h_stress/REAL(para_env_sub%num_pe, dp)
-               virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe, dp)
-               CALL timestop(handle3)
-            END IF
 
             ! put the gamma density on grid
             CALL timeset(routineN//"_Gpot", handle3)

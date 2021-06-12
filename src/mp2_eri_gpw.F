@@ -29,6 +29,7 @@ MODULE mp2_eri_gpw
                                               do_potential_short,&
                                               do_potential_truncated
    USE kinds,                           ONLY: dp
+   USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
    USE particle_types,                  ONLY: particle_type
@@ -42,6 +43,7 @@ MODULE mp2_eri_gpw
                                               pw_copy,&
                                               pw_derive,&
                                               pw_gauss_damp,&
+                                              pw_integral_ab,&
                                               pw_scale,&
                                               pw_transfer,&
                                               pw_truncated,&
@@ -88,7 +90,7 @@ MODULE mp2_eri_gpw
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_eri_gpw'
 
    PUBLIC :: mp2_eri_2c_integrate_gpw, mp2_eri_3c_integrate_gpw, calc_potential_gpw, cleanup_gpw, prepare_gpw, &
-             integrate_potential, integrate_potential_forces_2c
+             integrate_potential, integrate_potential_forces_2c, integrate_potential_forces_3c_1c
 
 CONTAINS
 
@@ -469,6 +471,85 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE integrate_potential_forces_2c
+
+   SUBROUTINE integrate_potential_forces_3c_1c(mat_munu, rho_r, matrix_P_munu, qs_env, pw_env_sub, &
+                                               task_list_sub, use_virial, wf_vector, mo_coeff, psi_L, &
+                                               rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, &
+                                               particle_set, poisson_env, pot_g, temp_pw_g, &
+                                               dvg, virial, para_env_sub)
+
+      TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
+      TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_P_munu
+      TYPE(qs_environment_type), POINTER, INTENT(IN)     :: qs_env
+      TYPE(pw_env_type), POINTER, INTENT(IN)             :: pw_env_sub
+      TYPE(task_list_type), POINTER, INTENT(INOUT)       :: task_list_sub
+      TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, psi_L, rho_g, pot_g, temp_pw_g, dvg(3)
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wf_vector
+      TYPE(cp_fm_p_type), DIMENSION(:), POINTER, INTENT(IN) :: mo_coeff
+      TYPE(cell_type), POINTER, INTENT(IN)               :: cell
+      TYPE(particle_type), DIMENSION(:), POINTER, INTENT(IN) :: particle_set
+      TYPE(atomic_kind_type), DIMENSION(:), POINTER, INTENT(IN) :: atomic_kind_set
+      TYPE(qs_kind_type), DIMENSION(:), POINTER, INTENT(IN) :: qs_kind_set
+      TYPE(pw_poisson_type), POINTER, INTENT(IN)         :: poisson_env
+      LOGICAL, INTENT(IN)                                :: use_virial
+      TYPE(virial_type), POINTER, INTENT(IN)             :: virial
+      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env_sub
+      TYPE(dft_control_type), POINTER, INTENT(IN)        :: dft_control
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_3c_1c'
+
+      INTEGER :: alpha, beta, comp(3), handle, handle2
+      REAL(KIND=dp) :: e_hartree, h_stress(3, 3), pair_energy
+
+      CALL timeset(routineN, handle)
+
+      ! integrate the potential of the single gaussian and update
+      ! 3-center forces
+      CALL timeset(routineN//"_int", handle2)
+      CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
+      CALL integrate_v_rspace(rho_r, hmat=mat_munu, pmat=matrix_P_munu, &
+                              qs_env=qs_env, calculate_forces=.TRUE., compute_tau=.FALSE., gapw=.FALSE., &
+                              pw_env_external=pw_env_sub, &
+                              task_list_external=task_list_sub)
+      CALL timestop(handle2)
+
+      IF (use_virial) THEN
+         ! add the volume contribution to the virial due to
+         ! the (P|Q) integrals, first we put the full gamme_PQ
+         ! pseudo wave-function into grid in order to calculate the
+         ! hartree potential derivatives
+         CALL timeset(routineN//"_Virial", handle2)
+         CALL calculate_wavefunction(mo_coeff(1)%matrix, 1, psi_L, rho_g, atomic_kind_set, &
+                                     qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
+                                     basis_type="RI_AUX", &
+                                     external_vector=wf_vector)
+         ! transfer to reciprocal space and calculate potential
+         rho_r%pw%cr3d = psi_L%pw%cr3d
+         CALL pw_transfer(rho_r%pw, rho_g%pw)
+         CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
+         ! update virial with volume term (first calculate hartree like energy (diagonal part of the virial))
+         e_hartree = 0.0_dp
+         h_stress = 0.0_dp
+         e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
+         DO alpha = 1, 3
+            comp = 0
+            comp(alpha) = 1
+            CALL pw_copy(pot_g%pw, rho_g%pw)
+            CALL pw_derive(rho_g%pw, comp)
+            h_stress(alpha, alpha) = -e_hartree
+            DO beta = alpha, 3
+               h_stress(alpha, beta) = h_stress(alpha, beta) &
+                                       - 2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
+               h_stress(beta, alpha) = h_stress(alpha, beta)
+            END DO
+         END DO
+         virial%pv_mp2 = virial%pv_mp2 + h_stress/REAL(para_env_sub%num_pe, dp)
+         virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe, dp)
+         CALL timestop(handle2)
+       END IF
+
+       CALL timestop(handle)
+   END SUBROUTINE integrate_potential_forces_3c_1c
 
    SUBROUTINE integrate_potential(pw_env_sub, pot_r, kind_of, atom_of_kind, particle_set, qs_kind_set, &
                                   G_PQ_local, cell, force, virial, para_env_sub, dft_control)
