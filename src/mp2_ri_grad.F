@@ -51,9 +51,9 @@ MODULE mp2_ri_grad
                                               mp2_eri_force
    USE mp2_eri_gpw,                     ONLY: calc_potential_gpw,&
                                               cleanup_gpw,&
-                                              integrate_potential,&
                                               integrate_potential_forces_2c,&
                                               integrate_potential_forces_3c_1c,&
+                                              integrate_potential_forces_3c_2c,&
                                               prepare_gpw
    USE mp2_types,                       ONLY: integ_mat_buffer_type,&
                                               integ_mat_buffer_type_2D,&
@@ -156,25 +156,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ri_mp2_nonsep'
 
-      INTEGER :: alpha, atom_a, beta, dimen, dir, eri_method, handle, handle2, handle3, i, iatom, &
-         igrid_level, ikind, iorb, ipgf, iset, ispin, itmp(2), L_counter, lb(3), LLL, location(3), &
-         my_P_end, my_P_size, my_P_start, na1, na2, natom, ncoa, nseta, nspins, offset, &
-         potential_type, sgfa, tp(3), ub(3)
+      INTEGER :: dimen, eri_method, handle, handle2, i, ikind, ispin, itmp(2), L_counter, LLL, &
+         my_P_end, my_P_size, my_P_start, natom, nspins, potential_type
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, virtual
-      INTEGER, DIMENSION(3)                              :: comp
-      INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
-      INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
-      LOGICAL                                            :: alpha_beta, map_it_here, skip_shell, &
-                                                            use_virial
-      REAL(KIND=dp)                                      :: cutoff_old, e_hartree, eps_filter, &
-                                                            factor, omega, radius, &
-                                                            rcutoff, relative_cutoff_old, total_rho
+      LOGICAL                                            :: alpha_beta, use_virial
+      REAL(KIND=dp)                                      :: cutoff_old, eps_filter, &
+                                                            factor, omega, &
+                                                            rcutoff, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, I_ab
-      REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, my_virial_a, my_virial_b
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, pab, rpgfa, sphi_a, zeta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local
+      REAL(KIND=dp), POINTER, DIMENSION(:, :)            :: I_tmp2
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
       TYPE(cp_fm_p_type), ALLOCATABLE, DIMENSION(:)      :: L1_mu_i, L2_nu_a
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
@@ -186,7 +177,6 @@ CONTAINS
       TYPE(dbcsr_type)                                   :: matrix_P_munu_nosym
       TYPE(dbcsr_type), DIMENSION(:), ALLOCATABLE        :: Lag_mu_i_1, Lag_nu_a_2, matrix_P_inu
       TYPE(dft_control_type), POINTER                    :: dft_control
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
       TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_3c_aux, force_3c_orb_mu, &
                                                             force_3c_orb_nu
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
@@ -196,9 +186,6 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      TYPE(realspace_grid_desc_p_type), DIMENSION(:), &
-         POINTER                                         :: rs_descs
-      TYPE(realspace_grid_p_type), DIMENSION(:), POINTER :: rs_v
       TYPE(task_list_type), POINTER                      :: task_list_sub
       TYPE(virial_type), POINTER                         :: virial
 
@@ -301,8 +288,8 @@ CONTAINS
                                    basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
                                    hab=I_tmp2, first_b=my_group_L_start, last_b=my_group_L_end, &
                                    eri_method=eri_method, pab=G_PQ_local, force_a=force_2c)
-
          DEALLOCATE (I_tmp2)
+
          CALL mp2_eri_3c_integrate(eri_param, potential_type, omega, para_env_sub, qs_env, &
                                    first_c=my_group_L_start, last_c=my_group_L_end, mat_ab=mat_munu_local, &
                                    basis_type_a="ORB", basis_type_b="ORB", basis_type_c="RI_AUX", &
@@ -408,187 +395,11 @@ CONTAINS
                                    G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
                                    eps_filter)
 
-            ! put the gamma density on grid
-            CALL timeset(routineN//"_Gpot", handle3)
-            CALL calculate_rho_elec(matrix_p=matrix_P_munu%matrix, &
-                                    rho=rho_r, &
-                                    rho_gspace=rho_g, &
-                                    total_rho=total_rho, &
-                                    task_list_external=task_list_sub, &
-                                    pw_env_external=pw_env_sub, &
-                                    ks_env=ks_env)
-            ! calculate associated hartree potential
-            !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-            CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega, rcutoff)
-            CALL timestop(handle3)
-
-            IF (use_virial) THEN
-               ! add the volume contribution to the virial coming from
-               ! the 3-center integrals (mu nu|P)
-               CALL timeset(routineN//"_Virial", handle3)
-               e_hartree = 0.0_dp
-               h_stress = 0.0_dp
-               e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
-               DO alpha = 1, 3
-                  comp = 0
-                  comp(alpha) = 1
-                  CALL pw_copy(pot_g%pw, rho_g%pw)
-                  CALL pw_derive(rho_g%pw, comp)
-                  h_stress(alpha, alpha) = -e_hartree
-                  DO beta = alpha, 3
-                     h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                             - 2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
-                     h_stress(beta, alpha) = h_stress(alpha, beta)
-                  END DO
-               END DO
-               virial%pv_mp2 = virial%pv_mp2 + h_stress/REAL(para_env_sub%num_pe, dp)
-               virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe, dp)
-               CALL timestop(handle3)
-            END IF
-
-            ! integrate potential with auxiliary basis function derivatives
-            NULLIFY (rs_v)
-            NULLIFY (rs_descs)
-            CALL pw_env_get(pw_env_sub, rs_descs=rs_descs, rs_grids=rs_v)
-            DO i = 1, SIZE(rs_v)
-               CALL rs_grid_retain(rs_v(i)%rs_grid)
-            END DO
-            CALL potential_pw2rs(rs_v, rho_r, pw_env_sub)
-
-            offset = 0
-            DO iatom = 1, natom
-               ikind = kind_of(iatom)
-               atom_a = atom_of_kind(iatom)
-               CALL get_qs_kind(qs_kind=qs_kind_set(ikind), basis_set=basis_set_a, &
-                                basis_type="RI_AUX")
-
-               first_sgfa => basis_set_a%first_sgf
-               la_max => basis_set_a%lmax
-               la_min => basis_set_a%lmin
-               npgfa => basis_set_a%npgf
-               nseta = basis_set_a%nset
-               nsgfa => basis_set_a%nsgf_set
-               rpgfa => basis_set_a%pgf_radius
-               set_radius_a => basis_set_a%set_radius
-               sphi_a => basis_set_a%sphi
-               zeta => basis_set_a%zet
-
-               ra(:) = pbc(particle_set(iatom)%r, cell)
-
-               force_a(:) = 0.0_dp
-               force_b(:) = 0.0_dp
-               IF (use_virial) THEN
-                  my_virial_a = 0.0_dp
-                  my_virial_b = 0.0_dp
-               END IF
-
-               DO iset = 1, nseta
-                  ncoa = npgfa(iset)*ncoset(la_max(iset))
-                  sgfa = first_sgfa(1, iset)
-
-                  ALLOCATE (I_tmp2(ncoa, 1))
-                  I_tmp2 = 0.0_dp
-                  ALLOCATE (I_ab(nsgfa(iset), 1))
-                  I_ab = 0.0_dp
-                  ALLOCATE (pab(ncoa, 1))
-                  pab = 0.0_dp
-
-                  skip_shell = .TRUE.
-                  DO iorb = 1, nsgfa(iset)
-                     IF (iorb + offset == LLL) THEN
-                        I_ab(iorb, 1) = 1.0_dp
-                        skip_shell = .FALSE.
-                     END IF
-                  END DO
-
-                  IF (skip_shell) THEN
-                     offset = offset + nsgfa(iset)
-                     DEALLOCATE (I_tmp2)
-                     DEALLOCATE (I_ab)
-                     DEALLOCATE (pab)
-                     CYCLE
-                  END IF
-
-                  CALL dgemm("N", "N", ncoa, 1, nsgfa(iset), &
-                             1.0_dp, sphi_a(1, sgfa), SIZE(sphi_a, 1), &
-                             I_ab(1, 1), SIZE(I_ab, 1), &
-                             0.0_dp, pab(1, 1), SIZE(pab, 1))
-                  DEALLOCATE(I_ab)
-
-                  igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, MINVAL(zeta(:, iset)))
-                  map_it_here = .FALSE.
-                  IF (.NOT. ALL(rs_v(igrid_level)%rs_grid%desc%perd == 1)) THEN
-                     DO dir = 1, 3
-                        ! bounds of local grid (i.e. removing the 'wings'), if periodic
-                        tp(dir) = FLOOR(DOT_PRODUCT(cell%h_inv(dir, :), ra)*rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                        tp(dir) = MODULO(tp(dir), rs_v(igrid_level)%rs_grid%desc%npts(dir))
-                        IF (rs_v(igrid_level)%rs_grid%desc%perd(dir) .NE. 1) THEN
-                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir) + rs_v(igrid_level)%rs_grid%desc%border
-                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir) - rs_v(igrid_level)%rs_grid%desc%border
-                        ELSE
-                           lb(dir) = rs_v(igrid_level)%rs_grid%lb_local(dir)
-                           ub(dir) = rs_v(igrid_level)%rs_grid%ub_local(dir)
-                        ENDIF
-                        ! distributed grid, only map if it is local to the grid
-                        location(dir) = tp(dir) + rs_v(igrid_level)%rs_grid%desc%lb(dir)
-                     ENDDO
-                     IF (lb(1) <= location(1) .AND. location(1) <= ub(1) .AND. &
-                         lb(2) <= location(2) .AND. location(2) <= ub(2) .AND. &
-                         lb(3) <= location(3) .AND. location(3) <= ub(3)) THEN
-                        map_it_here = .TRUE.
-                     ENDIF
-                  ELSE
-                     ! not distributed, just a round-robin distribution over the full set of CPUs
-                     IF (MODULO(offset, para_env_sub%num_pe) == para_env_sub%mepos) map_it_here = .TRUE.
-                  ENDIF
-
-                  offset = offset + nsgfa(iset)
-
-                  IF (map_it_here) THEN
-                     DO ipgf = 1, npgfa(iset)
-                        na1 = (ipgf - 1)*ncoset(la_max(iset)) + 1
-                        na2 = ipgf*ncoset(la_max(iset))
-                        igrid_level = gaussian_gridlevel(pw_env_sub%gridlevel_info, zeta(ipgf, iset))
-
-                        radius = exp_radius_very_extended(la_min=la_min(iset), la_max=la_max(iset), &
-                                                          lb_min=0, lb_max=0, ra=ra, rb=ra, rp=ra, &
-                                                          zetp=zeta(ipgf, iset), &
-                                                          eps=dft_control%qs_control%eps_gvg_rspace, &
-                                                          prefactor=1.0_dp, cutoff=1.0_dp)
-
-                        CALL integrate_pgf_product(la_max=la_max(iset), zeta=zeta(ipgf, iset)/2.0_dp, la_min=la_min(iset), &
-                                                   lb_max=0, zetb=zeta(ipgf, iset)/2.0_dp, lb_min=0, &
-                                                   ra=ra, rab=(/0.0_dp, 0.0_dp, 0.0_dp/), &
-                                                   rsgrid=rs_v(igrid_level)%rs_grid, &
-                                                   cell=cell, &
-                                                   cube_info=pw_env_sub%cube_info(igrid_level), &
-                                                   hab=I_tmp2, &
-                                                   pab=pab, &
-                                                   o1=na1 - 1, &
-                                                   o2=0, &
-                                                   radius=radius, &
-                                                   calculate_forces=.TRUE., &
-                                                   force_a=force_a, force_b=force_b, &
-                                                   use_virial=use_virial, my_virial_a=my_virial_a, my_virial_b=my_virial_b)
-                     END DO
-                  END IF
-
-                  DEALLOCATE (I_tmp2)
-                  DEALLOCATE (pab)
-
-               END DO
-
-               force(ikind)%rho_elec(:, atom_a) = &
-                  force(ikind)%rho_elec(:, atom_a) + force_a(:) + force_b(:)
-               IF (use_virial) THEN
-                  virial%pv_mp2 = virial%pv_mp2 + my_virial_a + my_virial_b
-                  virial%pv_virial = virial%pv_virial + my_virial_a + my_virial_b
-               END IF
-            END DO
-
-            DO i = 1, SIZE(rs_v)
-               CALL rs_grid_release(rs_v(i)%rs_grid)
-            END DO
+            CALL integrate_potential_forces_3c_2c(matrix_P_munu, rho_r, rho_g, task_list_sub, pw_env_sub, &
+                                                  potential_type, omega, rcutoff, &
+                                                  ks_env, poisson_env, pot_g, use_virial, temp_pw_g, dvg, &
+                                                  virial, para_env_sub, kind_of, atom_of_kind, &
+                                                  qs_kind_set, particle_set, cell, LLL, force, dft_control)
 
          END DO
 
