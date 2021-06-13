@@ -472,7 +472,7 @@ CONTAINS
                                                task_list_sub, use_virial, wf_vector, mo_coeff, psi_L, &
                                                rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, &
                                                particle_set, poisson_env, pot_g, temp_pw_g, &
-                                               dvg, virial, para_env_sub)
+                                               dvg, virial, potential_parameter, para_env_sub)
 
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(dbcsr_p_type), INTENT(IN)                     :: matrix_P_munu
@@ -489,13 +489,14 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER, INTENT(IN)         :: poisson_env
       LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(virial_type), POINTER, INTENT(IN)             :: virial
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env_sub
       TYPE(dft_control_type), POINTER, INTENT(IN)        :: dft_control
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_3c_1c'
 
-      INTEGER :: alpha, beta, comp(3), handle, handle2
-      REAL(KIND=dp) :: e_hartree, h_stress(3, 3), pair_energy
+      INTEGER                                            :: handle, handle2
+      REAL(KIND=dp)                                      :: pair_energy
 
       CALL timeset(routineN, handle)
 
@@ -514,7 +515,6 @@ CONTAINS
          ! the (P|Q) integrals, first we put the full gamme_PQ
          ! pseudo wave-function into grid in order to calculate the
          ! hartree potential derivatives
-         CALL timeset(routineN//"_Virial", handle2)
          CALL calculate_wavefunction(mo_coeff(1)%matrix, 1, psi_L, rho_g, atomic_kind_set, &
                                      qs_kind_set, cell, dft_control, particle_set, pw_env_sub, &
                                      basis_type="RI_AUX", &
@@ -524,24 +524,7 @@ CONTAINS
          CALL pw_transfer(rho_r%pw, rho_g%pw)
          CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
          ! update virial with volume term (first calculate hartree like energy (diagonal part of the virial))
-         e_hartree = 0.0_dp
-         h_stress = 0.0_dp
-         e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
-         DO alpha = 1, 3
-            comp = 0
-            comp(alpha) = 1
-            CALL pw_copy(pot_g%pw, rho_g%pw)
-            CALL pw_derive(rho_g%pw, comp)
-            h_stress(alpha, alpha) = -e_hartree
-            DO beta = alpha, 3
-               h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                       - 2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
-               h_stress(beta, alpha) = h_stress(alpha, beta)
-            END DO
-         END DO
-         virial%pv_mp2 = virial%pv_mp2 + h_stress/REAL(para_env_sub%num_pe, dp)
-         virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe, dp)
-         CALL timestop(handle2)
+         CALL virial_gpw_potential(temp_pw_g, pot_g, rho_g, dvg, virial, potential_parameter, para_env_sub)
        END IF
 
        CALL timestop(handle)
@@ -574,18 +557,16 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_3c_2c'
 
-      INTEGER :: alpha, atom_a, beta, dir, handle, handle2, i, iatom, &
+      INTEGER :: atom_a, dir, handle, handle2, i, iatom, &
          igrid_level, ikind, iorb, ipgf, iset, lb(3), location(3), &
          na1, na2, ncoa, nseta, offset, sgfa, tp(3), ub(3)
-      INTEGER, DIMENSION(3)                              :: comp
       INTEGER, DIMENSION(:), POINTER                     :: la_max, la_min, npgfa, nsgfa
       INTEGER, DIMENSION(:, :), POINTER                  :: first_sgfa
       LOGICAL                                            :: map_it_here, skip_shell
-      REAL(KIND=dp)                                      :: e_hartree, &
-                                                            radius, total_rho
+      REAL(KIND=dp)                                      :: radius, total_rho
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: I_ab
       REAL(KIND=dp), DIMENSION(3)                        :: force_a, force_b, ra
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, my_virial_a, my_virial_b
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: my_virial_a, my_virial_b
       REAL(KIND=dp), DIMENSION(:), POINTER               :: set_radius_a
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2, pab, rpgfa, sphi_a, zeta
       TYPE(gto_basis_set_type), POINTER                  :: basis_set_a
@@ -609,29 +590,7 @@ CONTAINS
       CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter)
       CALL timestop(handle2)
 
-      IF (use_virial) THEN
-         ! add the volume contribution to the virial coming from
-         ! the 3-center integrals (mu nu|P)
-         CALL timeset(routineN//"_Virial", handle2)
-         e_hartree = 0.0_dp
-         h_stress = 0.0_dp
-         e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
-         DO alpha = 1, 3
-            comp = 0
-            comp(alpha) = 1
-            CALL pw_copy(pot_g%pw, rho_g%pw)
-            CALL pw_derive(rho_g%pw, comp)
-            h_stress(alpha, alpha) = -e_hartree
-            DO beta = alpha, 3
-               h_stress(alpha, beta) = h_stress(alpha, beta) &
-                                       - 2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
-               h_stress(beta, alpha) = h_stress(alpha, beta)
-            END DO
-         END DO
-         virial%pv_mp2 = virial%pv_mp2 + h_stress/REAL(para_env_sub%num_pe, dp)
-         virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe, dp)
-         CALL timestop(handle2)
-      END IF
+      IF (use_virial) CALL virial_gpw_potential(temp_pw_g, pot_g, rho_g, dvg, virial, potential_parameter, para_env_sub)
 
       ! integrate potential with auxiliary basis function derivatives
       NULLIFY (rs_v)
@@ -780,6 +739,46 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE integrate_potential_forces_3c_2c
+
+   SUBROUTINE virial_gpw_potential(temp_pw_g, pot_g, rho_g, dvg, virial, potential_parameter, para_env_sub)
+
+      TYPE(pw_p_type)                                    :: dvg(3), pot_g, rho_g, &
+                                                            temp_pw_g
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
+      TYPE(virial_type), POINTER                         :: virial
+      TYPE(cp_para_env_type), POINTER, INTENT(IN)        :: para_env_sub
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'virial_gpw_potential'
+
+      INTEGER                                            :: alpha, beta, handle
+      INTEGER, DIMENSION(3)                              :: comp
+      REAL(KIND=dp)                                      :: e_hartree
+      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
+
+      MARK_USED(potential_parameter)
+
+      ! add the volume contribution to the virial coming from
+      ! the 3-center integrals (mu nu|P)
+      CALL timeset(routineN//"_Virial", handle)
+      e_hartree = 0.0_dp
+      h_stress = 0.0_dp
+      e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
+      DO alpha = 1, 3
+         comp = 0
+         comp(alpha) = 1
+         CALL pw_copy(pot_g%pw, rho_g%pw)
+         CALL pw_derive(rho_g%pw, comp)
+         h_stress(alpha, alpha) = -e_hartree
+         DO beta = alpha, 3
+            h_stress(alpha, beta) = h_stress(alpha, beta) &
+                                    - 2.0_dp*pw_integral_ab(rho_g%pw, dvg(beta)%pw)/fourpi
+            h_stress(beta, alpha) = h_stress(alpha, beta)
+         END DO
+      END DO
+      virial%pv_mp2 = virial%pv_mp2 + h_stress/REAL(para_env_sub%num_pe, dp)
+      virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe, dp)
+      CALL timestop(handle)
+   END SUBROUTINE virial_gpw_potential
 
    SUBROUTINE integrate_potential(pw_env_sub, pot_r, kind_of, atom_of_kind, particle_set, qs_kind_set, &
                                   G_PQ_local, cell, force, virial, para_env_sub, dft_control)

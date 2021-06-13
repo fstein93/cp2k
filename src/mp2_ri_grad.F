@@ -384,7 +384,7 @@ CONTAINS
                                                   task_list_sub, use_virial, wf_vector, mo_coeff, psi_L, &
                                                   rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, &
                                                   particle_set, poisson_env, pot_g, temp_pw_g, &
-                                                  dvg, virial, para_env_sub)
+                                                  dvg, virial, mp2_env%potential_parameter, para_env_sub)
 
             ! The matrices of G_P_ia are deallocated here
             CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
