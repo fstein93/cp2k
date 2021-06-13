@@ -262,7 +262,7 @@ CONTAINS
                                                             periodic
       LOGICAL                                            :: do_gpw, do_kpoints_from_Gamma, do_svd, &
                                                             memory_info
-      REAL(KIND=dp) :: compression_factor, cond_num, cutoff_old, eps_svd, mem_for_iaK, memory_3c, &
+      REAL(KIND=dp) :: compression_factor, cond_num, cutoff_old, mem_for_iaK, memory_3c, &
          occ, omega_pot, rc_ang, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: my_Lrows
@@ -304,7 +304,6 @@ CONTAINS
       eri_method = qs_env%mp2_env%eri_method
       eri_param => qs_env%mp2_env%eri_mme_param
       do_svd = qs_env%mp2_env%do_svd
-      eps_svd = qs_env%mp2_env%eps_svd
       potential_type = qs_env%mp2_env%potential_parameter%potential_type
       ri_metric_type = ri_metric%potential_type
       omega_pot = qs_env%mp2_env%potential_parameter%omega
@@ -356,7 +355,7 @@ CONTAINS
       CALL get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                             fm_matrix_L, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, mo_coeff(1)%matrix, &
                             my_group_L_size, my_group_L_start, my_group_L_end, &
-                            gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, cond_num, do_svd, eps_svd, &
+                            gd_array, calc_PQ_cond_num .AND. .NOT. do_svd, cond_num, do_svd, &
                             num_small_eigen, qs_env%mp2_env%potential_parameter, ri_metric, &
                             fm_matrix_L_RI_metric, &
                             do_im_time, do_kpoints_from_Gamma .OR. do_kpoints_cubic_RPA, qs_env%mp2_env%mp2_gpw%eps_pgf_orb_S, &
@@ -401,13 +400,8 @@ CONTAINS
       IF (calc_PQ_cond_num .OR. do_svd) THEN
          IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T67,ES14.5)") &
             "RI_INFO| Condition number of the (P|Q):", cond_num
-         IF (do_svd) THEN
-            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,ES8.1,A,T75,i6)") &
-               "RI_INFO| Number of neglected Eigenvalues of (P|Q) smaller than ", eps_svd, ":", num_small_eigen
-         ELSE
-            IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,ES14.1,A,T75,i6)") &
-               "RI_INFO| Number of Eigenvalue of (P|Q) smaller ", eps_svd, ":", num_small_eigen
-         END IF
+         IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3,A,T81,i6)") &
+            "RI_INFO| Number of non-positive Eigenvalues of (P|Q):", num_small_eigen
       END IF
 
       IF (.NOT. do_im_time) THEN

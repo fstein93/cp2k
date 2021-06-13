@@ -133,7 +133,6 @@ CONTAINS
 !> \param calc_PQ_cond_num ...
 !> \param cond_num ...
 !> \param do_svd ...
-!> \param eps_svd ...
 !> \param num_small_eigen ...
 !> \param potential ...
 !> \param ri_metric ...
@@ -147,7 +146,7 @@ CONTAINS
    SUBROUTINE get_2c_integrals(qs_env, eri_method, eri_param, para_env, para_env_sub, para_env_L, mp2_memory, &
                                fm_matrix_L, ngroup, color_sub, dimen_RI, dimen_RI_red, kpoints, mo_coeff, &
                                my_group_L_size, my_group_L_start, my_group_L_end, &
-                               gd_array, calc_PQ_cond_num, cond_num, do_svd, eps_svd, &
+                               gd_array, calc_PQ_cond_num, cond_num, do_svd, &
                                num_small_eigen, potential, ri_metric, &
                                fm_matrix_L_RI_metric, &
                                do_im_time, do_kpoints, mp2_eps_pgf_orb_S, qs_kind_set, sab_orb_sub)
@@ -168,7 +167,6 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       LOGICAL, INTENT(IN)                                :: do_svd
-      REAL(KIND=dp), INTENT(IN)                          :: eps_svd
       INTEGER, INTENT(OUT)                               :: num_small_eigen
       TYPE(libint_potential_type)                        :: potential, ri_metric
       TYPE(cp_fm_p_type), DIMENSION(:, :), POINTER       :: fm_matrix_L_RI_metric
@@ -198,7 +196,7 @@ CONTAINS
       dimen_RI_red = dimen_RI
 
       IF (ri_metric%potential_type == potential%potential_type .AND. .NOT. do_im_time) THEN
-         CALL decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
+         CALL decomp_mat_L(fm_matrix_L, do_svd, num_small_eigen, cond_num, .TRUE., gd_array, ngroup, &
                            dimen_RI, dimen_RI_red, para_env)
       ELSE
 
@@ -245,10 +243,10 @@ CONTAINS
 
          ELSE
 
-            CALL decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, .FALSE., gd_array, ngroup, &
+            CALL decomp_mat_L(fm_matrix_L, do_svd, num_small_eigen, cond_num, .FALSE., gd_array, ngroup, &
                               dimen_RI, dimen_RI_red, para_env)
 
-            CALL decomp_mat_L(fm_matrix_L_RI_metric(1, 1)%matrix, .FALSE., 0.0_dp, num_small_eigen, cond_num, .TRUE., &
+            CALL decomp_mat_L(fm_matrix_L_RI_metric(1, 1)%matrix, .FALSE., num_small_eigen, cond_num, .TRUE., &
                               gd_array, ngroup, dimen_RI, dimen_RI_red, para_env)
 
             NULLIFY (fm_matrix_S_inv_work)
@@ -312,7 +310,6 @@ CONTAINS
 !> \brief ...
 !> \param fm_matrix_L ...
 !> \param do_svd ...
-!> \param eps_svd ...
 !> \param num_small_eigen ...
 !> \param cond_num ...
 !> \param do_inversion ...
@@ -322,12 +319,11 @@ CONTAINS
 !> \param dimen_RI_red ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE decomp_mat_L(fm_matrix_L, do_svd, eps_svd, num_small_eigen, cond_num, do_inversion, gd_array, ngroup, &
+   SUBROUTINE decomp_mat_L(fm_matrix_L, do_svd, num_small_eigen, cond_num, do_inversion, gd_array, ngroup, &
                            dimen_RI, dimen_RI_red, para_env)
 
       TYPE(cp_fm_type), POINTER                          :: fm_matrix_L
       LOGICAL, INTENT(IN)                                :: do_svd
-      REAL(KIND=dp), INTENT(IN)                          :: eps_svd
       INTEGER, INTENT(INOUT)                             :: num_small_eigen
       REAL(KIND=dp), INTENT(INOUT)                       :: cond_num
       LOGICAL, INTENT(IN)                                :: do_inversion
@@ -337,7 +333,7 @@ CONTAINS
       TYPE(cp_para_env_type), POINTER                    :: para_env
 
       IF (do_svd) THEN
-         CALL matrix_root_with_svd(fm_matrix_L, eps_svd, num_small_eigen, cond_num, do_inversion, para_env)
+         CALL matrix_root_with_svd(fm_matrix_L, num_small_eigen, cond_num, do_inversion, para_env)
 
          dimen_RI_red = dimen_RI - num_small_eigen
 
@@ -965,15 +961,13 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param matrix ...
-!> \param eps_svd ...
 !> \param num_small_evals ...
 !> \param cond_num ...
 !> \param do_inversion ...
 !> \param para_env ...
 ! **************************************************************************************************
-   SUBROUTINE matrix_root_with_svd(matrix, eps_svd, num_small_evals, cond_num, do_inversion, para_env)
+   SUBROUTINE matrix_root_with_svd(matrix, num_small_evals, cond_num, do_inversion, para_env)
       TYPE(cp_fm_type), POINTER                          :: matrix
-      REAL(KIND=dp), INTENT(IN)                          :: eps_svd
       INTEGER, INTENT(OUT)                               :: num_small_evals
       REAL(KIND=dp), INTENT(OUT)                         :: cond_num
       LOGICAL, INTENT(IN)                                :: do_inversion
@@ -990,8 +984,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CPASSERT(eps_svd >= 0)
-
       ! Create arrays carrying eigenvalues and eigenvectors later
       CALL cp_fm_get_info(matrix=matrix, nrow_global=nrow)
 
@@ -1007,7 +999,7 @@ CONTAINS
       ! Determine the number of neglectable eigenvalues assuming that the eigenvalues are in ascending order
       num_small_evals = 0
       DO ii = 1, nrow
-         IF (evals(ii) > eps_svd) THEN
+         IF (evals(ii) > 0.0_dp) THEN
             num_small_evals = ii - 1
             EXIT
          END IF

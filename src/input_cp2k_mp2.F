@@ -1419,14 +1419,6 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_SVD", &
-                          description="Include all singular vectors with a singular value smaller than EPS_SVD. "// &
-                          "Is used to provide info on smallest eigenvalues.", &
-                          usage="EPS_SVD  1.0e-5", &
-                          default_r_val=1.0E-3_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
       CALL keyword_create(keyword, __LOCATION__, name="ERI_BLKSIZE", &
                           description="block sizes for tensors (only used if ERI_METHOD=MME). First value "// &
                           "is the block size for ORB basis, second value is the block size for RI_AUX basis.", &

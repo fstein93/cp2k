@@ -228,7 +228,6 @@ MODULE mp2_types
       TYPE(cp_eri_mme_param), POINTER  :: eri_mme_param
       INTEGER, DIMENSION(:), POINTER  :: eri_blksize => NULL()
       LOGICAL  :: do_svd
-      REAL(KIND=dp) :: eps_svd
       REAL(KIND=dp) :: eps_range
       TYPE(libint_potential_type) :: ri_metric
    END TYPE
