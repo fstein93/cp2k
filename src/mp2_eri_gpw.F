@@ -520,8 +520,6 @@ CONTAINS
                                      basis_type="RI_AUX", &
                                      external_vector=wf_vector)
          ! transfer to reciprocal space and calculate potential
-         rho_r%pw%cr3d = psi_L%pw%cr3d
-         CALL pw_transfer(rho_r%pw, rho_g%pw)
          CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
          ! update virial with volume term (first calculate hartree like energy (diagonal part of the virial))
          CALL virial_gpw_potential(temp_pw_g, pot_g, rho_g, dvg, virial, potential_parameter, para_env_sub)

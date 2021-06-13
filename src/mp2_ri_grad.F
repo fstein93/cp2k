@@ -66,7 +66,6 @@ MODULE mp2_ri_grad
                                               pw_derive,&
                                               pw_integral_ab,&
                                               pw_scale,&
-                                              pw_transfer,&
                                               pw_zero
    USE pw_poisson_methods,              ONLY: pw_poisson_solve
    USE pw_poisson_types,                ONLY: pw_poisson_type
