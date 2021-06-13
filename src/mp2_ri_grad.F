@@ -157,12 +157,11 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ri_mp2_nonsep'
 
       INTEGER :: dimen, eri_method, handle, handle2, i, ikind, ispin, itmp(2), L_counter, LLL, &
-         my_P_end, my_P_size, my_P_start, natom, nspins, potential_type
+         my_P_end, my_P_size, my_P_start, natom, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, virtual
       LOGICAL                                            :: alpha_beta, use_virial
       REAL(KIND=dp)                                      :: cutoff_old, eps_filter, &
-                                                            factor, omega, &
-                                                            rcutoff, relative_cutoff_old
+                                                            factor, relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old, wf_vector
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local
       REAL(KIND=dp), POINTER, DIMENSION(:, :)            :: I_tmp2
@@ -201,9 +200,6 @@ CONTAINS
       dimen = nmo
       ALLOCATE (virtual(nspins))
       virtual(:) = dimen - homo(:)
-      potential_type = mp2_env%potential_parameter%potential_type
-      omega = mp2_env%potential_parameter%omega
-      rcutoff = mp2_env%potential_parameter%cutoff_radius
       eps_filter = mp2_env%mp2_gpw%eps_filter
       ALLOCATE (mo_coeff_o(nspins), mo_coeff_v(nspins), G_P_ia(nspins, my_group_L_size))
       DO ispin = 1, nspins
@@ -284,13 +280,13 @@ CONTAINS
 
          ALLOCATE (I_tmp2(dimen_RI, my_group_L_size))
          I_tmp2(:, :) = 0.0_dp
-         CALL mp2_eri_2c_integrate(eri_param, potential_type, omega, para_env_sub, qs_env, &
+         CALL mp2_eri_2c_integrate(eri_param, mp2_env%potential_parameter, para_env_sub, qs_env, &
                                    basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
                                    hab=I_tmp2, first_b=my_group_L_start, last_b=my_group_L_end, &
                                    eri_method=eri_method, pab=G_PQ_local, force_a=force_2c)
          DEALLOCATE (I_tmp2)
 
-         CALL mp2_eri_3c_integrate(eri_param, potential_type, omega, para_env_sub, qs_env, &
+         CALL mp2_eri_3c_integrate(eri_param, mp2_env%potential_parameter, para_env_sub, qs_env, &
                                    first_c=my_group_L_start, last_c=my_group_L_end, mat_ab=mat_munu_local, &
                                    basis_type_a="ORB", basis_type_b="ORB", basis_type_c="RI_AUX", &
                                    sab_nl=sab_orb_sub, eri_method=eri_method, &
@@ -377,7 +373,7 @@ CONTAINS
 
             CALL integrate_potential_forces_2c(rho_r, wf_vector, mo_coeff, psi_L, rho_g, atomic_kind_set, &
                                                qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, &
-                                               pot_g, potential_type, omega, rcutoff, use_virial, &
+                                               pot_g, mp2_env%potential_parameter, use_virial, &
                                                temp_pw_g, dvg, kind_of, atom_of_kind, G_PQ_local(:, L_counter), &
                                                force, virial, para_env_sub, dft_control)
 
@@ -396,7 +392,7 @@ CONTAINS
                                    eps_filter)
 
             CALL integrate_potential_forces_3c_2c(matrix_P_munu, rho_r, rho_g, task_list_sub, pw_env_sub, &
-                                                  potential_type, omega, rcutoff, &
+                                                  mp2_env%potential_parameter, &
                                                   ks_env, poisson_env, pot_g, use_virial, temp_pw_g, dvg, &
                                                   virial, para_env_sub, kind_of, atom_of_kind, &
                                                   qs_kind_set, particle_set, cell, LLL, force, dft_control)

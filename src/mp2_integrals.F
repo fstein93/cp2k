@@ -559,7 +559,7 @@ CONTAINS
                CALL dbcsr_copy(mat_munu_local_L(LLL)%matrix, mat_munu%matrix)
                CALL dbcsr_set(mat_munu_local_L(LLL)%matrix, 0.0_dp)
             ENDDO
-            CALL mp2_eri_3c_integrate(eri_param, ri_metric%potential_type, ri_metric%omega, para_env_sub, qs_env, &
+            CALL mp2_eri_3c_integrate(eri_param, ri_metric, para_env_sub, qs_env, &
                                       first_c=my_group_L_start, last_c=my_group_L_end, &
                                       mat_ab=mat_munu_local_L, &
                                       basis_type_a="ORB", basis_type_b="ORB", &
@@ -631,8 +631,7 @@ CONTAINS
 
                CALL mp2_eri_3c_integrate_gpw(mo_coeff(1)%matrix, psi_L, rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, &
                                              particle_set, pw_env_sub, my_Lrows(:, i_counter), poisson_env, rho_r, pot_g, &
-                                             ri_metric%potential_type, ri_metric%omega, ri_metric%cutoff_radius, &
-                                             mat_munu, qs_env, task_list_sub)
+                                             ri_metric, mat_munu, qs_env, task_list_sub)
 
                DO ispin = 1, nspins
                   CALL ao_to_mo_and_store_B(para_env_sub, mat_munu, intermed_mat(ispin), &

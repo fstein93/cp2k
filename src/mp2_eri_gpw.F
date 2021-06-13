@@ -29,6 +29,7 @@ MODULE mp2_eri_gpw
                                               do_potential_short,&
                                               do_potential_truncated
    USE kinds,                           ONLY: dp
+   USE libint_2c_3c,                    ONLY: libint_potential_type
    USE mathconstants,                   ONLY: fourpi
    USE message_passing,                 ONLY: mp_sum
    USE orbital_pointers,                ONLY: ncoset
@@ -110,17 +111,14 @@ CONTAINS
 !> \param poisson_env ...
 !> \param rho_r ...
 !> \param pot_g ...
-!> \param ri_metric ...
-!> \param omega_metric ...
-!> \param rcutoff_metric ...
+!> \param potential_parameter ...
 !> \param mat_munu ...
 !> \param qs_env ...
 !> \param task_list_sub ...
 ! **************************************************************************************************
    SUBROUTINE mp2_eri_3c_integrate_gpw(mo_coeff, psi_L, rho_g, atomic_kind_set, qs_kind_set, cell, dft_control, particle_set, &
                                        pw_env_sub, external_vector, poisson_env, rho_r, pot_g, &
-                                       ri_metric, omega_metric, rcutoff_metric, mat_munu, &
-                                       qs_env, task_list_sub)
+                                       potential_parameter, mat_munu, qs_env, task_list_sub)
 
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(pw_p_type), INTENT(INOUT)                     :: psi_L, rho_g
@@ -133,8 +131,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: external_vector
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_p_type), INTENT(INOUT)                     :: rho_r, pot_g
-      INTEGER, INTENT(IN)                                :: ri_metric
-      REAL(KIND=dp), INTENT(IN)                          :: omega_metric, rcutoff_metric
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_munu
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(task_list_type), POINTER                      :: task_list_sub
@@ -151,7 +148,7 @@ CONTAINS
                                   basis_type="RI_AUX", &
                                   external_vector=external_vector)
 
-      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, ri_metric, omega_metric, rcutoff_metric)
+      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter)
 
       ! and finally (K|mu nu)
       CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
@@ -171,23 +168,22 @@ CONTAINS
 !> \param mo_coeff ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
-!> \param ri_metric ...
 !> \param natom ...
-!> \param omega ...
+!> \param potential_parameter ...
 !> \param sab_orb_sub ...
 !> \param L_local_col ...
 !> \param kind_of ...
 ! **************************************************************************************************
-   SUBROUTINE mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, dimen_RI, mo_coeff, my_group_L_start, my_group_L_end, ri_metric, &
-                                       natom, omega, rcutoff, sab_orb_sub, L_local_col, kind_of)
+   SUBROUTINE mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, dimen_RI, mo_coeff, my_group_L_start, my_group_L_end, &
+                                       natom, potential_parameter, sab_orb_sub, L_local_col, kind_of)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
-                                                            ri_metric, natom
-      REAL(KIND=dp), INTENT(IN)                          :: omega, rcutoff
+                                                            natom
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb_sub
       REAL(KIND=dp), DIMENSION(:, :), INTENT(OUT)        :: L_local_col
@@ -248,7 +244,7 @@ CONTAINS
 
          CALL timeset(routineN//"_pot_lm", handle2)
 
-         CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, ri_metric, omega, rcutoff)
+         CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter)
 
          NULLIFY (rs_v)
          NULLIFY (rs_descs)
@@ -403,7 +399,7 @@ CONTAINS
 
    SUBROUTINE integrate_potential_forces_2c(rho_r, wf_vector, mo_coeff, psi_L, rho_g, atomic_kind_set, &
                                             qs_kind_set, particle_set, cell, pw_env_sub, poisson_env, pot_g, &
-                                            potential_type, omega, rcutoff, use_virial, temp_pw_g, dvg, &
+                                            potential_parameter, use_virial, temp_pw_g, dvg, &
                                             kind_of, atom_of_kind, G_PQ_local, force, virial, para_env_sub, &
                                             dft_control)
 
@@ -416,8 +412,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(pw_env_type), POINTER                         :: pw_env_sub
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
-      INTEGER, INTENT(IN)                                :: potential_type
-      REAL(KIND=dp), INTENT(IN)                          :: omega, rcutoff
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       LOGICAL, INTENT(IN)                                :: use_virial
       INTEGER, DIMENSION(:)                              :: atom_of_kind, kind_of
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: G_PQ_local
@@ -448,7 +443,7 @@ CONTAINS
          CALL pw_scale(rho_r%pw, 0.5_dp)
          CALL pw_transfer(rho_r%pw, rho_g%pw)
       END IF
-      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega, rcutoff)
+      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter)
       CALL timestop(handle2)
 
       IF (use_virial) THEN
@@ -553,7 +548,7 @@ CONTAINS
    END SUBROUTINE integrate_potential_forces_3c_1c
 
    SUBROUTINE integrate_potential_forces_3c_2c(matrix_P_munu, rho_r, rho_g, task_list_sub, pw_env_sub, &
-                                               potential_type, omega, rcutoff, &
+                                               potential_parameter, &
                                                ks_env, poisson_env, pot_g, use_virial, temp_pw_g, dvg, &
                                                virial, para_env_sub, kind_of, atom_of_kind, &
                                                qs_kind_set, particle_set, cell, LLL, force, dft_control)
@@ -566,8 +561,7 @@ CONTAINS
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
-      INTEGER, INTENT(IN)                                :: potential_type
-      REAL(KIND=dp), INTENT(IN)                          :: omega, rcutoff
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
       LOGICAL, INTENT(IN)                                :: use_virial
       TYPE(cp_para_env_type), POINTER                    :: para_env_sub
       TYPE(cell_type), POINTER                           :: cell
@@ -612,7 +606,7 @@ CONTAINS
                               ks_env=ks_env)
       ! calculate associated hartree potential
       !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!1
-      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_type, omega, rcutoff)
+      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter)
       CALL timestop(handle2)
 
       IF (use_virial) THEN
@@ -1114,21 +1108,18 @@ CONTAINS
    END SUBROUTINE cleanup_gpw
 
 ! **************************************************************************************************
-!> \brief ...1
+!> \brief ...
 !> \param pot_r on output: potential in r space
 !> \param rho_g on input: rho in g space
 !> \param poisson_env ...
 !> \param pot_g on output: potential in g space
-!> \param potential_type ...
-!> \param omega ...
-!> \param rcutoff ...
+!> \param potential_parameter Potential parameters, if not provided, assume Coulomb potential
 ! **************************************************************************************************
-   SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_type, omega, rcutoff)
+   SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_parameter)
       TYPE(pw_p_type), INTENT(IN)                        :: pot_r, rho_g
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_p_type), INTENT(IN)                        :: pot_g
-      INTEGER, INTENT(IN), OPTIONAL                      :: potential_type
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: omega, rcutoff
+      TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_potential_gpw'
 
@@ -1137,20 +1128,17 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       my_potential_type = do_potential_coulomb
-      IF (PRESENT(potential_type)) THEN
-         my_potential_type = potential_type
-         IF (my_potential_type /= do_potential_coulomb .AND. .NOT. PRESENT(omega)) THEN
-            CPABORT("Need omega when longrange potential is requested.")
-         END IF
+      IF (PRESENT(potential_parameter)) THEN
+         my_potential_type = potential_parameter%potential_type
       END IF
 
       ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
       ! overlap metric, we do not need the Coulomb operator
       IF (my_potential_type /= do_potential_id) THEN
          CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g%pw)
-         IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g%pw, omega)
-         IF (my_potential_type == do_potential_short) CALL pw_compl_gauss_damp(pot_g%pw, omega)
-         IF (my_potential_type == do_potential_truncated) CALL pw_truncated(pot_g%pw, rcutoff)
+         IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g%pw, potential_parameter%omega)
+         IF (my_potential_type == do_potential_short) CALL pw_compl_gauss_damp(pot_g%pw, potential_parameter%omega)
+         IF (my_potential_type == do_potential_truncated) CALL pw_truncated(pot_g%pw, potential_parameter%cutoff_radius)
          CALL pw_transfer(pot_g%pw, pot_r%pw)
       ELSE
          ! If we use an overlap metric, make sure to use the correct potential=density on output

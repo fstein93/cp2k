@@ -781,7 +781,7 @@ CONTAINS
           .AND. potential_type .EQ. do_potential_coulomb .OR. &
           (eri_method .EQ. do_eri_mme .AND. potential_type .EQ. do_potential_long)) THEN
 
-         CALL mp2_eri_2c_integrate(eri_param, potential_type, potential%omega, para_env_sub, qs_env, &
+         CALL mp2_eri_2c_integrate(eri_param, potential, para_env_sub, qs_env, &
                                    basis_type_a="RI_AUX", basis_type_b="RI_AUX", &
                                    hab=L_local_col, first_b=my_group_L_start, last_b=my_group_L_end, &
                                    eri_method=eri_method)
@@ -791,8 +791,7 @@ CONTAINS
               .OR. (potential_type == do_potential_id .AND. qs_env%mp2_env%eri_method == do_eri_mme)) THEN
 
          CALL mp2_eri_2c_integrate_gpw(qs_env, para_env_sub, dimen_RI, mo_coeff, my_group_L_start, my_group_L_end, &
-                                       potential_type, &
-                                       natom, potential%omega, potential%cutoff_radius, sab_orb_sub, L_local_col, kind_of)
+                                       natom, potential, sab_orb_sub, L_local_col, kind_of)
 
       ELSE
          CPABORT("unknown ERI method")
