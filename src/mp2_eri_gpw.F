@@ -443,21 +443,12 @@ CONTAINS
          CALL pw_scale(rho_r%pw, 0.5_dp)
          CALL pw_transfer(rho_r%pw, rho_g%pw)
       END IF
-      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter)
+      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter, dvg)
       CALL timestop(handle2)
 
       IF (use_virial) THEN
          ! make a copy of the density in G space
-         ! calculate the potential derivatives in G space
-         CALL timeset(routineN//"_Virial", handle2)
          CALL pw_copy(rho_g%pw, temp_pw_g%pw)
-         DO i = 1, 3
-            comp = 0
-            comp(i) = 1
-            CALL pw_copy(pot_g%pw, dvg(i)%pw)
-            CALL pw_derive(dvg(i)%pw, comp)
-         END DO
-         CALL timestop(handle2)
       END IF
 
       ! integrate the potential of the single gaussian and update
@@ -761,6 +752,9 @@ CONTAINS
       e_hartree = 0.0_dp
       h_stress = 0.0_dp
       e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
+
+      ! Calculate a factor taking into account the potential type
+
       DO alpha = 1, 3
          comp = 0
          comp(alpha) = 1
@@ -777,6 +771,13 @@ CONTAINS
       virial%pv_virial = virial%pv_virial + h_stress/REAL(para_env_sub%num_pe, dp)
       CALL timestop(handle)
    END SUBROUTINE virial_gpw_potential
+
+   SUBROUTINE factor_virial_gpw(pw, potential_type)
+      TYPE(pw_p_type), INTENT(IN)                        :: pw
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_type
+
+
+   END SUBROUTINE factor_virial_gpw
 
    SUBROUTINE integrate_potential(pw_env_sub, pot_r, kind_of, atom_of_kind, particle_set, qs_kind_set, &
                                   G_PQ_local, cell, force, virial, para_env_sub, dft_control)
@@ -1111,12 +1112,14 @@ CONTAINS
 !> \param poisson_env ...
 !> \param pot_g on output: potential in g space
 !> \param potential_parameter Potential parameters, if not provided, assume Coulomb potential
+!> \param dvg in output: first derivatives of the corresponding Coulomb potential
 ! **************************************************************************************************
-   SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_parameter)
+   SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_parameter, dvg)
       TYPE(pw_p_type), INTENT(IN)                        :: pot_r, rho_g
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_p_type), INTENT(IN)                        :: pot_g
       TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
+      TYPE(pw_p_type), INTENT(IN), DIMENSION(3), OPTIONAL :: dvg
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_potential_gpw'
 
@@ -1132,7 +1135,7 @@ CONTAINS
       ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
       ! overlap metric, we do not need the Coulomb operator
       IF (my_potential_type /= do_potential_id) THEN
-         CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g%pw)
+         CALL pw_poisson_solve(poisson_env, rho_g%pw, vhartree=pot_g%pw, dvhartree=dvg)
          IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g%pw, potential_parameter%omega)
          IF (my_potential_type == do_potential_short) CALL pw_compl_gauss_damp(pot_g%pw, potential_parameter%omega)
          IF (my_potential_type == do_potential_truncated) CALL pw_truncated(pot_g%pw, potential_parameter%cutoff_radius)
