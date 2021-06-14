@@ -58,7 +58,8 @@ MODULE mp2_eri_gpw
                                               REALDATA3D,&
                                               REALSPACE,&
                                               RECIPROCALSPACE,&
-                                              pw_p_type
+                                              pw_p_type,&
+                                              pw_type
    USE qs_collocate_density,            ONLY: calculate_rho_elec,&
                                               calculate_wavefunction
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -423,8 +424,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_2c'
 
-      INTEGER                                            :: handle, handle2, i, ispin
-      INTEGER, DIMENSION(3)                              :: comp
+      INTEGER                                            :: handle, handle2, ispin
 
       CALL timeset(routineN, handle)
 
@@ -443,7 +443,11 @@ CONTAINS
          CALL pw_scale(rho_r%pw, 0.5_dp)
          CALL pw_transfer(rho_r%pw, rho_g%pw)
       END IF
-      CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter, dvg)
+      IF (use_virial) THEN
+         CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter, dvg)
+      ELSE
+         CALL calc_potential_gpw(rho_r, rho_g, poisson_env, pot_g, potential_parameter)
+      END IF
       CALL timestop(handle2)
 
       IF (use_virial) THEN
@@ -487,7 +491,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'integrate_potential_forces_3c_1c'
 
       INTEGER                                            :: handle, handle2
-      REAL(KIND=dp)                                      :: pair_energy
 
       CALL timeset(routineN, handle)
 
@@ -511,7 +514,7 @@ CONTAINS
                                      basis_type="RI_AUX", &
                                      external_vector=wf_vector)
          ! transfer to reciprocal space and calculate potential
-         CALL pw_poisson_solve(poisson_env, rho_g%pw, pair_energy, pot_g%pw)
+         CALL calc_potential_gpw(psi_L, rho_g, poisson_env, pot_g, potential_parameter, no_transfer=.TRUE.)
          ! update virial with volume term (first calculate hartree like energy (diagonal part of the virial))
          CALL virial_gpw_potential(temp_pw_g, pot_g, rho_g, dvg, virial, potential_parameter, para_env_sub)
        END IF
@@ -744,22 +747,19 @@ CONTAINS
       REAL(KIND=dp)                                      :: e_hartree
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress
 
-      MARK_USED(potential_parameter)
-
       ! add the volume contribution to the virial coming from
       ! the 3-center integrals (mu nu|P)
-      CALL timeset(routineN//"_Virial", handle)
+      CALL timeset(routineN, handle)
       e_hartree = 0.0_dp
       h_stress = 0.0_dp
       e_hartree = pw_integral_ab(temp_pw_g%pw, pot_g%pw)
-
-      ! Calculate a factor taking into account the potential type
 
       DO alpha = 1, 3
          comp = 0
          comp(alpha) = 1
          CALL pw_copy(pot_g%pw, rho_g%pw)
          CALL pw_derive(rho_g%pw, comp)
+         CALL factor_virial_gpw(rho_g%pw, potential_parameter)
          h_stress(alpha, alpha) = -e_hartree
          DO beta = alpha, 3
             h_stress(alpha, beta) = h_stress(alpha, beta) &
@@ -772,10 +772,54 @@ CONTAINS
       CALL timestop(handle)
    END SUBROUTINE virial_gpw_potential
 
-   SUBROUTINE factor_virial_gpw(pw, potential_type)
-      TYPE(pw_p_type), INTENT(IN)                        :: pw
-      TYPE(libint_potential_type), INTENT(IN)            :: potential_type
+   SUBROUTINE factor_virial_gpw(pw, potential_parameter)
+      TYPE(pw_type), INTENT(IN)                          :: pw
+      TYPE(libint_potential_type), INTENT(IN)            :: potential_parameter
 
+      INTEGER                                            :: i
+      REAL(KIND=dp)                                      :: omega_2, rchalf, tmp
+
+      IF (.NOT. (pw%in_space == RECIPROCALSPACE .AND. pw%in_use == COMPLEXDATA1D)) &
+         CPABORT("pw in wrong space or wrong data type")
+      SELECT CASE (potential_parameter%potential_type)
+      CASE(do_potential_coulomb)
+         RETURN
+      CASE(do_potential_long)
+         omega_2 = 1.0_dp/(2.0_dp*potential_parameter%omega)**2
+!$OMP PARALLEL WORKSHARE SHARED(pw,potential_parameter)
+         pw%cc(:) = pw%cc(:)*(1.0_dp+omega_2*pw%pw_grid%gsq(:))
+!$OMP END PARALLEL WORKSHARE
+      CASE(do_potential_short)
+         omega_2 = 1.0_dp/(2.0_dp*potential_parameter%omega)**2
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
+!$OMP             SHARED(pw,omega_2)
+         DO i = 1, SIZE(pw%cc)
+            tmp = omega_2*pw%pw_grid%gsq(i)
+            ! For too small arguments, use the Taylor polynomial to prevent division by zero
+            IF (ABS(tmp) >= 0.003_dp) THEN
+               pw%cc(i) = pw%cc(i)*(1.0_dp-tmp*EXP(-tmp)/(1.0_dp-EXP(-tmp)))
+            ELSE
+               pw%cc(i) = pw%cc(i)*(0.5_dp*tmp-tmp**2/12.0_dp)
+            END IF
+         END DO
+!$OMP END PARALLEL DO
+      CASE(do_potential_truncated)
+         rchalf = 0.5_dp*potential_parameter%cutoff_radius
+!$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(i,tmp) &
+!$OMP             SHARED(pw,rchalf)
+         DO i = 1, SIZE(pw%cc)
+            tmp = rchalf*SQRT(pw%pw_grid%gsq(i))
+            ! For too small arguments, use the Taylor polynomial to prevent division by zero
+            IF (ABS(tmp) >= 0.0001_dp) THEN
+               pw%cc(i) = pw%cc(i)*(1.0_dp-tmp/TAN(tmp))
+            ELSE
+               pw%cc(i) = pw%cc(i)*tmp**2*(1.0_dp-tmp**2/15.0_dp)/3.0_dp
+            END IF
+         END DO
+!$OMP END PARALLEL DO
+      CASE DEFAULT
+         CPABORT("Unknown potential type")
+      END SELECT
 
    END SUBROUTINE factor_virial_gpw
 
@@ -1113,17 +1157,20 @@ CONTAINS
 !> \param pot_g on output: potential in g space
 !> \param potential_parameter Potential parameters, if not provided, assume Coulomb potential
 !> \param dvg in output: first derivatives of the corresponding Coulomb potential
+!> \param no_transfer: whether NOT to transform potential from g-space to r-space (default: do it)
 ! **************************************************************************************************
-   SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_parameter, dvg)
+   SUBROUTINE calc_potential_gpw(pot_r, rho_g, poisson_env, pot_g, potential_parameter, dvg, no_transfer)
       TYPE(pw_p_type), INTENT(IN)                        :: pot_r, rho_g
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
       TYPE(pw_p_type), INTENT(IN)                        :: pot_g
       TYPE(libint_potential_type), INTENT(IN), OPTIONAL  :: potential_parameter
       TYPE(pw_p_type), INTENT(IN), DIMENSION(3), OPTIONAL :: dvg
+      LOGICAL, INTENT(IN), OPTIONAL                      :: no_transfer
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_potential_gpw'
 
       INTEGER                                            :: handle, my_potential_type
+      LOGICAL                                            :: my_transfer
 
       CALL timeset(routineN, handle)
 
@@ -1132,6 +1179,9 @@ CONTAINS
          my_potential_type = potential_parameter%potential_type
       END IF
 
+      my_transfer = .TRUE.
+      IF (PRESENT(no_transfer)) my_transfer = .NOT. no_transfer
+
       ! in case we do Coulomb metric for RI, we need the Coulomb operator, but for RI with the
       ! overlap metric, we do not need the Coulomb operator
       IF (my_potential_type /= do_potential_id) THEN
@@ -1139,13 +1189,13 @@ CONTAINS
          IF (my_potential_type == do_potential_long) CALL pw_gauss_damp(pot_g%pw, potential_parameter%omega)
          IF (my_potential_type == do_potential_short) CALL pw_compl_gauss_damp(pot_g%pw, potential_parameter%omega)
          IF (my_potential_type == do_potential_truncated) CALL pw_truncated(pot_g%pw, potential_parameter%cutoff_radius)
-         CALL pw_transfer(pot_g%pw, pot_r%pw)
+         IF (my_transfer) CALL pw_transfer(pot_g%pw, pot_r%pw)
       ELSE
          ! If we use an overlap metric, make sure to use the correct potential=density on output
-         CALL pw_transfer(rho_g%pw, pot_r%pw)
+         IF (my_transfer) CALL pw_transfer(rho_g%pw, pot_r%pw)
       END IF
 
-      CALL pw_scale(pot_r%pw, pot_r%pw%pw_grid%dvol)
+      IF (my_transfer) CALL pw_scale(pot_r%pw, pot_r%pw%pw_grid%dvol)
       CALL timestop(handle)
 
    END SUBROUTINE calc_potential_gpw
