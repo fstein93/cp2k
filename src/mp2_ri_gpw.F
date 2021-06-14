@@ -223,8 +223,10 @@ CONTAINS
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 
+!$OMP PARALLEL WORKSHARE SHARED(local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_i,my_block_size)
                   local_i_aL(Lstart_pos:Lend_pos, :, :) = &
                      BIb_C(ispin)%array(start_point:end_point, :, my_i:my_i + my_block_size - 1)
+!$OMP END PARALLEL WORKSHARE
                END DO
 
                local_j_aL = 0.0_dp
@@ -234,8 +236,10 @@ CONTAINS
                   start_point = ranges_info_array(3, irep, para_env_exchange%mepos)
                   end_point = ranges_info_array(4, irep, para_env_exchange%mepos)
 
+!$OMP PARALLEL WORKSHARE SHARED(local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_j,my_block_size)
                   local_j_aL(Lstart_pos:Lend_pos, :, :) = &
                      BIb_C(jspin)%array(start_point:end_point, :, my_j:my_j + my_block_size - 1)
+!$OMP END PARALLEL WORKSHARE
                END DO
 
                ! collect data from other proc
@@ -269,7 +273,9 @@ CALL timestop(handle4)
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
+!$OMP PARALLEL WORKSHARE SHARED(local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,ispin,BI_C_rec)
                         local_i_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(ispin), :)
+!$OMP END PARALLEL WORKSHARE
 
                      END DO
 
@@ -287,7 +293,9 @@ CALL timestop(handle4)
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
+!$OMP PARALLEL WORKSHARE SHARED(local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,jspin,BI_C_rec)
                         local_j_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(jspin), :)
+!$OMP END PARALLEL WORKSHARE
 
                      END DO
 
@@ -304,7 +312,9 @@ CALL timestop(handle4)
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
+!$OMP PARALLEL WORKSHARE SHARED(local_i_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,ispin)
                         local_i_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(ispin), :)
+!$OMP END PARALLEL WORKSHARE
 
                      END DO
 
@@ -318,7 +328,9 @@ CALL timestop(handle4)
                         start_point = ranges_info_array(3, irep, proc_receive)
                         end_point = ranges_info_array(4, irep, proc_receive)
 
+!$OMP PARALLEL WORKSHARE SHARED(local_j_aL,Lstart_pos,Lend_pos,start_point,end_point,my_B_size,jspin,BI_C_rec)
                         local_j_aL(Lstart_pos:Lend_pos, :, :) = BI_C_rec(start_point:end_point, 1:my_B_size(jspin), :)
+!$OMP END PARALLEL WORKSHARE
 
                      END DO
 
@@ -631,13 +643,16 @@ CALL timeset(routineN//"_B_ia_Q_send", handle4)
                   CALL mp_sendrecv(mp2_env%ri_grad%Gamma_P_ia(kspin)%array(:, :, start_point:end_point), &
                                    proc_send, BIb_C(kspin)%array, proc_receive, para_env_rep%group)
 CALL timestop(handle4)
+!$OMP PARALLEL WORKSHARE SHARED(mp2_env,BIb_C,kspin,homo,my_B_size,my_group_L_size)
                   mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) = &
                      mp2_env%ri_grad%Gamma_P_ia(kspin)%array(1:homo(kspin), 1:my_B_size(kspin), 1:my_group_L_size) &
                      + BIb_C(kspin)%array(:, :, :)
+!$OMP END PARALLEL WORKSHARE
                END DO
             END DO
-            DEALLOCATE (BIb_C(ispin)%array)
-            IF (my_alpha_beta_case) DEALLOCATE (BIb_C(jspin)%array)
+            DO kspin = ispin, jspin
+               DEALLOCATE (BIb_C(kspin)%array)
+            END DO
 
             IF (.NOT. my_open_shell_ss) THEN
                ! B_ia_Q(kspin)%array will be deallocated inside of complete_gamma
@@ -691,10 +706,9 @@ CALL timestop(handle4)
             ! keep the array for the next calculations
             IF (ALLOCATED(BIb_C(ispin)%array)) DEALLOCATE (BIb_C(ispin)%array)
             CALL release_group_dist(gd_array)
-            CALL release_group_dist(gd_B_virtual(ispin))
-            IF (my_alpha_beta_case) THEN
-               CALL release_group_dist(gd_B_virtual(jspin))
-            END IF
+            DO kspin = ispin, jspin
+               CALL release_group_dist(gd_B_virtual(kspin))
+            END DO
          END IF
 
          CALL cp_para_env_release(para_env_exchange)
