@@ -2042,15 +2042,17 @@ CONTAINS
 !>      JGH (14-Mar-2001) : Parallel sum and some tests, HALFSPACE case
 !> \author apsi
 ! **************************************************************************************************
-   FUNCTION pw_integral_ab(pw1, pw2, sumtype) RESULT(integral_value)
+   FUNCTION pw_integral_ab(pw1, pw2, sumtype, just_sum) RESULT(integral_value)
 
       TYPE(pw_type), INTENT(IN)                          :: pw1, pw2
       INTEGER, INTENT(IN), OPTIONAL                      :: sumtype
       REAL(KIND=dp)                                      :: integral_value
+      LOGICAL, OPTIONAL, INTENT(IN)                      :: just_sum
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_integral_ab'
 
       INTEGER                                            :: handle, loc_sumtype
+      LOGICAL                                            :: my_just_sum
 
       CALL timeset(routineN, handle)
 
@@ -2060,6 +2062,9 @@ CONTAINS
       IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
          CPABORT("Grids incompatible")
       END IF
+
+      my_just_sum = .FALSE.
+      IF (PRESENT(just_sum)) my_just_sum = just_sum
 
       ! do standard sum
       IF (loc_sumtype == do_standard_sum) THEN
@@ -2151,10 +2156,12 @@ CONTAINS
 
       END IF
 
-      IF (pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D) THEN
-         integral_value = integral_value*pw1%pw_grid%dvol
-      ELSE
-         integral_value = integral_value*pw1%pw_grid%vol
+      IF (.NOT. my_just_sum) THEN
+         IF (pw1%in_use == REALDATA3D .OR. pw1%in_use == COMPLEXDATA3D) THEN
+            integral_value = integral_value*pw1%pw_grid%dvol
+         ELSE
+            integral_value = integral_value*pw1%pw_grid%vol
+         END IF
       END IF
       IF (pw1%in_use == COMPLEXDATA1D) THEN
          IF (pw1%pw_grid%grid_span == HALFSPACE) THEN
