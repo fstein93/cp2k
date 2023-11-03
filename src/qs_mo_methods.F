@@ -497,9 +497,7 @@ CONTAINS
             evals_arg(1:n) = evals(1:n)
          END IF
 
-         IF (PRESENT(ionode) .OR. PRESENT(scr)) THEN
-            IF (.NOT. PRESENT(ionode)) CPABORT("IONODE?")
-            IF (.NOT. PRESENT(scr)) CPABORT("SCR?")
+         IF (PRESENT(ionode) .AND. PRESENT(scr)) THEN
             IF (ionode) THEN
                DO i = 1, ncol_global, 4
                   j = MIN(3, ncol_global - i)
