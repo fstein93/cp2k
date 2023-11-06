@@ -9142,6 +9142,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="REMOVE_XC", &
+                          description="The two-center (one-particle) integrals are calculated by "// &
+                          "removing all XC contributions from the Fock/KS matrix instead of removing "// &
+                          "the full HF contributions employing the calculated electron repulsion integrals.", &
+                          default_l_val=.FALSE., lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL cp_print_key_section_create(print_key, __LOCATION__, "FCIDUMP", &
                                        description="Controls the writing of a file in FCIDUMP format.", &
                                        print_level=high_print_level, filename="")

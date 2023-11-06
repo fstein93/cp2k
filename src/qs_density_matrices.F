@@ -80,7 +80,7 @@ CONTAINS
    SUBROUTINE calculate_dm_sparse(mo_set, density_matrix, use_dbcsr, retain_sparsity)
 
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
-      TYPE(dbcsr_type), POINTER                          :: density_matrix
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: density_matrix
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_dbcsr, retain_sparsity
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_dm_sparse'

@@ -94,6 +94,7 @@ MODULE qs_active_space_types
       LOGICAL                                      :: do_scf_embedding = .FALSE.
       LOGICAL                                      :: qcschema = .FALSE.
       LOGICAL                                      :: fcidump = .FALSE.
+      LOGICAL                                      :: remove_xc = .FALSE.
       CHARACTER(LEN=default_path_length)           :: qcschema_filename = ''
       TYPE(eri_type)                               :: eri = eri_type()
       TYPE(mo_set_type), DIMENSION(:), POINTER     :: mos_active => NULL()

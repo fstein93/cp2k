@@ -85,7 +85,7 @@ MODULE qs_active_space_methods
                          pw_multiply, &
                          pw_multiply_with, &
                          pw_transfer, &
-                         pw_zero, pw_integral_ab, pw_scale
+                         pw_zero, pw_integral_ab, pw_scale, pw_axpy
    USE pw_poisson_methods, ONLY: pw_poisson_rebuild, &
                                  pw_poisson_solve
    USE pw_poisson_types, ONLY: ANALYTIC0D, &
@@ -211,8 +211,8 @@ CONTAINS
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
       LOGICAL                                            :: do_kpoints, ex_operator, ex_perd, &
-                                                            explicit, isolated, stop_after_print, &
-                                                            store_wfn
+                                                            explicit, isolated, remove_xc, &
+                                                            stop_after_print, store_wfn
       REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_param, &
          eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
@@ -309,6 +309,9 @@ CONTAINS
             WRITE (iw, '(T3,A)') "System is treated without periodicity"
          END IF
       END IF
+
+      CALL section_vals_val_get(as_input, "REMOVE_XC", l_val=remove_xc)
+      active_space_env%remove_xc = remove_xc
 
       CALL section_vals_val_get(as_input, "ACTIVE_ELECTRONS", i_val=nelec_active)
       ! actually nelec_spin tells me the number of electrons per spin channel from qs_env
@@ -1002,6 +1005,10 @@ CONTAINS
       active_space_env%energy_ref = energy%total
       ! calculate inactive energy and embedding potential
       CALL subspace_fock_matrix(active_space_env)
+! Remove XC contributions if requested
+      IF (active_space_env%remove_xc) THEN
+         CALL remove_xc_contributions(active_space_env, qs_env)
+      END IF
 
       ! associate the active space environment with the qs environment
       CALL set_qs_env(qs_env, active_space=active_space_env)
@@ -2184,7 +2191,8 @@ CONTAINS
 
          ! compute ks_ref = V_H[rho^A] + V_HFX[rho^A]
          eri => active_space_env%eri%eri(1)%csr_mat
-         CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, active_space_env%eri%method)
+         CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, active_space_env%eri%method, &
+                                         active_space_env%remove_xc)
 
          ! compute eeri = E_H[rho^A] + E_HFX[rho^A] as
          ! eeri = 1/2 * (SUM_pq (V_H[rho^A] + V_HFX[rho^A])_pq * D^A_pq)
@@ -2238,9 +2246,11 @@ CONTAINS
          eri_ab => active_space_env%eri%eri(2)%csr_mat
          eri_bb => active_space_env%eri%eri(3)%csr_mat
          CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, &
-                                              tr_mixed_eri=.FALSE., eri_method=active_space_env%eri%method)
+                                              tr_mixed_eri=.FALSE., eri_method=active_space_env%eri%method, &
+                                              remove_xc=active_space_env%remove_xc)
          CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, &
-                                              tr_mixed_eri=.TRUE., eri_method=active_space_env%eri%method)
+                                              tr_mixed_eri=.TRUE., eri_method=active_space_env%eri%method, &
+                                              remove_xc=active_space_env%remove_xc)
          !
          ! calculate energy
          eeri = 0.0_dp
@@ -2279,25 +2289,94 @@ CONTAINS
    END SUBROUTINE subspace_fock_matrix
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param active_space_env ...
+!> \param qs_env ...
+! **************************************************************************************************
+   SUBROUTINE remove_xc_contributions(active_space_env, qs_env)
+      TYPE(active_space_type), POINTER                   :: active_space_env
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+
+      INTEGER                                            :: ispin, nmo, nspins
+      REAL(KIND=dp)                                      :: e_hartree
+      TYPE(cp_fm_type), POINTER                          :: mo_coeff
+      TYPE(dbcsr_p_type)                                 :: matrix_hcore
+      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_h
+      TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(pw_env_type), POINTER                         :: pw_env
+      TYPE(pw_poisson_type), POINTER                     :: poisson_env
+      TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
+      TYPE(pw_type)                                      :: pot_r
+      TYPE(pw_type), DIMENSION(:), POINTER               :: rho_r
+      TYPE(pw_type), POINTER                             :: rho_core
+      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_rho_type), POINTER                         :: rho
+
+      ! Calculate the core Hamiltonian, the potential of the core density is missing (from the pseudo potentials)
+      CALL get_qs_env(qs_env, matrix_h=matrix_h, rho_core=rho_core, pw_env=pw_env, dft_control=dft_control, energy=energy, rho=rho)
+      nspins = dft_control%nspins
+      ALLOCATE (matrix_hcore%matrix)
+      CALL dbcsr_copy(matrix_hcore%matrix, matrix_h(1)%matrix)
+
+      ! Calculate the potential of the core density
+      CALL pw_env_get(pw_env, auxbas_pw_pool=auxbas_pw_pool, poisson_env=poisson_env)
+      CALL pw_pool_create_pw(auxbas_pw_pool, pot_r, REALDATA3D, REALSPACE)
+      CALL pw_poisson_solve(poisson_env, rho_core, vhartree=pot_r)
+      CALL integrate_v_rspace(pot_r, hmat=matrix_hcore, qs_env=qs_env, &
+                              calculate_forces=.FALSE., compute_tau=.FALSE., gapw=.FALSE.)
+      CALL pw_pool_give_back_pw(auxbas_pw_pool, pot_r)
+
+      ! Calculate the potential of the core density
+      CALL qs_rho_get(rho, rho_r=rho_r)
+      IF (nspins == 2) CALL pw_axpy(rho_r(1), rho_r(2))
+      CALL pw_poisson_solve(poisson_env, rho_r(1), ehartree=e_hartree)
+      IF (nspins == 2) CALL pw_axpy(rho_r(1), rho_r(2), beta=-1.0_dp)
+
+      ! Project onto the active subspace
+      CALL cp_fm_release(active_space_env%ks_sub)
+      ASSOCIATE (mos_active => active_space_env%mos_active)
+         ALLOCATE (active_space_env%ks_sub(nspins))
+         DO ispin = 1, nspins
+            CALL get_mo_set(mo_set=mos_active(ispin), mo_coeff=mo_coeff, nmo=nmo)
+            CALL subspace_operator(mo_coeff, nmo, matrix_hcore%matrix, active_space_env%ks_sub(ispin))
+         END DO
+      END ASSOCIATE
+
+      ! Calculate the active contributions
+      ! Add the contributions from the inactive space to the 1e terms
+      ! Add the contributions to the energy offset
+      active_space_env%energy_inactive = active_space_env%energy_inactive - energy%exc ! energy%total - energy%exc - energy%ex - e_hartree
+
+      ! Cleanup
+      CALL dbcsr_release(matrix_hcore%matrix)
+      DEALLOCATE (matrix_hcore%matrix)
+
+   END SUBROUTINE remove_xc_contributions
+
+! **************************************************************************************************
 !> \brief build subspace fockian
 !> \param active_orbitals the active orbital indices
 !> \param eri two electon integrals in MO
 !> \param p_mat density matrix
 !> \param ks_ref fockian matrix
 !> \param eri_method ...
+!> \param remove_xc ...
 ! **************************************************************************************************
-   SUBROUTINE build_subspace_fock_matrix(active_orbitals, eri, p_mat, ks_ref, eri_method)
+   SUBROUTINE build_subspace_fock_matrix(active_orbitals, eri, p_mat, ks_ref, eri_method, remove_xc)
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: active_orbitals
       TYPE(dbcsr_csr_type), INTENT(IN)                   :: eri
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: p_mat
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: ks_ref
       INTEGER, INTENT(IN)                                :: eri_method
+      LOGICAL, INTENT(IN)                                :: remove_xc
 
       INTEGER                                            :: i1, i12, i12l, i2, i3, i34, i34l, i4, &
                                                             irptr, m1, m2, nindex, nmo_total, norb
       INTEGER, DIMENSION(2)                              :: irange
       REAL(dp)                                           :: erint
       TYPE(mp_comm_type)                                 :: mp_group
+
+      MARK_USED(remove_xc)
 
       ! Nothing to do
       norb = SIZE(active_orbitals, 1)
@@ -2332,6 +2411,8 @@ CONTAINS
                         ks_ref(i3, i4) = ks_ref(i3, i4) + erint*p_mat(i1, i2)
                      END IF
                   END IF
+                  ! If this flag is set, we remove the respective contributions separately
+!                  IF (.NOT. remove_xc) THEN
                   ! Exchange
                   erint = -0.5_dp*erint
                   ks_ref(i1, i3) = ks_ref(i1, i3) + erint*p_mat(i2, i4)
@@ -2344,6 +2425,7 @@ CONTAINS
                   IF (i1 /= i2 .AND. i3 /= i4) THEN
                      ks_ref(i2, i4) = ks_ref(i2, i4) + erint*p_mat(i1, i3)
                   END IF
+!                  END IF
                END DO
             END IF
          END DO
@@ -2370,14 +2452,17 @@ CONTAINS
 !> \param ks_a_ref fockian matrix for up-spin
 !> \param tr_mixed_eri boolean to indicate Coulomb interaction alignment
 !> \param eri_method ...
+!> \param remove_xc ...
 ! **************************************************************************************************
-   SUBROUTINE build_subspace_spin_fock_matrix(active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, tr_mixed_eri, eri_method)
+   SUBROUTINE build_subspace_spin_fock_matrix(active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, &
+                                              tr_mixed_eri, eri_method, remove_xc)
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: active_orbitals
       TYPE(dbcsr_csr_type), INTENT(IN)                   :: eri_aa, eri_ab
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: p_a_mat, p_b_mat
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: ks_a_ref
       LOGICAL, INTENT(IN)                                :: tr_mixed_eri
       INTEGER, INTENT(IN)                                :: eri_method
+      LOGICAL, INTENT(IN)                                :: remove_xc
 
       INTEGER                                            :: i1, i12, i12l, i2, i3, i34, i34l, i4, &
                                                             irptr, m1, m2, nindex, nmo_total, &
@@ -2385,6 +2470,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: irange
       REAL(dp)                                           :: erint
       TYPE(mp_comm_type)                                 :: mp_group
+
+      MARK_USED(remove_xc)
 
       norb = SIZE(active_orbitals, 1)
       nmo_total = SIZE(p_a_mat, 1)
@@ -2421,6 +2508,8 @@ CONTAINS
                      !F_kl += (ij|kl)*d_ij
                      ks_a_ref(i3, i4) = ks_a_ref(i3, i4) + erint*p_a_mat(i1, i2)
                   END IF
+                  ! If this flag is set, we will remove the Fock contributions separately
+!                  IF (.NOT. remove_xc) THEN
                   ! Exchange
                   erint = -1.0_dp*erint
                   !F_ik -= (ij|kl)*d_jl
@@ -2437,6 +2526,7 @@ CONTAINS
                      !F_jl -= (ij|kl)*d_ik
                      ks_a_ref(i2, i4) = ks_a_ref(i2, i4) + erint*p_a_mat(i1, i3)
                   END IF
+!                  END IF
                END DO
             END IF
          END DO
@@ -2559,7 +2649,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
 
       INTEGER                                            :: ispin, nao, nmo, nspins
-      TYPE(cp_fm_type)                                   :: R, U
+      TYPE(cp_fm_type)                                   :: U
       TYPE(cp_fm_type), POINTER                          :: C_active, p_active_mo
       TYPE(dbcsr_type), POINTER                          :: p_inactive_ao
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos_active
@@ -2578,19 +2668,14 @@ CONTAINS
          ! size of p_active_mo is (nmo x nmo)
          p_active_mo => active_space_env%p_active(ispin)
 
-         ! calculate R = p_mo
-         CALL cp_fm_create(R, p_active_mo%matrix_struct)
-         CALL cp_fm_to_fm(p_active_mo, R)
-
          ! calculate U = C * p_mo
          CALL get_mo_set(mos_active(ispin), mo_coeff=C_active, nao=nao, nmo=nmo)
          CALL cp_fm_create(U, C_active%matrix_struct)
-         CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, C_active, R, 0.0_dp, U)
+         CALL parallel_gemm("N", "N", nao, nmo, nmo, 1.0_dp, C_active, p_active_mo, 0.0_dp, U)
 
          CALL cp_dbcsr_plus_fm_fm_t(sparse_matrix=rho_ao(ispin)%matrix, &
                                     matrix_v=U, matrix_g=C_active, ncol=nmo, alpha=1.0_dp)
 
-         CALL cp_fm_release(R)
          CALL cp_fm_release(U)
       END DO
 
