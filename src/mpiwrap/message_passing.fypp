@@ -3551,6 +3551,12 @@
       my_tag = 0
       IF (PRESENT(tag)) my_tag = tag
 
+#if defined(__MPI_4_0)
+      CALL mpi_isendrecv(msgout, 1, ${mpi_type1}$, source, my_tag, &
+                         msgin, 1, ${mpi_type1}$, dest, my_tag, &
+                         comm%handle, recv_request%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isendrecv @ "//routineN)
+#else
       CALL mpi_irecv(msgout, 1, ${mpi_type1}$, source, my_tag, &
                      comm%handle, recv_request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_irecv @ "//routineN)
@@ -3558,6 +3564,7 @@
       CALL mpi_isend(msgin, 1, ${mpi_type1}$, dest, my_tag, &
                      comm%handle, send_request%handle, ierr)
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
+#endif
 
       CALL add_perf(perf_id=8, count=1, msg_size=2*${bytes1}$)
 #else
@@ -3618,6 +3625,12 @@
       my_tag = 0
       IF (PRESENT(tag)) my_tag = tag
 
+#if defined(__MPI_4)
+      CALL mpi_isendrecv(msgout, SIZE(msgout), ${mpi_type1}$, source, my_tag, &
+                         msgin, SIZE(msgin), ${mpi_type1}$, dest, my_tag, &
+                         comm%handle, recv_request%handle, ierr)
+      IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isendrecv @ "//routineN)
+#else
       msglen = SIZE(msgout, 1)
       IF (msglen > 0) THEN
          CALL mpi_irecv(msgout(1), msglen, ${mpi_type1}$, source, my_tag, &
@@ -3637,6 +3650,7 @@
                         comm%handle, send_request%handle, ierr)
       END IF
       IF (ierr /= 0) CALL mp_stop(ierr, "mpi_isend @ "//routineN)
+#endif
 
       msglen = (msglen + SIZE(msgout, 1) + 1)/2
       CALL add_perf(perf_id=8, count=1, msg_size=msglen*${bytes1}$)

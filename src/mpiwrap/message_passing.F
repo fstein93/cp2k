@@ -60,6 +60,7 @@ MODULE message_passing
 
 #if defined(__parallel)
 #if defined(__MPI_F08)
+   ! The following symbols used by CP2K are deprecated in MPI-4.1: mpi_host (applied to mpi_comm_world)
    USE mpi_f08, ONLY: mpi_allgather, mpi_allgatherv, mpi_alloc_mem, mpi_allreduce, mpi_alltoall, mpi_alltoallv, mpi_bcast, &
                      mpi_cart_coords, mpi_cart_create, mpi_cart_get, mpi_cart_rank, mpi_cart_sub, mpi_dims_create, mpi_file_close, &
                       mpi_file_get_size, mpi_file_open, mpi_file_read_at_all, mpi_file_read_at, mpi_file_write_at_all, &
@@ -80,6 +81,10 @@ MODULE message_passing
                       mpi_mode_wronly, mpi_mode_create, mpi_mode_append, mpi_mode_excl, mpi_max_library_version_string, &
                       mpi_win_null, mpi_file_null, mpi_datatype_null, mpi_character, mpi_mode_nocheck, &
                       mpi_status_size, mpi_proc_null, mpi_unequal, mpi_similar, mpi_ident, mpi_congruent
+#if defined(__MPI_4)
+   ! This routine was introduced with the given standard
+   USE mpi_f08, ONLY: mp_isendrecv
+#endif
 #else
    USE mpi
 #endif
