@@ -2342,10 +2342,18 @@ CONTAINS
          END DO
       END ASSOCIATE
 
+!      CALL cp_fm_release(active_space_env%fock_sub)
+!      ALLOCATE (active_space_env%fock_sub(nspins))
+!      DO ispin = 1, nspins
+!         CALL cp_fm_create(active_space_env%fock_sub(ispin), active_space_env%ks_sub(ispin)%matrix_struct, &
+!                           name="Active Fock operator")
+!         CALL cp_fm_to_fm(active_space_env%ks_sub(ispin), active_space_env%fock_sub(ispin))
+!      END DO
+
       ! Calculate the active contributions
       ! Add the contributions from the inactive space to the 1e terms
       ! Add the contributions to the energy offset
-      active_space_env%energy_inactive = active_space_env%energy_inactive - energy%exc ! energy%total - energy%exc - energy%ex - e_hartree
+      active_space_env%energy_inactive = active_space_env%energy_inactive - energy%exc - energy%ex ! energy%total - e_hartree
 
       ! Cleanup
       CALL dbcsr_release(matrix_hcore%matrix)
@@ -2375,8 +2383,6 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: irange
       REAL(dp)                                           :: erint
       TYPE(mp_comm_type)                                 :: mp_group
-
-      MARK_USED(remove_xc)
 
       ! Nothing to do
       norb = SIZE(active_orbitals, 1)
@@ -2412,20 +2418,20 @@ CONTAINS
                      END IF
                   END IF
                   ! If this flag is set, we remove the respective contributions separately
-!                  IF (.NOT. remove_xc) THEN
-                  ! Exchange
-                  erint = -0.5_dp*erint
-                  ks_ref(i1, i3) = ks_ref(i1, i3) + erint*p_mat(i2, i4)
-                  IF (i1 /= i2) THEN
-                     ks_ref(i2, i3) = ks_ref(i2, i3) + erint*p_mat(i1, i4)
+                  IF (.NOT. remove_xc) THEN
+                     ! Exchange
+                     erint = -0.5_dp*erint
+                     ks_ref(i1, i3) = ks_ref(i1, i3) + erint*p_mat(i2, i4)
+                     IF (i1 /= i2) THEN
+                        ks_ref(i2, i3) = ks_ref(i2, i3) + erint*p_mat(i1, i4)
+                     END IF
+                     IF (i3 /= i4) THEN
+                        ks_ref(i1, i4) = ks_ref(i1, i4) + erint*p_mat(i2, i3)
+                     END IF
+                     IF (i1 /= i2 .AND. i3 /= i4) THEN
+                        ks_ref(i2, i4) = ks_ref(i2, i4) + erint*p_mat(i1, i3)
+                     END IF
                   END IF
-                  IF (i3 /= i4) THEN
-                     ks_ref(i1, i4) = ks_ref(i1, i4) + erint*p_mat(i2, i3)
-                  END IF
-                  IF (i1 /= i2 .AND. i3 /= i4) THEN
-                     ks_ref(i2, i4) = ks_ref(i2, i4) + erint*p_mat(i1, i3)
-                  END IF
-!                  END IF
                END DO
             END IF
          END DO
@@ -2471,8 +2477,6 @@ CONTAINS
       REAL(dp)                                           :: erint
       TYPE(mp_comm_type)                                 :: mp_group
 
-      MARK_USED(remove_xc)
-
       norb = SIZE(active_orbitals, 1)
       nmo_total = SIZE(p_a_mat, 1)
       nindex = (nmo_total*(nmo_total + 1))/2
@@ -2509,24 +2513,24 @@ CONTAINS
                      ks_a_ref(i3, i4) = ks_a_ref(i3, i4) + erint*p_a_mat(i1, i2)
                   END IF
                   ! If this flag is set, we will remove the Fock contributions separately
-!                  IF (.NOT. remove_xc) THEN
-                  ! Exchange
-                  erint = -1.0_dp*erint
-                  !F_ik -= (ij|kl)*d_jl
-                  ks_a_ref(i1, i3) = ks_a_ref(i1, i3) + erint*p_a_mat(i2, i4)
-                  IF (i1 /= i2) THEN
-                     !F_jk -= (ij|kl)*d_il
-                     ks_a_ref(i2, i3) = ks_a_ref(i2, i3) + erint*p_a_mat(i1, i4)
+                  IF (.NOT. remove_xc) THEN
+                     ! Exchange
+                     erint = -1.0_dp*erint
+                     !F_ik -= (ij|kl)*d_jl
+                     ks_a_ref(i1, i3) = ks_a_ref(i1, i3) + erint*p_a_mat(i2, i4)
+                     IF (i1 /= i2) THEN
+                        !F_jk -= (ij|kl)*d_il
+                        ks_a_ref(i2, i3) = ks_a_ref(i2, i3) + erint*p_a_mat(i1, i4)
+                     END IF
+                     IF (i3 /= i4) THEN
+                        !F_il -= (ij|kl)*d_jk
+                        ks_a_ref(i1, i4) = ks_a_ref(i1, i4) + erint*p_a_mat(i2, i3)
+                     END IF
+                     IF (i1 /= i2 .AND. i3 /= i4) THEN
+                        !F_jl -= (ij|kl)*d_ik
+                        ks_a_ref(i2, i4) = ks_a_ref(i2, i4) + erint*p_a_mat(i1, i3)
+                     END IF
                   END IF
-                  IF (i3 /= i4) THEN
-                     !F_il -= (ij|kl)*d_jk
-                     ks_a_ref(i1, i4) = ks_a_ref(i1, i4) + erint*p_a_mat(i2, i3)
-                  END IF
-                  IF (i1 /= i2 .AND. i3 /= i4) THEN
-                     !F_jl -= (ij|kl)*d_ik
-                     ks_a_ref(i2, i4) = ks_a_ref(i2, i4) + erint*p_a_mat(i1, i3)
-                  END IF
-!                  END IF
                END DO
             END IF
          END DO
