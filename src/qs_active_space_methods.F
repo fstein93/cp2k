@@ -51,10 +51,12 @@ MODULE qs_active_space_methods
       dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_blocks_left, &
       dbcsr_iterator_type, dbcsr_type_symmetric, dbcsr_get_occupation
    USE group_dist_types, ONLY: get_group_dist, release_group_dist, group_dist_d1_type
+   USE hfx_types, ONLY: hfx_type
    USE input_constants, ONLY: &
       casci_canonical, dmft_model, eri_method_full_gpw, eri_method_gpw_ht, eri_operator_coulomb, &
-      eri_operator_erf, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, hf_model, &
-      manual_selection, mao_projection, no_solver, qiskit_solver, rsdft_model, wannier_projection
+      eri_operator_erf, eri_operator_trunc, eri_operator_erfc, eri_operator_gaussian, eri_operator_yukawa, hf_model, &
+      manual_selection, mao_projection, no_solver, qiskit_solver, rsdft_model, wannier_projection, do_potential_coulomb, &
+      do_potential_short, do_potential_long, do_potential_truncated, do_potential_gaussian
    USE input_section_types, ONLY: section_vals_get, &
                                   section_vals_get_subs_vals, &
                                   section_vals_type, &
@@ -208,9 +210,8 @@ CONTAINS
          nmo_inactive_remaining, nmo_occ, nmo_virtual, nn1, nn2, nrow_global, nspins
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
-      LOGICAL                                            :: do_kpoints, ex_operator, ex_perd, &
-                                                            explicit, isolated, stop_after_print, &
-                                                            store_wfn
+      LOGICAL                                            :: do_kpoints, ex_perd, explicit, isolated, &
+                                                            stop_after_print, store_wfn
       REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_param, &
          eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
@@ -227,6 +228,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, rho_ao, s_matrix
       TYPE(dbcsr_type), POINTER                          :: denmat
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(hfx_type), DIMENSION(:, :), POINTER           :: x_data
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mos
       TYPE(mo_set_type), POINTER                         :: mo_set, mo_set_active, mo_set_inactive
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -809,7 +811,7 @@ CONTAINS
       ! make sure that periodicity is consistent
       CALL section_vals_val_get(as_input, "ERI%METHOD", i_val=eri_method)
       active_space_env%eri%method = eri_method
-      CALL section_vals_val_get(as_input, "ERI%OPERATOR", i_val=eri_operator, explicit=ex_operator)
+      CALL section_vals_val_get(as_input, "ERI%OPERATOR", i_val=eri_operator)
       active_space_env%eri%operator = eri_operator
       CALL section_vals_val_get(as_input, "ERI%OPERATOR_PARAMETER", r_val=eri_op_param)
       active_space_env%eri%operator_parameter = eri_op_param
@@ -864,6 +866,9 @@ CONTAINS
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
          CASE (eri_operator_gaussian)
             WRITE (iw, '(T3,A,T41,A)') "ERI operator", "Gaussian attenuated <EXP(-a*R^2)/R>"
+            WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
+         CASE (eri_operator_trunc)
+            WRITE (iw, '(T3,A,T53,A)') "ERI operator", "Truncated Coulomb <H(a-R)/R>"
             WRITE (iw, '(T3,A,T66,F14.3)') "ERI operator parameter", eri_op_param
          CASE DEFAULT
             CPABORT("Unknown ERI operator")
@@ -924,12 +929,74 @@ CONTAINS
          active_space_env%eri%eri_gpw%group_size = group_size
          ! Always redo Poisson solver for now
          active_space_env%eri%eri_gpw%redo_poisson = .TRUE.
-         ! active_space_env%eri%eri_gpw%redo_poisson = (ex_operator .OR. ex_perd)
          IF (iw > 0) THEN
             WRITE (iw, '(/,T2,A,T71,F10.1)') "ERI_GPW| Energy cutoff [Ry]", eri_gpw_cutoff
             WRITE (iw, '(T2,A,T71,F10.1)') "ERI_GPW| Relative energy cutoff [Ry]", eri_rel_cutoff
          END IF
-         !
+      CASE DEFAULT
+         CPABORT("Unknown ERI method")
+      END SELECT
+
+      ! Setup eri object for the reference calculation
+      ! Use the same object as for the AS calculation and
+      ! overwrite the respective parameters with those from the HF
+      ! reference
+      active_space_env%eri_ref = active_space_env%eri
+      ! Always use the periodicity information of the reference
+      ! calculation
+      CALL get_qs_env(qs_env, cell=cell, x_data=x_data)
+      IF (ASSOCIATED(x_data)) THEN
+         IF (SIZE(x_data, 1) > 1) &
+            CPABORT("More than one HF section not supported!")
+         SELECT CASE (x_data(1, 1)%potential_parameter%potential_type)
+         CASE (do_potential_coulomb)
+            active_space_env%eri_ref%operator = eri_operator_coulomb
+         CASE (do_potential_short)
+            active_space_env%eri_ref%operator = eri_operator_erfc
+            active_space_env%eri_ref%operator_parameter = x_data(1, 1)%potential_parameter%omega
+         CASE (do_potential_truncated)
+            active_space_env%eri_ref%operator = eri_operator_trunc
+            active_space_env%eri_ref%operator_parameter = x_data(1, 1)%potential_parameter%cutoff_radius
+         CASE (do_potential_long)
+            active_space_env%eri_ref%operator = eri_operator_erf
+            active_space_env%eri_ref%operator_parameter = x_data(1, 1)%potential_parameter%omega
+         CASE (do_potential_gaussian)
+            active_space_env%eri_ref%operator = eri_operator_gaussian
+            active_space_env%eri_ref%operator_parameter = x_data(1, 1)%potential_parameter%omega
+         CASE DEFAULT
+            CPABORT("Not supported reference HF potential for AS calculations!")
+         END SELECT
+         active_space_env%eri_ref%periodicity(1:3) = cell%perd(1:3)
+      END IF
+
+      ! allocate container for integrals (CSR matrix)
+      CALL get_qs_env(qs_env, para_env=para_env)
+      m = (nspins*(nspins + 1))/2
+      ALLOCATE (active_space_env%eri%eri(m))
+      DO i = 1, m
+         CALL get_mo_set(active_space_env%mos_active(1), nmo=nmo)
+         ALLOCATE (active_space_env%eri%eri(i)%csr_mat)
+         eri_mat => active_space_env%eri%eri(i)%csr_mat
+         IF (i == 1) THEN
+            n1 = nmo
+            n2 = nmo
+         ELSEIF (i == 2) THEN
+            n1 = nmo
+            n2 = nmo
+         ELSE
+            n1 = nmo
+            n2 = nmo
+         END IF
+         nn1 = (n1*(n1 + 1))/2
+         nn2 = (n2*(n2 + 1))/2
+         CALL dbcsr_csr_create(eri_mat, nn1, nn2, 0_int_8, 0, 0, para_env%get_handle())
+         active_space_env%eri%norb = nmo
+      END DO
+
+      SELECT CASE (eri_method)
+      CASE (eri_method_full_gpw, eri_method_gpw_ht)
+         ! TODO: Do not call if potentials are equal
+         CALL calculate_eri_gpw(active_space_env%mos_active, active_space_env%active_orbitals, active_space_env%eri_ref, qs_env, iw)
          CALL calculate_eri_gpw(active_space_env%mos_active, active_space_env%active_orbitals, active_space_env%eri, qs_env, iw)
          !
       CASE DEFAULT
@@ -1741,6 +1808,18 @@ CONTAINS
                   gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))
                END DO
                IF (grid%have_g0) gf%cc(1) = 0.25_dp*fourpi/a
+            CASE (eri_operator_trunc)
+               a = eri_env%operator_parameter
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  ga = SQRT(g2)*a
+                  IF (ga >= 0.005_dp) THEN
+                     gf%cc(ig) = fourpi/g2*(1.0_dp - COS(ga))
+                  ELSE
+                     gf%cc(ig) = fourpi/g2*ga**2/2.0_dp*(1.0_dp - ga**2/12.0_dp)
+                  END IF
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0.0_dp
             CASE (eri_operator_gaussian)
                CPABORT("")
             CASE DEFAULT
@@ -1791,6 +1870,18 @@ CONTAINS
                   gf%cc(ig) = fourpi/g2*(1._dp - EXP(ga))*(1.0_dp - COS(rlength*gg))
                END DO
                IF (grid%have_g0) gf%cc(1) = 0._dp
+            CASE (eri_operator_trunc)
+               a = MIN(eri_env%operator_parameter, green%radius)
+               DO ig = grid%first_gne0, grid%ngpts_cut_local
+                  g2 = grid%gsq(ig)
+                  ga = SQRT(g2)*a
+                  IF (ga >= 0.005_dp) THEN
+                     gf%cc(ig) = fourpi/g2*(1.0_dp - COS(ga))
+                  ELSE
+                     gf%cc(ig) = fourpi/g2*ga**2/2.0_dp*(1.0_dp - ga**2/12.0_dp)
+                  END IF
+               END DO
+               IF (grid%have_g0) gf%cc(1) = 0.5_dp*fourpi*a**2
             CASE (eri_operator_gaussian)
                CPABORT("")
             CASE DEFAULT
@@ -2181,8 +2272,8 @@ CONTAINS
          CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(1), p_mat)
 
          ! compute ks_ref = V_H[rho^A] + V_HFX[rho^A]
-         eri => active_space_env%eri%eri(1)%csr_mat
-         CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, active_space_env%eri%method)
+         eri => active_space_env%eri_ref%eri(1)%csr_mat
+         CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, active_space_env%eri_ref%method)
 
          ! compute eeri = E_H[rho^A] + E_HFX[rho^A] as
          ! eeri = 1/2 * (SUM_pq (V_H[rho^A] + V_HFX[rho^A])_pq * D^A_pq)
@@ -2232,13 +2323,13 @@ CONTAINS
          CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(2), ks_b_mat)
          !
          !
-         eri_aa => active_space_env%eri%eri(1)%csr_mat
-         eri_ab => active_space_env%eri%eri(2)%csr_mat
-         eri_bb => active_space_env%eri%eri(3)%csr_mat
+         eri_aa => active_space_env%eri_ref%eri(1)%csr_mat
+         eri_ab => active_space_env%eri_ref%eri(2)%csr_mat
+         eri_bb => active_space_env%eri_ref%eri(3)%csr_mat
          CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, &
-                                              tr_mixed_eri=.FALSE., eri_method=active_space_env%eri%method)
+                                              tr_mixed_eri=.FALSE., eri_method=active_space_env%eri_ref%method)
          CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, &
-                                              tr_mixed_eri=.TRUE., eri_method=active_space_env%eri%method)
+                                              tr_mixed_eri=.TRUE., eri_method=active_space_env%eri_ref%method)
          !
          ! calculate energy
          eeri = 0.0_dp

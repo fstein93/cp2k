@@ -96,6 +96,7 @@ MODULE qs_active_space_types
       LOGICAL                                      :: fcidump = .FALSE.
       CHARACTER(LEN=default_path_length)           :: qcschema_filename = ''
       TYPE(eri_type)                               :: eri = eri_type()
+      TYPE(eri_type)                               :: eri_ref = eri_type()
       TYPE(mo_set_type), DIMENSION(:), POINTER     :: mos_active => NULL()
       TYPE(mo_set_type), DIMENSION(:), POINTER     :: mos_inactive => NULL()
       TYPE(cp_fm_type), DIMENSION(:), POINTER      :: p_active => NULL()
@@ -183,6 +184,7 @@ CONTAINS
          END IF
 
          CALL release_eri_type(active_space_env%eri)
+         CALL release_eri_type(active_space_env%eri_ref)
 
          CALL cp_fm_release(active_space_env%p_active)
          CALL cp_fm_release(active_space_env%ks_sub)
