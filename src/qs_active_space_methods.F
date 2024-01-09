@@ -1074,6 +1074,11 @@ CONTAINS
       ! calculate inactive energy and embedding potential
       CALL subspace_fock_matrix(active_space_env)
 
+      ! If we remove the reference configuration, we will reoptimized the orbitals for these new integrals
+      IF (active_space_env%remove_ref) THEN
+         CALL reoptimize_orbitals(active_space_env)
+      END IF
+
       ! associate the active space environment with the qs environment
       CALL set_qs_env(qs_env, active_space=active_space_env)
 
@@ -2387,6 +2392,151 @@ CONTAINS
       END IF
 
    END SUBROUTINE subspace_fock_matrix
+
+! **************************************************************************************************
+!> \brief Calculates active space Fock matrix and inactive energy
+!> \param active_space_env ...
+!> \par History
+!>      06.2016 created [JGH]
+! **************************************************************************************************
+   SUBROUTINE reoptimize_orbitals(active_space_env)
+
+      TYPE(active_space_type), POINTER                   :: active_space_env
+
+      INTEGER                                            :: i1, i2, is, iw, norb, nspins
+      REAL(KIND=dp)                                      :: e_inactive, eeri, eref, esub, etot, mval
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: fock_sub, ks_a_mat, ks_a_ref, ks_b_mat, &
+                                                            ks_b_ref, ks_hfx, ks_mat, p_a_mat, &
+                                                            p_b_mat, p_mat
+      TYPE(cp_fm_type), POINTER                          :: matrix, mo_coef
+      TYPE(cp_logger_type), POINTER                      :: logger
+      TYPE(dbcsr_csr_type), POINTER                      :: eri, eri_aa, eri_ab, eri_bb
+
+      e_inactive = active_space_env%energy_inactive
+      nspins = active_space_env%nspins
+
+      logger => cp_get_default_logger()
+      iw = cp_logger_get_default_io_unit(logger)
+
+      IF (nspins == 1) THEN
+         CALL get_mo_set(active_space_env%mos_active(1), nmo=norb, mo_coeff=mo_coef)
+         !
+         ! Loop over ERI, calculate subspace HF energy and Fock matrix
+         !
+         ! replicate KS, Core, and P matrices
+         ALLOCATE (ks_mat(norb, norb), ks_hfx(norb, norb), fock_sub(norb, norb), p_mat(norb, norb))
+         ks_hfx = 0.0_dp
+
+         ! ks_mat contains the KS/Fock matrix of the active subspace
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%fock_sub(1), ks_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(1), p_mat)
+
+         ! compute Hartree-Fock matrix
+         eri => active_space_env%eri%eri(1)%csr_mat
+         CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_hfx, active_space_env%eri_ref%method)
+
+         ! compute Hartree-Fock contribution to the energy
+         ! eeri = 1/2 * (SUM_pq (V_H[rho^A] + V_HFX[rho^A])_pq * D^A_pq)
+         eeri = 0.5_dp*SUM(ks_hfx*p_mat)
+
+         ! where f^ref = ks_mat, which is the KS/Fock matrix in MO basis, transformed previously
+         ! and is equal to ks_mat = h^0 + V_core + V_H[rho] + V_HFX[rho]
+         etot = e_inactive + SUM(ks_mat*p_mat) + eeri
+
+         IF (iw > 0) THEN
+            WRITE (UNIT=iw, FMT="(/,T3,A,T28,F18.10)") &
+               "Initial total energy ", etot
+         END IF
+
+         ! Calculate the Fock matrix using the active orbitals
+         fock_sub(1:norb, 1:norb) = ks_mat(1:norb, 1:norb) + ks_hfx(1:norb, 1:norb)
+
+         ! Perform an eigenvalue decomposition
+
+         ! Calculate the new density matrix
+
+         ! compute Hartree-Fock contribution to the energy
+         ! eeri = 1/2 * (SUM_pq (V_H[rho^A] + V_HFX[rho^A])_pq * D^A_pq)
+         eeri = 0.5_dp*SUM(ks_hfx*p_mat)
+
+         ! where f^ref = ks_mat, which is the KS/Fock matrix in MO basis, transformed previously
+         ! and is equal to ks_mat = h^0 + V_core + V_H[rho] + V_HFX[rho]
+         etot = eref + eeri
+
+         ! Rotate the active space orbitals
+
+         ! Recalculate the active Fock operator and ERIs in the new basis
+
+      ELSE
+
+         CALL get_mo_set(active_space_env%mos_active(1), nmo=norb)         !
+         ! Loop over ERI, calculate subspace HF energy and Fock matrix
+         !
+         ! replicate KS, Core, and P matrices
+         ALLOCATE (ks_a_mat(norb, norb), ks_b_mat(norb, norb), &
+              &    ks_a_ref(norb, norb), ks_b_ref(norb, norb), &
+              &     p_a_mat(norb, norb), p_b_mat(norb, norb))
+         ks_a_ref(:, :) = 0.0_dp; ks_b_ref(:, :) = 0.0_dp
+
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(1), p_a_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(2), p_b_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(1), ks_a_mat)
+         CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(2), ks_b_mat)
+         !
+         !
+         IF (active_space_env%remove_ref) THEN
+            eri_aa => active_space_env%eri_ref%eri(1)%csr_mat
+            eri_ab => active_space_env%eri_ref%eri(2)%csr_mat
+            eri_bb => active_space_env%eri_ref%eri(3)%csr_mat
+            CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, &
+                                                 tr_mixed_eri=.FALSE., eri_method=active_space_env%eri_ref%method)
+            CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, &
+                                                 tr_mixed_eri=.TRUE., eri_method=active_space_env%eri_ref%method)
+         ELSE
+            eri_aa => active_space_env%eri%eri(1)%csr_mat
+            eri_ab => active_space_env%eri%eri(2)%csr_mat
+            eri_bb => active_space_env%eri%eri(3)%csr_mat
+            CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, &
+                                                 tr_mixed_eri=.FALSE., eri_method=active_space_env%eri%method)
+            CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, &
+                                                 tr_mixed_eri=.TRUE., eri_method=active_space_env%eri%method)
+         END IF
+         !
+         ! calculate energy
+         eeri = 0.0_dp
+         eeri = 0.5_dp*(SUM(ks_a_ref*p_a_mat) + SUM(ks_b_ref*p_b_mat))
+         esub = eref - SUM(ks_a_mat*p_a_mat) - SUM(ks_b_mat*p_b_mat) + eeri
+         ks_a_mat(:, :) = ks_a_mat(:, :) - ks_a_ref(:, :)
+         ks_b_mat(:, :) = ks_b_mat(:, :) - ks_b_ref(:, :)
+         !
+         active_space_env%energy_inactive = esub
+         !
+         CALL cp_fm_release(active_space_env%fock_sub)
+         ALLOCATE (active_space_env%fock_sub(nspins))
+         DO is = 1, nspins
+            matrix => active_space_env%ks_sub(is)
+            CALL cp_fm_create(active_space_env%fock_sub(is), matrix%matrix_struct, &
+                              name="Active Fock operator")
+         END DO
+
+         matrix => active_space_env%fock_sub(1)
+         DO i1 = 1, norb
+            DO i2 = 1, norb
+               mval = ks_a_mat(i1, i2)
+               CALL cp_fm_set_element(matrix, i1, i2, mval)
+            END DO
+         END DO
+         matrix => active_space_env%fock_sub(2)
+         DO i1 = 1, norb
+            DO i2 = 1, norb
+               mval = ks_b_mat(i1, i2)
+               CALL cp_fm_set_element(matrix, i1, i2, mval)
+            END DO
+         END DO
+
+      END IF
+
+   END SUBROUTINE reoptimize_orbitals
 
 ! **************************************************************************************************
 !> \brief build subspace fockian
