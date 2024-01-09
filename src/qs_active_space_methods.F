@@ -2285,7 +2285,11 @@ CONTAINS
          ! compute ks_ref = V_H[rho^A] + V_HFX[rho^A]
          IF (active_space_env%remove_ref) THEN
             eri => active_space_env%eri_ref%eri(1)%csr_mat
-            CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, active_space_env%eri_ref%method)
+            CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, &
+                                            active_space_env%eri_ref%method, skip_hartree=.TRUE.)
+            eri => active_space_env%eri%eri(1)%csr_mat
+            CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, &
+                                            active_space_env%eri%method, skip_exchange=.TRUE.)
          ELSE
             eri => active_space_env%eri%eri(1)%csr_mat
             CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, active_space_env%eri%method)
@@ -2433,7 +2437,7 @@ CONTAINS
 
          ! compute Hartree-Fock matrix
          eri => active_space_env%eri%eri(1)%csr_mat
-         CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_hfx, active_space_env%eri_ref%method)
+         CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_hfx, active_space_env%eri%method)
 
          ! compute Hartree-Fock contribution to the energy
          ! eeri = 1/2 * (SUM_pq (V_H[rho^A] + V_HFX[rho^A])_pq * D^A_pq)
@@ -2444,6 +2448,7 @@ CONTAINS
          etot = e_inactive + SUM(ks_mat*p_mat) + eeri
 
          IF (iw > 0) THEN
+            WRITE (*, *) e_inactive, SUM(ks_mat*p_mat), eeri
             WRITE (UNIT=iw, FMT="(/,T3,A,T28,F18.10)") &
                "Initial total energy ", etot
          END IF
@@ -2545,19 +2550,29 @@ CONTAINS
 !> \param p_mat density matrix
 !> \param ks_ref fockian matrix
 !> \param eri_method ...
+!> \param skip_hartree ...
+!> \param skip_exchange ...
 ! **************************************************************************************************
-   SUBROUTINE build_subspace_fock_matrix(active_orbitals, eri, p_mat, ks_ref, eri_method)
+   SUBROUTINE build_subspace_fock_matrix(active_orbitals, eri, p_mat, ks_ref, eri_method, skip_hartree, skip_exchange)
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: active_orbitals
       TYPE(dbcsr_csr_type), INTENT(IN)                   :: eri
       REAL(dp), DIMENSION(:, :), INTENT(IN)              :: p_mat
       REAL(dp), DIMENSION(:, :), INTENT(INOUT)           :: ks_ref
       INTEGER, INTENT(IN)                                :: eri_method
+      LOGICAL, INTENT(IN), OPTIONAL                      :: skip_hartree, skip_exchange
 
       INTEGER                                            :: i1, i12, i12l, i2, i3, i34, i34l, i4, &
                                                             irptr, m1, m2, nindex, nmo_total, norb
       INTEGER, DIMENSION(2)                              :: irange
+      LOGICAL                                            :: my_skip_exchange, my_skip_hartree
       REAL(dp)                                           :: erint
       TYPE(mp_comm_type)                                 :: mp_group
+
+      my_skip_hartree = .FALSE.
+      IF (PRESENT(skip_hartree)) my_skip_hartree = skip_hartree
+
+      my_skip_exchange = .FALSE.
+      IF (PRESENT(skip_exchange)) my_skip_exchange = skip_exchange
 
       ! Nothing to do
       norb = SIZE(active_orbitals, 1)
@@ -2581,28 +2596,32 @@ CONTAINS
                   i34 = eri%colind_local(irptr + i34l)
                   CALL csr_idx_from_combined(i34, nmo_total, i3, i4)
                   erint = eri%nzval_local%r_dp(irptr + i34l)
-                  ! Coulomb
-                  ks_ref(i1, i2) = ks_ref(i1, i2) + erint*p_mat(i3, i4)
-                  IF (i3 /= i4) THEN
+                  IF (.NOT. my_skip_hartree) THEN
+                     ! Coulomb
                      ks_ref(i1, i2) = ks_ref(i1, i2) + erint*p_mat(i3, i4)
-                  END IF
-                  IF (i12 /= i34) THEN
-                     ks_ref(i3, i4) = ks_ref(i3, i4) + erint*p_mat(i1, i2)
-                     IF (i1 /= i2) THEN
+                     IF (i3 /= i4) THEN
+                        ks_ref(i1, i2) = ks_ref(i1, i2) + erint*p_mat(i3, i4)
+                     END IF
+                     IF (i12 /= i34) THEN
                         ks_ref(i3, i4) = ks_ref(i3, i4) + erint*p_mat(i1, i2)
+                        IF (i1 /= i2) THEN
+                           ks_ref(i3, i4) = ks_ref(i3, i4) + erint*p_mat(i1, i2)
+                        END IF
                      END IF
                   END IF
-                  ! Exchange
-                  erint = -0.5_dp*erint
-                  ks_ref(i1, i3) = ks_ref(i1, i3) + erint*p_mat(i2, i4)
-                  IF (i1 /= i2) THEN
-                     ks_ref(i2, i3) = ks_ref(i2, i3) + erint*p_mat(i1, i4)
-                  END IF
-                  IF (i3 /= i4) THEN
-                     ks_ref(i1, i4) = ks_ref(i1, i4) + erint*p_mat(i2, i3)
-                  END IF
-                  IF (i1 /= i2 .AND. i3 /= i4) THEN
-                     ks_ref(i2, i4) = ks_ref(i2, i4) + erint*p_mat(i1, i3)
+                  IF (.NOT. my_skip_exchange) THEN
+                     ! Exchange
+                     erint = -0.5_dp*erint
+                     ks_ref(i1, i3) = ks_ref(i1, i3) + erint*p_mat(i2, i4)
+                     IF (i1 /= i2) THEN
+                        ks_ref(i2, i3) = ks_ref(i2, i3) + erint*p_mat(i1, i4)
+                     END IF
+                     IF (i3 /= i4) THEN
+                        ks_ref(i1, i4) = ks_ref(i1, i4) + erint*p_mat(i2, i3)
+                     END IF
+                     IF (i1 /= i2 .AND. i3 /= i4) THEN
+                        ks_ref(i2, i4) = ks_ref(i2, i4) + erint*p_mat(i1, i3)
+                     END IF
                   END IF
                END DO
             END IF
