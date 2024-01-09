@@ -9245,6 +9245,17 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="REMOVE_REF", &
+                          description="Activation of this keyword removes the assumption of "// &
+                          "reference Hamiltonian and AS Hamiltonian being equivalent. This is useful "// &
+                          "in case of a Kohn-Sham reference or periodic "// &
+                          "systems which cannot be treated with the ordinary Coulomb potential. "// &
+                          "This increases the computational costs due to two different ERI calculations.", &
+                          usage="REMOVE_REF T", lone_keyword_l_val=.TRUE., &
+                          default_l_val=.FALSE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       CALL create_print_orb_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

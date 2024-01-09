@@ -211,7 +211,7 @@ CONTAINS
       INTEGER, DIMENSION(5)                              :: nshell
       INTEGER, DIMENSION(:), POINTER                     :: invals
       LOGICAL                                            :: do_kpoints, ex_perd, explicit, isolated, &
-                                                            stop_after_print, store_wfn
+                                                            remove_ref, stop_after_print, store_wfn
       REAL(KIND=dp) :: eri_eps_filter, eri_eps_grid, eri_eps_int, eri_gpw_cutoff, eri_op_param, &
          eri_rcut, eri_rel_cutoff, fel, focc, maxocc, nze_percentage
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: eigenvalues
@@ -300,6 +300,10 @@ CONTAINS
             CPABORT("Unknown Model")
          END SELECT
       END IF
+
+      ! Enforce proper update
+      CALL section_vals_val_get(as_input, "REMOVE_REF", l_val=remove_ref)
+      active_space_env%remove_ref = remove_ref
 
       ! isolated (molecular) system?
       CALL section_vals_val_get(as_input, "ISOLATED_SYSTEM", l_val=isolated)
@@ -937,36 +941,38 @@ CONTAINS
          CPABORT("Unknown ERI method")
       END SELECT
 
-      ! Setup eri object for the reference calculation
-      ! Use the same object as for the AS calculation and
-      ! overwrite the respective parameters with those from the HF
-      ! reference
-      active_space_env%eri_ref = active_space_env%eri
-      ! Always use the periodicity information of the reference
-      ! calculation
-      CALL get_qs_env(qs_env, cell=cell, x_data=x_data)
-      IF (ASSOCIATED(x_data)) THEN
-         IF (SIZE(x_data, 1) > 1) &
-            CPABORT("More than one HF section not supported!")
-         SELECT CASE (x_data(1, 1)%potential_parameter%potential_type)
-         CASE (do_potential_coulomb)
-            active_space_env%eri_ref%operator = eri_operator_coulomb
-         CASE (do_potential_short)
-            active_space_env%eri_ref%operator = eri_operator_erfc
-            active_space_env%eri_ref%operator_parameter = x_data(1, 1)%potential_parameter%omega
-         CASE (do_potential_truncated)
-            active_space_env%eri_ref%operator = eri_operator_trunc
-            active_space_env%eri_ref%operator_parameter = x_data(1, 1)%potential_parameter%cutoff_radius
-         CASE (do_potential_long)
-            active_space_env%eri_ref%operator = eri_operator_erf
-            active_space_env%eri_ref%operator_parameter = x_data(1, 1)%potential_parameter%omega
-         CASE (do_potential_gaussian)
-            active_space_env%eri_ref%operator = eri_operator_gaussian
-            active_space_env%eri_ref%operator_parameter = x_data(1, 1)%potential_parameter%omega
-         CASE DEFAULT
-            CPABORT("Not supported reference HF potential for AS calculations!")
-         END SELECT
-         active_space_env%eri_ref%periodicity(1:3) = cell%perd(1:3)
+      IF (active_space_env%remove_ref) THEN
+         ! Setup eri object for the reference calculation
+         ! Use the same object as for the AS calculation and
+         ! overwrite the respective parameters with those from the HF
+         ! reference
+         active_space_env%eri_ref = active_space_env%eri
+         ! Always use the periodicity information of the reference
+         ! calculation
+         CALL get_qs_env(qs_env, cell=cell, x_data=x_data)
+         IF (ASSOCIATED(x_data)) THEN
+            IF (SIZE(x_data, 1) > 1) &
+               CPABORT("More than one HF section not supported!")
+            SELECT CASE (x_data(1, 1)%potential_parameter%potential_type)
+            CASE (do_potential_coulomb)
+               active_space_env%eri_ref%operator = eri_operator_coulomb
+            CASE (do_potential_short)
+               active_space_env%eri_ref%operator = eri_operator_erfc
+               active_space_env%eri_ref%operator_parameter = x_data(1, 1)%potential_parameter%omega
+            CASE (do_potential_truncated)
+               active_space_env%eri_ref%operator = eri_operator_trunc
+               active_space_env%eri_ref%operator_parameter = x_data(1, 1)%potential_parameter%cutoff_radius
+            CASE (do_potential_long)
+               active_space_env%eri_ref%operator = eri_operator_erf
+               active_space_env%eri_ref%operator_parameter = x_data(1, 1)%potential_parameter%omega
+            CASE (do_potential_gaussian)
+               active_space_env%eri_ref%operator = eri_operator_gaussian
+               active_space_env%eri_ref%operator_parameter = x_data(1, 1)%potential_parameter%omega
+            CASE DEFAULT
+               CPABORT("Not supported reference HF potential for AS calculations!")
+            END SELECT
+            active_space_env%eri_ref%periodicity(1:3) = cell%perd(1:3)
+         END IF
       END IF
 
       ! allocate container for integrals (CSR matrix)
@@ -995,8 +1001,8 @@ CONTAINS
 
       SELECT CASE (eri_method)
       CASE (eri_method_full_gpw, eri_method_gpw_ht)
-         ! TODO: Do not call if potentials are equal
-         CALL calculate_eri_gpw(active_space_env%mos_active, active_space_env%active_orbitals, active_space_env%eri_ref, qs_env, iw)
+         IF (active_space_env%remove_ref) CALL calculate_eri_gpw(active_space_env%mos_active, active_space_env%active_orbitals, &
+                                                                 active_space_env%eri_ref, qs_env, iw)
          CALL calculate_eri_gpw(active_space_env%mos_active, active_space_env%active_orbitals, active_space_env%eri, qs_env, iw)
          !
       CASE DEFAULT
@@ -2272,8 +2278,13 @@ CONTAINS
          CALL replicate_and_symmetrize_matrix(norb, active_space_env%p_active(1), p_mat)
 
          ! compute ks_ref = V_H[rho^A] + V_HFX[rho^A]
-         eri => active_space_env%eri_ref%eri(1)%csr_mat
-         CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, active_space_env%eri_ref%method)
+         IF (active_space_env%remove_ref) THEN
+            eri => active_space_env%eri_ref%eri(1)%csr_mat
+            CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, active_space_env%eri_ref%method)
+         ELSE
+            eri => active_space_env%eri%eri(1)%csr_mat
+            CALL build_subspace_fock_matrix(active_space_env%active_orbitals, eri, p_mat, ks_ref, active_space_env%eri%method)
+         END IF
 
          ! compute eeri = E_H[rho^A] + E_HFX[rho^A] as
          ! eeri = 1/2 * (SUM_pq (V_H[rho^A] + V_HFX[rho^A])_pq * D^A_pq)
@@ -2323,13 +2334,23 @@ CONTAINS
          CALL replicate_and_symmetrize_matrix(norb, active_space_env%ks_sub(2), ks_b_mat)
          !
          !
-         eri_aa => active_space_env%eri_ref%eri(1)%csr_mat
-         eri_ab => active_space_env%eri_ref%eri(2)%csr_mat
-         eri_bb => active_space_env%eri_ref%eri(3)%csr_mat
-         CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, &
-                                              tr_mixed_eri=.FALSE., eri_method=active_space_env%eri_ref%method)
-         CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, &
-                                              tr_mixed_eri=.TRUE., eri_method=active_space_env%eri_ref%method)
+         IF (active_space_env%remove_ref) THEN
+            eri_aa => active_space_env%eri_ref%eri(1)%csr_mat
+            eri_ab => active_space_env%eri_ref%eri(2)%csr_mat
+            eri_bb => active_space_env%eri_ref%eri(3)%csr_mat
+            CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, &
+                                                 tr_mixed_eri=.FALSE., eri_method=active_space_env%eri_ref%method)
+            CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, &
+                                                 tr_mixed_eri=.TRUE., eri_method=active_space_env%eri_ref%method)
+         ELSE
+            eri_aa => active_space_env%eri%eri(1)%csr_mat
+            eri_ab => active_space_env%eri%eri(2)%csr_mat
+            eri_bb => active_space_env%eri%eri(3)%csr_mat
+            CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_aa, eri_ab, p_a_mat, p_b_mat, ks_a_ref, &
+                                                 tr_mixed_eri=.FALSE., eri_method=active_space_env%eri%method)
+            CALL build_subspace_spin_fock_matrix(active_space_env%active_orbitals, eri_bb, eri_ab, p_b_mat, p_a_mat, ks_b_ref, &
+                                                 tr_mixed_eri=.TRUE., eri_method=active_space_env%eri%method)
+         END IF
          !
          ! calculate energy
          eeri = 0.0_dp

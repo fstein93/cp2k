@@ -85,6 +85,7 @@ MODULE qs_active_space_types
       INTEGER                                      :: nmo_inactive = 0
       INTEGER                                      :: multiplicity = 0
       INTEGER                                      :: nspins = 0
+      LOGICAL                                      :: remove_ref = .FALSE.
       LOGICAL                                      :: molecule = .FALSE.
       INTEGER                                      :: model = 0
       REAL(KIND=dp)                                :: energy_total = 0.0_dp
@@ -184,7 +185,7 @@ CONTAINS
          END IF
 
          CALL release_eri_type(active_space_env%eri)
-         CALL release_eri_type(active_space_env%eri_ref)
+         IF (active_space_env%remove_ref) CALL release_eri_type(active_space_env%eri_ref)
 
          CALL cp_fm_release(active_space_env%p_active)
          CALL cp_fm_release(active_space_env%ks_sub)
