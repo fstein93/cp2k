@@ -60,7 +60,7 @@ MODULE fft_tools
    ! needs a default initialization
    TYPE fft_scratch_sizes
       INTEGER, DIMENSION(3)                :: fft_dims_local = 0
-      INTEGER                              :: lmax = 0, mmax = 0, nmax = 0
+      INTEGER, DIMENSION(3)                :: work_dims_max = 0
       INTEGER                              :: mx1 = 0, mx2 = 0, mx3 = 0
       INTEGER                              :: my1 = 0, my2 = 0, my3 = 0
       INTEGER                              :: mz1 = 0, mz2 = 0, mz3 = 0
@@ -517,9 +517,9 @@ CONTAINS
          POINTER                                         :: pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: tbuf
-      INTEGER :: fft_dims_2d_local(2), fft_dims_local(3), g_pos, handle, lmax, mcx2, mcz1, mcz2, &
-         mmax, mx1, mx2, my1, mz2, n1, n2, nmax, numtask, output_unit, r_dim(2), r_pos(2), rp, &
-         sign, stat
+      INTEGER :: fft_dims_2d_local(2), fft_dims_local(3), g_pos, handle, mcx2, mcz1, mcz2, mx1, &
+         mx2, my1, mz2, n1, n2, numtask, output_unit, r_dim(2), r_pos(2), rp, sign, stat, &
+         work_dims_max(3)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
@@ -552,8 +552,8 @@ CONTAINS
 
       fft_dims_local = SHAPE(cin)
 
-      mmax = MAX(1, fft_dims_2d_local(2))
-      lmax = MAX(fft_dims_2d_local(1), PRODUCT(fft_dims_local)/mmax + 1)
+      work_dims_max(2) = MAX(1, fft_dims_2d_local(2))
+      work_dims_max(1) = MAX(fft_dims_2d_local(1), PRODUCT(fft_dims_local)/work_dims_max(2) + 1)
 
       ALLOCATE (p2p(0:numtask - 1))
 
@@ -567,14 +567,13 @@ CONTAINS
 
       n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
       n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
-      nmax = MAX((2*n2)/numtask, 2)*mx2*mz2
-      nmax = MAX(nmax, n1*MAXVAL(nyzray))
+      work_dims_max(3) = MAX((2*n2)/numtask, 2)*mx2*mz2
+      work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
       n1 = MAXVAL(bo(2, 1, :, 2))
       n2 = MAXVAL(bo(2, 3, :, 2))
 
       fft_scratch_size%fft_dims_local = fft_dims_local
-      fft_scratch_size%lmax = lmax
-      fft_scratch_size%mmax = mmax
+      fft_scratch_size%work_dims_max = work_dims_max
       fft_scratch_size%mx1 = mx1
       fft_scratch_size%mx2 = mx2
       fft_scratch_size%my1 = my1
@@ -588,7 +587,6 @@ CONTAINS
       fft_scratch_size%mcz1 = mcz1
       fft_scratch_size%mcx2 = mcx2
       fft_scratch_size%mcz2 = mcz2
-      fft_scratch_size%nmax = nmax
       fft_scratch_size%nmray = MAXVAL(nyzray)
       fft_scratch_size%nyzray = nyzray(g_pos)
       fft_scratch_size%rs_group = rs_group
@@ -2860,9 +2858,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch'
 
-      INTEGER :: coord(2), DIM(2), handle, i, ix, iz, fft_dims_2d_local(2), lmax, m1, m2, &
-                 mcx2, mcy3, mcz1, mcz2, mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, &
-                 nbx, nbz, nm, nmax, nmray, np, nyzray, pos(2), fft_dims_local(3)
+      INTEGER :: coord(2), DIM(2), handle, i, ix, iz, fft_dims_2d_local(2), m1, m2, &
+                 mcx2, mcy3, mcz1, mcz2, mx1, mx2, my1, my3, mz1, mz2, mz3, &
+                 nbx, nbz, nm, nmray, np, nyzray, pos(2), fft_dims_local(3), work_dims_max(3)
       INTEGER, DIMENSION(3)                    :: pcoord
       LOGICAL                                  :: equal
       LOGICAL, DIMENSION(2)                    :: dims
@@ -3033,31 +3031,30 @@ CONTAINS
             CASE (200) ! fft3d_ps: plane distribution
                fft_dims_local = fft_sizes%fft_dims_local
                mx2 = fft_sizes%mx2
-               lmax = fft_sizes%lmax
-               mmax = fft_sizes%mmax
+               work_dims_max = fft_sizes%work_dims_max
                fft_dims_2d_local = fft_sizes%fft_dims_2d_local
                np = fft_sizes%numtask
                nmray = fft_sizes%nmray
                nyzray = fft_sizes%nyzray
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-               length = INT(2*dp_size*MAX(mmax, 1)*MAX(lmax, 1), KIND=C_SIZE_T)
+               length = INT(2*dp_size*MAX(work_dims_max(2), 1)*MAX(work_dims_max(1), 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_r1buf, length)
                CPASSERT(ierr == 0)
-               CALL c_f_pointer(cptr_r1buf, fft_scratch_new%fft_scratch%r1buf, (/MAX(mmax, 1), MAX(lmax, 1)/))
+               CALL c_f_pointer(cptr_r1buf, fft_scratch_new%fft_scratch%r1buf, [MAX(work_dims_max(2), 1), MAX(work_dims_max(1), 1)])
                length = INT(2*dp_size*MAX(fft_dims_local(2), 1)*MAX(fft_dims_local(3), 1)*MAX(fft_dims_local(1), 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_tbuf, length)
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_tbuf, fft_scratch_new%fft_scratch%tbuf, &
                                 [MAX(fft_dims_local(2), 1), MAX(fft_dims_local(3), 1), MAX(fft_dims_local(1), 1)])
 #else
-               CALL fft_alloc(fft_scratch_new%fft_scratch%r1buf, [mmax, lmax])
+               CALL fft_alloc(fft_scratch_new%fft_scratch%r1buf, [work_dims_max(2), work_dims_max(1)])
                CALL fft_alloc(fft_scratch_new%fft_scratch%tbuf, [fft_dims_local(2), fft_dims_local(3), fft_dims_local(1)])
 #endif
                fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
                CALL fft_alloc(fft_scratch_new%fft_scratch%r2buf, fft_dims_2d_local)
                nm = nmray*mx2
                IF (alltoall_sgl) THEN
-                  ALLOCATE (fft_scratch_new%fft_scratch%ss(mmax, lmax))
+                  ALLOCATE (fft_scratch_new%fft_scratch%ss(work_dims_max(2), work_dims_max(1)))
                   ALLOCATE (fft_scratch_new%fft_scratch%tt(nm, 0:np - 1))
                ELSE
                   ALLOCATE (fft_scratch_new%fft_scratch%rr(nm, 0:np - 1))
@@ -3088,7 +3085,6 @@ CONTAINS
                mz2 = fft_sizes%mz2
                mcx2 = fft_sizes%mcx2
                fft_dims_2d_local = fft_sizes%fft_dims_2d_local
-               nmax = fft_sizes%nmax
                nmray = fft_sizes%nmray
                nyzray = fft_sizes%nyzray
                m1 = fft_sizes%r_dim(1)
@@ -3326,10 +3322,7 @@ CONTAINS
       equal = .TRUE.
 
       equal = equal .AND. ALL(fft_size_1%fft_dims_local == fft_size_2%fft_dims_local)
-
-      equal = equal .AND. fft_size_1%lmax == fft_size_2%lmax
-      equal = equal .AND. fft_size_1%mmax == fft_size_2%mmax
-      equal = equal .AND. fft_size_1%nmax == fft_size_2%nmax
+      equal = equal .AND. ALL(fft_size_1%work_dims_max == fft_size_2%work_dims_max)
 
       equal = equal .AND. fft_size_1%mx1 == fft_size_2%mx1
       equal = equal .AND. fft_size_1%mx2 == fft_size_2%mx2
