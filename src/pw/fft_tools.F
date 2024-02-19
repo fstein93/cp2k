@@ -69,8 +69,6 @@ MODULE fft_tools
       INTEGER                              :: nbx = 0, nbz = 0
       INTEGER                              :: nmray = 0, nyzray = 0
       TYPE(mp_cart_type)                   :: rs_group = mp_cart_type()
-      INTEGER, DIMENSION(2)                :: g_pos = 0, r_pos = 0, r_dim = 0
-      INTEGER                              :: numtask = 0
    END TYPE fft_scratch_sizes
 
    TYPE fft_scratch_type
@@ -518,8 +516,7 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: tbuf
       INTEGER :: fft_dims_2d_local(2), fft_dims_local(3), g_pos, handle, mcx2, mcz1, mcz2, mx1, &
-         mx2, my1, mz2, n1, n2, numtask, output_unit, r_dim(2), r_pos(2), rp, sign, stat, &
-         work_dims_max(3)
+         mx2, my1, mz2, n1, n2, numtask, output_unit, rp, sign, stat, work_dims_max(3)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
@@ -537,8 +534,6 @@ CONTAINS
 
       g_pos = rs_group%mepos
       numtask = rs_group%num_pe
-      r_dim = rs_group%num_pe_cart
-      r_pos = rs_group%mepos_cart
 
       IF (PRESENT(scale)) THEN
          norm = scale
@@ -590,13 +585,9 @@ CONTAINS
       fft_scratch_size%nmray = MAXVAL(nyzray)
       fft_scratch_size%nyzray = nyzray(g_pos)
       fft_scratch_size%rs_group = rs_group
-      fft_scratch_size%g_pos = g_pos
-      fft_scratch_size%r_pos = r_pos
-      fft_scratch_size%r_dim = r_dim
-      fft_scratch_size%numtask = numtask
 
       IF (test) THEN
-         IF (g_pos == 0 .AND. output_unit > 0) THEN
+         IF (output_unit > 0) THEN
             WRITE (output_unit, '(A)') "  Parallel 3D FFT : fft3d_ps"
             WRITE (output_unit, '(A,T60,3I7)') "     Transform lengths ", n
             WRITE (output_unit, '(A,T67,2I7)') "     Array dimensions (gin) ", fft_dims_2d_local
@@ -604,14 +595,14 @@ CONTAINS
          END IF
       END IF
 
-      IF (r_dim(2) > 1) THEN
+      IF (rs_group%num_pe_cart(2) > 1) THEN
 
          !
          ! real space is distributed over x and y coordinate
          ! we have two stages of communication
          !
 
-         IF (r_dim(1) == 1) THEN
+         IF (rs_group%num_pe_cart(1) == 1) THEN
             CPABORT("This processor distribution is not supported.")
          END IF
          CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
@@ -622,7 +613,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(cin))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
                   WRITE (output_unit, '(A,T60,3I7)') "     Transform Z ", n(3), mx1*my1
                   WRITE (output_unit, '(A,T60,3I7)') "     Transform Y ", n(2), mx2*mz2
@@ -642,7 +633,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(qbuf))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(2) T", sum_data
                END IF
             END IF
@@ -653,7 +644,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(rbuf))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) T", sum_data
                END IF
             END IF
@@ -668,19 +659,19 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(pbuf))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(4) TS", sum_data
                END IF
             END IF
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL xz_to_yz(pbuf, rs_group, r_dim, g_pos, p2p, yzp, nyzray, &
+            CALL xz_to_yz(pbuf, rs_group, rs_group%num_pe_cart, g_pos, p2p, yzp, nyzray, &
                           bo(:, :, :, 2), qbuf, fft_scratch)
 
             IF (test) THEN
                sum_data = ABS(SUM(qbuf))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(5) TS", sum_data
                END IF
             END IF
@@ -691,7 +682,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(gin))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(6) ", sum_data
                END IF
             END IF
@@ -702,7 +693,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(gin))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(g_pos)
                   WRITE (output_unit, '(A,T60,3I7)') "     Transform Y ", n(2), mx2*mz2
@@ -721,19 +712,19 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(pbuf))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(2) TS", sum_data
                END IF
             END IF
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL yz_to_xz(pbuf, rs_group, r_dim, g_pos, p2p, yzp, nyzray, &
+            CALL yz_to_xz(pbuf, rs_group, rs_group%num_pe_cart, g_pos, p2p, yzp, nyzray, &
                           bo(:, :, :, 2), qbuf, fft_scratch)
 
             IF (test) THEN
                sum_data = ABS(SUM(qbuf))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) TS", sum_data
                END IF
             END IF
@@ -748,7 +739,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(rbuf))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(4) T", sum_data
                END IF
             END IF
@@ -759,7 +750,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(pbuf))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(5) T", sum_data
                END IF
             END IF
@@ -772,7 +763,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(cin))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(6) ", sum_data
                END IF
             END IF
@@ -807,7 +798,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(cin))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "     One step communication algorithm "
                   WRITE (output_unit, '(A,T60,3I7)') "     Transform YZ ", n(2), n(3), fft_dims_local(1)
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(g_pos)
@@ -822,7 +813,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(tbuf))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(2) TS", sum_data
                END IF
             END IF
@@ -834,7 +825,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(sbuf))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) TS", sum_data
                END IF
             END IF
@@ -844,7 +835,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(gin))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(4) ", sum_data
                END IF
             END IF
@@ -855,7 +846,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(gin))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  One step communication algorithm "
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(g_pos)
                   WRITE (output_unit, '(A,T60,3I7)') "     Transform YZ ", n(2), n(3), fft_dims_local(1)
@@ -869,7 +860,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(sbuf))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(2) TS", sum_data
                END IF
             END IF
@@ -881,7 +872,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(tbuf))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) TS", sum_data
                END IF
             END IF
@@ -893,7 +884,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(cin))
                CALL rs_group%sum(sum_data)
-               IF (g_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(4) ", sum_data
                END IF
             END IF
@@ -998,7 +989,7 @@ CONTAINS
          lz(1) = SIZE(zin, 1)
          lz(2) = SIZE(zin, 2)
          lz(3) = SIZE(zin, 3)
-         IF (my_pos == 0 .AND. output_unit > 0) THEN
+         IF (output_unit > 0) THEN
             WRITE (output_unit, '(A)') "  Parallel 3D FFT : fft3d_pb"
             WRITE (output_unit, '(A,T60,3I7)') "     Transform lengths ", n
             WRITE (output_unit, '(A,T67,2I7)') "     Array dimensions (gin) ", fft_dims_2d_local
@@ -1033,8 +1024,6 @@ CONTAINS
       fft_scratch_size%mcz2 = mcz2
       fft_scratch_size%mcy3 = mcy3
       fft_scratch_size%rs_group = group
-      fft_scratch_size%g_pos = my_pos
-      fft_scratch_size%numtask = DIM(1)*DIM(2)
 
       IF (DIM(1) > 1 .AND. DIM(2) > 1) THEN
 
@@ -1052,7 +1041,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(zin))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), mx1*my1
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
@@ -1067,7 +1056,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(bbuf))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(2) T", sum_data
                END IF
             END IF
@@ -1079,7 +1068,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), mx2*mz2
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) ", sum_data
                END IF
@@ -1093,7 +1082,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(bbuf))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(4) T", sum_data
                END IF
             END IF
@@ -1103,7 +1092,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), my3*mz3
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(5) ", sum_data
                END IF
@@ -1115,7 +1104,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(gin))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(6) ", sum_data
                END IF
             END IF
@@ -1128,7 +1117,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(gin))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), my3*mz3
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
@@ -1143,7 +1132,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(bbuf))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(2) T", sum_data
                END IF
             END IF
@@ -1155,7 +1144,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), mx2*mz2
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) ", sum_data
                END IF
@@ -1169,7 +1158,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(bbuf))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(4) T", sum_data
                END IF
             END IF
@@ -1179,7 +1168,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), mx1*my1
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(5) ", sum_data
                END IF
@@ -1191,7 +1180,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(zin))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(6) ", sum_data
                END IF
             END IF
@@ -1216,7 +1205,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(zin))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  one step communication algorithm "
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), mx1*my1
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), mx1*mz1
@@ -1235,7 +1224,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(bbuf))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(2) T", sum_data
                END IF
             END IF
@@ -1245,7 +1234,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), my3*mz3
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) ", sum_data
                END IF
@@ -1257,7 +1246,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(gin))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(4) ", sum_data
                END IF
             END IF
@@ -1268,7 +1257,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(gin))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  one step communication algorithm "
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), my3*mz3
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
@@ -1285,7 +1274,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(bbuf))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(2) T", sum_data
                END IF
             END IF
@@ -1297,7 +1286,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), mx1*mz1
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), mx1*my1
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) ", sum_data
@@ -1313,7 +1302,7 @@ CONTAINS
             IF (test) THEN
                sum_data = ABS(SUM(zin))
                CALL group%sum(sum_data)
-               IF (my_pos == 0 .AND. output_unit > 0) THEN
+               IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(4) ", sum_data
                END IF
             END IF
@@ -1741,8 +1730,8 @@ CONTAINS
          END IF
       END IF
 
-      myx = fft_scratch%sizes%r_pos(1)
-      myz = fft_scratch%sizes%r_pos(2)
+      myx = fft_scratch%sizes%rs_group%mepos_cart(1)
+      myz = fft_scratch%sizes%rs_group%mepos_cart(2)
       nz = bo(2, 3, rs_pos) - bo(1, 3, rs_pos) + 1
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
@@ -1900,8 +1889,8 @@ CONTAINS
       END IF
 
 ! Now do the actual packing
-      myx = fft_scratch%sizes%r_pos(1)
-      myz = fft_scratch%sizes%r_pos(2)
+      myx = fft_scratch%sizes%rs_group%mepos_cart(1)
+      myz = fft_scratch%sizes%rs_group%mepos_cart(2)
       mp = p2p(my_pos)
       nz = bo(2, 3, mp) - bo(1, 3, mp) + 1
       nx = bo(2, 1, mp) - bo(1, 1, mp) + 1
@@ -2397,7 +2386,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      np = fft_scratch%sizes%numtask
+      np = fft_scratch%sizes%rs_group%num_pe
       mip = fft_scratch%mip
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
@@ -2491,7 +2480,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      np = fft_scratch%sizes%numtask
+      np = fft_scratch%sizes%rs_group%num_pe
       mip = fft_scratch%mip
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
@@ -2924,7 +2913,7 @@ CONTAINS
 
             IF (tf_type .NE. 400) THEN
                fft_scratch_new%fft_scratch%sizes = fft_sizes
-               np = fft_sizes%numtask
+               np = fft_sizes%rs_group%num_pe
                ALLOCATE (fft_scratch_new%fft_scratch%scount(0:np - 1), fft_scratch_new%fft_scratch%rcount(0:np - 1), &
                          fft_scratch_new%fft_scratch%sdispl(0:np - 1), fft_scratch_new%fft_scratch%rdispl(0:np - 1), &
                          fft_scratch_new%fft_scratch%pgcube(0:np - 1, 2))
@@ -3033,7 +3022,7 @@ CONTAINS
                mx2 = fft_sizes%mx2
                work_dims_max = fft_sizes%work_dims_max
                fft_dims_2d_local = fft_sizes%fft_dims_2d_local
-               np = fft_sizes%numtask
+               np = fft_sizes%rs_group%num_pe
                nmray = fft_sizes%nmray
                nyzray = fft_sizes%nyzray
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
@@ -3087,8 +3076,8 @@ CONTAINS
                fft_dims_2d_local = fft_sizes%fft_dims_2d_local
                nmray = fft_sizes%nmray
                nyzray = fft_sizes%nyzray
-               m1 = fft_sizes%r_dim(1)
-               m2 = fft_sizes%r_dim(2)
+               m1 = fft_sizes%rs_group%num_pe_cart(1)
+               m2 = fft_sizes%rs_group%num_pe_cart(2)
                nbx = fft_sizes%nbx
                nbz = fft_sizes%nbz
                CALL fft_alloc(fft_scratch_new%fft_scratch%p1buf, [mx1*my1, n(3)])
@@ -3346,12 +3335,6 @@ CONTAINS
       equal = equal .AND. fft_size_1%nyzray == fft_size_2%nyzray
 
       equal = equal .AND. fft_size_1%rs_group == fft_size_2%rs_group
-
-      equal = equal .AND. ALL(fft_size_1%g_pos == fft_size_2%g_pos)
-      equal = equal .AND. ALL(fft_size_1%r_pos == fft_size_2%r_pos)
-      equal = equal .AND. ALL(fft_size_1%r_dim == fft_size_2%r_dim)
-
-      equal = equal .AND. fft_size_1%numtask == fft_size_2%numtask
 
    END SUBROUTINE is_equal
 

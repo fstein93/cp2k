@@ -228,7 +228,6 @@ CONTAINS
                                                             mx2, mz2, n1, n2, ngpts, numtask, rp, &
                                                             work_dims_max(3)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
-      INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
@@ -251,8 +250,6 @@ CONTAINS
 
          g_pos = rs_group%mepos
          numtask = rs_group%num_pe
-         r_dim = rs_group%num_pe_cart
-         r_pos = rs_group%mepos_cart
 
          fft_dims_2d_local = SHAPE(grays)
          work_dims_max(2) = MAX(mg, 1)
@@ -285,17 +282,13 @@ CONTAINS
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(g_pos)
          fft_scratch_size%rs_group = rs_group
-         fft_scratch_size%g_pos = g_pos
-         fft_scratch_size%r_pos = r_pos
-         fft_scratch_size%r_dim = r_dim
-         fft_scratch_size%numtask = numtask
 
-         IF (r_dim(2) > 1) THEN
+         IF (rs_group%num_pe_cart(2) > 1) THEN
             !
             ! real space is distributed over x and y coordinate
             ! we have two stages of communication
             !
-            IF (r_dim(1) == 1) &
+            IF (rs_group%num_pe_cart(1) == 1) &
                CPABORT("This processor distribution is not supported.")
 
             CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
@@ -319,7 +312,7 @@ CONTAINS
             CALL pw_gpu_f(rbuf, pbuf, +1, n(2), mx2*mz2)
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL xz_to_yz(pbuf, rs_group, r_dim, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL xz_to_yz(pbuf, rs_group, rs_group%num_pe_cart, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                           bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
@@ -386,7 +379,6 @@ CONTAINS
                                                             mx2, mz2, n1, n2, ngpts, numtask, rp, &
                                                             work_dims_max(3)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
-      INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
@@ -409,8 +401,6 @@ CONTAINS
 
          g_pos = rs_group%mepos
          numtask = rs_group%num_pe
-         r_dim = rs_group%num_pe_cart
-         r_pos = rs_group%mepos_cart
 
          fft_dims_2d_local = SHAPE(grays)
          work_dims_max(2) = MAX(fft_dims_2d_local(2), 1)
@@ -443,17 +433,13 @@ CONTAINS
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(g_pos)
          fft_scratch_size%rs_group = rs_group
-         fft_scratch_size%g_pos = g_pos
-         fft_scratch_size%r_pos = r_pos
-         fft_scratch_size%r_dim = r_dim
-         fft_scratch_size%numtask = numtask
 
-         IF (r_dim(2) > 1) THEN
+         IF (rs_group%num_pe_cart(2) > 1) THEN
             !
             ! real space is distributed over x and y coordinate
             ! we have two stages of communication
             !
-            IF (r_dim(1) == 1) &
+            IF (rs_group%num_pe_cart(1) == 1) &
                CPABORT("This processor distribution is not supported.")
 
             CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
@@ -469,7 +455,7 @@ CONTAINS
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) qbuf = z_zero
-            CALL yz_to_xz(pbuf, rs_group, r_dim, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL yz_to_xz(pbuf, rs_group, rs_group%num_pe_cart, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
                           bo(:, :, :, 2), qbuf, fft_scratch)
 
             ! FFT along y
