@@ -75,7 +75,6 @@ MODULE fft_tools
       INTEGER                              :: fft_scratch_id = 0
       INTEGER                              :: tf_type = -1
       LOGICAL                              :: in_use = .TRUE.
-      TYPE(mp_comm_type)                   :: group = mp_comm_type()
       INTEGER, DIMENSION(3)                :: nfft = -1
       ! to be used in cube_transpose_* routines
       TYPE(mp_cart_type), DIMENSION(2)     :: cart_sub_comm = mp_cart_type()
@@ -100,7 +99,7 @@ MODULE fft_tools
       INTEGER, DIMENSION(:), CONTIGUOUS, POINTER       :: scount => NULL(), rcount => NULL(), sdispl => NULL(), rdispl => NULL()
       INTEGER, DIMENSION(:, :), CONTIGUOUS, POINTER     :: pgcube => NULL()
       INTEGER, DIMENSION(:), CONTIGUOUS, POINTER       :: xzcount => NULL(), yzcount => NULL(), xzdispl => NULL(), yzdispl => NULL()
-      INTEGER                              :: in = 0, mip = -1
+      INTEGER                              :: in = 0
       REAL(KIND=dp)                        :: rsratio = 1.0_dp
       COMPLEX(KIND=dp), DIMENSION(:), POINTER, CONTIGUOUS &
          :: xzbuf => NULL(), yzbuf => NULL()
@@ -2003,9 +2002,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      mip = fft_scratch%mip
-      dim = fft_scratch%dim
-      pos = fft_scratch%pos
+      mip = fft_scratch%sizes%rs_group%mepos
+      dim = fft_scratch%sizes%rs_group%num_pe_cart
+      pos = fft_scratch%sizes%rs_group%mepos_cart
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
       sdispl => fft_scratch%sdispl
@@ -2095,9 +2094,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       sub_group = fft_scratch%cart_sub_comm(2)
-      mip = fft_scratch%mip
-      dim = fft_scratch%dim
-      pos = fft_scratch%pos
+      mip = fft_scratch%sizes%rs_group%mepos
+      dim = fft_scratch%sizes%rs_group%num_pe_cart
+      pos = fft_scratch%sizes%rs_group%mepos_cart
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
       sdispl => fft_scratch%sdispl
@@ -2186,9 +2185,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       sub_group = fft_scratch%cart_sub_comm(1)
-      mip = fft_scratch%mip
-      dim = fft_scratch%dim
-      pos = fft_scratch%pos
+      mip = fft_scratch%sizes%rs_group%mepos
+      dim = fft_scratch%sizes%rs_group%num_pe_cart
+      pos = fft_scratch%sizes%rs_group%mepos_cart
       np = DIM(1)
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
@@ -2291,9 +2290,9 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       sub_group = fft_scratch%cart_sub_comm(1)
-      mip = fft_scratch%mip
-      dim = fft_scratch%dim
-      pos = fft_scratch%pos
+      mip = fft_scratch%sizes%rs_group%mepos
+      dim = fft_scratch%sizes%rs_group%num_pe_cart
+      pos = fft_scratch%sizes%rs_group%mepos_cart
       np = DIM(1)
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
@@ -2391,7 +2390,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       np = fft_scratch%sizes%rs_group%num_pe
-      mip = fft_scratch%mip
+      mip = fft_scratch%sizes%rs_group%mepos
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
       sdispl => fft_scratch%sdispl
@@ -2487,7 +2486,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       np = fft_scratch%sizes%rs_group%num_pe
-      mip = fft_scratch%mip
+      mip = fft_scratch%sizes%rs_group%mepos
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
       sdispl => fft_scratch%sdispl
@@ -2895,7 +2894,7 @@ CONTAINS
                CYCLE
             END IF
             IF (PRESENT(fft_sizes)) THEN
-               IF (fft_sizes%rs_group /= fft_scratch_current%fft_scratch%group) THEN
+               IF (fft_sizes%rs_group /= fft_scratch_current%fft_scratch%sizes%rs_group) THEN
                   fft_scratch_last => fft_scratch_current
                   fft_scratch_current => fft_scratch_current%fft_scratch_next
                   CYCLE
@@ -2941,13 +2940,9 @@ CONTAINS
                CALL fft_alloc(fft_scratch_new%fft_scratch%a4buf, [n(2), mx2*mz2])
                CALL fft_alloc(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
                CALL fft_alloc(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
-               fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
 
                dim = fft_sizes%rs_group%num_pe_cart
                pos = fft_sizes%rs_group%mepos_cart
-               fft_scratch_new%fft_scratch%mip = fft_sizes%rs_group%mepos
-               fft_scratch_new%fft_scratch%dim = dim
-               fft_scratch_new%fft_scratch%pos = pos
                mcz1 = fft_sizes%mcz1
                mcx2 = fft_sizes%mcx2
                mcz2 = fft_sizes%mcz2
@@ -2994,7 +2989,6 @@ CONTAINS
                mz3 = fft_sizes%mz3
                CALL fft_alloc(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
                CALL fft_alloc(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
-               fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
                CALL fft_alloc(fft_scratch_new%fft_scratch%a3buf, [mx1*mz1, n(2)])
                CALL fft_alloc(fft_scratch_new%fft_scratch%a4buf, [n(2), mx1*mz1])
                CALL fft_alloc(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
@@ -3002,9 +2996,6 @@ CONTAINS
 
                dim = fft_sizes%rs_group%num_pe_cart
                pos = fft_sizes%rs_group%mepos_cart
-               fft_scratch_new%fft_scratch%mip = fft_sizes%rs_group%mepos
-               fft_scratch_new%fft_scratch%dim = dim
-               fft_scratch_new%fft_scratch%pos = pos
                mcy3 = fft_sizes%mcy3
                ALLOCATE (fft_scratch_new%fft_scratch%rbuf5(mx1*mz3*mcy3, 0:DIM(1) - 1))
                ALLOCATE (fft_scratch_new%fft_scratch%rbuf6(mx1*mz1*mcy3, 0:DIM(1) - 1))
@@ -3045,7 +3036,6 @@ CONTAINS
                CALL fft_alloc(fft_scratch_new%fft_scratch%r1buf, [work_dims_max(2), work_dims_max(1)])
                CALL fft_alloc(fft_scratch_new%fft_scratch%tbuf, [fft_dims_local(2), fft_dims_local(3), fft_dims_local(1)])
 #endif
-               fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
                CALL fft_alloc(fft_scratch_new%fft_scratch%r2buf, fft_dims_2d_local)
                nm = nmray*mx2
                IF (alltoall_sgl) THEN
@@ -3131,13 +3121,9 @@ CONTAINS
                          fft_scratch_new%fft_scratch%yzcount(0:np - 1))
                ALLOCATE (fft_scratch_new%fft_scratch%xzdispl(0:np - 1), &
                          fft_scratch_new%fft_scratch%yzdispl(0:np - 1))
-               fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
 
                dim = fft_sizes%rs_group%num_pe_cart
                pos = fft_sizes%rs_group%mepos_cart
-               fft_scratch_new%fft_scratch%mip = fft_sizes%rs_group%mepos
-               fft_scratch_new%fft_scratch%dim = dim
-               fft_scratch_new%fft_scratch%pos = pos
                mcz1 = fft_sizes%mcz1
                mcz2 = fft_sizes%mcz2
                ALLOCATE (fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2, 0:DIM(2) - 1))
