@@ -665,7 +665,7 @@ CONTAINS
             END IF
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL xz_to_yz(pbuf, rs_group, rs_group%num_pe_cart, g_pos, p2p, yzp, nyzray, &
+            CALL xz_to_yz(pbuf, rs_group, p2p, yzp, nyzray, &
                           bo(:, :, :, 2), qbuf, fft_scratch)
 
             IF (test) THEN
@@ -718,7 +718,7 @@ CONTAINS
             END IF
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL yz_to_xz(pbuf, rs_group, rs_group%num_pe_cart, g_pos, p2p, yzp, nyzray, &
+            CALL yz_to_xz(pbuf, rs_group, p2p, yzp, nyzray, &
                           bo(:, :, :, 2), qbuf, fft_scratch)
 
             IF (test) THEN
@@ -819,7 +819,7 @@ CONTAINS
             END IF
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL yz_to_x(tbuf, rs_group, g_pos, p2p, yzp, nyzray, &
+            CALL yz_to_x(tbuf, rs_group, p2p, yzp, nyzray, &
                          bo(:, :, :, 2), sbuf, fft_scratch)
 
             IF (test) THEN
@@ -866,7 +866,7 @@ CONTAINS
             END IF
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL x_to_yz(sbuf, rs_group, g_pos, p2p, yzp, nyzray, &
+            CALL x_to_yz(sbuf, rs_group, p2p, yzp, nyzray, &
                          bo(:, :, :, 2), tbuf, fft_scratch)
 
             IF (test) THEN
@@ -1331,7 +1331,6 @@ CONTAINS
 !> \brief ...
 !> \param sb ...
 !> \param group ...
-!> \param my_pos ...
 !> \param p2p ...
 !> \param yzp ...
 !> \param nray ...
@@ -1342,13 +1341,11 @@ CONTAINS
 !>      15. Feb. 2006 : single precision all_to_all
 !> \author JGH (14-Jan-2001)
 ! **************************************************************************************************
-   SUBROUTINE x_to_yz(sb, group, my_pos, p2p, yzp, nray, bo, tb, fft_scratch)
+   SUBROUTINE x_to_yz(sb, group, p2p, yzp, nray, bo, tb, fft_scratch)
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: sb
-
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
-      INTEGER, INTENT(IN)                                :: my_pos
+      TYPE(mp_cart_type), INTENT(IN)                     :: group
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: p2p
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
          INTENT(IN)                                      :: yzp
@@ -1366,11 +1363,12 @@ CONTAINS
       COMPLEX(KIND=sp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: ss, tt
       INTEGER                                            :: handle, ip, ir, ix, ixx, iy, iz, mpr, &
-                                                            nm, np, nr, nx
+                                                            my_pos, nm, np, nr, nx
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: rcount, rdispl, scount, sdispl
 
       CALL timeset(routineN, handle)
 
+      my_pos = group%mepos
       np = SIZE(p2p)
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
@@ -1447,7 +1445,6 @@ CONTAINS
 !> \brief ...
 !> \param tb ...
 !> \param group ...
-!> \param my_pos ...
 !> \param p2p ...
 !> \param yzp ...
 !> \param nray ...
@@ -1458,13 +1455,11 @@ CONTAINS
 !>      15. Feb. 2006 : single precision all_to_all
 !> \author JGH (14-Jan-2001)
 ! **************************************************************************************************
-   SUBROUTINE yz_to_x(tb, group, my_pos, p2p, yzp, nray, bo, sb, fft_scratch)
+   SUBROUTINE yz_to_x(tb, group, p2p, yzp, nray, bo, sb, fft_scratch)
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: tb
-
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
-      INTEGER, INTENT(IN)                                :: my_pos
+      TYPE(mp_cart_type), INTENT(IN)                     :: group
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: p2p
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
          INTENT(IN)                                      :: yzp
@@ -1481,11 +1476,12 @@ CONTAINS
       COMPLEX(KIND=sp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: ss, tt
       INTEGER                                            :: handle, ip, ir, ix, ixx, iy, iz, mpr, &
-                                                            nm, np, nr, nx
+                                                            my_pos, nm, np, nr, nx
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: rcount, rdispl, scount, sdispl
 
       CALL timeset(routineN, handle)
 
+      my_pos = group%mepos
       np = SIZE(p2p)
       mpr = p2p(my_pos)
       scount => fft_scratch%scount
@@ -1563,8 +1559,6 @@ CONTAINS
 !> \brief ...
 !> \param sb ...
 !> \param group ...
-!> \param dims ...
-!> \param my_pos ...
 !> \param p2p ...
 !> \param yzp ...
 !> \param nray ...
@@ -1575,35 +1569,40 @@ CONTAINS
 !>      15. Feb. 2006 : single precision all_to_all
 !> \author JGH (18-Jan-2001)
 ! **************************************************************************************************
-   SUBROUTINE yz_to_xz(sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scratch)
+   SUBROUTINE yz_to_xz(sb, group, p2p, yzp, nray, bo, tb, fft_scratch)
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: sb
-
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
-      INTEGER, DIMENSION(2), INTENT(IN)                  :: dims
-      INTEGER, INTENT(IN)                                :: my_pos
-      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)                 :: p2p
-      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
-      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)                 :: nray
-      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: bo
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), CONTIGUOUS   :: tb
-      TYPE(fft_scratch_type), INTENT(INOUT)                 :: fft_scratch
+      TYPE(mp_cart_type), INTENT(IN)                     :: group
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: p2p
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: yzp
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: nray
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: bo
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: tb
+      TYPE(fft_scratch_type), INTENT(INOUT)              :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'yz_to_xz'
 
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER, CONTIGUOUS            :: xzbuf, yzbuf
-      COMPLEX(KIND=sp), DIMENSION(:), POINTER, CONTIGUOUS            :: xzbuf_sgl, yzbuf_sgl
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), &
+         POINTER                                         :: xzbuf, yzbuf
+      COMPLEX(KIND=sp), CONTIGUOUS, DIMENSION(:), &
+         POINTER                                         :: xzbuf_sgl, yzbuf_sgl
       INTEGER                                            :: handle, icrs, ip, ipl, ipr, ir, ix, iz, &
-                                                            jj, jx, jy, jz, myx, myz, np, npx, &
-                                                            npz, nx, nz, rs_pos
-      INTEGER, DIMENSION(:), POINTER, CONTIGUOUS                     :: pzcoord, rcount, rdispl, scount, sdispl, &
-                                                                        xcor, zcor
-      INTEGER, DIMENSION(:, :), CONTIGUOUS, POINTER                  :: pgrid
+                                                            jj, jx, jy, jz, my_pos, myx, myz, np, &
+                                                            npx, npz, nx, nz, rs_pos
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: pzcoord, rcount, rdispl, scount, sdispl, &
+                                                            xcor, zcor
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: pgrid
+      INTEGER, DIMENSION(2)                              :: dims
 
       CALL timeset(routineN, handle)
 
       np = SIZE(p2p)
+      dims = group%num_pe_cart
+      my_pos = group%mepos
 
       rs_pos = p2p(my_pos)
 
@@ -1773,8 +1772,6 @@ CONTAINS
 !> \brief ...
 !> \param sb ...
 !> \param group ...
-!> \param dims ...
-!> \param my_pos ...
 !> \param p2p ...
 !> \param yzp ...
 !> \param nray ...
@@ -1785,35 +1782,40 @@ CONTAINS
 !>      15. Feb. 2006 : single precision all_to_all
 !> \author JGH (19-Jan-2001)
 ! **************************************************************************************************
-   SUBROUTINE xz_to_yz(sb, group, dims, my_pos, p2p, yzp, nray, bo, tb, fft_scratch)
+   SUBROUTINE xz_to_yz(sb, group, p2p, yzp, nray, bo, tb, fft_scratch)
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: sb
-
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
-      INTEGER, DIMENSION(2), INTENT(IN)                  :: dims
-      INTEGER, INTENT(IN)                                :: my_pos
-      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)                 :: p2p
-      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: yzp
-      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)                 :: nray
-      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: bo
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(INOUT), CONTIGUOUS   :: tb
+      TYPE(mp_cart_type), INTENT(IN)                     :: group
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: p2p
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: yzp
+      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: nray
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: bo
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: tb
       TYPE(fft_scratch_type), INTENT(INOUT)              :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'xz_to_yz'
 
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER, CONTIGUOUS            :: xzbuf, yzbuf
-      COMPLEX(KIND=sp), DIMENSION(:), POINTER, CONTIGUOUS            :: xzbuf_sgl, yzbuf_sgl
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), &
+         POINTER                                         :: xzbuf, yzbuf
+      COMPLEX(KIND=sp), CONTIGUOUS, DIMENSION(:), &
+         POINTER                                         :: xzbuf_sgl, yzbuf_sgl
       INTEGER                                            :: handle, icrs, ip, ipl, ir, ix, ixx, iz, &
-                                                            jj, jx, jy, jz, mp, myx, myz, np, npx, &
-                                                            npz, nx, nz
-      INTEGER, DIMENSION(:), POINTER, CONTIGUOUS                     :: pzcoord, rcount, rdispl, scount, sdispl, &
-                                                                        xcor, zcor
-      INTEGER, DIMENSION(:, :), CONTIGUOUS, POINTER                  :: pgrid
+                                                            jj, jx, jy, jz, mp, my_pos, myx, myz, &
+                                                            np, npx, npz, nx, nz
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: pzcoord, rcount, rdispl, scount, sdispl, &
+                                                            xcor, zcor
+      INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: pgrid
+      INTEGER, DIMENSION(2)                              :: dims
 
       CALL timeset(routineN, handle)
 
       np = SIZE(p2p)
+      dims = group%num_pe_cart
+      my_pos = group%mepos
 
       IF (alltoall_sgl) THEN
          yzbuf_sgl => fft_scratch%yzbuf_sgl
@@ -2370,19 +2372,21 @@ CONTAINS
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: cin
-
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
-      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT), CONTIGUOUS     :: sout
-      TYPE(fft_scratch_type), INTENT(IN)                :: fft_scratch
+      TYPE(mp_cart_type), INTENT(IN)                     :: group
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: boin, boout
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: sout
+      TYPE(fft_scratch_type), INTENT(IN)                 :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_transpose_5'
 
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS         :: rbuf
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: rbuf
       INTEGER                                            :: handle, ip, ir, is, ixz, iy, lb, mip, &
                                                             my, my_id, np, num_threads, nx, ny, &
                                                             nz, ub
-      INTEGER, DIMENSION(:), POINTER, CONTIGUOUS                     :: rcount, rdispl, scount, sdispl
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: rcount, rdispl, scount, sdispl
 
       CALL timeset(routineN, handle)
 
@@ -2465,18 +2469,20 @@ CONTAINS
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: cin
-
-      CLASS(mp_comm_type), INTENT(IN)                     :: group
-      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), INTENT(IN)           :: boin, boout
-      COMPLEX(KIND=dp), DIMENSION(:, :), INTENT(OUT), CONTIGUOUS     :: sout
+      TYPE(mp_cart_type), INTENT(IN)                     :: group
+      INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
+         INTENT(IN)                                      :: boin, boout
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         INTENT(OUT)                                     :: sout
       TYPE(fft_scratch_type), INTENT(IN)                 :: fft_scratch
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cube_transpose_6'
 
-      COMPLEX(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS         :: rbuf
+      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
+         POINTER                                         :: rbuf
       INTEGER                                            :: handle, ip, ir, iy, izx, lb, mip, my, &
                                                             my_id, np, num_threads, nx, ny, nz, ub
-      INTEGER, DIMENSION(:), POINTER, CONTIGUOUS                     :: rcount, rdispl, scount, sdispl
+      INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: rcount, rdispl, scount, sdispl
 
       CALL timeset(routineN, handle)
 

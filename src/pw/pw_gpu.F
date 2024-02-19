@@ -312,7 +312,7 @@ CONTAINS
             CALL pw_gpu_f(rbuf, pbuf, +1, n(2), mx2*mz2)
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL xz_to_yz(pbuf, rs_group, rs_group%num_pe_cart, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL xz_to_yz(pbuf, rs_group, p2p, pw1%pw_grid%para%yzp, nyzray, &
                           bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
@@ -337,7 +337,7 @@ CONTAINS
             CALL pw_gpu_cff(pw1, tbuf)
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL yz_to_x(tbuf, rs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL yz_to_x(tbuf, rs_group, p2p, pw1%pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
@@ -455,7 +455,7 @@ CONTAINS
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) qbuf = z_zero
-            CALL yz_to_xz(pbuf, rs_group, rs_group%num_pe_cart, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL yz_to_xz(pbuf, rs_group, p2p, pw1%pw_grid%para%yzp, nyzray, &
                           bo(:, :, :, 2), qbuf, fft_scratch)
 
             ! FFT along y
@@ -492,7 +492,7 @@ CONTAINS
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) tbuf = z_zero
-            CALL x_to_yz(sbuf, rs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL x_to_yz(sbuf, rs_group, p2p, pw1%pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), tbuf, fft_scratch)
 
             ! FFT along y and z
