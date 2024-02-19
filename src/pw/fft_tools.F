@@ -380,8 +380,7 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: zoptr
       COMPLEX(KIND=dp), DIMENSION(1, 1, 1), TARGET       :: zdum
-      INTEGER                                            :: handle, ld(3), lo(3), output_unit, sign, &
-                                                            stat
+      INTEGER                                            :: handle, output_unit, sign, stat
       LOGICAL                                            :: fft_in_place, test
       REAL(KIND=dp)                                      :: in_sum, norm, out_sum
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
@@ -411,12 +410,14 @@ CONTAINS
          in_sum = SUM(ABS(zin))
       END IF
 
-      ld(1) = SIZE(zin, 1)
-      ld(2) = SIZE(zin, 2)
-      ld(3) = SIZE(zin, 3)
-
-      IF (n(1) /= ld(1) .OR. n(2) /= ld(2) .OR. n(3) /= ld(3)) THEN
+      IF (ANY(n /= SHAPE(zin))) THEN
          CPABORT("Size and dimension (zin) have to be the same.")
+      END IF
+
+      IF (PRESENT(zout)) THEN
+         IF (ANY(n /= SHAPE(zout))) THEN
+            CPABORT("Size and dimension (zout) have to be the same.")
+         END IF
       END IF
 
       sign = fsign
@@ -439,15 +440,6 @@ CONTAINS
 
       CALL release_fft_scratch(fft_scratch)
 
-      IF (PRESENT(zout)) THEN
-         lo(1) = SIZE(zout, 1)
-         lo(2) = SIZE(zout, 2)
-         lo(3) = SIZE(zout, 3)
-         IF (n(1) /= lo(1) .OR. n(2) /= lo(2) .OR. n(3) /= lo(3)) THEN
-            CPABORT("Size and dimension (zout) have to be the same.")
-         END IF
-      END IF
-
       IF (PRESENT(status)) THEN
          status = stat
       END IF
@@ -457,15 +449,15 @@ CONTAINS
             out_sum = SUM(ABS(zout))
             WRITE (output_unit, '(A)') "  Out of place 3D FFT (local)  : fft3d_s"
             WRITE (output_unit, '(A,T60,3I7)') "     Transform lengths ", n
-            WRITE (output_unit, '(A,T60,3I7)') "     Input array dimensions ", ld
-            WRITE (output_unit, '(A,T60,3I7)') "     Output array dimensions ", lo
+            WRITE (output_unit, '(A,T60,3I7)') "     Input array dimensions ", SHAPE(zin)
+            WRITE (output_unit, '(A,T60,3I7)') "     Output array dimensions ", SHAPE(zout)
             WRITE (output_unit, '(A,T61,E20.14)') "     Sum of input data ", in_sum
             WRITE (output_unit, '(A,T61,E20.14)') "     Sum of output data ", out_sum
          ELSE
             out_sum = SUM(ABS(zin))
             WRITE (output_unit, '(A)') "  In place 3D FFT (local)  : fft3d_s"
             WRITE (output_unit, '(A,T60,3I7)') "     Transform lengths ", n
-            WRITE (output_unit, '(A,T60,3I7)') "     Input/output array dimensions ", ld
+            WRITE (output_unit, '(A,T60,3I7)') "     Input/output array dimensions ", SHAPE(zin)
             WRITE (output_unit, '(A,T61,E20.14)') "     Sum of input data ", in_sum
             WRITE (output_unit, '(A,T61,E20.14)') "     Sum of output data ", out_sum
          END IF
