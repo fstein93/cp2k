@@ -224,8 +224,9 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER                                            :: g_pos, handle, lg, lmax, mg, mmax, mx2, &
-                                                            mz2, n1, n2, ngpts, nmax, numtask, rp
+      INTEGER                                            :: fft_dims_2d_local(2), g_pos, handle, &
+                                                            lmax, mg, mmax, mx2, mz2, n1, n2, &
+                                                            ngpts, nmax, numtask, rp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
@@ -253,10 +254,9 @@ CONTAINS
          r_dim = rs_group%num_pe_cart
          r_pos = rs_group%mepos_cart
 
-         lg = SIZE(grays, 1)
-         mg = SIZE(grays, 2)
+         fft_dims_2d_local = SHAPE(grays)
          mmax = MAX(mg, 1)
-         lmax = MAX(lg, (ngpts/mmax + 1))
+         lmax = MAX(fft_dims_2d_local(1), (ngpts/mmax + 1))
 
          ALLOCATE (p2p(0:numtask - 1))
 
@@ -277,8 +277,7 @@ CONTAINS
          fft_scratch_size%mx2 = mx2
          fft_scratch_size%my1 = bo(2, 2, rp, 1) - bo(1, 2, rp, 1) + 1
          fft_scratch_size%mz2 = mz2
-         fft_scratch_size%lg = lg
-         fft_scratch_size%mg = mg
+         fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
          fft_scratch_size%nbx = MAXVAL(bo(2, 1, :, 2))
          fft_scratch_size%nbz = MAXVAL(bo(2, 3, :, 2))
          fft_scratch_size%mcz1 = MAXVAL(bo(2, 3, :, 1) - bo(1, 3, :, 1) + 1)
@@ -385,8 +384,9 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER                                            :: g_pos, handle, lg, lmax, mg, mmax, mx2, &
-                                                            mz2, n1, n2, ngpts, nmax, numtask, rp
+      INTEGER                                            :: fft_dims_2d_local(2), g_pos, handle, &
+                                                            lmax, mmax, mx2, mz2, n1, n2, ngpts, &
+                                                            nmax, numtask, rp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
@@ -414,10 +414,9 @@ CONTAINS
          r_dim = rs_group%num_pe_cart
          r_pos = rs_group%mepos_cart
 
-         lg = SIZE(grays, 1)
-         mg = SIZE(grays, 2)
-         mmax = MAX(mg, 1)
-         lmax = MAX(lg, (ngpts/mmax + 1))
+         fft_dims_2d_local = SHAPE(grays)
+         mmax = MAX(fft_dims_2d_local(2), 1)
+         lmax = MAX(fft_dims_2d_local(1), (ngpts/mmax + 1))
 
          ALLOCATE (p2p(0:numtask - 1))
 
@@ -438,8 +437,7 @@ CONTAINS
          fft_scratch_size%mx2 = mx2
          fft_scratch_size%my1 = bo(2, 2, rp, 1) - bo(1, 2, rp, 1) + 1
          fft_scratch_size%mz2 = mz2
-         fft_scratch_size%lg = lg
-         fft_scratch_size%mg = mg
+         fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
          fft_scratch_size%nbx = MAXVAL(bo(2, 1, :, 2))
          fft_scratch_size%nbz = MAXVAL(bo(2, 3, :, 2))
          fft_scratch_size%mcz1 = MAXVAL(bo(2, 3, :, 1) - bo(1, 3, :, 1) + 1)
