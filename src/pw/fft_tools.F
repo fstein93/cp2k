@@ -112,13 +112,13 @@ MODULE fft_tools
          :: ss => NULL(), tt => NULL()
       INTEGER, DIMENSION(:, :), POINTER, CONTIGUOUS     :: pgrid => NULL()
       INTEGER, DIMENSION(:), POINTER, CONTIGUOUS       :: xcor => NULL(), zcor => NULL(), pzcoord => NULL()
-      TYPE(fft_scratch_sizes)              :: sizes = fft_scratch_sizes()
+      CLASS(fft_scratch_sizes), POINTER              :: sizes => NULL()
       TYPE(fft_plan_type), DIMENSION(6)   :: fft_plan = fft_plan_type()
       INTEGER                              :: last_tick = -1
    END TYPE fft_scratch_type
 
    TYPE fft_scratch_pool_type
-      TYPE(fft_scratch_type), POINTER       :: fft_scratch => NULL()
+      CLASS(fft_scratch_type), POINTER       :: fft_scratch => NULL()
       TYPE(fft_scratch_pool_type), POINTER  :: fft_scratch_next => NULL()
    END TYPE fft_scratch_pool_type
 
@@ -511,7 +511,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
-      TYPE(fft_scratch_sizes)                            :: fft_scratch_size
+      TYPE(fft_scratch_sizes), POINTER                   :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
       CALL timeset(routineN, handle)
@@ -558,6 +558,7 @@ CONTAINS
       n1 = MAXVAL(bo(2, 1, :, 2))
       n2 = MAXVAL(bo(2, 3, :, 2))
 
+      ALLOCATE (fft_scratch_size)
       fft_scratch_size%fft_dims_local = fft_dims_local
       fft_scratch_size%work_dims_max = work_dims_max
       fft_scratch_size%mx1 = mx1
@@ -932,7 +933,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: dim
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
-      TYPE(fft_scratch_sizes)                            :: fft_scratch_size
+      TYPE(fft_scratch_sizes), POINTER                   :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
 !------------------------------------------------------------------------------
@@ -997,6 +998,7 @@ CONTAINS
       mx3 = bo(2, 1, my_pos, 3) - bo(1, 1, my_pos, 3) + 1
       my3 = bo(2, 2, my_pos, 3) - bo(1, 2, my_pos, 3) + 1
       mz3 = bo(2, 3, my_pos, 3) - bo(1, 3, my_pos, 3) + 1
+      ALLOCATE (fft_scratch_size)
       fft_scratch_size%mx1 = mx1
       fft_scratch_size%mx2 = mx2
       fft_scratch_size%mx3 = mx3
@@ -2836,10 +2838,11 @@ CONTAINS
 !> \param fft_sizes ...
 ! **************************************************************************************************
    SUBROUTINE get_fft_scratch(fft_scratch, tf_type, n, fft_sizes)
-      TYPE(fft_scratch_type), POINTER          :: fft_scratch
-      INTEGER, INTENT(IN)                      :: tf_type
-      INTEGER, DIMENSION(:), INTENT(IN)        :: n
-      TYPE(fft_scratch_sizes), INTENT(IN), &
+      TYPE(fft_scratch_type), POINTER                    :: fft_scratch
+      INTEGER, INTENT(IN)                                :: tf_type
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: n
+
+      CLASS(fft_scratch_sizes), INTENT(IN), POINTER, &
          OPTIONAL                               :: fft_sizes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch'
@@ -2909,7 +2912,7 @@ CONTAINS
             ALLOCATE (fft_scratch_new%fft_scratch)
 
             IF (tf_type .NE. 400) THEN
-               fft_scratch_new%fft_scratch%sizes = fft_sizes
+               fft_scratch_new%fft_scratch%sizes => fft_sizes
                np = fft_sizes%rs_group%num_pe
                ALLOCATE (fft_scratch_new%fft_scratch%scount(0:np - 1), fft_scratch_new%fft_scratch%rcount(0:np - 1), &
                          fft_scratch_new%fft_scratch%sdispl(0:np - 1), fft_scratch_new%fft_scratch%rdispl(0:np - 1), &
@@ -3289,36 +3292,38 @@ CONTAINS
 !> \param equal ...
 ! **************************************************************************************************
    SUBROUTINE is_equal(fft_size_1, fft_size_2, equal)
-      TYPE(fft_scratch_sizes)                            :: fft_size_1, fft_size_2
+      CLASS(fft_scratch_sizes)                            :: fft_size_1, fft_size_2
       LOGICAL                                            :: equal
 
-      equal = .TRUE.
+      IF (SAME_TYPE_AS(fft_size_1, fft_size_2)) THEN
+         equal = equal .AND. ALL(fft_size_1%fft_dims_local == fft_size_2%fft_dims_local)
+         equal = equal .AND. ALL(fft_size_1%work_dims_max == fft_size_2%work_dims_max)
 
-      equal = equal .AND. ALL(fft_size_1%fft_dims_local == fft_size_2%fft_dims_local)
-      equal = equal .AND. ALL(fft_size_1%work_dims_max == fft_size_2%work_dims_max)
+         equal = equal .AND. fft_size_1%mx1 == fft_size_2%mx1
+         equal = equal .AND. fft_size_1%mx2 == fft_size_2%mx2
+         equal = equal .AND. fft_size_1%mx3 == fft_size_2%mx3
 
-      equal = equal .AND. fft_size_1%mx1 == fft_size_2%mx1
-      equal = equal .AND. fft_size_1%mx2 == fft_size_2%mx2
-      equal = equal .AND. fft_size_1%mx3 == fft_size_2%mx3
+         equal = equal .AND. fft_size_1%my1 == fft_size_2%my1
+         equal = equal .AND. fft_size_1%my2 == fft_size_2%my2
+         equal = equal .AND. fft_size_1%my3 == fft_size_2%my3
 
-      equal = equal .AND. fft_size_1%my1 == fft_size_2%my1
-      equal = equal .AND. fft_size_1%my2 == fft_size_2%my2
-      equal = equal .AND. fft_size_1%my3 == fft_size_2%my3
+         equal = equal .AND. fft_size_1%mcz1 == fft_size_2%mcz1
+         equal = equal .AND. fft_size_1%mcx2 == fft_size_2%mcx2
+         equal = equal .AND. fft_size_1%mcz2 == fft_size_2%mcz2
+         equal = equal .AND. fft_size_1%mcy3 == fft_size_2%mcy3
 
-      equal = equal .AND. fft_size_1%mcz1 == fft_size_2%mcz1
-      equal = equal .AND. fft_size_1%mcx2 == fft_size_2%mcx2
-      equal = equal .AND. fft_size_1%mcz2 == fft_size_2%mcz2
-      equal = equal .AND. fft_size_1%mcy3 == fft_size_2%mcy3
+         equal = equal .AND. ALL(fft_size_1%fft_dims_2d_local == fft_size_2%fft_dims_2d_local)
 
-      equal = equal .AND. ALL(fft_size_1%fft_dims_2d_local == fft_size_2%fft_dims_2d_local)
+         equal = equal .AND. fft_size_1%nbx == fft_size_2%nbx
+         equal = equal .AND. fft_size_1%nbz == fft_size_2%nbz
 
-      equal = equal .AND. fft_size_1%nbx == fft_size_2%nbx
-      equal = equal .AND. fft_size_1%nbz == fft_size_2%nbz
+         equal = equal .AND. fft_size_1%nmray == fft_size_2%nmray
+         equal = equal .AND. fft_size_1%nyzray == fft_size_2%nyzray
 
-      equal = equal .AND. fft_size_1%nmray == fft_size_2%nmray
-      equal = equal .AND. fft_size_1%nyzray == fft_size_2%nyzray
-
-      equal = equal .AND. fft_size_1%rs_group == fft_size_2%rs_group
+         equal = equal .AND. fft_size_1%rs_group == fft_size_2%rs_group
+      ELSE
+         equal = .FALSE.
+      END IF
 
    END SUBROUTINE is_equal
 

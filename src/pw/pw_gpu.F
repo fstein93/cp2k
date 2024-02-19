@@ -230,7 +230,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
-      TYPE(fft_scratch_sizes)                            :: fft_scratch_size
+      TYPE(fft_scratch_sizes), POINTER                   :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
 
@@ -267,6 +267,7 @@ CONTAINS
          work_dims_max(3) = MAX((2*n2)/numtask, 2)*mx2*mz2
          work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
 
+         ALLOCATE (fft_scratch_size)
          fft_scratch_size%fft_dims_local = nloc
          fft_scratch_size%work_dims_max = work_dims_max
          fft_scratch_size%mx1 = bo(2, 1, rp, 1) - bo(1, 1, rp, 1) + 1
@@ -381,7 +382,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
-      TYPE(fft_scratch_sizes)                            :: fft_scratch_size
+      TYPE(fft_scratch_sizes), POINTER                   :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
 
@@ -418,6 +419,7 @@ CONTAINS
          work_dims_max(3) = MAX((2*n2)/numtask, 2)*mx2*mz2
          work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
 
+         ALLOCATE (fft_scratch_size)
          fft_scratch_size%fft_dims_local = nloc
          fft_scratch_size%work_dims_max = work_dims_max
          fft_scratch_size%mx1 = bo(2, 1, rp, 1) - bo(1, 1, rp, 1) + 1
