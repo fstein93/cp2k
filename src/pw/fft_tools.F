@@ -59,7 +59,7 @@ MODULE fft_tools
    ! keep the subroutine "is_equal" up-to-date
    ! needs a default initialization
    TYPE fft_scratch_sizes
-      INTEGER                              :: nx = 0, ny = 0, nz = 0
+      INTEGER, DIMENSION(3)                :: fft_dims_local = 0
       INTEGER                              :: lmax = 0, mmax = 0, nmax = 0
       INTEGER                              :: mx1 = 0, mx2 = 0, mx3 = 0
       INTEGER                              :: my1 = 0, my2 = 0, my3 = 0
@@ -517,8 +517,8 @@ CONTAINS
          POINTER                                         :: pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: tbuf
-      INTEGER :: g_pos, handle, lg, lmax, mcx2, mcz1, mcz2, mg, mmax, mx1, mx2, my1, mz2, n1, n2, &
-         nmax, numtask, nx, ny, nz, output_unit, r_dim(2), r_pos(2), rp, sign, stat
+      INTEGER :: fft_dims_local(3), g_pos, handle, lg, lmax, mcx2, mcz1, mcz2, mg, mmax, mx1, mx2, &
+         my1, mz2, n1, n2, nmax, numtask, output_unit, r_dim(2), r_pos(2), rp, sign, stat
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
@@ -550,16 +550,14 @@ CONTAINS
       lg = SIZE(gin, 1)
       mg = SIZE(gin, 2)
 
-      nx = SIZE(cin, 1)
-      ny = SIZE(cin, 2)
-      nz = SIZE(cin, 3)
+      fft_dims_local = SHAPE(cin)
 
       IF (mg == 0) THEN
          mmax = 1
       ELSE
          mmax = mg
       END IF
-      lmax = MAX(lg, (nx*ny*nz)/mmax + 1)
+      lmax = MAX(lg, PRODUCT(fft_dims_local)/mmax + 1)
 
       ALLOCATE (p2p(0:numtask - 1))
 
@@ -578,9 +576,7 @@ CONTAINS
       n1 = MAXVAL(bo(2, 1, :, 2))
       n2 = MAXVAL(bo(2, 3, :, 2))
 
-      fft_scratch_size%nx = nx
-      fft_scratch_size%ny = ny
-      fft_scratch_size%nz = nz
+      fft_scratch_size%fft_dims_local = fft_dims_local
       fft_scratch_size%lmax = lmax
       fft_scratch_size%mmax = mmax
       fft_scratch_size%mx1 = mx1
@@ -611,7 +607,7 @@ CONTAINS
             WRITE (output_unit, '(A)') "  Parallel 3D FFT : fft3d_ps"
             WRITE (output_unit, '(A,T60,3I7)') "     Transform lengths ", n
             WRITE (output_unit, '(A,T67,2I7)') "     Array dimensions (gin) ", lg, mg
-            WRITE (output_unit, '(A,T60,3I7)') "     Array dimensions (cin) ", nx, ny, nz
+            WRITE (output_unit, '(A,T60,3I7)') "     Array dimensions (cin) ", fft_dims_local
          END IF
       END IF
 
@@ -820,7 +816,7 @@ CONTAINS
                CALL rs_group%sum(sum_data)
                IF (g_pos == 0 .AND. output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "     One step communication algorithm "
-                  WRITE (output_unit, '(A,T60,3I7)') "     Transform YZ ", n(2), n(3), nx
+                  WRITE (output_unit, '(A,T60,3I7)') "     Transform YZ ", n(2), n(3), fft_dims_local(1)
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(g_pos)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
@@ -869,7 +865,7 @@ CONTAINS
                IF (g_pos == 0 .AND. output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  One step communication algorithm "
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(g_pos)
-                  WRITE (output_unit, '(A,T60,3I7)') "     Transform YZ ", n(2), n(3), nx
+                  WRITE (output_unit, '(A,T60,3I7)') "     Transform YZ ", n(2), n(3), fft_dims_local(1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -2874,7 +2870,7 @@ CONTAINS
 
       INTEGER :: coord(2), DIM(2), handle, i, ix, iz, lg, lmax, m1, m2, &
                  mcx2, mcy3, mcz1, mcz2, mg, mmax, mx1, mx2, my1, my3, mz1, mz2, mz3, &
-                 nbx, nbz, nm, nmax, nmray, np, nx, ny, nyzray, nz, pos(2)
+                 nbx, nbz, nm, nmax, nmray, np, nyzray, pos(2), fft_dims_local(3)
       INTEGER, DIMENSION(3)                    :: pcoord
       LOGICAL                                  :: equal
       LOGICAL, DIMENSION(2)                    :: dims
@@ -3043,9 +3039,7 @@ CONTAINS
                                         fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a1buf, fft_plan_style)
 
             CASE (200) ! fft3d_ps: plane distribution
-               nx = fft_sizes%nx
-               ny = fft_sizes%ny
-               nz = fft_sizes%nz
+               fft_dims_local = fft_sizes%fft_dims_local
                mx2 = fft_sizes%mx2
                lmax = fft_sizes%lmax
                mmax = fft_sizes%mmax
@@ -3059,13 +3053,14 @@ CONTAINS
                ierr = offload_malloc_pinned_mem(cptr_r1buf, length)
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_r1buf, fft_scratch_new%fft_scratch%r1buf, (/MAX(mmax, 1), MAX(lmax, 1)/))
-               length = INT(2*dp_size*MAX(ny, 1)*MAX(nz, 1)*MAX(nx, 1), KIND=C_SIZE_T)
+               length = INT(2*dp_size*MAX(fft_dims_local(2), 1)*MAX(fft_dims_local(3), 1)*MAX(fft_dims_local(1), 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_tbuf, length)
                CPASSERT(ierr == 0)
-               CALL c_f_pointer(cptr_tbuf, fft_scratch_new%fft_scratch%tbuf, (/MAX(ny, 1), MAX(nz, 1), MAX(nx, 1)/))
+               CALL c_f_pointer(cptr_tbuf, fft_scratch_new%fft_scratch%tbuf, &
+                                [MAX(fft_dims_local(2), 1), MAX(fft_dims_local(3), 1), MAX(fft_dims_local(1), 1)])
 #else
                CALL fft_alloc(fft_scratch_new%fft_scratch%r1buf, [mmax, lmax])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%tbuf, [ny, nz, nx])
+               CALL fft_alloc(fft_scratch_new%fft_scratch%tbuf, [fft_dims_local(2), fft_dims_local(3), fft_dims_local(1)])
 #endif
                fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
                CALL fft_alloc(fft_scratch_new%fft_scratch%r2buf, [lg, mg])
@@ -3078,17 +3073,21 @@ CONTAINS
                END IF
 
                !set up fft plans
-               CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., nz, nx*ny, &
+               CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., &
+                                        fft_dims_local(3), fft_dims_local(1)*fft_dims_local(2), &
                                         fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf, fft_plan_style)
-               CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., ny, nx*nz, &
+               CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., &
+                                        fft_dims_local(2), fft_dims_local(1)*fft_dims_local(3), &
                                         fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%tbuf, fft_plan_style)
                CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), nyzray, &
                                         fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%r2buf, fft_plan_style)
                CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), nyzray, &
                                         fft_scratch_new%fft_scratch%r2buf, fft_scratch_new%fft_scratch%r1buf, fft_plan_style)
-               CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(5), fft_type, BWFFT, .TRUE., ny, nx*nz, &
+               CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(5), fft_type, BWFFT, .TRUE., &
+                                        fft_dims_local(2), fft_dims_local(1)*fft_dims_local(3), &
                                         fft_scratch_new%fft_scratch%tbuf, fft_scratch_new%fft_scratch%r1buf, fft_plan_style)
-               CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(6), fft_type, BWFFT, .TRUE., nz, nx*ny, &
+               CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(6), fft_type, BWFFT, .TRUE., &
+                                        fft_dims_local(3), fft_dims_local(1)*fft_dims_local(2), &
                                         fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%tbuf, fft_plan_style)
 
             CASE (300) ! fft3d_ps: block distribution
@@ -3336,9 +3335,7 @@ CONTAINS
 
       equal = .TRUE.
 
-      equal = equal .AND. fft_size_1%nx == fft_size_2%nx
-      equal = equal .AND. fft_size_1%ny == fft_size_2%ny
-      equal = equal .AND. fft_size_1%nz == fft_size_2%nz
+      equal = equal .AND. ALL(fft_size_1%fft_dims_local == fft_size_2%fft_dims_local)
 
       equal = equal .AND. fft_size_1%lmax == fft_size_2%lmax
       equal = equal .AND. fft_size_1%mmax == fft_size_2%mmax

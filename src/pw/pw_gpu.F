@@ -270,9 +270,7 @@ CONTAINS
          nmax = MAX((2*n2)/numtask, 2)*mx2*mz2
          nmax = MAX(nmax, n1*MAXVAL(nyzray))
 
-         fft_scratch_size%nx = nloc(1)
-         fft_scratch_size%ny = nloc(2)
-         fft_scratch_size%nz = nloc(3)
+         fft_scratch_size%fft_dims_local = nloc
          fft_scratch_size%lmax = lmax
          fft_scratch_size%mmax = mmax
          fft_scratch_size%mx1 = bo(2, 1, rp, 1) - bo(1, 1, rp, 1) + 1
@@ -433,9 +431,7 @@ CONTAINS
          nmax = MAX((2*n2)/numtask, 2)*mx2*mz2
          nmax = MAX(nmax, n1*MAXVAL(nyzray))
 
-         fft_scratch_size%nx = nloc(1)
-         fft_scratch_size%ny = nloc(2)
-         fft_scratch_size%nz = nloc(3)
+         fft_scratch_size%fft_dims_local = nloc
          fft_scratch_size%lmax = lmax
          fft_scratch_size%mmax = mmax
          fft_scratch_size%mx1 = bo(2, 1, rp, 1) - bo(1, 1, rp, 1) + 1
