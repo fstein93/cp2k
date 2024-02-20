@@ -1944,9 +1944,7 @@ CONTAINS
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_group @ mp_rank_compare")
          CALL mpi_comm_group(comm2%handle, g2, ierr)
          IF (ierr /= 0) CALL mp_stop(ierr, "mpi_comm_group @ mp_rank_compare")
-         ALLOCATE (rin(0:n - 1), STAT=ierr)
-         IF (ierr /= 0) &
-            CPABORT("allocate @ mp_rank_compare")
+         ALLOCATE (rin(0:n - 1))
          DO i = 0, n - 1
             rin(i) = i
          END DO

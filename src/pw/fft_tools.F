@@ -509,9 +509,8 @@ CONTAINS
          POINTER                                         :: pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: tbuf
-      INTEGER :: fft_dims_2d_local(2), fft_dims_local(3), g_pos, handle, mcx2, mcz1, mcz2, mx1, &
-         mx2, my1, mz2, n1, n2, numtask, output_unit, rp, sign, stat, work_dims_max(3)
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
+      INTEGER :: fft_dims_2d_local(2), fft_dims_local(3), handle, mcx2, mcz1, mcz2, mx1, mx2, my1, &
+         my_pos, mz2, n1, n2, numtask, output_unit, sign, stat, work_dims_max(3)
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
       TYPE(fft_scratch_sizes_p), POINTER                 :: fft_scratch_size
@@ -526,7 +525,7 @@ CONTAINS
          test = .FALSE.
       END IF
 
-      g_pos = rs_group%mepos
+      my_pos = rs_group%mepos
       numtask = rs_group%num_pe
 
       IF (PRESENT(scale)) THEN
@@ -544,15 +543,10 @@ CONTAINS
       work_dims_max(2) = MAX(1, fft_dims_2d_local(2))
       work_dims_max(1) = MAX(fft_dims_2d_local(1), PRODUCT(fft_dims_local)/work_dims_max(2) + 1)
 
-      ALLOCATE (p2p(0:numtask - 1))
-
-      CALL rs_group%rank_compare(rs_group, p2p)
-
-      rp = p2p(g_pos)
-      mx1 = bo(2, 1, rp, 1) - bo(1, 1, rp, 1) + 1
-      my1 = bo(2, 2, rp, 1) - bo(1, 2, rp, 1) + 1
-      mx2 = bo(2, 1, rp, 2) - bo(1, 1, rp, 2) + 1
-      mz2 = bo(2, 3, rp, 2) - bo(1, 3, rp, 2) + 1
+      mx1 = bo(2, 1, my_pos, 1) - bo(1, 1, my_pos, 1) + 1
+      my1 = bo(2, 2, my_pos, 1) - bo(1, 2, my_pos, 1) + 1
+      mx2 = bo(2, 1, my_pos, 2) - bo(1, 1, my_pos, 2) + 1
+      mz2 = bo(2, 3, my_pos, 2) - bo(1, 3, my_pos, 2) + 1
 
       n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
       n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
@@ -578,7 +572,7 @@ CONTAINS
       fft_scratch_size%mcx2 = mcx2
       fft_scratch_size%mcz2 = mcz2
       fft_scratch_size%nmray = MAXVAL(nyzray)
-      fft_scratch_size%nyzray = nyzray(g_pos)
+      fft_scratch_size%nyzray = nyzray(my_pos)
       fft_scratch_size%rs_group = rs_group
 
       IF (test) THEN
@@ -612,7 +606,7 @@ CONTAINS
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
                   WRITE (output_unit, '(A,T60,3I7)') "     Transform Z ", n(3), mx1*my1
                   WRITE (output_unit, '(A,T60,3I7)') "     Transform Y ", n(2), mx2*mz2
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(g_pos)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(my_pos)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -660,7 +654,7 @@ CONTAINS
             END IF
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL xz_to_yz(pbuf, rs_group, p2p, yzp, nyzray, &
+            CALL xz_to_yz(pbuf, rs_group, yzp, nyzray, &
                           bo(:, :, :, 2), qbuf, fft_scratch)
 
             IF (test) THEN
@@ -690,7 +684,7 @@ CONTAINS
                CALL rs_group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(g_pos)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(my_pos)
                   WRITE (output_unit, '(A,T60,3I7)') "     Transform Y ", n(2), mx2*mz2
                   WRITE (output_unit, '(A,T60,3I7)') "     Transform Z ", n(3), mx1*my1
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
@@ -713,7 +707,7 @@ CONTAINS
             END IF
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL yz_to_xz(pbuf, rs_group, p2p, yzp, nyzray, &
+            CALL yz_to_xz(pbuf, rs_group, yzp, nyzray, &
                           bo(:, :, :, 2), qbuf, fft_scratch)
 
             IF (test) THEN
@@ -796,7 +790,7 @@ CONTAINS
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "     One step communication algorithm "
                   WRITE (output_unit, '(A,T60,3I7)') "     Transform YZ ", n(2), n(3), fft_dims_local(1)
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(g_pos)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(my_pos)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -814,7 +808,7 @@ CONTAINS
             END IF
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL yz_to_x(tbuf, rs_group, p2p, yzp, nyzray, &
+            CALL yz_to_x(tbuf, rs_group, yzp, nyzray, &
                          bo(:, :, :, 2), sbuf, fft_scratch)
 
             IF (test) THEN
@@ -843,7 +837,7 @@ CONTAINS
                CALL rs_group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  One step communication algorithm "
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(g_pos)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(my_pos)
                   WRITE (output_unit, '(A,T60,3I7)') "     Transform YZ ", n(2), n(3), fft_dims_local(1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
@@ -861,7 +855,7 @@ CONTAINS
             END IF
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL x_to_yz(sbuf, rs_group, p2p, yzp, nyzray, &
+            CALL x_to_yz(sbuf, rs_group, yzp, nyzray, &
                          bo(:, :, :, 2), tbuf, fft_scratch)
 
             IF (test) THEN
@@ -890,8 +884,6 @@ CONTAINS
          CALL release_fft_scratch(fft_scratch)
 
       END IF
-
-      DEALLOCATE (p2p)
 
       IF (PRESENT(status)) THEN
          status = stat
@@ -1327,7 +1319,6 @@ CONTAINS
 !> \brief ...
 !> \param sb ...
 !> \param group ...
-!> \param p2p ...
 !> \param yzp ...
 !> \param nray ...
 !> \param bo ...
@@ -1337,12 +1328,11 @@ CONTAINS
 !>      15. Feb. 2006 : single precision all_to_all
 !> \author JGH (14-Jan-2001)
 ! **************************************************************************************************
-   SUBROUTINE x_to_yz(sb, group, p2p, yzp, nray, bo, tb, fft_scratch)
+   SUBROUTINE x_to_yz(sb, group, yzp, nray, bo, tb, fft_scratch)
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: sb
       TYPE(mp_cart_type), INTENT(IN)                     :: group
-      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: p2p
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
          INTENT(IN)                                      :: yzp
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: nray
@@ -1358,14 +1348,14 @@ CONTAINS
          POINTER                                         :: rr
       COMPLEX(KIND=sp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: ss, tt
-      INTEGER                                            :: handle, ip, ir, ix, ixx, iy, iz, mpr, &
-                                                            my_pos, nm, np, nr, nx
+      INTEGER                                            :: handle, ip, ir, ix, ixx, iy, iz, my_pos, &
+                                                            nm, np, nr, nx
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: rcount, rdispl, scount, sdispl
 
       CALL timeset(routineN, handle)
 
       my_pos = group%mepos
-      np = SIZE(p2p)
+      np = group%num_pe
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
       sdispl => fft_scratch%sdispl
@@ -1380,20 +1370,18 @@ CONTAINS
          rr => fft_scratch%rr
       END IF
 
-      mpr = p2p(my_pos)
       nm = MAXVAL(nray(0:np - 1))
       nr = nray(my_pos)
 !$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(ix,nx), &
-!$OMP             SHARED(np,p2p,bo,nr,scount,sdispl)
+!$OMP             PRIVATE(nx), &
+!$OMP             SHARED(np,bo,nr,scount,sdispl)
       DO ip = 0, np - 1
-         ix = p2p(ip)
-         nx = bo(2, 1, ix) - bo(1, 1, ix) + 1
+         nx = bo(2, 1, ip) - bo(1, 1, ip) + 1
          scount(ip) = nr*nx
-         sdispl(ip) = nr*(bo(1, 1, ix) - 1)
+         sdispl(ip) = nr*(bo(1, 1, ip) - 1)
       END DO
 !$OMP END PARALLEL DO
-      nx = bo(2, 1, mpr) - bo(1, 1, mpr) + 1
+      nx = bo(2, 1, my_pos) - bo(1, 1, my_pos) + 1
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(nr), &
 !$OMP             SHARED(np,nray,nx,rcount,rdispl,nm)
@@ -1409,7 +1397,7 @@ CONTAINS
          CALL group%alltoall(sb, scount, sdispl, rr, rcount, rdispl)
       END IF
 
-      nx = bo(2, 1, mpr) - bo(1, 1, mpr) + 1
+      nx = bo(2, 1, my_pos) - bo(1, 1, my_pos) + 1
 !$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) &
 !$OMP             PRIVATE(ixx,ir,iy,iz,ix) &
 !$OMP             SHARED(np,nray,nx,alltoall_sgl,yzp,tt,rr,tb)
@@ -1441,7 +1429,6 @@ CONTAINS
 !> \brief ...
 !> \param tb ...
 !> \param group ...
-!> \param p2p ...
 !> \param yzp ...
 !> \param nray ...
 !> \param bo ...
@@ -1451,12 +1438,11 @@ CONTAINS
 !>      15. Feb. 2006 : single precision all_to_all
 !> \author JGH (14-Jan-2001)
 ! **************************************************************************************************
-   SUBROUTINE yz_to_x(tb, group, p2p, yzp, nray, bo, sb, fft_scratch)
+   SUBROUTINE yz_to_x(tb, group, yzp, nray, bo, sb, fft_scratch)
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(IN)                                      :: tb
       TYPE(mp_cart_type), INTENT(IN)                     :: group
-      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: p2p
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
          INTENT(IN)                                      :: yzp
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: nray
@@ -1471,15 +1457,14 @@ CONTAINS
          POINTER                                         :: rr
       COMPLEX(KIND=sp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: ss, tt
-      INTEGER                                            :: handle, ip, ir, ix, ixx, iy, iz, mpr, &
-                                                            my_pos, nm, np, nr, nx
+      INTEGER                                            :: handle, ip, ir, ix, ixx, iy, iz, my_pos, &
+                                                            nm, np, nr, nx
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: rcount, rdispl, scount, sdispl
 
       CALL timeset(routineN, handle)
 
       my_pos = group%mepos
-      np = SIZE(p2p)
-      mpr = p2p(my_pos)
+      np = group%num_pe
       scount => fft_scratch%scount
       rcount => fft_scratch%rcount
       sdispl => fft_scratch%sdispl
@@ -1494,9 +1479,9 @@ CONTAINS
          rr => fft_scratch%rr
       END IF
 
-      nx = bo(2, 1, mpr) - bo(1, 1, mpr) + 1
+      nx = bo(2, 1, my_pos) - bo(1, 1, my_pos) + 1
 !$OMP PARALLEL DO DEFAULT(NONE) COLLAPSE(2) &
-!$OMP             PRIVATE(ip, ixx, ir, iy, iz, ix) &
+!$OMP             PRIVATE(ip,ixx,ir,iy,iz,ix) &
 !$OMP             SHARED(np,nray,nx,alltoall_sgl,yzp,tb,tt,rr)
       DO ip = 0, np - 1
          DO ix = 1, nx
@@ -1520,16 +1505,15 @@ CONTAINS
       nm = MAXVAL(nray(0:np - 1))
       nr = nray(my_pos)
 !$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(ix,nx), &
-!$OMP             SHARED(np,p2p,bo,rcount,rdispl,nr)
+!$OMP             PRIVATE(nx), &
+!$OMP             SHARED(np,bo,rcount,rdispl,nr)
       DO ip = 0, np - 1
-         ix = p2p(ip)
-         nx = bo(2, 1, ix) - bo(1, 1, ix) + 1
+         nx = bo(2, 1, ip) - bo(1, 1, ip) + 1
          rcount(ip) = nr*nx
-         rdispl(ip) = nr*(bo(1, 1, ix) - 1)
+         rdispl(ip) = nr*(bo(1, 1, ip) - 1)
       END DO
 !$OMP END PARALLEL DO
-      nx = bo(2, 1, mpr) - bo(1, 1, mpr) + 1
+      nx = bo(2, 1, my_pos) - bo(1, 1, my_pos) + 1
 !$OMP PARALLEL DO DEFAULT(NONE), &
 !$OMP             PRIVATE(nr), &
 !$OMP             SHARED(np,nray,scount,sdispl,nx,nm)
@@ -1555,7 +1539,6 @@ CONTAINS
 !> \brief ...
 !> \param sb ...
 !> \param group ...
-!> \param p2p ...
 !> \param yzp ...
 !> \param nray ...
 !> \param bo ...
@@ -1565,12 +1548,11 @@ CONTAINS
 !>      15. Feb. 2006 : single precision all_to_all
 !> \author JGH (18-Jan-2001)
 ! **************************************************************************************************
-   SUBROUTINE yz_to_xz(sb, group, p2p, yzp, nray, bo, tb, fft_scratch)
+   SUBROUTINE yz_to_xz(sb, group, yzp, nray, bo, tb, fft_scratch)
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: sb
       TYPE(mp_cart_type), INTENT(IN)                     :: group
-      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: p2p
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
          INTENT(IN)                                      :: yzp
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: nray
@@ -1586,9 +1568,9 @@ CONTAINS
          POINTER                                         :: xzbuf, yzbuf
       COMPLEX(KIND=sp), CONTIGUOUS, DIMENSION(:), &
          POINTER                                         :: xzbuf_sgl, yzbuf_sgl
-      INTEGER                                            :: handle, icrs, ip, ipl, ipr, ir, ix, iz, &
-                                                            jj, jx, jy, jz, my_pos, myx, myz, np, &
-                                                            npx, npz, nx, nz, rs_pos
+      INTEGER                                            :: handle, icrs, ip, ir, ix, iz, jj, jx, &
+                                                            jy, jz, my_pos, myx, myz, np, npx, &
+                                                            npz, nx, nz
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: pzcoord, rcount, rdispl, scount, sdispl, &
                                                             xcor, zcor
       INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: pgrid
@@ -1598,11 +1580,9 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      np = SIZE(p2p)
+      np = group%num_pe
       dims = group%num_pe_cart
       my_pos = group%mepos
-
-      rs_pos = p2p(my_pos)
 
       IF (alltoall_sgl) THEN
          yzbuf_sgl => fft_scratch%yzbuf_sgl
@@ -1689,27 +1669,26 @@ CONTAINS
 
 ! Do the actual packing
 !$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(ipl,jj,nx,ir,jx,jy,jz),&
-!$OMP             SHARED(np,p2p,pzcoord,bo,nray,yzp,zcor),&
+!$OMP             PRIVATE(jj,nx,ir,jx,jy,jz),&
+!$OMP             SHARED(np,pzcoord,bo,nray,yzp,zcor),&
 !$OMP             SHARED(yzbuf,sb,scount,sdispl,my_pos),&
 !$OMP             SHARED(yzbuf_sgl,alltoall_sgl)
       DO ip = 0, np - 1
          IF (scount(ip) == 0) CYCLE
-         ipl = p2p(ip)
          jj = 0
-         nx = bo(2, 1, ipl) - bo(1, 1, ipl) + 1
+         nx = bo(2, 1, ip) - bo(1, 1, ip) + 1
          DO ir = 1, nray(my_pos)
             jz = yzp(2, ir, my_pos)
-            IF (zcor(jz) == pzcoord(ipl)) THEN
+            IF (zcor(jz) == pzcoord(ip)) THEN
                jj = jj + 1
                jy = yzp(1, ir, my_pos)
                IF (alltoall_sgl) THEN
                   DO jx = 0, nx - 1
-                     yzbuf_sgl(sdispl(ip) + jj + jx*scount(ip)/nx) = CMPLX(sb(ir, jx + bo(1, 1, ipl)), KIND=sp)
+                     yzbuf_sgl(sdispl(ip) + jj + jx*scount(ip)/nx) = CMPLX(sb(ir, jx + bo(1, 1, ip)), KIND=sp)
                   END DO
                ELSE
                   DO jx = 0, nx - 1
-                     yzbuf(sdispl(ip) + jj + jx*scount(ip)/nx) = sb(ir, jx + bo(1, 1, ipl))
+                     yzbuf(sdispl(ip) + jj + jx*scount(ip)/nx) = sb(ir, jx + bo(1, 1, ip))
                   END DO
                END IF
             END IF
@@ -1735,32 +1714,31 @@ CONTAINS
       CLASS DEFAULT
          CPABORT("Dynamic type must be fft_scratch_sizes_p!")
       END SELECT
-      nz = bo(2, 3, rs_pos) - bo(1, 3, rs_pos) + 1
+      nz = bo(2, 3, my_pos) - bo(1, 3, my_pos) + 1
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(ipr,jj,ir,jx,jy,jz),&
-!$OMP             SHARED(tb,np,p2p,bo,rs_pos,nray),&
+!$OMP             PRIVATE(jj,ir,jx,jy,jz),&
+!$OMP             SHARED(tb,np,bo,nray,my_pos),&
 !$OMP             SHARED(yzp,alltoall_sgl,zcor,myz),&
 !$OMP             SHARED(xzbuf,xzbuf_sgl,nz,rdispl)
       DO ip = 0, np - 1
-         ipr = p2p(ip)
          jj = 0
-         DO jx = 0, bo(2, 1, rs_pos) - bo(1, 1, rs_pos)
+         DO jx = 0, bo(2, 1, my_pos) - bo(1, 1, my_pos)
             DO ir = 1, nray(ip)
                jz = yzp(2, ir, ip)
                IF (alltoall_sgl) THEN
                   IF (zcor(jz) == myz) THEN
                      jj = jj + 1
                      jy = yzp(1, ir, ip)
-                     jz = jz - bo(1, 3, rs_pos) + 1
-                     tb(jy, jz + jx*nz) = xzbuf_sgl(jj + rdispl(ipr))
+                     jz = jz - bo(1, 3, my_pos) + 1
+                     tb(jy, jz + jx*nz) = xzbuf_sgl(jj + rdispl(ip))
                   END IF
                ELSE
                   IF (zcor(jz) == myz) THEN
                      jj = jj + 1
                      jy = yzp(1, ir, ip)
-                     jz = jz - bo(1, 3, rs_pos) + 1
-                     tb(jy, jz + jx*nz) = xzbuf(jj + rdispl(ipr))
+                     jz = jz - bo(1, 3, my_pos) + 1
+                     tb(jy, jz + jx*nz) = xzbuf(jj + rdispl(ip))
                   END IF
                END IF
             END DO
@@ -1776,7 +1754,6 @@ CONTAINS
 !> \brief ...
 !> \param sb ...
 !> \param group ...
-!> \param p2p ...
 !> \param yzp ...
 !> \param nray ...
 !> \param bo ...
@@ -1786,12 +1763,11 @@ CONTAINS
 !>      15. Feb. 2006 : single precision all_to_all
 !> \author JGH (19-Jan-2001)
 ! **************************************************************************************************
-   SUBROUTINE xz_to_yz(sb, group, p2p, yzp, nray, bo, tb, fft_scratch)
+   SUBROUTINE xz_to_yz(sb, group, yzp, nray, bo, tb, fft_scratch)
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          INTENT(IN)                                      :: sb
       TYPE(mp_cart_type), INTENT(IN)                     :: group
-      INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: p2p
       INTEGER, CONTIGUOUS, DIMENSION(:, :, 0:), &
          INTENT(IN)                                      :: yzp
       INTEGER, CONTIGUOUS, DIMENSION(0:), INTENT(IN)     :: nray
@@ -1807,9 +1783,9 @@ CONTAINS
          POINTER                                         :: xzbuf, yzbuf
       COMPLEX(KIND=sp), CONTIGUOUS, DIMENSION(:), &
          POINTER                                         :: xzbuf_sgl, yzbuf_sgl
-      INTEGER                                            :: handle, icrs, ip, ipl, ir, ix, ixx, iz, &
-                                                            jj, jx, jy, jz, mp, my_pos, myx, myz, &
-                                                            np, npx, npz, nx, nz
+      INTEGER                                            :: handle, icrs, ip, ir, ix, ixx, iz, jj, &
+                                                            jx, jy, jz, my_pos, myx, myz, np, npx, &
+                                                            npz, nx, nz
       INTEGER, CONTIGUOUS, DIMENSION(:), POINTER         :: pzcoord, rcount, rdispl, scount, sdispl, &
                                                             xcor, zcor
       INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: pgrid
@@ -1819,7 +1795,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      np = SIZE(p2p)
+      np = group%num_pe
       dims = group%num_pe_cart
       my_pos = group%mepos
 
@@ -1905,33 +1881,31 @@ CONTAINS
       CLASS DEFAULT
          CPABORT("Dynamic type must be fft_scratch_sizes_p!")
       END SELECT
-      mp = p2p(my_pos)
-      nz = bo(2, 3, mp) - bo(1, 3, mp) + 1
-      nx = bo(2, 1, mp) - bo(1, 1, mp) + 1
+      nz = bo(2, 3, my_pos) - bo(1, 3, my_pos) + 1
+      nx = bo(2, 1, my_pos) - bo(1, 1, my_pos) + 1
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(jj,ipl,ir,jx,jy,jz,ixx),&
-!$OMP             SHARED(np,p2p,nray,yzp,zcor,myz,bo,mp),&
+!$OMP             PRIVATE(jj,ir,jx,jy,jz,ixx),&
+!$OMP             SHARED(np,nray,yzp,zcor,myz,bo,my_pos),&
 !$OMP             SHARED(alltoall_sgl,nx,scount,sdispl),&
 !$OMP             SHARED(xzbuf,xzbuf_sgl,sb,nz)
       DO ip = 0, np - 1
          jj = 0
-         ipl = p2p(ip)
          DO ir = 1, nray(ip)
             jz = yzp(2, ir, ip)
             IF (zcor(jz) == myz) THEN
                jj = jj + 1
                jy = yzp(1, ir, ip)
-               jz = yzp(2, ir, ip) - bo(1, 3, mp) + 1
+               jz = yzp(2, ir, ip) - bo(1, 3, my_pos) + 1
                IF (alltoall_sgl) THEN
                   DO jx = 0, nx - 1
-                     ixx = jj + jx*scount(ipl)/nx
-                     xzbuf_sgl(ixx + sdispl(ipl)) = CMPLX(sb(jy, jz + jx*nz), KIND=sp)
+                     ixx = jj + jx*scount(ip)/nx
+                     xzbuf_sgl(ixx + sdispl(ip)) = CMPLX(sb(jy, jz + jx*nz), KIND=sp)
                   END DO
                ELSE
                   DO jx = 0, nx - 1
-                     ixx = jj + jx*scount(ipl)/nx
-                     xzbuf(ixx + sdispl(ipl)) = sb(jy, jz + jx*nz)
+                     ixx = jj + jx*scount(ip)/nx
+                     xzbuf(ixx + sdispl(ip)) = sb(jy, jz + jx*nz)
                   END DO
                END IF
             END IF
@@ -1950,27 +1924,26 @@ CONTAINS
       END IF
 
 !$OMP PARALLEL DO DEFAULT(NONE), &
-!$OMP             PRIVATE(ipl,jj,nx,ir,jx,jy,jz),&
-!$OMP             SHARED(p2p,pzcoord,bo,nray,my_pos,yzp),&
+!$OMP             PRIVATE(jj,nx,ir,jx,jy,jz),&
+!$OMP             SHARED(pzcoord,bo,nray,my_pos,yzp),&
 !$OMP             SHARED(rcount,rdispl,tb,yzbuf,zcor),&
 !$OMP             SHARED(yzbuf_sgl,alltoall_sgl,np)
       DO ip = 0, np - 1
          IF (rcount(ip) == 0) CYCLE
-         ipl = p2p(ip)
          jj = 0
-         nx = bo(2, 1, ipl) - bo(1, 1, ipl) + 1
+         nx = bo(2, 1, ip) - bo(1, 1, ip) + 1
          DO ir = 1, nray(my_pos)
             jz = yzp(2, ir, my_pos)
-            IF (zcor(jz) == pzcoord(ipl)) THEN
+            IF (zcor(jz) == pzcoord(ip)) THEN
                jj = jj + 1
                jy = yzp(1, ir, my_pos)
                IF (alltoall_sgl) THEN
                   DO jx = 0, nx - 1
-                     tb(ir, jx + bo(1, 1, ipl)) = yzbuf_sgl(rdispl(ip) + jj + jx*rcount(ip)/nx)
+                     tb(ir, jx + bo(1, 1, ip)) = yzbuf_sgl(rdispl(ip) + jj + jx*rcount(ip)/nx)
                   END DO
                ELSE
                   DO jx = 0, nx - 1
-                     tb(ir, jx + bo(1, 1, ipl)) = yzbuf(rdispl(ip) + jj + jx*rcount(ip)/nx)
+                     tb(ir, jx + bo(1, 1, ip)) = yzbuf(rdispl(ip) + jj + jx*rcount(ip)/nx)
                   END DO
                END IF
             END IF

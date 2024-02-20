@@ -224,10 +224,9 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER                                            :: fft_dims_2d_local(2), g_pos, handle, mg, &
-                                                            mx2, mz2, n1, n2, ngpts, numtask, rp, &
+      INTEGER                                            :: fft_dims_2d_local(2), handle, mg, mx2, &
+                                                            my_pos, mz2, n1, n2, ngpts, numtask, &
                                                             work_dims_max(3)
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes_p), POINTER                 :: fft_scratch_size
@@ -248,20 +247,15 @@ CONTAINS
          nyzray => pw1%pw_grid%para%nyzray
          bo => pw1%pw_grid%para%bo
 
-         g_pos = rs_group%mepos
+         my_pos = rs_group%mepos
          numtask = rs_group%num_pe
 
          fft_dims_2d_local = SHAPE(grays)
          work_dims_max(2) = MAX(mg, 1)
          work_dims_max(1) = MAX(fft_dims_2d_local(1), (ngpts/work_dims_max(2) + 1))
 
-         ALLOCATE (p2p(0:numtask - 1))
-
-         CALL rs_group%rank_compare(rs_group, p2p)
-
-         rp = p2p(g_pos)
-         mx2 = bo(2, 1, rp, 2) - bo(1, 1, rp, 2) + 1
-         mz2 = bo(2, 3, rp, 2) - bo(1, 3, rp, 2) + 1
+         mx2 = bo(2, 1, my_pos, 2) - bo(1, 1, my_pos, 2) + 1
+         mz2 = bo(2, 3, my_pos, 2) - bo(1, 3, my_pos, 2) + 1
          n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
          n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
          work_dims_max(3) = MAX((2*n2)/numtask, 2)*mx2*mz2
@@ -270,9 +264,9 @@ CONTAINS
          ALLOCATE (fft_scratch_size)
          fft_scratch_size%fft_dims_local = nloc
          fft_scratch_size%work_dims_max = work_dims_max
-         fft_scratch_size%mx1 = bo(2, 1, rp, 1) - bo(1, 1, rp, 1) + 1
+         fft_scratch_size%mx1 = bo(2, 1, my_pos, 1) - bo(1, 1, my_pos, 1) + 1
          fft_scratch_size%mx2 = mx2
-         fft_scratch_size%my1 = bo(2, 2, rp, 1) - bo(1, 2, rp, 1) + 1
+         fft_scratch_size%my1 = bo(2, 2, my_pos, 1) - bo(1, 2, my_pos, 1) + 1
          fft_scratch_size%mz2 = mz2
          fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
          fft_scratch_size%nbx = MAXVAL(bo(2, 1, :, 2))
@@ -281,7 +275,7 @@ CONTAINS
          fft_scratch_size%mcx2 = MAXVAL(bo(2, 1, :, 2) - bo(1, 1, :, 2) + 1)
          fft_scratch_size%mcz2 = MAXVAL(bo(2, 3, :, 2) - bo(1, 3, :, 2) + 1)
          fft_scratch_size%nmray = MAXVAL(nyzray)
-         fft_scratch_size%nyzray = nyzray(g_pos)
+         fft_scratch_size%nyzray = nyzray(my_pos)
          fft_scratch_size%rs_group = rs_group
 
          IF (rs_group%num_pe_cart(2) > 1) THEN
@@ -313,7 +307,7 @@ CONTAINS
             CALL pw_gpu_f(rbuf, pbuf, +1, n(2), mx2*mz2)
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL xz_to_yz(pbuf, rs_group, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL xz_to_yz(pbuf, rs_group, pw1%pw_grid%para%yzp, nyzray, &
                           bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
@@ -338,7 +332,7 @@ CONTAINS
             CALL pw_gpu_cff(pw1, tbuf)
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL yz_to_x(tbuf, rs_group, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL yz_to_x(tbuf, rs_group, pw1%pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
@@ -348,9 +342,6 @@ CONTAINS
 
          END IF
 
-         DEALLOCATE (p2p)
-
-!--------------------------------------------------------------------------
       ELSE
          CPABORT("Not implemented (no ray_distr.) in: pw_gpu_r3dc1d_3d_ps.")
          !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%group, &
@@ -376,10 +367,9 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER                                            :: fft_dims_2d_local(2), g_pos, handle, &
-                                                            mx2, mz2, n1, n2, ngpts, numtask, rp, &
+      INTEGER                                            :: fft_dims_2d_local(2), handle, mx2, &
+                                                            my_pos, mz2, n1, n2, ngpts, numtask, &
                                                             work_dims_max(3)
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes_p), POINTER                 :: fft_scratch_size
@@ -400,20 +390,15 @@ CONTAINS
          nyzray => pw1%pw_grid%para%nyzray
          bo => pw1%pw_grid%para%bo
 
-         g_pos = rs_group%mepos
+         my_pos = rs_group%mepos
          numtask = rs_group%num_pe
 
          fft_dims_2d_local = SHAPE(grays)
          work_dims_max(2) = MAX(fft_dims_2d_local(2), 1)
          work_dims_max(1) = MAX(fft_dims_2d_local(1), (ngpts/work_dims_max(2) + 1))
 
-         ALLOCATE (p2p(0:numtask - 1))
-
-         CALL rs_group%rank_compare(rs_group, p2p)
-
-         rp = p2p(g_pos)
-         mx2 = bo(2, 1, rp, 2) - bo(1, 1, rp, 2) + 1
-         mz2 = bo(2, 3, rp, 2) - bo(1, 3, rp, 2) + 1
+         mx2 = bo(2, 1, my_pos, 2) - bo(1, 1, my_pos, 2) + 1
+         mz2 = bo(2, 3, my_pos, 2) - bo(1, 3, my_pos, 2) + 1
          n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
          n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
          work_dims_max(3) = MAX((2*n2)/numtask, 2)*mx2*mz2
@@ -422,9 +407,9 @@ CONTAINS
          ALLOCATE (fft_scratch_size)
          fft_scratch_size%fft_dims_local = nloc
          fft_scratch_size%work_dims_max = work_dims_max
-         fft_scratch_size%mx1 = bo(2, 1, rp, 1) - bo(1, 1, rp, 1) + 1
+         fft_scratch_size%mx1 = bo(2, 1, my_pos, 1) - bo(1, 1, my_pos, 1) + 1
          fft_scratch_size%mx2 = mx2
-         fft_scratch_size%my1 = bo(2, 2, rp, 1) - bo(1, 2, rp, 1) + 1
+         fft_scratch_size%my1 = bo(2, 2, my_pos, 1) - bo(1, 2, my_pos, 1) + 1
          fft_scratch_size%mz2 = mz2
          fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
          fft_scratch_size%nbx = MAXVAL(bo(2, 1, :, 2))
@@ -433,7 +418,7 @@ CONTAINS
          fft_scratch_size%mcx2 = MAXVAL(bo(2, 1, :, 2) - bo(1, 1, :, 2) + 1)
          fft_scratch_size%mcz2 = MAXVAL(bo(2, 3, :, 2) - bo(1, 3, :, 2) + 1)
          fft_scratch_size%nmray = MAXVAL(nyzray)
-         fft_scratch_size%nyzray = nyzray(g_pos)
+         fft_scratch_size%nyzray = nyzray(my_pos)
          fft_scratch_size%rs_group = rs_group
 
          IF (rs_group%num_pe_cart(2) > 1) THEN
@@ -457,7 +442,7 @@ CONTAINS
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) qbuf = z_zero
-            CALL yz_to_xz(pbuf, rs_group, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL yz_to_xz(pbuf, rs_group, pw1%pw_grid%para%yzp, nyzray, &
                           bo(:, :, :, 2), qbuf, fft_scratch)
 
             ! FFT along y
@@ -494,7 +479,7 @@ CONTAINS
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) tbuf = z_zero
-            CALL x_to_yz(sbuf, rs_group, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL x_to_yz(sbuf, rs_group, pw1%pw_grid%para%yzp, nyzray, &
                          bo(:, :, :, 2), tbuf, fft_scratch)
 
             ! FFT along y and z
@@ -504,9 +489,6 @@ CONTAINS
 
          END IF
 
-         DEALLOCATE (p2p)
-
-!--------------------------------------------------------------------------
       ELSE
          CPABORT("Not implemented (no ray_distr.) in: pw_gpu_c1dr3d_3d_ps.")
          !CALL fft3d ( dir, n, pwin, grays, pw1%pw_grid%para%group, &
