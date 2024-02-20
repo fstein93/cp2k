@@ -29,8 +29,8 @@ MODULE pw_gpu
                                               C_LOC,&
                                               C_PTR
    USE fft_tools,                       ONLY: &
-        cube_transpose_1, cube_transpose_2, fft_scratch_sizes, fft_scratch_type, get_fft_scratch, &
-        release_fft_scratch, x_to_yz, xz_to_yz, yz_to_x, yz_to_xz
+        cube_transpose_1, cube_transpose_2, fft_scratch_sizes_p, fft_scratch_type, &
+        get_fft_scratch, release_fft_scratch, x_to_yz, xz_to_yz, yz_to_x, yz_to_xz
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_cart_type
@@ -230,7 +230,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
-      TYPE(fft_scratch_sizes), POINTER                   :: fft_scratch_size
+      TYPE(fft_scratch_sizes_p), POINTER                 :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
 
@@ -382,7 +382,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
-      TYPE(fft_scratch_sizes), POINTER                   :: fft_scratch_size
+      TYPE(fft_scratch_sizes_p), POINTER                 :: fft_scratch_size
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
 
