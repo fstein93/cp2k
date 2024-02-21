@@ -387,6 +387,7 @@ CONTAINS
       INTEGER                                            :: handle, output_unit, sign, stat
       LOGICAL                                            :: fft_in_place, test
       REAL(KIND=dp)                                      :: in_sum, norm, out_sum
+      TYPE(fft_scratch_sizes), POINTER                   :: sizes
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
       CALL timeset(routineN, handle)
@@ -425,7 +426,8 @@ CONTAINS
       END IF
 
       sign = fsign
-      CALL get_fft_scratch(fft_scratch, tf_type=400, n=n)
+      ALLOCATE (sizes)
+      CALL get_fft_scratch(fft_scratch, tf_type=400, n=n, sizes=sizes)
 
       IF (fft_in_place) THEN
          zoptr => zdum
@@ -587,7 +589,7 @@ CONTAINS
          IF (rs_group%num_pe_cart(1) == 1) THEN
             CPABORT("This processor distribution is not supported.")
          END IF
-         CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
+         CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, sizes=fft_scratch_size)
 
          IF (sign == FWFFT) THEN
             ! cin -> gin
@@ -766,7 +768,7 @@ CONTAINS
          ! direction x
          !
 
-         CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, fft_sizes=fft_scratch_size)
+         CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, sizes=fft_scratch_size)
 
          sbuf => fft_scratch%r1buf
          tbuf => fft_scratch%tbuf
@@ -994,7 +996,7 @@ CONTAINS
          ! First case; two stages of communication
          !
 
-         CALL get_fft_scratch(fft_scratch, tf_type=100, n=n, fft_sizes=fft_scratch_size)
+         CALL get_fft_scratch(fft_scratch, tf_type=100, n=n, sizes=fft_scratch_size)
 
          IF (sign == FWFFT) THEN
             ! Stage 1 -> 3
@@ -1160,7 +1162,7 @@ CONTAINS
          ! Second case; one stage of communication
          !
 
-         CALL get_fft_scratch(fft_scratch, tf_type=101, n=n, fft_sizes=fft_scratch_size)
+         CALL get_fft_scratch(fft_scratch, tf_type=101, n=n, sizes=fft_scratch_size)
 
          IF (sign == FWFFT) THEN
             ! Stage 1 -> 3
@@ -2854,15 +2856,14 @@ CONTAINS
 !> \param fft_scratch ...
 !> \param tf_type ...
 !> \param n ...
-!> \param fft_sizes ...
+!> \param sizes ...
 ! **************************************************************************************************
-   SUBROUTINE get_fft_scratch(fft_scratch, tf_type, n, fft_sizes)
+   SUBROUTINE get_fft_scratch(fft_scratch, tf_type, n, sizes)
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       INTEGER, INTENT(IN)                                :: tf_type
       INTEGER, DIMENSION(:), INTENT(IN)                  :: n
 
-      CLASS(fft_scratch_sizes_p), INTENT(IN), POINTER, &
-         OPTIONAL                               :: fft_sizes
+      CLASS(fft_scratch_sizes), INTENT(IN), POINTER    :: sizes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch'
 
@@ -2875,8 +2876,6 @@ CONTAINS
       TYPE(fft_scratch_pool_type), POINTER     :: fft_scratch_current, &
                                                   fft_scratch_last, &
                                                   fft_scratch_new
-      TYPE(fft_scratch_sizes), POINTER :: fft_sizes_s
-      CLASS(fft_scratch_sizes), POINTER :: sizes
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
       INTEGER                   :: ierr
       INTEGER(KIND=C_SIZE_T)    :: length
@@ -2904,18 +2903,11 @@ CONTAINS
                fft_scratch_current => fft_scratch_current%fft_scratch_next
                CYCLE
             END IF
-            IF (.NOT. ALL(n == fft_scratch_current%fft_scratch%sizes%nfft)) THEN
+            CALL is_equal(sizes, fft_scratch_current%fft_scratch%sizes, equal)
+            IF (.NOT. equal) THEN
                fft_scratch_last => fft_scratch_current
                fft_scratch_current => fft_scratch_current%fft_scratch_next
                CYCLE
-            END IF
-            IF (PRESENT(fft_sizes)) THEN
-               CALL is_equal(fft_sizes, fft_scratch_current%fft_scratch%sizes, equal)
-               IF (.NOT. equal) THEN
-                  fft_scratch_last => fft_scratch_current
-                  fft_scratch_current => fft_scratch_current%fft_scratch_next
-                  CYCLE
-               END IF
             END IF
             ! Success
             fft_scratch => fft_scratch_current%fft_scratch
@@ -2927,18 +2919,19 @@ CONTAINS
             ALLOCATE (fft_scratch_new)
             ALLOCATE (fft_scratch_new%fft_scratch)
 
+            fft_scratch_new%fft_scratch%sizes => sizes
             IF (tf_type .NE. 400) THEN
-               fft_scratch_new%fft_scratch%sizes => fft_sizes
-               np = fft_sizes%rs_group%num_pe
-               ALLOCATE (fft_scratch_new%fft_scratch%scount(0:np - 1), fft_scratch_new%fft_scratch%rcount(0:np - 1), &
-                         fft_scratch_new%fft_scratch%sdispl(0:np - 1), fft_scratch_new%fft_scratch%rdispl(0:np - 1), &
-                         fft_scratch_new%fft_scratch%pgcube(0:np - 1, 2))
-            ELSE
-               ALLOCATE (fft_sizes_s)
-               fft_scratch_new%fft_scratch%sizes => fft_sizes_s
+               SELECT TYPE (sizes)
+               CLASS IS (fft_scratch_sizes_p)
+                  np = sizes%rs_group%num_pe
+                  ALLOCATE (fft_scratch_new%fft_scratch%scount(0:np - 1), fft_scratch_new%fft_scratch%rcount(0:np - 1), &
+                            fft_scratch_new%fft_scratch%sdispl(0:np - 1), fft_scratch_new%fft_scratch%rdispl(0:np - 1), &
+                            fft_scratch_new%fft_scratch%pgcube(0:np - 1, 2))
+               CLASS DEFAULT
+                  CPABORT("Invalid dynamic type!")
+               END SELECT
             END IF
 
-            sizes => fft_scratch_new%fft_scratch%sizes
             SELECT TYPE (sizes)
             TYPE IS (fft_scratch_sizes_p)
                SELECT CASE (tf_type)
@@ -3157,7 +3150,7 @@ CONTAINS
                             local_size_per_step(1, 1)*local_size_per_step(2, 1)*max_local_size_per_step(3, 2), 0:DIM(2) - 1))
 
                   dims = [.FALSE., .TRUE.]
-                  CALL fft_scratch_new%fft_scratch%cart_sub_comm(2)%from_sub(fft_sizes%rs_group, dims)
+                  CALL fft_scratch_new%fft_scratch%cart_sub_comm(2)%from_sub(sizes%rs_group, dims)
 
                   !initialise pgcube
                   DO i = 0, DIM(2) - 1

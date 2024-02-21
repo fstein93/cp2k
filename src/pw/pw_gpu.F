@@ -284,7 +284,7 @@ CONTAINS
             IF (rs_group%num_pe_cart(1) == 1) &
                CPABORT("This processor distribution is not supported.")
 
-            CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
+            CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, sizes=fft_scratch_size)
 
             ! assign buffers
             qbuf => fft_scratch%p2buf
@@ -320,7 +320,7 @@ CONTAINS
             ! direction x
             !
 
-            CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, fft_sizes=fft_scratch_size)
+            CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, sizes=fft_scratch_size)
 
             ! assign buffers
             tbuf => fft_scratch%tbuf
@@ -424,7 +424,7 @@ CONTAINS
             IF (rs_group%num_pe_cart(1) == 1) &
                CPABORT("This processor distribution is not supported.")
 
-            CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, fft_sizes=fft_scratch_size)
+            CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, sizes=fft_scratch_size)
 
             ! assign buffers
             pbuf => fft_scratch%p7buf
@@ -463,7 +463,7 @@ CONTAINS
             ! direction x
             !
 
-            CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, fft_sizes=fft_scratch_size)
+            CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, sizes=fft_scratch_size)
 
             ! assign buffers
             sbuf => fft_scratch%r1buf
