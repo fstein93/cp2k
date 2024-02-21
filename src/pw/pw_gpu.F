@@ -224,10 +224,8 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER                                            :: fft_dims_2d_local(2), handle, i, j, &
-                                                            local_size_per_step(3, 3), mg, my_pos, &
-                                                            n1, n2, ngpts, numtask, &
-                                                            work_dims_max(3)
+      INTEGER :: fft_dims_2d_local(2), handle, i, j, local_size_per_step(3, 3), &
+         max_local_size_per_step(3, 3), mg, my_pos, n1, n2, ngpts, numtask, work_dims_max(3)
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes_p_ray), POINTER             :: fft_scratch_size
@@ -258,6 +256,7 @@ CONTAINS
          DO i = 1, 3
          DO j = 1, 3
             local_size_per_step(i, j) = bo(2, i, my_pos, j) - bo(1, i, my_pos, j) + 1
+            max_local_size_per_step(i, j) = MAXVAL(bo(2, i, :, j) - bo(1, i, :, j) + 1)
          END DO
          END DO
 
@@ -273,9 +272,7 @@ CONTAINS
          fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
          fft_scratch_size%nbx = MAXVAL(bo(2, 1, :, 2))
          fft_scratch_size%nbz = MAXVAL(bo(2, 3, :, 2))
-         fft_scratch_size%mcz1 = MAXVAL(bo(2, 3, :, 1) - bo(1, 3, :, 1) + 1)
-         fft_scratch_size%mcx2 = MAXVAL(bo(2, 1, :, 2) - bo(1, 1, :, 2) + 1)
-         fft_scratch_size%mcz2 = MAXVAL(bo(2, 3, :, 2) - bo(1, 3, :, 2) + 1)
+         fft_scratch_size%max_local_size_per_step = max_local_size_per_step
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(my_pos)
          fft_scratch_size%rs_group = rs_group
@@ -369,9 +366,8 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER                                            :: fft_dims_2d_local(2), handle, i, j, &
-                                                            local_size_per_step(3, 3), my_pos, n1, &
-                                                            n2, ngpts, numtask, work_dims_max(3)
+      INTEGER :: fft_dims_2d_local(2), handle, i, j, local_size_per_step(3, 3), &
+         max_local_size_per_step(3, 3), my_pos, n1, n2, ngpts, numtask, work_dims_max(3)
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes_p_ray), POINTER             :: fft_scratch_size
@@ -401,6 +397,7 @@ CONTAINS
          DO i = 1, 3
          DO j = 1, 3
             local_size_per_step(i, j) = bo(2, i, my_pos, j) - bo(1, i, my_pos, j) + 1
+            max_local_size_per_step(i, j) = MAXVAL(bo(2, i, :, j) - bo(1, i, :, j) + 1)
          END DO
          END DO
 
@@ -416,9 +413,7 @@ CONTAINS
          fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
          fft_scratch_size%nbx = MAXVAL(bo(2, 1, :, 2))
          fft_scratch_size%nbz = MAXVAL(bo(2, 3, :, 2))
-         fft_scratch_size%mcz1 = MAXVAL(bo(2, 3, :, 1) - bo(1, 3, :, 1) + 1)
-         fft_scratch_size%mcx2 = MAXVAL(bo(2, 1, :, 2) - bo(1, 1, :, 2) + 1)
-         fft_scratch_size%mcz2 = MAXVAL(bo(2, 3, :, 2) - bo(1, 3, :, 2) + 1)
+         fft_scratch_size%max_local_size_per_step = max_local_size_per_step
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(my_pos)
          fft_scratch_size%rs_group = rs_group

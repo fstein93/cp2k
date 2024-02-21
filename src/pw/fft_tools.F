@@ -66,7 +66,7 @@ MODULE fft_tools
       INTEGER, DIMENSION(3)                :: fft_dims_local = 0
       INTEGER, DIMENSION(3)                :: work_dims_max = 0
       INTEGER, DIMENSION(3, 3)             :: local_size_per_step = 0
-      INTEGER                              :: mcz1 = 0, mcz2 = 0, mcy3 = 0, mcx2 = 0 ! z1 x2 z2
+      INTEGER, DIMENSION(3, 3)             :: max_local_size_per_step = 0
       INTEGER, DIMENSION(2)                :: fft_dims_2d_local = 0
       INTEGER                              :: nbx = 0, nbz = 0
       TYPE(mp_cart_type)                    :: rs_group = mp_cart_type() !
@@ -511,7 +511,8 @@ CONTAINS
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: tbuf
       INTEGER :: fft_dims_2d_local(2), fft_dims_local(3), handle, i, j, local_size_per_step(3, 3), &
-         mcx2, mcz1, mcz2, my_pos, n1, n2, numtask, output_unit, sign, stat, work_dims_max(3)
+         max_local_size_per_step(3, 3), my_pos, n1, n2, numtask, output_unit, sign, stat, &
+         work_dims_max(3)
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
       TYPE(fft_scratch_sizes_p_ray), POINTER             :: fft_scratch_size
@@ -547,6 +548,7 @@ CONTAINS
       DO i = 1, 3
       DO j = 1, 3
          local_size_per_step(i, j) = bo(2, i, my_pos, j) - bo(1, i, my_pos, j) + 1
+         max_local_size_per_step(i, j) = MAXVAL(bo(2, i, :, j) - bo(1, i, :, j) + 1)
       END DO
       END DO
 
@@ -564,12 +566,7 @@ CONTAINS
       fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
       fft_scratch_size%nbx = n1
       fft_scratch_size%nbz = n2
-      mcz1 = MAXVAL(bo(2, 3, :, 1) - bo(1, 3, :, 1) + 1)
-      mcx2 = MAXVAL(bo(2, 1, :, 2) - bo(1, 1, :, 2) + 1)
-      mcz2 = MAXVAL(bo(2, 3, :, 2) - bo(1, 3, :, 2) + 1)
-      fft_scratch_size%mcz1 = mcz1
-      fft_scratch_size%mcx2 = mcx2
-      fft_scratch_size%mcz2 = mcz2
+      fft_scratch_size%max_local_size_per_step = max_local_size_per_step
       fft_scratch_size%nmray = MAXVAL(nyzray)
       fft_scratch_size%nyzray = nyzray(my_pos)
       fft_scratch_size%rs_group = rs_group
@@ -922,8 +919,8 @@ CONTAINS
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: abuf, bbuf
-      INTEGER :: fft_dims_2d_local(2), handle, i, j, local_size_per_step(3, 3), lz(3), mcx2, mcy3, &
-         mcz1, mcz2, my_pos, output_unit, sign, stat
+      INTEGER :: fft_dims_2d_local(2), handle, i, j, local_size_per_step(3, 3), lz(3), &
+         max_local_size_per_step(3, 3), my_pos, output_unit, sign, stat
       INTEGER, DIMENSION(2)                              :: dim
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
@@ -986,18 +983,12 @@ CONTAINS
       DO i = 1, 3
       DO j = 1, 3
          local_size_per_step(i, j) = bo(2, i, my_pos, j) - bo(1, i, my_pos, j) + 1
+         max_local_size_per_step(i, j) = MAXVAL(bo(2, i, :, j) - bo(1, i, :, j) + 1)
       END DO
       END DO
       ALLOCATE (fft_scratch_size)
       fft_scratch_size%local_size_per_step = local_size_per_step
-      mcz1 = MAXVAL(bo(2, 3, :, 1) - bo(1, 3, :, 1) + 1)
-      mcx2 = MAXVAL(bo(2, 1, :, 2) - bo(1, 1, :, 2) + 1)
-      mcz2 = MAXVAL(bo(2, 3, :, 2) - bo(1, 3, :, 2) + 1)
-      mcy3 = MAXVAL(bo(2, 2, :, 3) - bo(1, 2, :, 3) + 1)
-      fft_scratch_size%mcz1 = mcz1
-      fft_scratch_size%mcx2 = mcx2
-      fft_scratch_size%mcz2 = mcz2
-      fft_scratch_size%mcy3 = mcy3
+      fft_scratch_size%max_local_size_per_step = max_local_size_per_step
       fft_scratch_size%rs_group = group
 
       IF (DIM(1) > 1 .AND. DIM(2) > 1) THEN
@@ -2879,7 +2870,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch'
 
       INTEGER :: coord(2), DIM(2), handle, i, ix, iz, fft_dims_2d_local(2), m1, m2, &
-                 local_size_per_step(3, 3), mcx2, mcy3, mcz1, mcz2, &
+                 local_size_per_step(3, 3), max_local_size_per_step(3, 3), &
                  nbx, nbz, nm, nmray, np, nyzray, pos(2), fft_dims_local(3), work_dims_max(3)
       INTEGER, DIMENSION(3)                    :: pcoord
       LOGICAL                                  :: equal
@@ -2965,27 +2956,28 @@ CONTAINS
 
                   dim = sizes%rs_group%num_pe_cart
                   pos = sizes%rs_group%mepos_cart
-                  mcz1 = sizes%mcz1
-                  mcx2 = sizes%mcx2
-                  mcz2 = sizes%mcz2
-                  mcy3 = sizes%mcy3
-                ALLOCATE (fft_scratch_new%fft_scratch%rbuf1(local_size_per_step(1, 2)*local_size_per_step(2, 1)*mcz2, 0:DIM(2) - 1))
-                ALLOCATE (fft_scratch_new%fft_scratch%rbuf2(local_size_per_step(1, 1)*local_size_per_step(2, 1)*mcz2, 0:DIM(2) - 1))
-                ALLOCATE (fft_scratch_new%fft_scratch%rbuf3(local_size_per_step(1, 2)*local_size_per_step(3, 3)*mcy3, 0:DIM(1) - 1))
-                ALLOCATE (fft_scratch_new%fft_scratch%rbuf4(local_size_per_step(1, 2)*local_size_per_step(3, 2)*mcy3, 0:DIM(1) - 1))
+                  max_local_size_per_step = sizes%max_local_size_per_step
+                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf1( &
+                            local_size_per_step(1, 2)*local_size_per_step(2, 1)*max_local_size_per_step(3, 2), 0:DIM(2) - 1))
+                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf2( &
+                            local_size_per_step(1, 1)*local_size_per_step(2, 1)*max_local_size_per_step(3, 2), 0:DIM(2) - 1))
+                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf3( &
+                            local_size_per_step(1, 2)*local_size_per_step(3, 3)*max_local_size_per_step(2, 3), 0:DIM(1) - 1))
+                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf4( &
+                            local_size_per_step(1, 2)*local_size_per_step(3, 2)*max_local_size_per_step(2, 3), 0:DIM(1) - 1))
 
-                  dims = (/.TRUE., .FALSE./)
+                  dims = [.TRUE., .FALSE.]
                   CALL fft_scratch_new%fft_scratch%cart_sub_comm(1)%from_sub(sizes%rs_group, dims)
-                  dims = (/.FALSE., .TRUE./)
+                  dims = [.FALSE., .TRUE.]
                   CALL fft_scratch_new%fft_scratch%cart_sub_comm(2)%from_sub(sizes%rs_group, dims)
 
                   !initialise pgcube
                   DO i = 0, DIM(1) - 1
-                     coord = (/i, pos(2)/)
+                     coord = [i, pos(2)]
                      CALL sizes%rs_group%rank_cart(coord, fft_scratch_new%fft_scratch%pgcube(i, 1))
                   END DO
                   DO i = 0, DIM(2) - 1
-                     coord = (/pos(1), i/)
+                     coord = [pos(1), i]
                      CALL sizes%rs_group%rank_cart(coord, fft_scratch_new%fft_scratch%pgcube(i, 2))
                   END DO
 
@@ -3020,9 +3012,11 @@ CONTAINS
 
                   dim = sizes%rs_group%num_pe_cart
                   pos = sizes%rs_group%mepos_cart
-                  mcy3 = sizes%mcy3
-                ALLOCATE (fft_scratch_new%fft_scratch%rbuf5(local_size_per_step(1, 1)*local_size_per_step(3, 3)*mcy3, 0:DIM(1) - 1))
-                ALLOCATE (fft_scratch_new%fft_scratch%rbuf6(local_size_per_step(1, 1)*local_size_per_step(3, 1)*mcy3, 0:DIM(1) - 1))
+                  max_local_size_per_step = sizes%max_local_size_per_step
+                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf5( &
+                            local_size_per_step(1, 1)*local_size_per_step(3, 3)*max_local_size_per_step(2, 3), 0:DIM(1) - 1))
+                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf6( &
+                            local_size_per_step(1, 1)*local_size_per_step(3, 1)*max_local_size_per_step(2, 3), 0:DIM(1) - 1))
 
                   !set up fft plans
                   CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), &
@@ -3101,7 +3095,7 @@ CONTAINS
 
                CASE (300) ! fft3d_ps: block distribution
                   local_size_per_step = sizes%local_size_per_step
-                  mcx2 = sizes%mcx2
+                  max_local_size_per_step = sizes%max_local_size_per_step
                   fft_dims_2d_local = sizes%fft_dims_2d_local
                   nmray = sizes%nmray
                   nyzray = sizes%nyzray
@@ -3161,10 +3155,10 @@ CONTAINS
 
                   dim = sizes%rs_group%num_pe_cart
                   pos = sizes%rs_group%mepos_cart
-                  mcz1 = sizes%mcz1
-                  mcz2 = sizes%mcz2
-                ALLOCATE (fft_scratch_new%fft_scratch%rbuf1(local_size_per_step(1, 2)*local_size_per_step(2, 1)*mcz2, 0:DIM(2) - 1))
-                ALLOCATE (fft_scratch_new%fft_scratch%rbuf2(local_size_per_step(1, 1)*local_size_per_step(2, 1)*mcz2, 0:DIM(2) - 1))
+                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf1( &
+                            local_size_per_step(1, 2)*local_size_per_step(2, 1)*max_local_size_per_step(3, 2), 0:DIM(2) - 1))
+                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf2( &
+                            local_size_per_step(1, 1)*local_size_per_step(2, 1)*max_local_size_per_step(3, 2), 0:DIM(2) - 1))
 
                   dims = [.FALSE., .TRUE.]
                   CALL fft_scratch_new%fft_scratch%cart_sub_comm(2)%from_sub(fft_sizes%rs_group, dims)
@@ -3356,14 +3350,8 @@ CONTAINS
                equal = ALL(fft_size_1%nfft == fft_size_2%nfft)
                equal = equal .AND. ALL(fft_size_1%fft_dims_local == fft_size_2%fft_dims_local)
                equal = equal .AND. ALL(fft_size_1%work_dims_max == fft_size_2%work_dims_max)
-
                equal = equal .AND. ALL(fft_size_1%local_size_per_step == fft_size_2%local_size_per_step)
-
-               equal = equal .AND. fft_size_1%mcz1 == fft_size_2%mcz1
-               equal = equal .AND. fft_size_1%mcx2 == fft_size_2%mcx2
-               equal = equal .AND. fft_size_1%mcz2 == fft_size_2%mcz2
-               equal = equal .AND. fft_size_1%mcy3 == fft_size_2%mcy3
-
+               equal = equal .AND. ALL(fft_size_1%max_local_size_per_step == fft_size_2%max_local_size_per_step)
                equal = equal .AND. ALL(fft_size_1%fft_dims_2d_local == fft_size_2%fft_dims_2d_local)
 
                equal = equal .AND. fft_size_1%nbx == fft_size_2%nbx
