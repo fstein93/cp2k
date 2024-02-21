@@ -225,8 +225,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER                                            :: handle, mg, my_pos, n1, n2, ngpts, &
-                                                            numtask, work_dims_max(3)
+      INTEGER                                            :: handle
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes_p_ray), POINTER             :: fft_scratch_size
@@ -241,7 +240,6 @@ CONTAINS
       n => pw1%pw_grid%npts
       nloc => pw1%pw_grid%npts_local
       grays => pw1%pw_grid%grays
-      ngpts = nloc(1)*nloc(2)*nloc(3)
 
       !..transform
       IF (pw1%pw_grid%para%ray_distribution) THEN
@@ -249,23 +247,8 @@ CONTAINS
          nyzray => pw1%pw_grid%para%nyzray
          bo => pw1%pw_grid%para%bo
 
-         my_pos = rs_group%mepos
-         numtask = rs_group%num_pe
-
          ALLOCATE (fft_scratch_size)
-         CALL fft_scratch_size%create(n, nloc, SHAPE(grays), bo, rs_group)
-
-         work_dims_max(2) = MAX(mg, 1)
-         work_dims_max(1) = MAX(fft_scratch_size%fft_dims_2d_local(1), (ngpts/work_dims_max(2) + 1))
-         n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
-         n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
-         work_dims_max(3) = MAX((2*n2)/numtask, 2)*fft_scratch_size%local_size_per_step(1, 2) &
-                            *fft_scratch_size%local_size_per_step(3, 2)
-         work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
-         fft_scratch_size%work_dims_max = work_dims_max
-         fft_scratch_size%max_ub = MAXVAL(bo(2, :, :, 2), 2)
-         fft_scratch_size%nmray = MAXVAL(nyzray)
-         fft_scratch_size%nyzray = nyzray(my_pos)
+         CALL fft_scratch_size%create(n, nloc, SHAPE(grays), bo, rs_group, nyzray)
          my_sizes => fft_scratch_size
 
          IF (rs_group%num_pe_cart(2) > 1) THEN
@@ -358,8 +341,7 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER                                            :: handle, my_pos, n1, n2, ngpts, numtask, &
-                                                            work_dims_max(3)
+      INTEGER                                            :: handle
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes_p_ray), POINTER             :: fft_scratch_size
@@ -374,7 +356,6 @@ CONTAINS
       n => pw1%pw_grid%npts
       nloc => pw1%pw_grid%npts_local
       grays => pw1%pw_grid%grays
-      ngpts = nloc(1)*nloc(2)*nloc(3)
 
       !..transform
       IF (pw1%pw_grid%para%ray_distribution) THEN
@@ -382,23 +363,8 @@ CONTAINS
          nyzray => pw1%pw_grid%para%nyzray
          bo => pw1%pw_grid%para%bo
 
-         my_pos = rs_group%mepos
-         numtask = rs_group%num_pe
-
          ALLOCATE (fft_scratch_size)
-         CALL fft_scratch_size%create(n, nloc, SHAPE(grays), bo, rs_group)
-
-         work_dims_max(2) = MAX(fft_scratch_size%fft_dims_2d_local(2), 1)
-         work_dims_max(1) = MAX(fft_scratch_size%fft_dims_2d_local(1), (ngpts/work_dims_max(2) + 1))
-         n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
-         n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
-         work_dims_max(3) = MAX((2*n2)/numtask, 2)*fft_scratch_size%local_size_per_step(1, 2) &
-                            *fft_scratch_size%local_size_per_step(3, 2)
-         work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
-         fft_scratch_size%work_dims_max = work_dims_max
-         fft_scratch_size%max_ub = MAXVAL(bo(2, :, :, 2), 2)
-         fft_scratch_size%nmray = MAXVAL(nyzray)
-         fft_scratch_size%nyzray = nyzray(my_pos)
+         CALL fft_scratch_size%create(n, nloc, SHAPE(grays), bo, rs_group, nyzray)
          my_sizes => fft_scratch_size
 
          IF (rs_group%num_pe_cart(2) > 1) THEN
@@ -732,7 +698,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_gpu_fg'
 
       COMPLEX(KIND=dp), POINTER                          :: ptr_pwin, ptr_pwout
-      INTEGER                                            :: handle, mg, mmax, ngpts
+      INTEGER                                            :: handle, mmax, ngpts
       INTEGER, DIMENSION(:), POINTER                     :: npts
       INTEGER, POINTER                                   :: ptr_ghatmap
       INTERFACE
@@ -754,8 +720,7 @@ CONTAINS
       npts => pw2%pw_grid%npts
 
       IF ((npts(1) /= 0) .AND. (ngpts /= 0)) THEN
-         mg = SIZE(pw2%pw_grid%grays, 2)
-         mmax = MAX(mg, 1)
+         mmax = MAX(1, SIZE(pw2%pw_grid%grays, 2))
 
          ! pointers to data arrays
          ptr_pwin => pwbuf(1, 1)

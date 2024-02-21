@@ -74,7 +74,7 @@ MODULE fft_tools
 
    TYPE, EXTENDS(fft_scratch_sizes_p) :: fft_scratch_sizes_p_ray
       INTEGER, DIMENSION(3)                :: max_ub = 0
-      INTEGER, DIMENSION(3) :: work_dims_max = 0
+      INTEGER, DIMENSION(3)                :: work_dims_max = 0
       INTEGER                              :: nmray = 0, nyzray = 0
    END TYPE fft_scratch_sizes_p_ray
 
@@ -180,16 +180,18 @@ CONTAINS
 !> \param nloc_2d ...
 !> \param bo ...
 !> \param rs_group ...
+!> \param nyzray ...
 ! **************************************************************************************************
-   SUBROUTINE fft_scratch_sizes_create(this, n, nloc, nloc_2d, bo, rs_group)
+   SUBROUTINE fft_scratch_sizes_create(this, n, nloc, nloc_2d, bo, rs_group, nyzray)
       CLASS(fft_scratch_sizes), INTENT(INOUT) :: this
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL :: n
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL :: nloc
       INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL :: nloc_2d
       INTEGER, DIMENSION(:, :, 0:, :), INTENT(IN), OPTIONAL :: bo
       CLASS(mp_cart_type), INTENT(IN), OPTIONAL :: rs_group
+      INTEGER, DIMENSION(0:), INTENT(IN), OPTIONAL :: nyzray
 
-      INTEGER :: i, j
+      INTEGER :: i, j, n1, n2
 
       this%nfft = n
 
@@ -216,6 +218,22 @@ CONTAINS
          this%rs_group = rs_group
       CLASS DEFAULT
 ! Nothing to be done
+      END SELECT
+
+      SELECT TYPE (this)
+      CLASS IS (fft_scratch_sizes_p_ray)
+         this%work_dims_max(2) = MAX(1, nloc_2d(2))
+         this%work_dims_max(1) = MAX(nloc_2d(1), PRODUCT(nloc)/this%work_dims_max(2) + 1)
+         n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
+         n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
+         this%work_dims_max(3) = MAX((2*n2)/rs_group%num_pe, 2)*this%local_size_per_step(1, 2) &
+                                 *this%local_size_per_step(3, 2)
+         this%work_dims_max(3) = MAX(this%work_dims_max(3), n1*MAXVAL(nyzray))
+         this%max_ub = MAXVAL(bo(2, :, :, 2), 2)
+         this%nmray = MAXVAL(nyzray)
+         this%nyzray = nyzray(rs_group%mepos)
+      CLASS DEFAULT
+! Nothing to do
       END SELECT
    END SUBROUTINE fft_scratch_sizes_create
 
@@ -565,9 +583,7 @@ CONTAINS
          POINTER                                         :: pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: tbuf
-      INTEGER                                            :: handle, my_pos, n1, n2, numtask, &
-                                                            output_unit, sign, stat, &
-                                                            work_dims_max(3)
+      INTEGER                                            :: handle, my_pos, output_unit, sign, stat
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
       TYPE(fft_scratch_sizes_p_ray), POINTER             :: fft_scratch_size
@@ -585,7 +601,6 @@ CONTAINS
       END IF
 
       my_pos = rs_group%mepos
-      numtask = rs_group%num_pe
 
       IF (PRESENT(scale)) THEN
          norm = scale
@@ -597,18 +612,7 @@ CONTAINS
 
       ALLOCATE (fft_scratch_size)
       my_sizes => fft_scratch_size
-      CALL fft_scratch_size%create(n, SHAPE(cin), SHAPE(gin), bo, rs_group)
-
-      work_dims_max(2) = MAX(1, SIZE(gin, 2))
-      work_dims_max(1) = MAX(SIZE(gin, 1), SIZE(cin)/work_dims_max(2) + 1)
-      n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
-      n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
-     work_dims_max(3) = MAX((2*n2)/numtask, 2)*fft_scratch_size%local_size_per_step(1, 2)*fft_scratch_size%local_size_per_step(3, 2)
-      work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
-      fft_scratch_size%work_dims_max = work_dims_max
-      fft_scratch_size%max_ub = MAXVAL(bo(2, :, :, 2), 2)
-      fft_scratch_size%nmray = MAXVAL(nyzray)
-      fft_scratch_size%nyzray = nyzray(my_pos)
+      CALL fft_scratch_size%create(n, SHAPE(cin), SHAPE(gin), bo, rs_group, nyzray)
 
       IF (test) THEN
          IF (output_unit > 0) THEN
