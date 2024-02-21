@@ -66,7 +66,6 @@ MODULE fft_tools
 
    TYPE, EXTENDS(fft_scratch_sizes) :: fft_scratch_sizes_p
       INTEGER, DIMENSION(3)                :: fft_dims_local = 0
-      INTEGER, DIMENSION(3)                :: work_dims_max = 0
       INTEGER, DIMENSION(3, 3)             :: local_size_per_step = 0
       INTEGER, DIMENSION(3, 3)             :: max_local_size_per_step = 0
       INTEGER, DIMENSION(2)                :: fft_dims_2d_local = 0
@@ -75,6 +74,7 @@ MODULE fft_tools
 
    TYPE, EXTENDS(fft_scratch_sizes_p) :: fft_scratch_sizes_p_ray
       INTEGER, DIMENSION(3)                :: max_ub = 0
+      INTEGER, DIMENSION(3) :: work_dims_max = 0
       INTEGER                              :: nmray = 0, nyzray = 0
    END TYPE fft_scratch_sizes_p_ray
 
@@ -176,12 +176,47 @@ CONTAINS
 !> \brief ...
 !> \param this ...
 !> \param n ...
+!> \param nloc ...
+!> \param nloc_2d ...
+!> \param bo ...
+!> \param rs_group ...
 ! **************************************************************************************************
-   SUBROUTINE fft_scratch_sizes_create(this, n)
+   SUBROUTINE fft_scratch_sizes_create(this, n, nloc, nloc_2d, bo, rs_group)
       CLASS(fft_scratch_sizes), INTENT(INOUT) :: this
-      INTEGER, DIMENSION(3), INTENT(IN) :: n
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL :: n
+      INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL :: nloc
+      INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL :: nloc_2d
+      INTEGER, DIMENSION(:, :, 0:, :), INTENT(IN), OPTIONAL :: bo
+      CLASS(mp_cart_type), INTENT(IN), OPTIONAL :: rs_group
+
+      INTEGER :: i, j
 
       this%nfft = n
+
+      SELECT TYPE (this)
+      CLASS IS (fft_scratch_sizes_p)
+         IF (.NOT. PRESENT(nloc)) &
+            CPABORT("Parallel FFTs require the information on the local dimensions!")
+         IF (.NOT. PRESENT(nloc_2d)) &
+            CPABORT("Parallel FFTs require the information on the local dimensions of the 2D array!")
+         IF (.NOT. PRESENT(bo)) &
+            CPABORT("Parallel FFTs require the information on the local dimensions of all processes!")
+         IF (.NOT. PRESENT(rs_group)) &
+            CPABORT("Parallel FFTs require the information on the communicator!")
+
+         DO i = 1, 3
+         DO j = 1, 3
+            this%local_size_per_step(i, j) = bo(2, i, rs_group%mepos, j) - bo(1, i, rs_group%mepos, j) + 1
+            this%max_local_size_per_step(i, j) = MAXVAL(bo(2, i, :, j) - bo(1, i, :, j) + 1)
+         END DO
+         END DO
+
+         this%fft_dims_local = nloc
+         this%fft_dims_2d_local = nloc_2d
+         this%rs_group = rs_group
+      CLASS DEFAULT
+! Nothing to be done
+      END SELECT
    END SUBROUTINE fft_scratch_sizes_create
 
 ! **************************************************************************************************
@@ -530,9 +565,9 @@ CONTAINS
          POINTER                                         :: pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: tbuf
-      INTEGER :: fft_dims_2d_local(2), fft_dims_local(3), handle, i, j, local_size_per_step(3, 3), &
-         max_local_size_per_step(3, 3), my_pos, n1, n2, numtask, output_unit, sign, stat, &
-         work_dims_max(3)
+      INTEGER                                            :: handle, my_pos, n1, n2, numtask, &
+                                                            output_unit, sign, stat, &
+                                                            work_dims_max(3)
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
       TYPE(fft_scratch_sizes_p_ray), POINTER             :: fft_scratch_size
@@ -560,44 +595,27 @@ CONTAINS
 
       sign = fsign
 
-      fft_dims_2d_local = SHAPE(gin)
-
-      fft_dims_local = SHAPE(cin)
-
-      work_dims_max(2) = MAX(1, fft_dims_2d_local(2))
-      work_dims_max(1) = MAX(fft_dims_2d_local(1), PRODUCT(fft_dims_local)/work_dims_max(2) + 1)
-
-      DO i = 1, 3
-      DO j = 1, 3
-         local_size_per_step(i, j) = bo(2, i, my_pos, j) - bo(1, i, my_pos, j) + 1
-         max_local_size_per_step(i, j) = MAXVAL(bo(2, i, :, j) - bo(1, i, :, j) + 1)
-      END DO
-      END DO
-
-      n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
-      n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
-      work_dims_max(3) = MAX((2*n2)/numtask, 2)*local_size_per_step(1, 2)*local_size_per_step(3, 2)
-      work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
-
       ALLOCATE (fft_scratch_size)
       my_sizes => fft_scratch_size
-      CALL fft_scratch_size%create(n)
-      fft_scratch_size%fft_dims_local = fft_dims_local
+      CALL fft_scratch_size%create(n, SHAPE(cin), SHAPE(gin), bo, rs_group)
+
+      work_dims_max(2) = MAX(1, SIZE(gin, 2))
+      work_dims_max(1) = MAX(SIZE(gin, 1), SIZE(cin)/work_dims_max(2) + 1)
+      n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
+      n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
+     work_dims_max(3) = MAX((2*n2)/numtask, 2)*fft_scratch_size%local_size_per_step(1, 2)*fft_scratch_size%local_size_per_step(3, 2)
+      work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
       fft_scratch_size%work_dims_max = work_dims_max
-      fft_scratch_size%local_size_per_step = local_size_per_step
-      fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
       fft_scratch_size%max_ub = MAXVAL(bo(2, :, :, 2), 2)
-      fft_scratch_size%max_local_size_per_step = max_local_size_per_step
       fft_scratch_size%nmray = MAXVAL(nyzray)
       fft_scratch_size%nyzray = nyzray(my_pos)
-      fft_scratch_size%rs_group = rs_group
 
       IF (test) THEN
          IF (output_unit > 0) THEN
             WRITE (output_unit, '(A)') "  Parallel 3D FFT : fft3d_ps"
             WRITE (output_unit, '(A,T60,3I7)') "     Transform lengths ", n
-            WRITE (output_unit, '(A,T67,2I7)') "     Array dimensions (gin) ", fft_dims_2d_local
-            WRITE (output_unit, '(A,T60,3I7)') "     Array dimensions (cin) ", fft_dims_local
+            WRITE (output_unit, '(A,T67,2I7)') "     Array dimensions (gin) ", fft_scratch_size%fft_dims_2d_local
+            WRITE (output_unit, '(A,T60,3I7)') "     Array dimensions (cin) ", fft_scratch_size%fft_dims_local
          END IF
       END IF
 
@@ -621,8 +639,10 @@ CONTAINS
                CALL rs_group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
-                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Z ", n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)
-                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Y ", n(2), local_size_per_step(1, 2)*local_size_per_step(3, 2)
+                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Z ", n(3), fft_scratch_size%local_size_per_step(1, 1) &
+                     *fft_scratch_size%local_size_per_step(2, 1)
+                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Y ", n(2), fft_scratch_size%local_size_per_step(1, 2) &
+                     *fft_scratch_size%local_size_per_step(3, 2)
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(my_pos)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
@@ -702,8 +722,10 @@ CONTAINS
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(my_pos)
-                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Y ", n(2), local_size_per_step(1, 2)*local_size_per_step(3, 2)
-                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Z ", n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)
+                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Y ", n(2), fft_scratch_size%local_size_per_step(1, 2) &
+                     *fft_scratch_size%local_size_per_step(3, 2)
+                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Z ", n(3), fft_scratch_size%local_size_per_step(1, 1) &
+                     *fft_scratch_size%local_size_per_step(2, 1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -806,7 +828,7 @@ CONTAINS
                CALL rs_group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "     One step communication algorithm "
-                  WRITE (output_unit, '(A,T60,3I7)') "     Transform YZ ", n(2), n(3), fft_dims_local(1)
+                  WRITE (output_unit, '(A,T60,3I7)') "     Transform YZ ", n(2), n(3), fft_scratch_size%fft_dims_local(1)
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(my_pos)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
@@ -855,7 +877,7 @@ CONTAINS
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  One step communication algorithm "
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(my_pos)
-                  WRITE (output_unit, '(A,T60,3I7)') "     Transform YZ ", n(2), n(3), fft_dims_local(1)
+                  WRITE (output_unit, '(A,T60,3I7)') "     Transform YZ ", n(2), n(3), fft_scratch_size%fft_dims_local(1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -940,8 +962,8 @@ CONTAINS
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: abuf, bbuf
-      INTEGER :: fft_dims_2d_local(2), handle, i, j, local_size_per_step(3, 3), lz(3), &
-         max_local_size_per_step(3, 3), my_pos, output_unit, sign, stat
+      INTEGER                                            :: fft_dims_2d_local(2), handle, lz(3), &
+                                                            my_pos, output_unit, sign, stat
       INTEGER, DIMENSION(2)                              :: dim
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
@@ -1003,17 +1025,8 @@ CONTAINS
          END IF
       END IF
 
-      DO i = 1, 3
-      DO j = 1, 3
-         local_size_per_step(i, j) = bo(2, i, my_pos, j) - bo(1, i, my_pos, j) + 1
-         max_local_size_per_step(i, j) = MAXVAL(bo(2, i, :, j) - bo(1, i, :, j) + 1)
-      END DO
-      END DO
       ALLOCATE (fft_scratch_size)
-      CALL fft_scratch_size%create(n)
-      fft_scratch_size%local_size_per_step = local_size_per_step
-      fft_scratch_size%max_local_size_per_step = max_local_size_per_step
-      fft_scratch_size%rs_group = group
+      CALL fft_scratch_size%create(n, SHAPE(zin), SHAPE(gin), bo, group)
       my_sizes => fft_scratch_size
 
       IF (DIM(1) > 1 .AND. DIM(2) > 1) THEN
@@ -1034,7 +1047,8 @@ CONTAINS
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), fft_scratch_size%local_size_per_step(1, 1) &
+                     *fft_scratch_size%local_size_per_step(2, 1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -1060,7 +1074,8 @@ CONTAINS
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), local_size_per_step(1, 2)*local_size_per_step(3, 2)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), fft_scratch_size%local_size_per_step(1, 2) &
+                     *fft_scratch_size%local_size_per_step(3, 2)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) ", sum_data
                END IF
             END IF
@@ -1084,7 +1099,8 @@ CONTAINS
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), local_size_per_step(2, 3)*local_size_per_step(3, 3)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), fft_scratch_size%local_size_per_step(2, 3) &
+                     *fft_scratch_size%local_size_per_step(3, 3)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(5) ", sum_data
                END IF
             END IF
@@ -1110,7 +1126,8 @@ CONTAINS
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), local_size_per_step(2, 3)*local_size_per_step(3, 3)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), fft_scratch_size%local_size_per_step(2, 3) &
+                     *fft_scratch_size%local_size_per_step(3, 3)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -1136,7 +1153,8 @@ CONTAINS
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), local_size_per_step(1, 2)*local_size_per_step(3, 2)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), fft_scratch_size%local_size_per_step(1, 2) &
+                     *fft_scratch_size%local_size_per_step(3, 2)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) ", sum_data
                END IF
             END IF
@@ -1160,7 +1178,8 @@ CONTAINS
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), fft_scratch_size%local_size_per_step(1, 1) &
+                     *fft_scratch_size%local_size_per_step(2, 1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(5) ", sum_data
                END IF
             END IF
@@ -1198,8 +1217,10 @@ CONTAINS
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  one step communication algorithm "
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), local_size_per_step(1, 1)*local_size_per_step(3, 1)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), fft_scratch_size%local_size_per_step(1, 1) &
+                     *fft_scratch_size%local_size_per_step(2, 1)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), fft_scratch_size%local_size_per_step(1, 1) &
+                     *fft_scratch_size%local_size_per_step(3, 1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -1226,7 +1247,8 @@ CONTAINS
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), local_size_per_step(2, 3)*local_size_per_step(3, 3)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), fft_scratch_size%local_size_per_step(2, 3) &
+                     *fft_scratch_size%local_size_per_step(3, 3)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) ", sum_data
                END IF
             END IF
@@ -1250,7 +1272,8 @@ CONTAINS
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  one step communication algorithm "
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), local_size_per_step(2, 3)*local_size_per_step(3, 3)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), fft_scratch_size%local_size_per_step(2, 3) &
+                     *fft_scratch_size%local_size_per_step(3, 3)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -1278,8 +1301,10 @@ CONTAINS
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), local_size_per_step(1, 1)*local_size_per_step(3, 1)
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), fft_scratch_size%local_size_per_step(1, 1) &
+                     *fft_scratch_size%local_size_per_step(3, 1)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), fft_scratch_size%local_size_per_step(1, 1) &
+                     *fft_scratch_size%local_size_per_step(2, 1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) ", sum_data
                END IF
             END IF
@@ -3364,7 +3389,6 @@ CONTAINS
             CLASS IS (fft_scratch_sizes_p)
                equal = ALL(fft_size_1%nfft == fft_size_2%nfft)
                equal = equal .AND. ALL(fft_size_1%fft_dims_local == fft_size_2%fft_dims_local)
-               equal = equal .AND. ALL(fft_size_1%work_dims_max == fft_size_2%work_dims_max)
                equal = equal .AND. ALL(fft_size_1%local_size_per_step == fft_size_2%local_size_per_step)
                equal = equal .AND. ALL(fft_size_1%max_local_size_per_step == fft_size_2%max_local_size_per_step)
                equal = equal .AND. ALL(fft_size_1%fft_dims_2d_local == fft_size_2%fft_dims_2d_local)
@@ -3385,6 +3409,7 @@ CONTAINS
          CLASS IS (fft_scratch_sizes_p_ray)
             SELECT TYPE (fft_size_2)
             CLASS IS (fft_scratch_sizes_p_ray)
+               equal = equal .AND. ALL(fft_size_1%work_dims_max == fft_size_2%work_dims_max)
                equal = equal .AND. ALL(fft_size_1%max_ub == fft_size_2%max_ub)
                equal = equal .AND. fft_size_1%nmray == fft_size_2%nmray
                equal = equal .AND. fft_size_1%nyzray == fft_size_2%nyzray
