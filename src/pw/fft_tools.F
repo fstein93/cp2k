@@ -390,6 +390,8 @@ CONTAINS
       TYPE(fft_scratch_sizes), POINTER                   :: sizes
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
+      CLASS(fft_scratch_sizes), POINTER :: my_sizes
+
       CALL timeset(routineN, handle)
       output_unit = cp_logger_get_default_io_unit()
 
@@ -427,7 +429,10 @@ CONTAINS
 
       sign = fsign
       ALLOCATE (sizes)
-      CALL get_fft_scratch(fft_scratch, tf_type=400, n=n, sizes=sizes)
+      WRITE (*, *) "Allocate ", n
+      sizes%nfft = n
+      my_sizes => sizes
+      CALL get_fft_scratch(fft_scratch, tf_type=400, sizes=my_sizes)
 
       IF (fft_in_place) THEN
          zoptr => zdum
@@ -518,6 +523,8 @@ CONTAINS
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
       TYPE(fft_scratch_sizes_p_ray), POINTER             :: fft_scratch_size
+
+      CLASS(fft_scratch_sizes), POINTER :: my_sizes
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
       CALL timeset(routineN, handle)
@@ -560,6 +567,8 @@ CONTAINS
       work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
 
       ALLOCATE (fft_scratch_size)
+      my_sizes => fft_scratch_size
+      fft_scratch_size%nfft = n
       fft_scratch_size%fft_dims_local = fft_dims_local
       fft_scratch_size%work_dims_max = work_dims_max
       fft_scratch_size%local_size_per_step = local_size_per_step
@@ -589,7 +598,7 @@ CONTAINS
          IF (rs_group%num_pe_cart(1) == 1) THEN
             CPABORT("This processor distribution is not supported.")
          END IF
-         CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, sizes=fft_scratch_size)
+         CALL get_fft_scratch(fft_scratch, tf_type=300, sizes=my_sizes)
 
          IF (sign == FWFFT) THEN
             ! cin -> gin
@@ -768,7 +777,7 @@ CONTAINS
          ! direction x
          !
 
-         CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, sizes=fft_scratch_size)
+         CALL get_fft_scratch(fft_scratch, tf_type=200, sizes=my_sizes)
 
          sbuf => fft_scratch%r1buf
          tbuf => fft_scratch%tbuf
@@ -924,6 +933,8 @@ CONTAINS
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
       TYPE(fft_scratch_sizes_p), POINTER                 :: fft_scratch_size
+
+      CLASS(fft_scratch_sizes), POINTER :: my_sizes
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
 
 !------------------------------------------------------------------------------
@@ -986,9 +997,11 @@ CONTAINS
       END DO
       END DO
       ALLOCATE (fft_scratch_size)
+      fft_scratch_size%nfft = n
       fft_scratch_size%local_size_per_step = local_size_per_step
       fft_scratch_size%max_local_size_per_step = max_local_size_per_step
       fft_scratch_size%rs_group = group
+      my_sizes => fft_scratch_size
 
       IF (DIM(1) > 1 .AND. DIM(2) > 1) THEN
 
@@ -996,7 +1009,7 @@ CONTAINS
          ! First case; two stages of communication
          !
 
-         CALL get_fft_scratch(fft_scratch, tf_type=100, n=n, sizes=fft_scratch_size)
+         CALL get_fft_scratch(fft_scratch, tf_type=100, sizes=my_sizes)
 
          IF (sign == FWFFT) THEN
             ! Stage 1 -> 3
@@ -1162,7 +1175,7 @@ CONTAINS
          ! Second case; one stage of communication
          !
 
-         CALL get_fft_scratch(fft_scratch, tf_type=101, n=n, sizes=fft_scratch_size)
+         CALL get_fft_scratch(fft_scratch, tf_type=101, sizes=my_sizes)
 
          IF (sign == FWFFT) THEN
             ! Stage 1 -> 3
@@ -2747,6 +2760,7 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(fft_scratch%sizes)) THEN
+         WRITE (*, *) "Deallocate ", fft_scratch%sizes%nfft
          DEALLOCATE (fft_scratch%sizes)
       END IF
 
@@ -2855,20 +2869,18 @@ CONTAINS
 !> \brief ...
 !> \param fft_scratch ...
 !> \param tf_type ...
-!> \param n ...
 !> \param sizes ...
 ! **************************************************************************************************
-   SUBROUTINE get_fft_scratch(fft_scratch, tf_type, n, sizes)
+   SUBROUTINE get_fft_scratch(fft_scratch, tf_type, sizes)
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       INTEGER, INTENT(IN)                                :: tf_type
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: n
 
-      CLASS(fft_scratch_sizes), INTENT(IN), POINTER    :: sizes
+      CLASS(fft_scratch_sizes), POINTER    :: sizes
 
       CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch'
 
       INTEGER :: coord(2), DIM(2), handle, i, ix, iz, fft_dims_2d_local(2), m1, m2, &
-                 max_ub(3), local_size_per_step(3, 3), max_local_size_per_step(3, 3), &
+                 n(3), max_ub(3), local_size_per_step(3, 3), max_local_size_per_step(3, 3), &
                  nm, nmray, np, nyzray, pos(2), fft_dims_local(3), work_dims_max(3)
       INTEGER, DIMENSION(3)                    :: pcoord
       LOGICAL                                  :: equal
@@ -2912,6 +2924,7 @@ CONTAINS
             ! Success
             fft_scratch => fft_scratch_current%fft_scratch
             fft_scratch_current%fft_scratch%in_use = .TRUE.
+            DEALLOCATE (sizes)
             EXIT
          ELSE
             ! We cannot find the scratch type in this pool
@@ -2931,6 +2944,9 @@ CONTAINS
                   CPABORT("Invalid dynamic type!")
                END SELECT
             END IF
+
+            n = sizes%nfft
+            WRITE (*, *) "n", n
 
             SELECT TYPE (sizes)
             TYPE IS (fft_scratch_sizes_p)
@@ -3219,7 +3235,6 @@ CONTAINS
             fft_scratch_new%fft_scratch%fft_scratch_id = &
                fft_scratch_last%fft_scratch%fft_scratch_id + 1
             fft_scratch_new%fft_scratch%in_use = .TRUE.
-            fft_scratch_new%fft_scratch%sizes%nfft = n
             fft_scratch_last%fft_scratch_next => fft_scratch_new
             fft_scratch_new%fft_scratch%tf_type = tf_type
             fft_scratch => fft_scratch_new%fft_scratch

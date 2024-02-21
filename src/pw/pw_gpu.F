@@ -29,8 +29,9 @@ MODULE pw_gpu
                                               C_LOC,&
                                               C_PTR
    USE fft_tools,                       ONLY: &
-        cube_transpose_1, cube_transpose_2, fft_scratch_sizes_p_ray, fft_scratch_type, &
-        get_fft_scratch, release_fft_scratch, x_to_yz, xz_to_yz, yz_to_x, yz_to_xz
+        cube_transpose_1, cube_transpose_2, fft_scratch_sizes, fft_scratch_sizes_p_ray, &
+        fft_scratch_type, get_fft_scratch, release_fft_scratch, x_to_yz, xz_to_yz, yz_to_x, &
+        yz_to_xz
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_cart_type
@@ -229,6 +230,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes_p_ray), POINTER             :: fft_scratch_size
+
+      CLASS(fft_scratch_sizes), POINTER :: my_sizes
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
 
@@ -266,6 +269,7 @@ CONTAINS
          work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
 
          ALLOCATE (fft_scratch_size)
+         fft_scratch_size%nfft = n
          fft_scratch_size%fft_dims_local = nloc
          fft_scratch_size%work_dims_max = work_dims_max
          fft_scratch_size%local_size_per_step = local_size_per_step
@@ -275,6 +279,7 @@ CONTAINS
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(my_pos)
          fft_scratch_size%rs_group = rs_group
+         my_sizes => fft_scratch_size
 
          IF (rs_group%num_pe_cart(2) > 1) THEN
             !
@@ -284,7 +289,7 @@ CONTAINS
             IF (rs_group%num_pe_cart(1) == 1) &
                CPABORT("This processor distribution is not supported.")
 
-            CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, sizes=fft_scratch_size)
+            CALL get_fft_scratch(fft_scratch, tf_type=300, sizes=my_sizes)
 
             ! assign buffers
             qbuf => fft_scratch%p2buf
@@ -320,7 +325,7 @@ CONTAINS
             ! direction x
             !
 
-            CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, sizes=fft_scratch_size)
+            CALL get_fft_scratch(fft_scratch, tf_type=200, sizes=my_sizes)
 
             ! assign buffers
             tbuf => fft_scratch%tbuf
@@ -370,6 +375,8 @@ CONTAINS
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes_p_ray), POINTER             :: fft_scratch_size
+
+      CLASS(fft_scratch_sizes), POINTER :: my_sizes
       TYPE(fft_scratch_type), POINTER                    :: fft_scratch
       TYPE(mp_cart_type)                                 :: rs_group
 
@@ -406,6 +413,7 @@ CONTAINS
          work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
 
          ALLOCATE (fft_scratch_size)
+         fft_scratch_size%nfft = n
          fft_scratch_size%fft_dims_local = nloc
          fft_scratch_size%work_dims_max = work_dims_max
          fft_scratch_size%local_size_per_step = local_size_per_step
@@ -415,6 +423,7 @@ CONTAINS
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(my_pos)
          fft_scratch_size%rs_group = rs_group
+         my_sizes => fft_scratch_size
 
          IF (rs_group%num_pe_cart(2) > 1) THEN
             !
@@ -424,7 +433,7 @@ CONTAINS
             IF (rs_group%num_pe_cart(1) == 1) &
                CPABORT("This processor distribution is not supported.")
 
-            CALL get_fft_scratch(fft_scratch, tf_type=300, n=n, sizes=fft_scratch_size)
+            CALL get_fft_scratch(fft_scratch, tf_type=300, sizes=my_sizes)
 
             ! assign buffers
             pbuf => fft_scratch%p7buf
@@ -463,7 +472,7 @@ CONTAINS
             ! direction x
             !
 
-            CALL get_fft_scratch(fft_scratch, tf_type=200, n=n, sizes=fft_scratch_size)
+            CALL get_fft_scratch(fft_scratch, tf_type=200, sizes=my_sizes)
 
             ! assign buffers
             sbuf => fft_scratch%r1buf
