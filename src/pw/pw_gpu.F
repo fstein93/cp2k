@@ -269,7 +269,7 @@ CONTAINS
          work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
 
          ALLOCATE (fft_scratch_size)
-         fft_scratch_size%nfft = n
+         CALL fft_scratch_size%create(n)
          fft_scratch_size%fft_dims_local = nloc
          fft_scratch_size%work_dims_max = work_dims_max
          fft_scratch_size%local_size_per_step = local_size_per_step
@@ -413,7 +413,7 @@ CONTAINS
          work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
 
          ALLOCATE (fft_scratch_size)
-         fft_scratch_size%nfft = n
+         CALL fft_scratch_size%create(n)
          fft_scratch_size%fft_dims_local = nloc
          fft_scratch_size%work_dims_max = work_dims_max
          fft_scratch_size%local_size_per_step = local_size_per_step

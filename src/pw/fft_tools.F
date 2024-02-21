@@ -60,6 +60,8 @@ MODULE fft_tools
    ! needs a default initialization
    TYPE fft_scratch_sizes
       INTEGER, DIMENSION(3)                :: nfft = 0
+   CONTAINS
+      PROCEDURE, PASS(this), NON_OVERRIDABLE :: create => fft_scratch_sizes_create
    END TYPE fft_scratch_sizes
 
    TYPE, EXTENDS(fft_scratch_sizes) :: fft_scratch_sizes_p
@@ -169,6 +171,18 @@ MODULE fft_tools
 ! **************************************************************************************************
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param this ...
+!> \param n ...
+! **************************************************************************************************
+   SUBROUTINE fft_scratch_sizes_create(this, n)
+      CLASS(fft_scratch_sizes), INTENT(INOUT) :: this
+      INTEGER, DIMENSION(3), INTENT(IN) :: n
+
+      this%nfft = n
+   END SUBROUTINE fft_scratch_sizes_create
 
 ! **************************************************************************************************
 !> \brief ...
@@ -429,8 +443,7 @@ CONTAINS
 
       sign = fsign
       ALLOCATE (sizes)
-      WRITE (*, *) "Allocate ", n
-      sizes%nfft = n
+      CALL sizes%create(n)
       my_sizes => sizes
       CALL get_fft_scratch(fft_scratch, tf_type=400, sizes=my_sizes)
 
@@ -568,7 +581,7 @@ CONTAINS
 
       ALLOCATE (fft_scratch_size)
       my_sizes => fft_scratch_size
-      fft_scratch_size%nfft = n
+      CALL fft_scratch_size%create(n)
       fft_scratch_size%fft_dims_local = fft_dims_local
       fft_scratch_size%work_dims_max = work_dims_max
       fft_scratch_size%local_size_per_step = local_size_per_step
@@ -997,7 +1010,7 @@ CONTAINS
       END DO
       END DO
       ALLOCATE (fft_scratch_size)
-      fft_scratch_size%nfft = n
+      CALL fft_scratch_size%create(n)
       fft_scratch_size%local_size_per_step = local_size_per_step
       fft_scratch_size%max_local_size_per_step = max_local_size_per_step
       fft_scratch_size%rs_group = group
@@ -2760,7 +2773,6 @@ CONTAINS
       END IF
 
       IF (ASSOCIATED(fft_scratch%sizes)) THEN
-         WRITE (*, *) "Deallocate ", fft_scratch%sizes%nfft
          DEALLOCATE (fft_scratch%sizes)
       END IF
 
@@ -2946,7 +2958,6 @@ CONTAINS
             END IF
 
             n = sizes%nfft
-            WRITE (*, *) "n", n
 
             SELECT TYPE (sizes)
             TYPE IS (fft_scratch_sizes_p)
