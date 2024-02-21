@@ -65,9 +65,7 @@ MODULE fft_tools
    TYPE, EXTENDS(fft_scratch_sizes) :: fft_scratch_sizes_p
       INTEGER, DIMENSION(3)                :: fft_dims_local = 0
       INTEGER, DIMENSION(3)                :: work_dims_max = 0
-      INTEGER                              :: mx1 = 0, mx2 = 0, mx3 = 0 ! 1 2
-      INTEGER                              :: my1 = 0, my2 = 0, my3 = 0 ! 1
-      INTEGER                              :: mz1 = 0, mz2 = 0, mz3 = 0 ! 2
+      INTEGER, DIMENSION(3, 3)             :: local_size_per_step = 0
       INTEGER                              :: mcz1 = 0, mcz2 = 0, mcy3 = 0, mcx2 = 0 ! z1 x2 z2
       INTEGER, DIMENSION(2)                :: fft_dims_2d_local = 0
       INTEGER                              :: nbx = 0, nbz = 0
@@ -512,8 +510,8 @@ CONTAINS
          POINTER                                         :: pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: tbuf
-      INTEGER :: fft_dims_2d_local(2), fft_dims_local(3), handle, mcx2, mcz1, mcz2, mx1, mx2, my1, &
-         my_pos, mz2, n1, n2, numtask, output_unit, sign, stat, work_dims_max(3)
+      INTEGER :: fft_dims_2d_local(2), fft_dims_local(3), handle, i, j, local_size_per_step(3, 3), &
+         mcx2, mcz1, mcz2, my_pos, n1, n2, numtask, output_unit, sign, stat, work_dims_max(3)
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
       TYPE(fft_scratch_sizes_p_ray), POINTER             :: fft_scratch_size
@@ -546,14 +544,15 @@ CONTAINS
       work_dims_max(2) = MAX(1, fft_dims_2d_local(2))
       work_dims_max(1) = MAX(fft_dims_2d_local(1), PRODUCT(fft_dims_local)/work_dims_max(2) + 1)
 
-      mx1 = bo(2, 1, my_pos, 1) - bo(1, 1, my_pos, 1) + 1
-      my1 = bo(2, 2, my_pos, 1) - bo(1, 2, my_pos, 1) + 1
-      mx2 = bo(2, 1, my_pos, 2) - bo(1, 1, my_pos, 2) + 1
-      mz2 = bo(2, 3, my_pos, 2) - bo(1, 3, my_pos, 2) + 1
+      DO i = 1, 3
+      DO j = 1, 3
+         local_size_per_step(i, j) = bo(2, i, my_pos, j) - bo(1, i, my_pos, j) + 1
+      END DO
+      END DO
 
       n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
       n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
-      work_dims_max(3) = MAX((2*n2)/numtask, 2)*mx2*mz2
+      work_dims_max(3) = MAX((2*n2)/numtask, 2)*local_size_per_step(1, 2)*local_size_per_step(3, 2)
       work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
       n1 = MAXVAL(bo(2, 1, :, 2))
       n2 = MAXVAL(bo(2, 3, :, 2))
@@ -561,10 +560,7 @@ CONTAINS
       ALLOCATE (fft_scratch_size)
       fft_scratch_size%fft_dims_local = fft_dims_local
       fft_scratch_size%work_dims_max = work_dims_max
-      fft_scratch_size%mx1 = mx1
-      fft_scratch_size%mx2 = mx2
-      fft_scratch_size%my1 = my1
-      fft_scratch_size%mz2 = mz2
+      fft_scratch_size%local_size_per_step = local_size_per_step
       fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
       fft_scratch_size%nbx = n1
       fft_scratch_size%nbz = n2
@@ -607,8 +603,8 @@ CONTAINS
                CALL rs_group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
-                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Z ", n(3), mx1*my1
-                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Y ", n(2), mx2*mz2
+                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Z ", n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)
+                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Y ", n(2), local_size_per_step(1, 2)*local_size_per_step(3, 2)
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(my_pos)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
@@ -688,8 +684,8 @@ CONTAINS
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
                   WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), nyzray(my_pos)
-                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Y ", n(2), mx2*mz2
-                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Z ", n(3), mx1*my1
+                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Y ", n(2), local_size_per_step(1, 2)*local_size_per_step(3, 2)
+                  WRITE (output_unit, '(A,T60,3I7)') "     Transform Z ", n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -926,8 +922,8 @@ CONTAINS
 
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
          POINTER                                         :: abuf, bbuf
-      INTEGER :: fft_dims_2d_local(2), handle, lz(3), mcx2, mcy3, mcz1, mcz2, mx1, mx2, mx3, my1, &
-         my2, my3, my_pos, mz1, mz2, mz3, output_unit, sign, stat
+      INTEGER :: fft_dims_2d_local(2), handle, i, j, local_size_per_step(3, 3), lz(3), mcx2, mcy3, &
+         mcz1, mcz2, my_pos, output_unit, sign, stat
       INTEGER, DIMENSION(2)                              :: dim
       LOGICAL                                            :: test
       REAL(KIND=dp)                                      :: norm, sum_data
@@ -987,25 +983,13 @@ CONTAINS
          END IF
       END IF
 
-      mx1 = bo(2, 1, my_pos, 1) - bo(1, 1, my_pos, 1) + 1
-      my1 = bo(2, 2, my_pos, 1) - bo(1, 2, my_pos, 1) + 1
-      mz1 = bo(2, 3, my_pos, 1) - bo(1, 3, my_pos, 1) + 1
-      mx2 = bo(2, 1, my_pos, 2) - bo(1, 1, my_pos, 2) + 1
-      my2 = bo(2, 2, my_pos, 2) - bo(1, 2, my_pos, 2) + 1
-      mz2 = bo(2, 3, my_pos, 2) - bo(1, 3, my_pos, 2) + 1
-      mx3 = bo(2, 1, my_pos, 3) - bo(1, 1, my_pos, 3) + 1
-      my3 = bo(2, 2, my_pos, 3) - bo(1, 2, my_pos, 3) + 1
-      mz3 = bo(2, 3, my_pos, 3) - bo(1, 3, my_pos, 3) + 1
+      DO i = 1, 3
+      DO j = 1, 3
+         local_size_per_step(i, j) = bo(2, i, my_pos, j) - bo(1, i, my_pos, j) + 1
+      END DO
+      END DO
       ALLOCATE (fft_scratch_size)
-      fft_scratch_size%mx1 = mx1
-      fft_scratch_size%mx2 = mx2
-      fft_scratch_size%mx3 = mx3
-      fft_scratch_size%my1 = my1
-      fft_scratch_size%my2 = my2
-      fft_scratch_size%my3 = my3
-      fft_scratch_size%mz1 = mz1
-      fft_scratch_size%mz2 = mz2
-      fft_scratch_size%mz3 = mz3
+      fft_scratch_size%local_size_per_step = local_size_per_step
       mcz1 = MAXVAL(bo(2, 3, :, 1) - bo(1, 3, :, 1) + 1)
       mcx2 = MAXVAL(bo(2, 1, :, 2) - bo(1, 1, :, 2) + 1)
       mcz2 = MAXVAL(bo(2, 3, :, 2) - bo(1, 3, :, 2) + 1)
@@ -1034,7 +1018,7 @@ CONTAINS
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), mx1*my1
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -1060,7 +1044,7 @@ CONTAINS
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), mx2*mz2
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), local_size_per_step(1, 2)*local_size_per_step(3, 2)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) ", sum_data
                END IF
             END IF
@@ -1084,7 +1068,7 @@ CONTAINS
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), my3*mz3
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), local_size_per_step(2, 3)*local_size_per_step(3, 3)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(5) ", sum_data
                END IF
             END IF
@@ -1110,7 +1094,7 @@ CONTAINS
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  Two step communication algorithm "
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), my3*mz3
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), local_size_per_step(2, 3)*local_size_per_step(3, 3)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -1136,7 +1120,7 @@ CONTAINS
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), mx2*mz2
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), local_size_per_step(1, 2)*local_size_per_step(3, 2)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) ", sum_data
                END IF
             END IF
@@ -1160,7 +1144,7 @@ CONTAINS
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), mx1*my1
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(5) ", sum_data
                END IF
             END IF
@@ -1198,8 +1182,8 @@ CONTAINS
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  one step communication algorithm "
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), mx1*my1
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), mx1*mz1
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), local_size_per_step(1, 1)*local_size_per_step(3, 1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -1226,7 +1210,7 @@ CONTAINS
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), my3*mz3
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), local_size_per_step(2, 3)*local_size_per_step(3, 3)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) ", sum_data
                END IF
             END IF
@@ -1250,7 +1234,7 @@ CONTAINS
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
                   WRITE (output_unit, '(A)') "  one step communication algorithm "
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), my3*mz3
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform X ", n(1), local_size_per_step(2, 3)*local_size_per_step(3, 3)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(1) ", sum_data
                END IF
             END IF
@@ -1278,8 +1262,8 @@ CONTAINS
                sum_data = ABS(SUM(abuf))
                CALL group%sum(sum_data)
                IF (output_unit > 0) THEN
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), mx1*mz1
-                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), mx1*my1
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Y ", n(2), local_size_per_step(1, 1)*local_size_per_step(3, 1)
+                  WRITE (output_unit, '(A,T67,2I7)') "     Transform Z ", n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)
                   WRITE (output_unit, '(A,T61,E20.14)') "     Sum of data(3) ", sum_data
                END IF
             END IF
@@ -2895,7 +2879,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch'
 
       INTEGER :: coord(2), DIM(2), handle, i, ix, iz, fft_dims_2d_local(2), m1, m2, &
-                 mcx2, mcy3, mcz1, mcz2, mx1, mx2, my1, my3, mz1, mz2, mz3, &
+                 local_size_per_step(3, 3), mcx2, mcy3, mcz1, mcz2, &
                  nbx, nbz, nm, nmray, np, nyzray, pos(2), fft_dims_local(3), work_dims_max(3)
       INTEGER, DIMENSION(3)                    :: pcoord
       LOGICAL                                  :: equal
@@ -2971,18 +2955,13 @@ CONTAINS
             TYPE IS (fft_scratch_sizes_p)
                SELECT CASE (tf_type)
                CASE (100) ! fft3d_pb: full cube distribution
-                  mx1 = sizes%mx1
-                  my1 = sizes%my1
-                  mx2 = sizes%mx2
-                  mz2 = sizes%mz2
-                  my3 = sizes%my3
-                  mz3 = sizes%mz3
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%a3buf, [mx2*mz2, n(2)])
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%a4buf, [n(2), mx2*mz2])
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
+                  local_size_per_step = sizes%local_size_per_step
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%a1buf, [local_size_per_step(1, 1)*local_size_per_step(2, 1), n(3)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%a2buf, [n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%a3buf, [local_size_per_step(1, 2)*local_size_per_step(3, 2), n(2)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%a4buf, [n(2), local_size_per_step(1, 2)*local_size_per_step(3, 2)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%a5buf, [local_size_per_step(2, 3)*local_size_per_step(3, 3), n(1)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%a6buf, [n(1), local_size_per_step(2, 3)*local_size_per_step(3, 3)])
 
                   dim = sizes%rs_group%num_pe_cart
                   pos = sizes%rs_group%mepos_cart
@@ -2990,10 +2969,10 @@ CONTAINS
                   mcx2 = sizes%mcx2
                   mcz2 = sizes%mcz2
                   mcy3 = sizes%mcy3
-                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2, 0:DIM(2) - 1))
-                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2, 0:DIM(2) - 1))
-                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf3(mx2*mz3*mcy3, 0:DIM(1) - 1))
-                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf4(mx2*mz2*mcy3, 0:DIM(1) - 1))
+                ALLOCATE (fft_scratch_new%fft_scratch%rbuf1(local_size_per_step(1, 2)*local_size_per_step(2, 1)*mcz2, 0:DIM(2) - 1))
+                ALLOCATE (fft_scratch_new%fft_scratch%rbuf2(local_size_per_step(1, 1)*local_size_per_step(2, 1)*mcz2, 0:DIM(2) - 1))
+                ALLOCATE (fft_scratch_new%fft_scratch%rbuf3(local_size_per_step(1, 2)*local_size_per_step(3, 3)*mcy3, 0:DIM(1) - 1))
+                ALLOCATE (fft_scratch_new%fft_scratch%rbuf4(local_size_per_step(1, 2)*local_size_per_step(3, 2)*mcy3, 0:DIM(1) - 1))
 
                   dims = (/.TRUE., .FALSE./)
                   CALL fft_scratch_new%fft_scratch%cart_sub_comm(1)%from_sub(sizes%rs_group, dims)
@@ -3011,50 +2990,58 @@ CONTAINS
                   END DO
 
                   !set up fft plans
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), mx1*my1, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), &
+                                           local_size_per_step(1, 1)*local_size_per_step(2, 1), &
                                            fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a2buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., n(2), mx2*mz2, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., n(2), &
+                                           local_size_per_step(1, 2)*local_size_per_step(3, 2), &
                                            fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a4buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), my3*mz3, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), &
+                                           local_size_per_step(2, 3)*local_size_per_step(3, 3), &
                                            fft_scratch_new%fft_scratch%a5buf, fft_scratch_new%fft_scratch%a6buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), my3*mz3, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), &
+                                           local_size_per_step(2, 3)*local_size_per_step(3, 3), &
                                            fft_scratch_new%fft_scratch%a6buf, fft_scratch_new%fft_scratch%a5buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(5), fft_type, BWFFT, .TRUE., n(2), mx2*mz2, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(5), fft_type, BWFFT, .TRUE., n(2), &
+                                           local_size_per_step(1, 2)*local_size_per_step(3, 2), &
                                            fft_scratch_new%fft_scratch%a4buf, fft_scratch_new%fft_scratch%a3buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(6), fft_type, BWFFT, .TRUE., n(3), mx1*my1, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(6), fft_type, BWFFT, .TRUE., n(3), &
+                                           local_size_per_step(1, 1)*local_size_per_step(2, 1), &
                                            fft_scratch_new%fft_scratch%a2buf, fft_scratch_new%fft_scratch%a1buf, fft_plan_style)
 
                CASE (101) ! fft3d_pb: full cube distribution (dim 1)
-                  mx1 = sizes%mx1
-                  my1 = sizes%my1
-                  mz1 = sizes%mz1
-                  my3 = sizes%my3
-                  mz3 = sizes%mz3
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%a3buf, [mx1*mz1, n(2)])
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%a4buf, [n(2), mx1*mz1])
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
+                  local_size_per_step = sizes%local_size_per_step
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%a1buf, [local_size_per_step(1, 1)*local_size_per_step(2, 1), n(3)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%a2buf, [n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%a3buf, [local_size_per_step(1, 1)*local_size_per_step(3, 1), n(2)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%a4buf, [n(2), local_size_per_step(1, 1)*local_size_per_step(3, 1)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%a5buf, [local_size_per_step(2, 3)*local_size_per_step(3, 3), n(1)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%a6buf, [n(1), local_size_per_step(2, 3)*local_size_per_step(3, 3)])
 
                   dim = sizes%rs_group%num_pe_cart
                   pos = sizes%rs_group%mepos_cart
                   mcy3 = sizes%mcy3
-                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf5(mx1*mz3*mcy3, 0:DIM(1) - 1))
-                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf6(mx1*mz1*mcy3, 0:DIM(1) - 1))
+                ALLOCATE (fft_scratch_new%fft_scratch%rbuf5(local_size_per_step(1, 1)*local_size_per_step(3, 3)*mcy3, 0:DIM(1) - 1))
+                ALLOCATE (fft_scratch_new%fft_scratch%rbuf6(local_size_per_step(1, 1)*local_size_per_step(3, 1)*mcy3, 0:DIM(1) - 1))
 
                   !set up fft plans
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), mx1*my1, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), &
+                                           local_size_per_step(1, 1)*local_size_per_step(2, 1), &
                                            fft_scratch_new%fft_scratch%a1buf, fft_scratch_new%fft_scratch%a3buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., n(2), mx1*mz1, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., n(2), &
+                                           local_size_per_step(1, 1)*local_size_per_step(3, 1), &
                                            fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a4buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), my3*mz3, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), &
+                                           local_size_per_step(2, 3)*local_size_per_step(3, 3), &
                                            fft_scratch_new%fft_scratch%a5buf, fft_scratch_new%fft_scratch%a6buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), my3*mz3, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), &
+                                           local_size_per_step(2, 3)*local_size_per_step(3, 3), &
                                            fft_scratch_new%fft_scratch%a6buf, fft_scratch_new%fft_scratch%a5buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(5), fft_type, BWFFT, .TRUE., n(2), mx1*mz1, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(5), fft_type, BWFFT, .TRUE., n(2), &
+                                           local_size_per_step(1, 1)*local_size_per_step(3, 1), &
                                            fft_scratch_new%fft_scratch%a4buf, fft_scratch_new%fft_scratch%a3buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(6), fft_type, BWFFT, .TRUE., n(3), mx1*my1, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(6), fft_type, BWFFT, .TRUE., n(3), &
+                                           local_size_per_step(1, 1)*local_size_per_step(2, 1), &
                                            fft_scratch_new%fft_scratch%a3buf, fft_scratch_new%fft_scratch%a1buf, fft_plan_style)
                CASE DEFAULT
                   CPABORT("Invalid combination!")
@@ -3063,7 +3050,7 @@ CONTAINS
                SELECT CASE (tf_type)
                CASE (200) ! fft3d_ps: plane distribution
                   fft_dims_local = sizes%fft_dims_local
-                  mx2 = sizes%mx2
+                  local_size_per_step = sizes%local_size_per_step
                   work_dims_max = sizes%work_dims_max
                   fft_dims_2d_local = sizes%fft_dims_2d_local
                   np = sizes%rs_group%num_pe
@@ -3086,7 +3073,7 @@ CONTAINS
                   CALL fft_alloc(fft_scratch_new%fft_scratch%tbuf, [fft_dims_local(2), fft_dims_local(3), fft_dims_local(1)])
 #endif
                   CALL fft_alloc(fft_scratch_new%fft_scratch%r2buf, fft_dims_2d_local)
-                  nm = nmray*mx2
+                  nm = nmray*local_size_per_step(1, 2)
                   IF (alltoall_sgl) THEN
                      ALLOCATE (fft_scratch_new%fft_scratch%ss(work_dims_max(2), work_dims_max(1)))
                      ALLOCATE (fft_scratch_new%fft_scratch%tt(nm, 0:np - 1))
@@ -3113,10 +3100,7 @@ CONTAINS
                                            fft_scratch_new%fft_scratch%r1buf, fft_scratch_new%fft_scratch%tbuf, fft_plan_style)
 
                CASE (300) ! fft3d_ps: block distribution
-                  mx1 = sizes%mx1
-                  mx2 = sizes%mx2
-                  my1 = sizes%my1
-                  mz2 = sizes%mz2
+                  local_size_per_step = sizes%local_size_per_step
                   mcx2 = sizes%mcx2
                   fft_dims_2d_local = sizes%fft_dims_2d_local
                   nmray = sizes%nmray
@@ -3125,43 +3109,46 @@ CONTAINS
                   m2 = sizes%rs_group%num_pe_cart(2)
                   nbx = sizes%nbx
                   nbz = sizes%nbz
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%p1buf, [mx1*my1, n(3)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%p1buf, [local_size_per_step(1, 1)*local_size_per_step(2, 1), n(3)])
                   CALL fft_alloc(fft_scratch_new%fft_scratch%p6buf, fft_dims_2d_local)
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                  length = INT(2*dp_size*MAX(n(3), 1)*MAX(mx1*my1, 1), KIND=C_SIZE_T)
+                  length = INT(2*dp_size*MAX(n(3), 1)*MAX(local_size_per_step(1, 1)*local_size_per_step(2, 1), 1), KIND=C_SIZE_T)
                   ierr = offload_malloc_pinned_mem(cptr_p2buf, length)
                   CPASSERT(ierr == 0)
-                  CALL c_f_pointer(cptr_p2buf, fft_scratch_new%fft_scratch%p2buf, (/MAX(n(3), 1), MAX(mx1*my1, 1)/))
-                  length = INT(2*dp_size*MAX(mx2*mz2, 1)*MAX(n(2), 1), KIND=C_SIZE_T)
+                  CALL c_f_pointer(cptr_p2buf, fft_scratch_new%fft_scratch%p2buf, &
+                                   [MAX(n(3), 1), MAX(local_size_per_step(1, 1)*local_size_per_step(2, 1), 1)])
+                  length = INT(2*dp_size*MAX(local_size_per_step(1, 2)*local_size_per_step(3, 2), 1)*MAX(n(2), 1), KIND=C_SIZE_T)
                   ierr = offload_malloc_pinned_mem(cptr_p3buf, length)
                   CPASSERT(ierr == 0)
-                  CALL c_f_pointer(cptr_p3buf, fft_scratch_new%fft_scratch%p3buf, (/MAX(mx2*mz2, 1), MAX(n(2), 1)/))
-                  length = INT(2*dp_size*MAX(n(2), 1)*MAX(mx2*mz2, 1), KIND=C_SIZE_T)
+                  CALL c_f_pointer(cptr_p3buf, fft_scratch_new%fft_scratch%p3buf, &
+                                   [MAX(local_size_per_step(1, 2)*local_size_per_step(3, 2), 1), MAX(n(2), 1)])
+                  length = INT(2*dp_size*MAX(n(2), 1)*MAX(local_size_per_step(1, 2)*local_size_per_step(3, 2), 1), KIND=C_SIZE_T)
                   ierr = offload_malloc_pinned_mem(cptr_p4buf, length)
                   CPASSERT(ierr == 0)
-                  CALL c_f_pointer(cptr_p4buf, fft_scratch_new%fft_scratch%p4buf, (/MAX(n(2), 1), MAX(mx2*mz2, 1)/))
+                  CALL c_f_pointer(cptr_p4buf, fft_scratch_new%fft_scratch%p4buf, &
+                                   [MAX(n(2), 1), MAX(local_size_per_step(1, 2)*local_size_per_step(3, 2),)])
                   length = INT(2*dp_size*MAX(nyzray, 1)*MAX(n(1), 1), KIND=C_SIZE_T)
                   ierr = offload_malloc_pinned_mem(cptr_p5buf, length)
                   CPASSERT(ierr == 0)
-                  CALL c_f_pointer(cptr_p5buf, fft_scratch_new%fft_scratch%p5buf, (/MAX(nyzray, 1), MAX(n(1), 1)/))
+                  CALL c_f_pointer(cptr_p5buf, fft_scratch_new%fft_scratch%p5buf, [MAX(nyzray, 1), MAX(n(1), 1)])
                   length = INT(2*dp_size*MAX(fft_dims_2d_local(2), 1)*MAX(fft_dims_2d_local(1), 1), KIND=C_SIZE_T)
                   ierr = offload_malloc_pinned_mem(cptr_p7buf, length)
                   CPASSERT(ierr == 0)
                   CALL c_f_pointer(cptr_p7buf, fft_scratch_new%fft_scratch%p7buf, &
                                    [MAX(fft_dims_2d_local(2), 1), MAX(fft_dims_2d_local(1), 1)])
 #else
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%p2buf, [n(3), mx1*my1])
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%p3buf, [mx2*mz2, n(2)])
-                  CALL fft_alloc(fft_scratch_new%fft_scratch%p4buf, [n(2), mx2*mz2])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%p2buf, [n(3), local_size_per_step(1, 1)*local_size_per_step(2, 1)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%p3buf, [local_size_per_step(1, 2)*local_size_per_step(3, 2), n(2)])
+                  CALL fft_alloc(fft_scratch_new%fft_scratch%p4buf, [n(2), local_size_per_step(1, 2)*local_size_per_step(3, 2)])
                   CALL fft_alloc(fft_scratch_new%fft_scratch%p5buf, [nyzray, n(1)])
                   CALL fft_alloc(fft_scratch_new%fft_scratch%p7buf, [fft_dims_2d_local(2), fft_dims_2d_local(1)])
 #endif
                   IF (alltoall_sgl) THEN
                      ALLOCATE (fft_scratch_new%fft_scratch%yzbuf_sgl(PRODUCT(fft_dims_2d_local)))
-                     ALLOCATE (fft_scratch_new%fft_scratch%xzbuf_sgl(n(2)*mx2*mz2))
+                     ALLOCATE (fft_scratch_new%fft_scratch%xzbuf_sgl(n(2)*local_size_per_step(1, 2)*local_size_per_step(3, 2)))
                   ELSE
                      ALLOCATE (fft_scratch_new%fft_scratch%yzbuf(PRODUCT(fft_dims_2d_local)))
-                     ALLOCATE (fft_scratch_new%fft_scratch%xzbuf(n(2)*mx2*mz2))
+                     ALLOCATE (fft_scratch_new%fft_scratch%xzbuf(n(2)*local_size_per_step(1, 2)*local_size_per_step(3, 2)))
                   END IF
                   ALLOCATE (fft_scratch_new%fft_scratch%pgrid(0:m1 - 1, 0:m2 - 1))
                   ALLOCATE (fft_scratch_new%fft_scratch%xcor(nbx))
@@ -3176,22 +3163,22 @@ CONTAINS
                   pos = sizes%rs_group%mepos_cart
                   mcz1 = sizes%mcz1
                   mcz2 = sizes%mcz2
-                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf1(mx2*my1*mcz2, 0:DIM(2) - 1))
-                  ALLOCATE (fft_scratch_new%fft_scratch%rbuf2(mx1*my1*mcz2, 0:DIM(2) - 1))
+                ALLOCATE (fft_scratch_new%fft_scratch%rbuf1(local_size_per_step(1, 2)*local_size_per_step(2, 1)*mcz2, 0:DIM(2) - 1))
+                ALLOCATE (fft_scratch_new%fft_scratch%rbuf2(local_size_per_step(1, 1)*local_size_per_step(2, 1)*mcz2, 0:DIM(2) - 1))
 
-                  dims = (/.FALSE., .TRUE./)
+                  dims = [.FALSE., .TRUE.]
                   CALL fft_scratch_new%fft_scratch%cart_sub_comm(2)%from_sub(fft_sizes%rs_group, dims)
 
                   !initialise pgcube
                   DO i = 0, DIM(2) - 1
-                     coord = (/pos(1), i/)
+                     coord = [pos(1), i]
                      CALL sizes%rs_group%rank_cart(coord, fft_scratch_new%fft_scratch%pgcube(i, 2))
                   END DO
 
                   !initialise pgrid
                   DO ix = 0, m1 - 1
                      DO iz = 0, m2 - 1
-                        coord = (/ix, iz/)
+                        coord = [ix, iz]
                         CALL sizes%rs_group%rank_cart(coord, fft_scratch_new%fft_scratch%pgrid(ix, iz))
                      END DO
                   END DO
@@ -3203,17 +3190,21 @@ CONTAINS
                   END DO
 
                   !set up fft plans
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), mx1*my1, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(1), fft_type, FWFFT, .TRUE., n(3), &
+                                           local_size_per_step(1, 1)*local_size_per_step(2, 1), &
                                            fft_scratch_new%fft_scratch%p1buf, fft_scratch_new%fft_scratch%p2buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., n(2), mx2*mz2, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(2), fft_type, FWFFT, .TRUE., n(2), &
+                                           local_size_per_step(1, 2)*local_size_per_step(3, 2), &
                                            fft_scratch_new%fft_scratch%p3buf, fft_scratch_new%fft_scratch%p4buf, fft_plan_style)
                   CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(3), fft_type, FWFFT, .TRUE., n(1), nyzray, &
                                            fft_scratch_new%fft_scratch%p5buf, fft_scratch_new%fft_scratch%p6buf, fft_plan_style)
                   CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(4), fft_type, BWFFT, .TRUE., n(1), nyzray, &
                                            fft_scratch_new%fft_scratch%p6buf, fft_scratch_new%fft_scratch%p7buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(5), fft_type, BWFFT, .TRUE., n(2), mx2*mz2, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(5), fft_type, BWFFT, .TRUE., n(2), &
+                                           local_size_per_step(1, 2)*local_size_per_step(3, 2), &
                                            fft_scratch_new%fft_scratch%p4buf, fft_scratch_new%fft_scratch%p3buf, fft_plan_style)
-                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(6), fft_type, BWFFT, .TRUE., n(3), mx1*my1, &
+                  CALL fft_create_plan_1dm(fft_scratch_new%fft_scratch%fft_plan(6), fft_type, BWFFT, .TRUE., n(3), &
+                                           local_size_per_step(1, 1)*local_size_per_step(2, 1), &
                                            fft_scratch_new%fft_scratch%p3buf, fft_scratch_new%fft_scratch%p1buf, fft_plan_style)
                CASE DEFAULT
                   CPABORT("Bad combination!")
@@ -3366,13 +3357,7 @@ CONTAINS
                equal = equal .AND. ALL(fft_size_1%fft_dims_local == fft_size_2%fft_dims_local)
                equal = equal .AND. ALL(fft_size_1%work_dims_max == fft_size_2%work_dims_max)
 
-               equal = equal .AND. fft_size_1%mx1 == fft_size_2%mx1
-               equal = equal .AND. fft_size_1%mx2 == fft_size_2%mx2
-               equal = equal .AND. fft_size_1%mx3 == fft_size_2%mx3
-
-               equal = equal .AND. fft_size_1%my1 == fft_size_2%my1
-               equal = equal .AND. fft_size_1%my2 == fft_size_2%my2
-               equal = equal .AND. fft_size_1%my3 == fft_size_2%my3
+               equal = equal .AND. ALL(fft_size_1%local_size_per_step == fft_size_2%local_size_per_step)
 
                equal = equal .AND. fft_size_1%mcz1 == fft_size_2%mcz1
                equal = equal .AND. fft_size_1%mcx2 == fft_size_2%mcx2

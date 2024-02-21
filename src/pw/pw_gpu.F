@@ -224,8 +224,9 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER                                            :: fft_dims_2d_local(2), handle, mg, mx2, &
-                                                            my_pos, mz2, n1, n2, ngpts, numtask, &
+      INTEGER                                            :: fft_dims_2d_local(2), handle, i, j, &
+                                                            local_size_per_step(3, 3), mg, my_pos, &
+                                                            n1, n2, ngpts, numtask, &
                                                             work_dims_max(3)
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
@@ -254,20 +255,21 @@ CONTAINS
          work_dims_max(2) = MAX(mg, 1)
          work_dims_max(1) = MAX(fft_dims_2d_local(1), (ngpts/work_dims_max(2) + 1))
 
-         mx2 = bo(2, 1, my_pos, 2) - bo(1, 1, my_pos, 2) + 1
-         mz2 = bo(2, 3, my_pos, 2) - bo(1, 3, my_pos, 2) + 1
+         DO i = 1, 3
+         DO j = 1, 3
+            local_size_per_step(i, j) = bo(2, i, my_pos, j) - bo(1, i, my_pos, j) + 1
+         END DO
+         END DO
+
          n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
          n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
-         work_dims_max(3) = MAX((2*n2)/numtask, 2)*mx2*mz2
+         work_dims_max(3) = MAX((2*n2)/numtask, 2)*local_size_per_step(1, 2)*local_size_per_step(3, 2)
          work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
 
          ALLOCATE (fft_scratch_size)
          fft_scratch_size%fft_dims_local = nloc
          fft_scratch_size%work_dims_max = work_dims_max
-         fft_scratch_size%mx1 = bo(2, 1, my_pos, 1) - bo(1, 1, my_pos, 1) + 1
-         fft_scratch_size%mx2 = mx2
-         fft_scratch_size%my1 = bo(2, 2, my_pos, 1) - bo(1, 2, my_pos, 1) + 1
-         fft_scratch_size%mz2 = mz2
+         fft_scratch_size%local_size_per_step = local_size_per_step
          fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
          fft_scratch_size%nbx = MAXVAL(bo(2, 1, :, 2))
          fft_scratch_size%nbz = MAXVAL(bo(2, 3, :, 2))
@@ -304,7 +306,7 @@ CONTAINS
             ! use the inbuild fft-lib
             ! CALL fft_1dm(fft_scratch%fft_plan(2), rbuf, pbuf, 1.0_dp, stat)
             ! or cufft (works faster, but is only faster if plans are stored)
-            CALL pw_gpu_f(rbuf, pbuf, +1, n(2), mx2*mz2)
+            CALL pw_gpu_f(rbuf, pbuf, +1, n(2), local_size_per_step(1, 2)*local_size_per_step(3, 2))
 
             ! Exchange data ( transpose of matrix ) and sort
             CALL xz_to_yz(pbuf, rs_group, pw1%pw_grid%para%yzp, nyzray, &
@@ -367,9 +369,9 @@ CONTAINS
 
       COMPLEX(KIND=dp), DIMENSION(:, :), POINTER         :: grays, pbuf, qbuf, rbuf, sbuf
       COMPLEX(KIND=dp), DIMENSION(:, :, :), POINTER      :: tbuf
-      INTEGER                                            :: fft_dims_2d_local(2), handle, mx2, &
-                                                            my_pos, mz2, n1, n2, ngpts, numtask, &
-                                                            work_dims_max(3)
+      INTEGER                                            :: fft_dims_2d_local(2), handle, i, j, &
+                                                            local_size_per_step(3, 3), my_pos, n1, &
+                                                            n2, ngpts, numtask, work_dims_max(3)
       INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       TYPE(fft_scratch_sizes_p_ray), POINTER             :: fft_scratch_size
@@ -396,21 +398,21 @@ CONTAINS
          fft_dims_2d_local = SHAPE(grays)
          work_dims_max(2) = MAX(fft_dims_2d_local(2), 1)
          work_dims_max(1) = MAX(fft_dims_2d_local(1), (ngpts/work_dims_max(2) + 1))
+         DO i = 1, 3
+         DO j = 1, 3
+            local_size_per_step(i, j) = bo(2, i, my_pos, j) - bo(1, i, my_pos, j) + 1
+         END DO
+         END DO
 
-         mx2 = bo(2, 1, my_pos, 2) - bo(1, 1, my_pos, 2) + 1
-         mz2 = bo(2, 3, my_pos, 2) - bo(1, 3, my_pos, 2) + 1
          n1 = MAXVAL(bo(2, 1, :, 1) - bo(1, 1, :, 1) + 1)
          n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
-         work_dims_max(3) = MAX((2*n2)/numtask, 2)*mx2*mz2
+         work_dims_max(3) = MAX((2*n2)/numtask, 2)*local_size_per_step(1, 2)*local_size_per_step(3, 2)
          work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
 
          ALLOCATE (fft_scratch_size)
          fft_scratch_size%fft_dims_local = nloc
          fft_scratch_size%work_dims_max = work_dims_max
-         fft_scratch_size%mx1 = bo(2, 1, my_pos, 1) - bo(1, 1, my_pos, 1) + 1
-         fft_scratch_size%mx2 = mx2
-         fft_scratch_size%my1 = bo(2, 2, my_pos, 1) - bo(1, 2, my_pos, 1) + 1
-         fft_scratch_size%mz2 = mz2
+         fft_scratch_size%local_size_per_step = local_size_per_step
          fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
          fft_scratch_size%nbx = MAXVAL(bo(2, 1, :, 2))
          fft_scratch_size%nbz = MAXVAL(bo(2, 3, :, 2))
@@ -449,7 +451,7 @@ CONTAINS
             ! use the inbuild fft-lib
             ! CALL fft_1dm(fft_scratch%fft_plan(5), qbuf, rbuf, 1.0_dp, stat)
             ! or cufft (works faster, but is only faster if plans are stored)
-            CALL pw_gpu_f(qbuf, rbuf, -1, n(2), mx2*mz2)
+            CALL pw_gpu_f(qbuf, rbuf, -1, n(2), local_size_per_step(1, 2)*local_size_per_step(3, 2))
 
             ! Exchange data ( transpose of matrix )
             IF (pw1%pw_grid%grid_span /= FULLSPACE) sbuf = z_zero
