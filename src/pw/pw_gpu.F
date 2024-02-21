@@ -270,8 +270,7 @@ CONTAINS
          fft_scratch_size%work_dims_max = work_dims_max
          fft_scratch_size%local_size_per_step = local_size_per_step
          fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
-         fft_scratch_size%nbx = MAXVAL(bo(2, 1, :, 2))
-         fft_scratch_size%nbz = MAXVAL(bo(2, 3, :, 2))
+         fft_scratch_size%max_ub = MAXVAL(bo(2, :, :, 2), 2)
          fft_scratch_size%max_local_size_per_step = max_local_size_per_step
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(my_pos)
@@ -411,8 +410,7 @@ CONTAINS
          fft_scratch_size%work_dims_max = work_dims_max
          fft_scratch_size%local_size_per_step = local_size_per_step
          fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
-         fft_scratch_size%nbx = MAXVAL(bo(2, 1, :, 2))
-         fft_scratch_size%nbz = MAXVAL(bo(2, 3, :, 2))
+         fft_scratch_size%max_ub = MAXVAL(bo(2, :, :, 2), 2)
          fft_scratch_size%max_local_size_per_step = max_local_size_per_step
          fft_scratch_size%nmray = MAXVAL(nyzray)
          fft_scratch_size%nyzray = nyzray(my_pos)

@@ -68,11 +68,11 @@ MODULE fft_tools
       INTEGER, DIMENSION(3, 3)             :: local_size_per_step = 0
       INTEGER, DIMENSION(3, 3)             :: max_local_size_per_step = 0
       INTEGER, DIMENSION(2)                :: fft_dims_2d_local = 0
-      INTEGER                              :: nbx = 0, nbz = 0
-      TYPE(mp_cart_type)                    :: rs_group = mp_cart_type() !
+      TYPE(mp_cart_type)                   :: rs_group = mp_cart_type() !
    END TYPE fft_scratch_sizes_p
 
    TYPE, EXTENDS(fft_scratch_sizes_p) :: fft_scratch_sizes_p_ray
+      INTEGER, DIMENSION(3)                :: max_ub = 0
       INTEGER                              :: nmray = 0, nyzray = 0
    END TYPE fft_scratch_sizes_p_ray
 
@@ -556,16 +556,13 @@ CONTAINS
       n2 = MAXVAL(bo(2, 2, :, 1) - bo(1, 2, :, 1) + 1)
       work_dims_max(3) = MAX((2*n2)/numtask, 2)*local_size_per_step(1, 2)*local_size_per_step(3, 2)
       work_dims_max(3) = MAX(work_dims_max(3), n1*MAXVAL(nyzray))
-      n1 = MAXVAL(bo(2, 1, :, 2))
-      n2 = MAXVAL(bo(2, 3, :, 2))
 
       ALLOCATE (fft_scratch_size)
       fft_scratch_size%fft_dims_local = fft_dims_local
       fft_scratch_size%work_dims_max = work_dims_max
       fft_scratch_size%local_size_per_step = local_size_per_step
       fft_scratch_size%fft_dims_2d_local = fft_dims_2d_local
-      fft_scratch_size%nbx = n1
-      fft_scratch_size%nbz = n2
+      fft_scratch_size%max_ub = MAXVAL(bo(2, :, :, 2), 2)
       fft_scratch_size%max_local_size_per_step = max_local_size_per_step
       fft_scratch_size%nmray = MAXVAL(nyzray)
       fft_scratch_size%nyzray = nyzray(my_pos)
@@ -2870,8 +2867,8 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'get_fft_scratch'
 
       INTEGER :: coord(2), DIM(2), handle, i, ix, iz, fft_dims_2d_local(2), m1, m2, &
-                 local_size_per_step(3, 3), max_local_size_per_step(3, 3), &
-                 nbx, nbz, nm, nmray, np, nyzray, pos(2), fft_dims_local(3), work_dims_max(3)
+                 max_ub(3), local_size_per_step(3, 3), max_local_size_per_step(3, 3), &
+                 nm, nmray, np, nyzray, pos(2), fft_dims_local(3), work_dims_max(3)
       INTEGER, DIMENSION(3)                    :: pcoord
       LOGICAL                                  :: equal
       LOGICAL, DIMENSION(2)                    :: dims
@@ -3101,8 +3098,7 @@ CONTAINS
                   nyzray = sizes%nyzray
                   m1 = sizes%rs_group%num_pe_cart(1)
                   m2 = sizes%rs_group%num_pe_cart(2)
-                  nbx = sizes%nbx
-                  nbz = sizes%nbz
+                  max_ub = sizes%max_ub
                   CALL fft_alloc(fft_scratch_new%fft_scratch%p1buf, [local_size_per_step(1, 1)*local_size_per_step(2, 1), n(3)])
                   CALL fft_alloc(fft_scratch_new%fft_scratch%p6buf, fft_dims_2d_local)
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
@@ -3145,8 +3141,8 @@ CONTAINS
                      ALLOCATE (fft_scratch_new%fft_scratch%xzbuf(n(2)*local_size_per_step(1, 2)*local_size_per_step(3, 2)))
                   END IF
                   ALLOCATE (fft_scratch_new%fft_scratch%pgrid(0:m1 - 1, 0:m2 - 1))
-                  ALLOCATE (fft_scratch_new%fft_scratch%xcor(nbx))
-                  ALLOCATE (fft_scratch_new%fft_scratch%zcor(nbz))
+                  ALLOCATE (fft_scratch_new%fft_scratch%xcor(max_ub(1)))
+                  ALLOCATE (fft_scratch_new%fft_scratch%zcor(max_ub(3)))
                   ALLOCATE (fft_scratch_new%fft_scratch%pzcoord(0:np - 1))
                   ALLOCATE (fft_scratch_new%fft_scratch%xzcount(0:np - 1), &
                             fft_scratch_new%fft_scratch%yzcount(0:np - 1))
@@ -3353,10 +3349,6 @@ CONTAINS
                equal = equal .AND. ALL(fft_size_1%local_size_per_step == fft_size_2%local_size_per_step)
                equal = equal .AND. ALL(fft_size_1%max_local_size_per_step == fft_size_2%max_local_size_per_step)
                equal = equal .AND. ALL(fft_size_1%fft_dims_2d_local == fft_size_2%fft_dims_2d_local)
-
-               equal = equal .AND. fft_size_1%nbx == fft_size_2%nbx
-               equal = equal .AND. fft_size_1%nbz == fft_size_2%nbz
-
                equal = equal .AND. fft_size_1%rs_group == fft_size_2%rs_group
             CLASS DEFAULT
                equal = .FALSE.
@@ -3374,6 +3366,7 @@ CONTAINS
          CLASS IS (fft_scratch_sizes_p_ray)
             SELECT TYPE (fft_size_2)
             CLASS IS (fft_scratch_sizes_p_ray)
+               equal = equal .AND. ALL(fft_size_1%max_ub == fft_size_2%max_ub)
                equal = equal .AND. fft_size_1%nmray == fft_size_2%nmray
                equal = equal .AND. fft_size_1%nyzray == fft_size_2%nyzray
             CLASS DEFAULT
