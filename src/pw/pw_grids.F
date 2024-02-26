@@ -799,10 +799,9 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute'
 
       INTEGER                                            :: blocked_local, coor(2), gmax, handle, i, &
-                                                            i1, i2, ip, ipl, ipp, itmp, j, l, lby, &
+                                                            i1, i2, ip, ipl, itmp, j, l, lby, &
                                                             lbz, lo(2), m, n, np, ns, nx, ny, nz, &
                                                             rsd(2)
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: yz_index
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: axis_dist_all
       INTEGER, DIMENSION(2)                              :: my_rs_dims
@@ -949,17 +948,17 @@ CONTAINS
             DO i = 1, 3
                axis_dist(:, i) = bounds_local(:, i) - pw_grid%bounds(1, i) + 1
             END DO
-            ALLOCATE (axis_dist_all(2, 3, np))
+            ALLOCATE (axis_dist_all(2, 3, 0:np - 1))
             CALL pw_grid%para%group%allgather(axis_dist, axis_dist_all)
             DO ip = 0, np - 1
                CALL pw_grid%para%group%coords(ip, coor)
                ! distribution xyZ
-               pw_grid%para%bo(1:2, 1, ip, 1) = axis_dist_all(1:2, 1, ip + 1)
-               pw_grid%para%bo(1:2, 2, ip, 1) = axis_dist_all(1:2, 2, ip + 1)
+               pw_grid%para%bo(1:2, 1, ip, 1) = axis_dist_all(1:2, 1, ip)
+               pw_grid%para%bo(1:2, 2, ip, 1) = axis_dist_all(1:2, 2, ip)
                pw_grid%para%bo(1, 3, ip, 1) = 1
                pw_grid%para%bo(2, 3, ip, 1) = nz
                ! distribution xYz
-               pw_grid%para%bo(1:2, 1, ip, 2) = axis_dist_all(1:2, 1, ip + 1)
+               pw_grid%para%bo(1:2, 1, ip, 2) = axis_dist_all(1:2, 1, ip)
                pw_grid%para%bo(1, 2, ip, 2) = 1
                pw_grid%para%bo(2, 2, ip, 2) = ny
                pw_grid%para%bo(1:2, 3, ip, 2) = get_limit(nz, rsd(2), coor(2))
@@ -1121,19 +1120,13 @@ CONTAINS
             ALLOCATE (pw_grid%para%yzp(2, ns, 0:np - 1))
             pw_grid%para%yzp = 0
 
-            ALLOCATE (pemap(0:np - 1))
-            pemap = 0
-            pemap(pw_grid%para%group%mepos) = pw_grid%para%group%mepos
-            CALL pw_grid%para%group%sum(pemap)
-
             DO ip = 0, np - 1
-               ipp = pemap(ip)
                ns = 0
-               DO n = pw_grid%para%bo(1, 3, ipp, 3), &
-                  pw_grid%para%bo(2, 3, ipp, 3)
+               DO n = pw_grid%para%bo(1, 3, ip, 3), &
+                  pw_grid%para%bo(2, 3, ip, 3)
                   i = n - pw_grid%bounds(1, 3) + 1
-                  DO m = pw_grid%para%bo(1, 2, ipp, 3), &
-                     pw_grid%para%bo(2, 2, ipp, 3)
+                  DO m = pw_grid%para%bo(1, 2, ip, 3), &
+                     pw_grid%para%bo(2, 2, ip, 3)
                      j = m - pw_grid%bounds(1, 2) + 1
                      ns = ns + 1
                      pw_grid%para%yzp(1, ns, ip) = j
@@ -1142,8 +1135,6 @@ CONTAINS
                END DO
                CPASSERT(ns == pw_grid%para%nyzray(ip))
             END DO
-
-            DEALLOCATE (pemap)
 
          END IF
 
@@ -1311,6 +1302,7 @@ CONTAINS
       END DO
 
    END SUBROUTINE order_mask
+
 ! **************************************************************************************************
 !> \brief compute the length of g vectors
 !> \param h_inv ...
