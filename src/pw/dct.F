@@ -1110,28 +1110,13 @@ CONTAINS
       DO i = 1, maxn_sendrecv
 ! no need to receive from myself
          IF (srcs_expand(i) .EQ. rs_mpo) THEN
-            recv_msgs_bnds(1, 1, i) = bounds_local_shftd(1, 1)
-            recv_msgs_bnds(2, 1, i) = bounds_local_shftd(2, 1)
-            recv_msgs_bnds(1, 2, i) = bounds_local_shftd(1, 2)
-            recv_msgs_bnds(2, 2, i) = bounds_local_shftd(2, 2)
-            recv_msgs_bnds(1, 3, i) = bounds_local_shftd(1, 3)
-            recv_msgs_bnds(2, 3, i) = bounds_local_shftd(2, 3)
+            recv_msgs_bnds(:, :, i) = bounds_local_shftd(:, :)
 ! if I have already received data from the source, just use the one from the last time
          ELSE IF (ANY(src_hist .EQ. srcs_expand(i))) THEN
             loc = MINLOC(ABS(src_hist - srcs_expand(i)), 1)
-            recv_msgs_bnds(1, 1, i) = bounds_local_all(1, 1, srcs_expand(loc) + 1)
-            recv_msgs_bnds(2, 1, i) = bounds_local_all(2, 1, srcs_expand(loc) + 1)
-            recv_msgs_bnds(1, 2, i) = bounds_local_all(1, 2, srcs_expand(loc) + 1)
-            recv_msgs_bnds(2, 2, i) = bounds_local_all(2, 2, srcs_expand(loc) + 1)
-            recv_msgs_bnds(1, 3, i) = bounds_local_all(1, 3, srcs_expand(loc) + 1)
-            recv_msgs_bnds(2, 3, i) = bounds_local_all(2, 3, srcs_expand(loc) + 1)
+            recv_msgs_bnds(:, :, i) = bounds_local_all(:, :, srcs_expand(loc) + 1)
          ELSE
-            recv_msgs_bnds(1, 1, i) = bounds_local_all(1, 1, srcs_expand(i) + 1)
-            recv_msgs_bnds(2, 1, i) = bounds_local_all(2, 1, srcs_expand(i) + 1)
-            recv_msgs_bnds(1, 2, i) = bounds_local_all(1, 2, srcs_expand(i) + 1)
-            recv_msgs_bnds(2, 2, i) = bounds_local_all(2, 2, srcs_expand(i) + 1)
-            recv_msgs_bnds(1, 3, i) = bounds_local_all(1, 3, srcs_expand(i) + 1)
-            recv_msgs_bnds(2, 3, i) = bounds_local_all(2, 3, srcs_expand(i) + 1)
+            recv_msgs_bnds(:, :, i) = bounds_local_all(:, :, srcs_expand(i) + 1)
          END IF
          src_hist(i) = srcs_expand(i)
       END DO
