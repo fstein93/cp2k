@@ -339,10 +339,10 @@ CONTAINS
 
          IF (MOD(rs_dim1, 2) .EQ. 0) THEN
             tmp1_arr(:) = (/(i, i=1, rs_dim1)/)
-            src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(tmp_size1:1:-1)/), (/2, rs_dim1/))
+            src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(rs_dim1:1:-1)/), (/2, rs_dim1/))
          ELSE
             tmp1_arr(:) = (/(i, i=1, rs_dim1), -rs_dim1/)
-            src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(tmp_size1 - 2:1:-1)/), (/2, rs_dim1/))
+            src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(rs_dim1 - 1:1:-1)/), (/2, rs_dim1/))
          END IF
 !---
          tmp_size2 = rs_dim2 + MOD(rs_dim2, 2)
@@ -350,10 +350,10 @@ CONTAINS
 
          IF (MOD(rs_dim2, 2) .EQ. 0) THEN
             tmp2_arr(:) = (/(i, i=1, rs_dim2)/)
-            src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(tmp_size2:1:-1)/), (/2, rs_dim2/))
+            src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(rs_dim2:1:-1)/), (/2, rs_dim2/))
          ELSE
             tmp2_arr(:) = (/(i, i=1, rs_dim2), -rs_dim2/)
-            src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(tmp_size2 - 2:1:-1)/), (/2, rs_dim2/))
+            src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(rs_dim2 - 1:1:-1)/), (/2, rs_dim2/))
          END IF
 !---
          srcs_coord(:, 1) = (/src_pos1(1, rs_pos(1)), src_pos2(1, rs_pos(2))/)
@@ -369,10 +369,10 @@ CONTAINS
 
          IF (MOD(rs_dim1, 2) .EQ. 0) THEN
             tmp1_arr(:) = (/(i, i=1, rs_dim1)/)
-            src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(tmp_size1:1:-1)/), (/2, rs_dim1/))
+            src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(rs_dim1:1:-1)/), (/2, rs_dim1/))
          ELSE
             tmp1_arr(:) = (/(i, i=1, rs_dim1), -rs_dim1/)
-            src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(tmp_size1 - 2:1:-1)/), (/2, rs_dim1/))
+            src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(rs_dim1 - 1:1:-1)/), (/2, rs_dim1/))
          END IF
 !---
          ALLOCATE (src_pos2_onesdd(0:rs_dim2 - 1))
@@ -392,10 +392,10 @@ CONTAINS
 
          IF (MOD(rs_dim2, 2) .EQ. 0) THEN
             tmp2_arr(:) = (/(i, i=1, rs_dim2)/)
-            src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(tmp_size2:1:-1)/), (/2, rs_dim2/))
+            src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(rs_dim2:1:-1)/), (/2, rs_dim2/))
          ELSE
             tmp2_arr(:) = (/(i, i=1, rs_dim2), -rs_dim2/)
-            src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(tmp_size2 - 2:1:-1)/), (/2, rs_dim2/))
+            src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(rs_dim2 - 1:1:-1)/), (/2, rs_dim2/))
          END IF
 !---
          srcs_coord(:, 1) = (/src_pos1_onesdd(rs_pos(1)), src_pos2(1, rs_pos(2))/)
