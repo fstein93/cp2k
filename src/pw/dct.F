@@ -266,10 +266,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_dests_srcs_pid'
 
       INTEGER                                            :: group_size, handle, i, j, k, &
-                                                            maxn_sendrecv, rs_dim1, rs_dim2, &
-                                                            rs_mpo, tmp_size1, tmp_size2
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: src_pos1_onesdd, src_pos2_onesdd, &
-                                                            tmp1_arr, tmp2_arr
+                                                            maxn_sendrecv, rs_dim1, rs_dim2, rs_mpo
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: tmp1_arr, tmp2_arr
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: dests_shrink_all, src_pos1, src_pos2, &
                                                             srcs_coord, srcs_expand_all
       INTEGER, DIMENSION(2)                              :: rs_dims, rs_pos
@@ -334,13 +332,11 @@ CONTAINS
          maxn_sendrecv = 4
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
 
-         tmp_size1 = rs_dim1 + MOD(rs_dim1, 2)
          ALLOCATE (tmp1_arr(rs_dim1), src_pos1(2, 0:rs_dim1 - 1))
 
          tmp1_arr(:) = (/(i, i=1, rs_dim1)/)
          src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(rs_dim1:1:-1)/), (/2, rs_dim1/))
 !---
-         tmp_size2 = rs_dim2 + MOD(rs_dim2, 2)
          ALLOCATE (tmp2_arr(rs_dim2), src_pos2(2, 0:rs_dim2 - 1))
 
          tmp2_arr(:) = (/(i, i=1, rs_dim2)/)
@@ -354,43 +350,28 @@ CONTAINS
          maxn_sendrecv = 2
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
 
-         tmp_size1 = rs_dim1 + MOD(rs_dim1, 2)
          ALLOCATE (tmp1_arr(rs_dim1), src_pos1(2, 0:rs_dim1 - 1))
 
          tmp1_arr(:) = (/(i, i=1, rs_dim1)/)
          src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(rs_dim1:1:-1)/), (/2, rs_dim1/))
 !---
-         ALLOCATE (src_pos2_onesdd(0:rs_dim2 - 1))
-         src_pos2_onesdd(:) = (/(i, i=1, rs_dim2)/)
-!---
-         srcs_coord(:, 1) = (/src_pos1(1, rs_pos(1)), src_pos2_onesdd(rs_pos(2))/)
-         srcs_coord(:, 2) = (/src_pos1(2, rs_pos(1)), src_pos2_onesdd(rs_pos(2))/)
+         srcs_coord(:, 1) = (/src_pos1(1, rs_pos(1)), rs_pos(2) + 1/)
+         srcs_coord(:, 2) = (/src_pos1(2, rs_pos(1)), rs_pos(2) + 1/)
       CASE (neumannYZ, neumannY)
          maxn_sendrecv = 2
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
-
-         ALLOCATE (src_pos1_onesdd(0:rs_dim1 - 1))
-         src_pos1_onesdd(:) = (/(i, i=1, rs_dim1)/)
-!---
-         tmp_size2 = rs_dim2 + MOD(rs_dim2, 2)
          ALLOCATE (tmp2_arr(rs_dim2), src_pos2(2, 0:rs_dim2 - 1))
 
          tmp2_arr(:) = (/(i, i=1, rs_dim2)/)
          src_pos2(:, :) = RESHAPE((/tmp2_arr, -tmp2_arr(rs_dim2:1:-1)/), (/2, rs_dim2/))
 !---
-         srcs_coord(:, 1) = (/src_pos1_onesdd(rs_pos(1)), src_pos2(1, rs_pos(2))/)
-         srcs_coord(:, 2) = (/src_pos1_onesdd(rs_pos(1)), src_pos2(2, rs_pos(2))/)
+         srcs_coord(:, 1) = (/rs_pos(1) + 1, src_pos2(1, rs_pos(2))/)
+         srcs_coord(:, 2) = (/rs_pos(1) + 1, src_pos2(2, rs_pos(2))/)
       CASE (neumannZ)
          maxn_sendrecv = 1
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
-         ALLOCATE (src_pos1_onesdd(0:rs_dim1 - 1))
-         ALLOCATE (src_pos2_onesdd(0:rs_dim2 - 1))
-
-         src_pos1_onesdd(:) = (/(i, i=1, rs_dim1)/)
 !---
-         src_pos2_onesdd(:) = (/(i, i=1, rs_dim2)/)
-!---
-         srcs_coord(:, 1) = (/src_pos1_onesdd(rs_pos(1)), src_pos2_onesdd(rs_pos(2))/)
+         srcs_coord(:, 1) = (/rs_pos(1) + 1, rs_pos(2) + 1/)
       END SELECT
 
 ! default flipping status
