@@ -334,11 +334,7 @@ CONTAINS
          maxn_sendrecv = 4
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
 
-         IF (MOD(rs_dim1, 2) .EQ. 0) THEN
-            tmp_size1 = rs_dim1
-         ELSE
-            tmp_size1 = rs_dim1 + 1
-         END IF
+         tmp_size1 = rs_dim1 + MOD(rs_dim1, 2)
          ALLOCATE (tmp1_arr(tmp_size1), src_pos1(2, 0:rs_dim1 - 1))
 
          IF (MOD(rs_dim1, 2) .EQ. 0) THEN
@@ -349,11 +345,7 @@ CONTAINS
             src_pos1(:, :) = RESHAPE((/tmp1_arr, -tmp1_arr(tmp_size1 - 2:1:-1)/), (/2, rs_dim1/))
          END IF
 !---
-         IF (MOD(rs_dim2, 2) .EQ. 0) THEN
-            tmp_size2 = rs_dim2
-         ELSE
-            tmp_size2 = rs_dim2 + 1
-         END IF
+         tmp_size2 = rs_dim2 + MOD(rs_dim2, 2)
          ALLOCATE (tmp2_arr(tmp_size2), src_pos2(2, 0:rs_dim2 - 1))
 
          IF (MOD(rs_dim2, 2) .EQ. 0) THEN
@@ -372,11 +364,7 @@ CONTAINS
          maxn_sendrecv = 2
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
 
-         IF (MOD(rs_dim1, 2) .EQ. 0) THEN
-            tmp_size1 = rs_dim1
-         ELSE
-            tmp_size1 = rs_dim1 + 1
-         END IF
+         tmp_size1 = rs_dim1 + MOD(rs_dim1, 2)
          ALLOCATE (tmp1_arr(tmp_size1), src_pos1(2, 0:rs_dim1 - 1))
 
          IF (MOD(rs_dim1, 2) .EQ. 0) THEN
@@ -399,11 +387,7 @@ CONTAINS
          ALLOCATE (src_pos1_onesdd(0:rs_dim1 - 1))
          src_pos1_onesdd(:) = (/(i, i=1, rs_dim1)/)
 !---
-         IF (MOD(rs_dim2, 2) .EQ. 0) THEN
-            tmp_size2 = rs_dim2
-         ELSE
-            tmp_size2 = rs_dim2 + 1
-         END IF
+         tmp_size2 = rs_dim2 + MOD(rs_dim2, 2)
          ALLOCATE (tmp2_arr(tmp_size2), src_pos2(2, 0:rs_dim2 - 1))
 
          IF (MOD(rs_dim2, 2) .EQ. 0) THEN
