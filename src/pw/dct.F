@@ -32,12 +32,13 @@ MODULE dct
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'dct'
 
    TYPE :: dct_type
-      INTEGER, DIMENSION(:), POINTER     :: dests_expand => NULL()
-      INTEGER, DIMENSION(:), POINTER     :: srcs_expand => NULL()
-      INTEGER, DIMENSION(:), POINTER     :: flipg_stat => NULL()
-      INTEGER, DIMENSION(:), POINTER     :: dests_shrink => NULL()
+      PRIVATE
+      INTEGER, DIMENSION(:), ALLOCATABLE :: dests_expand
+      INTEGER, DIMENSION(:), ALLOCATABLE :: srcs_expand
+      INTEGER, DIMENSION(:), ALLOCATABLE :: flipg_stat
+      INTEGER, DIMENSION(:), ALLOCATABLE :: dests_shrink
       INTEGER                            :: srcs_shrink = 0
-      INTEGER, DIMENSION(:, :, :), POINTER :: recv_msgs_bnds => NULL()
+      INTEGER, DIMENSION(:, :, :), ALLOCATABLE :: recv_msgs_bnds
       INTEGER, DIMENSION(2, 3)            :: dct_bounds = 0
       INTEGER, DIMENSION(2, 3)            :: dct_bounds_local = 0
       INTEGER, DIMENSION(2, 3)            :: bounds_shftd = 0
@@ -57,6 +58,10 @@ MODULE dct
       dct_type_init, &
       dct_type_release, &
       setup_dct_pw_grids
+
+   ! Just convenience to keep the components of the type private
+   TYPE(dct_type), PARAMETER, PUBLIC :: dct_null = dct_type(dests_expand=NULL(), srcs_expand=NULL(), flipg_stat=NULL(), &
+                                                            dests_shrink=NULL(), recv_msgs_bnds=NULL())
 
    INTEGER, PARAMETER, PRIVATE    :: NOT_FLIPPED = 0, &
                                      UD_FLIPPED = 1, &
@@ -143,11 +148,11 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(dct_env%dests_shrink)) DEALLOCATE (dct_env%dests_shrink)
-      IF (ASSOCIATED(dct_env%dests_expand)) DEALLOCATE (dct_env%dests_expand)
-      IF (ASSOCIATED(dct_env%srcs_expand)) DEALLOCATE (dct_env%srcs_expand)
-      IF (ASSOCIATED(dct_env%flipg_stat)) DEALLOCATE (dct_env%flipg_stat)
-      IF (ASSOCIATED(dct_env%recv_msgs_bnds)) DEALLOCATE (dct_env%recv_msgs_bnds)
+      IF (ALLOCATED(dct_env%dests_shrink)) DEALLOCATE (dct_env%dests_shrink)
+      IF (ALLOCATED(dct_env%dests_expand)) DEALLOCATE (dct_env%dests_expand)
+      IF (ALLOCATED(dct_env%srcs_expand)) DEALLOCATE (dct_env%srcs_expand)
+      IF (ALLOCATED(dct_env%flipg_stat)) DEALLOCATE (dct_env%flipg_stat)
+      IF (ALLOCATED(dct_env%recv_msgs_bnds)) DEALLOCATE (dct_env%recv_msgs_bnds)
 
       CALL timestop(handle)
 
@@ -175,11 +180,11 @@ CONTAINS
 
       INTEGER                                            :: blocked, handle, maxn_sendrecv, &
                                                             srcs_shrink
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dests_expand, dests_shrink, flipg_stat, &
+                                                            srcs_expand
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: recv_msgs_bnds
       INTEGER, DIMENSION(2, 3)                           :: bounds_local_new, bounds_local_shftd, &
                                                             bounds_new, bounds_shftd
-      INTEGER, DIMENSION(:), POINTER                     :: dests_expand, dests_shrink, flipg_stat, &
-                                                            srcs_expand
-      INTEGER, DIMENSION(:, :, :), POINTER               :: recv_msgs_bnds
       REAL(KIND=dp), DIMENSION(3)                        :: scfac
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat2
 
@@ -265,7 +270,7 @@ CONTAINS
 
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       INTEGER, INTENT(IN)                                :: neumann_directions
-      INTEGER, DIMENSION(:), INTENT(INOUT), POINTER      :: dests_expand, srcs_expand, flipg_stat, &
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: dests_expand, srcs_expand, flipg_stat, &
                                                             dests_shrink
       INTEGER, INTENT(OUT)                               :: srcs_shrink
 
@@ -971,10 +976,9 @@ CONTAINS
 
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       INTEGER, INTENT(IN)                                :: neumann_directions
-      INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: srcs_expand, flipg_stat
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: srcs_expand, flipg_stat
       INTEGER, DIMENSION(2, 3), INTENT(OUT)              :: bounds_shftd, bounds_local_shftd
-      INTEGER, DIMENSION(:, :, :), INTENT(INOUT), &
-         POINTER                                         :: recv_msgs_bnds
+      INTEGER, DIMENSION(:, :, :), INTENT(INOUT)         :: recv_msgs_bnds
       INTEGER, DIMENSION(2, 3), INTENT(OUT)              :: bounds_new, bounds_local_new
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'expansion_bounds'

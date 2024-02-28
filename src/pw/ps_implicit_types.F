@@ -14,7 +14,8 @@
 ! **************************************************************************************************
 MODULE ps_implicit_types
 
-   USE dct,                             ONLY: dct_type,&
+   USE dct,                             ONLY: dct_null,&
+                                              dct_type,&
                                               dct_type_release
    USE dielectric_types,                ONLY: dielectric_release,&
                                               dielectric_type
@@ -46,7 +47,7 @@ MODULE ps_implicit_types
    TYPE :: ps_implicit_type
       LOGICAL                           :: do_dbc_cube = .FALSE.
       TYPE(dielectric_type), POINTER    :: dielectric => NULL()
-      TYPE(dct_type)                    :: dct_env = dct_type()
+      TYPE(dct_type)                    :: dct_env = dct_null
       TYPE(pw_r3d_rs_type), POINTER            :: initial_guess => NULL()
       TYPE(pw_r3d_rs_type), POINTER            :: v_eps => NULL()
       TYPE(pw_r3d_rs_type), POINTER            :: cstr_charge => NULL()
