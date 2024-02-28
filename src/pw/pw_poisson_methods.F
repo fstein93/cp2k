@@ -389,11 +389,6 @@ CONTAINS
                                              poisson_env%dct_pw_grid, &
                                              poisson_env%implicit_env%dct_env, &
                                              poisson_env%parameters%ps_implicit_params%neumann_directions, &
-                                             poisson_env%implicit_env%dct_env%recv_msgs_bnds, &
-                                             poisson_env%implicit_env%dct_env%dests_expand, &
-                                             poisson_env%implicit_env%dct_env%srcs_expand, &
-                                             poisson_env%implicit_env%dct_env%flipg_stat, &
-                                             poisson_env%implicit_env%dct_env%bounds_shftd, &
                                              density, rho_core=rho_core)
                   END SELECT
                END IF
@@ -607,11 +602,6 @@ CONTAINS
                                                 poisson_env%dct_pw_grid, &
                                                 poisson_env%implicit_env%dct_env, &
                                                 poisson_env%parameters%ps_implicit_params%neumann_directions, &
-                                                poisson_env%implicit_env%dct_env%recv_msgs_bnds, &
-                                                poisson_env%implicit_env%dct_env%dests_expand, &
-                                                poisson_env%implicit_env%dct_env%srcs_expand, &
-                                                poisson_env%implicit_env%dct_env%flipg_stat, &
-                                                poisson_env%implicit_env%dct_env%bounds_shftd, &
                                                 density, rho_core=rho_core)
                      END SELECT
                   END IF
@@ -818,11 +808,6 @@ CONTAINS
                                                 poisson_env%dct_pw_grid, &
                                                 poisson_env%implicit_env%dct_env, &
                                                 poisson_env%parameters%ps_implicit_params%neumann_directions, &
-                                                poisson_env%implicit_env%dct_env%recv_msgs_bnds, &
-                                                poisson_env%implicit_env%dct_env%dests_expand, &
-                                                poisson_env%implicit_env%dct_env%srcs_expand, &
-                                                poisson_env%implicit_env%dct_env%flipg_stat, &
-                                                poisson_env%implicit_env%dct_env%bounds_shftd, &
                                                 density, rho_core=rho_core)
                      END SELECT
                   END IF
@@ -1021,11 +1006,6 @@ CONTAINS
                                                    poisson_env%dct_pw_grid, &
                                                    poisson_env%implicit_env%dct_env, &
                                                    poisson_env%parameters%ps_implicit_params%neumann_directions, &
-                                                   poisson_env%implicit_env%dct_env%recv_msgs_bnds, &
-                                                   poisson_env%implicit_env%dct_env%dests_expand, &
-                                                   poisson_env%implicit_env%dct_env%srcs_expand, &
-                                                   poisson_env%implicit_env%dct_env%flipg_stat, &
-                                                   poisson_env%implicit_env%dct_env%bounds_shftd, &
                                                    density, rho_core=rho_core)
                         END SELECT
                      END IF

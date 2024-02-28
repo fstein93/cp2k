@@ -453,24 +453,15 @@ CONTAINS
 !>
 !> \param dct_env ...
 !> \param neumann_directions directions in which dct should be performed
-!> \param recv_msgs_bnds bounds of the messages to be received
-!> \param dests_expand list of the destination processes
-!> \param srcs_expand list of the source processes
-!> \param flipg_stat flipping status for the received data chunks
-!> \param bounds_shftd bounds of the original grid shifted to have g0 in the middle of the cell
 !> \param pw_in the original plane wave data
 !> \param pw_expanded the pw data after expansion
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE pw_expand(dct_env, neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, &
-                        flipg_stat, bounds_shftd, pw_in, pw_expanded)
+   SUBROUTINE pw_expand(dct_env, neumann_directions, pw_in, pw_expanded)
       CLASS(dct_type), INTENT(IN) :: dct_env
       INTEGER, INTENT(IN)                                :: neumann_directions
-      INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: recv_msgs_bnds
-      INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_expand, srcs_expand, flipg_stat
-      INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_shftd
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_expanded
 
@@ -489,8 +480,6 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
       CALL timeset(routineN, handle)
-
-      MARK_USED(dct_env)
 
       pw_grid => pw_in%pw_grid
       rs_group = pw_grid%para%group
@@ -522,64 +511,64 @@ CONTAINS
 
       DO i = 1, maxn_sendrecv
 ! no need to send to myself or to the destination that I have already sent to
-         IF ((dests_expand(i) .NE. rs_mpo) .AND. .NOT. ANY(dest_hist .EQ. dests_expand(i))) THEN
-            CALL rs_group%isend(pw_in%array, dests_expand(i), send_reqs(i))
+         IF ((dct_env%dests_expand(i) .NE. rs_mpo) .AND. .NOT. ANY(dest_hist .EQ. dct_env%dests_expand(i))) THEN
+            CALL rs_group%isend(pw_in%array, dct_env%dests_expand(i), send_reqs(i))
          END IF
-         dest_hist(i) = dests_expand(i)
+         dest_hist(i) = dct_env%dests_expand(i)
       END DO
 
       DO i = 1, maxn_sendrecv
-         lb1 = recv_msgs_bnds(1, 1, i)
-         ub1 = recv_msgs_bnds(2, 1, i)
-         lb2 = recv_msgs_bnds(1, 2, i)
-         ub2 = recv_msgs_bnds(2, 2, i)
-         lb3 = recv_msgs_bnds(1, 3, i)
-         ub3 = recv_msgs_bnds(2, 3, i)
+         lb1 = dct_env%recv_msgs_bnds(1, 1, i)
+         ub1 = dct_env%recv_msgs_bnds(2, 1, i)
+         lb2 = dct_env%recv_msgs_bnds(1, 2, i)
+         ub2 = dct_env%recv_msgs_bnds(2, 2, i)
+         lb3 = dct_env%recv_msgs_bnds(1, 3, i)
+         ub3 = dct_env%recv_msgs_bnds(2, 3, i)
 ! no need to receive from myself
-         IF (srcs_expand(i) .EQ. rs_mpo) THEN
+         IF (dct_env%srcs_expand(i) .EQ. rs_mpo) THEN
             ALLOCATE (recv_msgs(i)%msg(lb1:ub1, lb2:ub2, lb3:ub3))
             recv_msgs(i)%msg(:, :, :) = pw_in%array
 ! if I have already received data from the source, just use the one from the last time
-         ELSE IF (ANY(src_hist .EQ. srcs_expand(i))) THEN
-            loc = MINLOC(ABS(src_hist - srcs_expand(i)), 1)
-            lb1_loc = recv_msgs_bnds(1, 1, loc)
-            ub1_loc = recv_msgs_bnds(2, 1, loc)
-            lb2_loc = recv_msgs_bnds(1, 2, loc)
-            ub2_loc = recv_msgs_bnds(2, 2, loc)
-            lb3_loc = recv_msgs_bnds(1, 3, loc)
-            ub3_loc = recv_msgs_bnds(2, 3, loc)
+         ELSE IF (ANY(src_hist .EQ. dct_env%srcs_expand(i))) THEN
+            loc = MINLOC(ABS(src_hist - dct_env%srcs_expand(i)), 1)
+            lb1_loc = dct_env%recv_msgs_bnds(1, 1, loc)
+            ub1_loc = dct_env%recv_msgs_bnds(2, 1, loc)
+            lb2_loc = dct_env%recv_msgs_bnds(1, 2, loc)
+            ub2_loc = dct_env%recv_msgs_bnds(2, 2, loc)
+            lb3_loc = dct_env%recv_msgs_bnds(1, 3, loc)
+            ub3_loc = dct_env%recv_msgs_bnds(2, 3, loc)
             ALLOCATE (recv_msgs(i)%msg(lb1_loc:ub1_loc, lb2_loc:ub2_loc, lb3_loc:ub3_loc))
             recv_msgs(i)%msg(:, :, :) = recv_msgs(loc)%msg
          ELSE
             ALLOCATE (recv_msgs(i)%msg(lb1:ub1, lb2:ub2, lb3:ub3))
-            CALL rs_group%irecv(recv_msgs(i)%msg, srcs_expand(i), recv_reqs(i))
+            CALL rs_group%irecv(recv_msgs(i)%msg, dct_env%srcs_expand(i), recv_reqs(i))
             CALL recv_reqs(i)%wait()
          END IF
-         src_hist(i) = srcs_expand(i)
+         src_hist(i) = dct_env%srcs_expand(i)
       END DO
 ! cleanup mpi_request to prevent memory leak
       CALL mp_waitall(send_reqs(:))
 
 ! flip the received data according on the flipping status
       DO i = 1, maxn_sendrecv
-         SELECT CASE (flipg_stat(i))
+         SELECT CASE (dct_env%flipg_stat(i))
          CASE (NOT_FLIPPED)
-            lb1 = recv_msgs_bnds(1, 1, i)
-            ub1 = recv_msgs_bnds(2, 1, i)
-            lb2 = recv_msgs_bnds(1, 2, i)
-            ub2 = recv_msgs_bnds(2, 2, i)
-            lb3 = recv_msgs_bnds(1, 3, i)
-            ub3 = recv_msgs_bnds(2, 3, i)
+            lb1 = dct_env%recv_msgs_bnds(1, 1, i)
+            ub1 = dct_env%recv_msgs_bnds(2, 1, i)
+            lb2 = dct_env%recv_msgs_bnds(1, 2, i)
+            ub2 = dct_env%recv_msgs_bnds(2, 2, i)
+            lb3 = dct_env%recv_msgs_bnds(1, 3, i)
+            ub3 = dct_env%recv_msgs_bnds(2, 3, i)
             ALLOCATE (pcs(i)%msg(lb1:ub1, lb2:ub2, lb3:ub3))
             pcs(i)%msg(:, :, :) = recv_msgs(i)%msg
          CASE (UD_FLIPPED)
-            CALL flipud(recv_msgs(i)%msg, pcs(i)%msg, bounds_shftd)
+            CALL flipud(recv_msgs(i)%msg, pcs(i)%msg, dct_env%bounds_shftd)
          CASE (LR_FLIPPED)
-            CALL fliplr(recv_msgs(i)%msg, pcs(i)%msg, bounds_shftd)
+            CALL fliplr(recv_msgs(i)%msg, pcs(i)%msg, dct_env%bounds_shftd)
          CASE (BF_FLIPPED)
-            CALL flipbf(recv_msgs(i)%msg, pcs(i)%msg, bounds_shftd)
+            CALL flipbf(recv_msgs(i)%msg, pcs(i)%msg, dct_env%bounds_shftd)
          CASE (ROTATED)
-            CALL rot180(recv_msgs(i)%msg, pcs(i)%msg, bounds_shftd)
+            CALL rot180(recv_msgs(i)%msg, pcs(i)%msg, dct_env%bounds_shftd)
          END SELECT
       END DO
 ! concatenate the received (flipped) data store the result as catd
@@ -612,7 +601,7 @@ CONTAINS
       END DO
 
 ! flip catd from back to front
-      CALL flipbf(catd, catd_flipdbf, bounds_shftd)
+      CALL flipbf(catd, catd_flipdbf, dct_env%bounds_shftd)
 ! concatenate catd and catd_flipdbf to get cr3d_xpndd
       ALLOCATE (cr3d_xpndd(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new))
       SELECT CASE (neumann_directions)
@@ -642,22 +631,15 @@ CONTAINS
 !>
 !> \param dct_env ...
 !> \param neumann_directions directions in which dct should be performed
-!> \param dests_shrink list of the destination processes
-!> \param srcs_shrink list of the source processes
-!> \param bounds_local_shftd local bounds of the original grid after shifting
 !> \param pw_in the original plane wave data
 !> \param pw_shrinked the shrunk plane wave data
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE pw_shrink(dct_env, neumann_directions, dests_shrink, srcs_shrink, bounds_local_shftd, &
-                        pw_in, pw_shrinked)
-      CLASS(dct_type), INTENT(IN) :: dct_env
+   SUBROUTINE pw_shrink(dct_env, neumann_directions, pw_in, pw_shrinked)
+      CLASS(dct_type), INTENT(INOUT) :: dct_env
       INTEGER, INTENT(IN)                                :: neumann_directions
-      INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_shrink
-      INTEGER, INTENT(INOUT)                             :: srcs_shrink
-      INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds_local_shftd
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_shrinked
 
@@ -704,39 +686,39 @@ CONTAINS
 
 ! let all the nodes know about each others shifted local bounds
       ALLOCATE (bounds_local_all(2, 3, group_size))
-      CALL rs_group%allgather(bounds_local_shftd, bounds_local_all)
+      CALL rs_group%allgather(dct_env%bounds_local_shftd, bounds_local_all)
 
       DO i = 1, maxn_sendrecv
 ! no need to send to myself or to an invalid destination (pid = -1)
-         IF ((dests_shrink(i) .NE. rs_mpo) .AND. (dests_shrink(i) .NE. -1)) THEN
-            send_lb1 = bounds_local_all(1, 1, dests_shrink(i) + 1)
-            send_ub1 = bounds_local_all(2, 1, dests_shrink(i) + 1)
-            send_lb2 = bounds_local_all(1, 2, dests_shrink(i) + 1)
-            send_ub2 = bounds_local_all(2, 2, dests_shrink(i) + 1)
-            send_lb3 = bounds_local_all(1, 3, dests_shrink(i) + 1)
-            send_ub3 = bounds_local_all(2, 3, dests_shrink(i) + 1)
+         IF ((dct_env%dests_shrink(i) .NE. rs_mpo) .AND. (dct_env%dests_shrink(i) .NE. -1)) THEN
+            send_lb1 = bounds_local_all(1, 1, dct_env%dests_shrink(i) + 1)
+            send_ub1 = bounds_local_all(2, 1, dct_env%dests_shrink(i) + 1)
+            send_lb2 = bounds_local_all(1, 2, dct_env%dests_shrink(i) + 1)
+            send_ub2 = bounds_local_all(2, 2, dct_env%dests_shrink(i) + 1)
+            send_lb3 = bounds_local_all(1, 3, dct_env%dests_shrink(i) + 1)
+            send_ub3 = bounds_local_all(2, 3, dct_env%dests_shrink(i) + 1)
 
             ALLOCATE (send_crmsg(send_lb1:send_ub1, send_lb2:send_ub2, send_lb3:send_ub3))
             send_crmsg(:, :, :) = cr3d(send_lb1:send_ub1, send_lb2:send_ub2, send_lb3:send_ub3)
-            CALL rs_group%send(send_crmsg, dests_shrink(i), tag)
+            CALL rs_group%send(send_crmsg, dct_env%dests_shrink(i), tag)
             DEALLOCATE (send_crmsg)
          END IF
       END DO
 
-      lb1_orig = bounds_local_shftd(1, 1)
-      ub1_orig = bounds_local_shftd(2, 1)
-      lb2_orig = bounds_local_shftd(1, 2)
-      ub2_orig = bounds_local_shftd(2, 2)
-      lb3_orig = bounds_local_shftd(1, 3)
-      ub3_orig = bounds_local_shftd(2, 3)
+      lb1_orig = dct_env%bounds_local_shftd(1, 1)
+      ub1_orig = dct_env%bounds_local_shftd(2, 1)
+      lb2_orig = dct_env%bounds_local_shftd(1, 2)
+      ub2_orig = dct_env%bounds_local_shftd(2, 2)
+      lb3_orig = dct_env%bounds_local_shftd(1, 3)
+      ub3_orig = dct_env%bounds_local_shftd(2, 3)
 
 ! no need to receive from myself
-      IF (srcs_shrink .EQ. rs_mpo) THEN
+      IF (dct_env%srcs_shrink .EQ. rs_mpo) THEN
          pw_shrinked%array = cr3d(lb1_orig:ub1_orig, lb2_orig:ub2_orig, lb3_orig:ub3_orig)
-      ELSE IF (srcs_shrink .EQ. -1) THEN
+      ELSE IF (dct_env%srcs_shrink .EQ. -1) THEN
 ! the source is invalid ... do nothing
       ELSE
-         CALL rs_group%recv(pw_shrinked%array, srcs_shrink, tag)
+         CALL rs_group%recv(pw_shrinked%array, dct_env%srcs_shrink, tag)
       END IF
 
       DEALLOCATE (bounds_local_all)
