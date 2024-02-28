@@ -118,9 +118,7 @@ CONTAINS
       ALLOCATE (dct_env%dests_shrink(maxn_sendrecv))
       ALLOCATE (dct_env%recv_msgs_bnds(2, 3, maxn_sendrecv))
 
-      CALL set_dests_srcs_pid(pw_grid, neumann_directions, &
-                              dct_env%dests_expand, dct_env%srcs_expand, dct_env%flipg_stat, &
-                              dct_env%dests_shrink, dct_env%srcs_shrink)
+      CALL set_dests_srcs_pid(pw_grid, dct_env)
       CALL expansion_bounds(pw_grid, neumann_directions, &
                             dct_env%srcs_expand, dct_env%flipg_stat, &
                             dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
@@ -178,52 +176,38 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'setup_dct_pw_grids'
 
-      INTEGER                                            :: blocked, handle, maxn_sendrecv, &
-                                                            srcs_shrink
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dests_expand, dests_shrink, flipg_stat, &
-                                                            srcs_expand
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: recv_msgs_bnds
-      INTEGER, DIMENSION(2, 3)                           :: bounds_local_new, bounds_local_shftd, &
-                                                            bounds_new, bounds_shftd
+      INTEGER                                            :: blocked, handle
       REAL(KIND=dp), DIMENSION(3)                        :: scfac
       REAL(KIND=dp), DIMENSION(3, 3)                     :: hmat2
+      TYPE(dct_type)                                     :: dct_env
 
       CALL timeset(routineN, handle)
 
       SELECT CASE (neumann_directions)
       CASE (neumannXYZ)
-         maxn_sendrecv = 4
          scfac = (/2.0_dp, 2.0_dp, 2.0_dp/)
       CASE (neumannXY)
-         maxn_sendrecv = 4
          scfac = (/2.0_dp, 2.0_dp, 1.0_dp/)
       CASE (neumannXZ)
-         maxn_sendrecv = 2
          scfac = (/2.0_dp, 1.0_dp, 2.0_dp/)
       CASE (neumannYZ)
-         maxn_sendrecv = 2
          scfac = (/1.0_dp, 2.0_dp, 2.0_dp/)
       CASE (neumannX)
-         maxn_sendrecv = 2
          scfac = (/2.0_dp, 1.0_dp, 1.0_dp/)
       CASE (neumannY)
-         maxn_sendrecv = 2
          scfac = (/1.0_dp, 2.0_dp, 1.0_dp/)
       CASE (neumannZ)
-         maxn_sendrecv = 1
          scfac = (/1.0_dp, 1.0_dp, 2.0_dp/)
       CASE DEFAULT
          CPABORT("Invalid combination of Neumann and periodic conditions.")
       END SELECT
 
-      ALLOCATE (flipg_stat(maxn_sendrecv))
-      ALLOCATE (dests_expand(maxn_sendrecv), srcs_expand(maxn_sendrecv), dests_shrink(maxn_sendrecv))
-      ALLOCATE (recv_msgs_bnds(2, 3, maxn_sendrecv))
+      CALL dct_type_init(pw_grid, neumann_directions, dct_env)
 
-      CALL set_dests_srcs_pid(pw_grid, neumann_directions, dests_expand, srcs_expand, flipg_stat, &
-                              dests_shrink, srcs_shrink)
-      CALL expansion_bounds(pw_grid, neumann_directions, srcs_expand, flipg_stat, &
-                            bounds_shftd, bounds_local_shftd, recv_msgs_bnds, bounds_new, bounds_local_new)
+      CALL set_dests_srcs_pid(pw_grid, dct_env)
+      CALL expansion_bounds(pw_grid, dct_env%neumann_directions, dct_env%srcs_expand, dct_env%flipg_stat, &
+                            dct_env%bounds_shftd, dct_env%bounds_local_shftd, dct_env%recv_msgs_bnds, &
+                            dct_env%dct_bounds, dct_env%dct_bounds_local)
 
       hmat2 = 0.0_dp
       hmat2(1, 1) = scfac(1)*cell_hmat(1, 1)
@@ -240,12 +224,12 @@ CONTAINS
       END IF
 
       CALL pw_grid_create(dct_pw_grid, pw_grid%para%group, hmat2, &
-                          bounds=bounds_new, &
+                          bounds=dct_env%dct_bounds, &
                           rs_dims=pw_grid%para%group%num_pe_cart, &
                           blocked=blocked, &
-                          bounds_local=bounds_local_new)
+                          bounds_local=dct_env%dct_bounds_local)
 
-      DEALLOCATE (flipg_stat, dests_expand, srcs_expand, dests_shrink, recv_msgs_bnds)
+      CALL dct_type_release(dct_env)
 
       CALL timestop(handle)
 
@@ -255,24 +239,15 @@ CONTAINS
 !> \brief Finds the process ids for mpi_isend destiations and mpi_irecv sources
 !>   for expanding and shrinking a pw_r3d_rs_type data
 !> \param pw_grid the original plane wave grid
-!> \param neumann_directions directions in which dct should be performed
-!> \param dests_expand list of the destination processes (pw_expand)
-!> \param srcs_expand list of the source processes (pw_expand)
-!> \param flipg_stat flipping status for the received data chunks (pw_expand)
-!> \param dests_shrink list of the destination processes (pw_shrink)
-!> \param srcs_shrink list of the source processes (pw_shrink)
+!> \param dct_env the dct environment to be setup
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE set_dests_srcs_pid(pw_grid, neumann_directions, dests_expand, srcs_expand, &
-                                 flipg_stat, dests_shrink, srcs_shrink)
+   SUBROUTINE set_dests_srcs_pid(pw_grid, dct_env)
 
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
-      INTEGER, INTENT(IN)                                :: neumann_directions
-      INTEGER, DIMENSION(:), INTENT(INOUT)               :: dests_expand, srcs_expand, flipg_stat, &
-                                                            dests_shrink
-      INTEGER, INTENT(OUT)                               :: srcs_shrink
+      TYPE(dct_type), INTENT(INOUT)                      :: dct_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'set_dests_srcs_pid'
 
@@ -340,7 +315,7 @@ CONTAINS
       rs_dim1 = rs_dims(1); rs_dim2 = rs_dims(2)
 
 ! prepare srcs_coord
-      SELECT CASE (neumann_directions)
+      SELECT CASE (dct_env%neumann_directions)
       CASE (neumannXYZ, neumannXY)
          maxn_sendrecv = 4
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
@@ -388,33 +363,33 @@ CONTAINS
       END SELECT
 
 ! default flipping status
-      flipg_stat = NOT_FLIPPED
+      dct_env%flipg_stat = NOT_FLIPPED
 
       DO k = 1, maxn_sendrecv
 ! convert srcs_coord to pid
-         CALL pw_grid%para%group%rank_cart(ABS(srcs_coord(:, k)) - 1, srcs_expand(k))
+         CALL pw_grid%para%group%rank_cart(ABS(srcs_coord(:, k)) - 1, dct_env%srcs_expand(k))
 ! find out the flipping status
          IF ((srcs_coord(1, k) .GT. 0) .AND. (srcs_coord(2, k) .GT. 0)) THEN
-            flipg_stat(k) = NOT_FLIPPED
+            dct_env%flipg_stat(k) = NOT_FLIPPED
          ELSE IF ((srcs_coord(1, k) .LT. 0) .AND. (srcs_coord(2, k) .GT. 0)) THEN
-            flipg_stat(k) = UD_FLIPPED
+            dct_env%flipg_stat(k) = UD_FLIPPED
          ELSE IF ((srcs_coord(1, k) .GT. 0) .AND. (srcs_coord(2, k) .LT. 0)) THEN
-            flipg_stat(k) = LR_FLIPPED
+            dct_env%flipg_stat(k) = LR_FLIPPED
          ELSE
-            flipg_stat(k) = ROTATED
+            dct_env%flipg_stat(k) = ROTATED
          END IF
       END DO
 
 ! let all the nodes know about each others srcs_expand list
       ALLOCATE (srcs_expand_all(maxn_sendrecv, group_size))
-      CALL rs_group%allgather(srcs_expand, srcs_expand_all)
+      CALL rs_group%allgather(dct_env%srcs_expand, srcs_expand_all)
 ! now scan the srcs_expand_all list and check if I am on the srcs_expand list of the other nodes
 ! if that is the case then I am obliged to send data to those nodes (the nodes are on my dests_expand list)
       k = 1
       DO i = 1, group_size
          DO j = 1, maxn_sendrecv
             IF (srcs_expand_all(j, i) .EQ. rs_mpo) THEN
-               dests_expand(k) = i - 1
+               dct_env%dests_expand(k) = i - 1
                k = k + 1
             END IF
          END DO
@@ -422,25 +397,25 @@ CONTAINS
 
 ! find srcs and dests for the reverse procedure :
 ! initialize dests_shrink and srcs_shrink with invalid process id
-      dests_shrink = -1
-      srcs_shrink = -1
+      dct_env%dests_shrink = -1
+      dct_env%srcs_shrink = -1
 ! scan the flipping status of the data that I am supposed to receive
 ! if the flipping status for a process is NOT_FLIPPED that means I will have to resend
 ! data to that process in the reverse procedure (the process is on my dests_shrink list)
       DO i = 1, maxn_sendrecv
-         IF (flipg_stat(i) .EQ. NOT_FLIPPED) dests_shrink(i) = srcs_expand(i)
+         IF (dct_env%flipg_stat(i) .EQ. NOT_FLIPPED) dct_env%dests_shrink(i) = dct_env%srcs_expand(i)
       END DO
 
 ! let all the nodes know about each others dests_shrink list
       ALLOCATE (dests_shrink_all(maxn_sendrecv, group_size))
-      CALL rs_group%allgather(dests_shrink, dests_shrink_all)
+      CALL rs_group%allgather(dct_env%dests_shrink, dests_shrink_all)
 ! now scan the dests_shrink_all list and check if I am on the dests_shrink list of any other node
 ! if that is the case then I'll receive data from that node (the node is on my srcs_shrink list)
 ! note that in the shrinking procedure I will receive from only one node
       DO i = 1, group_size
          DO j = 1, maxn_sendrecv
             IF (dests_shrink_all(j, i) .EQ. rs_mpo) THEN
-               srcs_shrink = i - 1
+               dct_env%srcs_shrink = i - 1
                EXIT
             END IF
          END DO
