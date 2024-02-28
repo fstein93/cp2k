@@ -391,10 +391,10 @@ CONTAINS
          CALL pw_copy(ps_implicit_env%initial_guess, v_old)
       END IF
 
-      CALL pw_expand(neumann_directions, &
+      CALL pw_expand(dct_env, neumann_directions, &
                      dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
                      dct_env%flipg_stat, dct_env%bounds_shftd, density, density_xpndd)
-      CALL pw_expand(neumann_directions, &
+      CALL pw_expand(dct_env, neumann_directions, &
                      dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
                      dct_env%flipg_stat, dct_env%bounds_shftd, v_new, v_new_xpndd)
 
@@ -451,7 +451,7 @@ CONTAINS
       END DO
       CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
-      CALL pw_shrink(neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
+      CALL pw_shrink(dct_env, neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
                      dct_env%bounds_local_shftd, v_new_xpndd, v_new)
 
       IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) &
@@ -461,13 +461,8 @@ CONTAINS
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
 ! veps has to be computed for the expanded data and then shrunk otherwise we loose accuracy
       CALL ps_implicit_compute_veps(pw_pool_xpndd, dielectric, v_new_xpndd, v_eps_xpndd)
-      BLOCK
-         TYPE(pw_r3d_rs_type) :: v_eps
-         v_eps%pw_grid => ps_implicit_env%v_eps%pw_grid
-         v_eps%array => ps_implicit_env%v_eps%array
-         CALL pw_shrink(neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
-                        dct_env%bounds_local_shftd, v_eps_xpndd, v_eps)
-      END BLOCK
+      CALL pw_shrink(dct_env, neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
+                     dct_env%bounds_local_shftd, v_eps_xpndd, ps_implicit_env%v_eps)
 
       CALL pw_pool_xpndd%give_back_pw(g)
       CALL pw_pool_xpndd%give_back_pw(v_old)
@@ -885,10 +880,10 @@ CONTAINS
          lambda0(:) = ps_implicit_env%initial_lambda
       END IF
 
-      CALL pw_expand(neumann_directions, &
+      CALL pw_expand(dct_env, neumann_directions, &
                      dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
                      dct_env%flipg_stat, dct_env%bounds_shftd, density, density_xpndd)
-      CALL pw_expand(neumann_directions, &
+      CALL pw_expand(dct_env, neumann_directions, &
                      dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
                      dct_env%flipg_stat, dct_env%bounds_shftd, v_new, v_new_xpndd)
 
@@ -1007,7 +1002,7 @@ CONTAINS
       END DO
       CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
-      CALL pw_shrink(neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
+      CALL pw_shrink(dct_env, neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
                      dct_env%bounds_local_shftd, v_new_xpndd, v_new)
 
       IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) THEN
@@ -1019,7 +1014,7 @@ CONTAINS
       IF (PRESENT(electric_enthalpy)) electric_enthalpy = ps_implicit_env%electric_enthalpy
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
       CALL ps_implicit_compute_veps(pw_pool_xpndd, dielectric, v_new_xpndd, v_eps_xpndd)
-      CALL pw_shrink(neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
+      CALL pw_shrink(dct_env, neumann_directions, dct_env%dests_shrink, dct_env%srcs_shrink, &
                      dct_env%bounds_local_shftd, v_eps_xpndd, ps_implicit_env%v_eps)
 
       CALL pw_pool_xpndd%give_back_pw(g)
@@ -1205,7 +1200,7 @@ CONTAINS
             DO i = 1, n_tiles
 
                CALL pw_pool_xpndd%create_pw(pw_in)
-               CALL pw_expand(neumann_directions, &
+               CALL pw_expand(dct_env, neumann_directions, &
                               dct_env%recv_msgs_bnds, dct_env%dests_expand, dct_env%srcs_expand, &
                               dct_env%flipg_stat, dct_env%bounds_shftd, &
                               ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw, pw_in)

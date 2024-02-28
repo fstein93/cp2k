@@ -3086,7 +3086,8 @@ CONTAINS
          CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
             CALL pw_copy(poisson_env%implicit_env%dielectric%eps, aux_r)
          CASE (MIXED_BC, NEUMANN_BC)
-            CALL pw_shrink(pw_env%poisson_env%parameters%ps_implicit_params%neumann_directions, &
+            CALL pw_shrink(pw_env%poisson_env%implicit_env%dct_env, &
+                           pw_env%poisson_env%parameters%ps_implicit_params%neumann_directions, &
                            pw_env%poisson_env%implicit_env%dct_env%dests_shrink, &
                            pw_env%poisson_env%implicit_env%dct_env%srcs_shrink, &
                            pw_env%poisson_env%implicit_env%dct_env%bounds_local_shftd, &
@@ -3134,7 +3135,8 @@ CONTAINS
          CASE (MIXED_PERIODIC_BC)
             CALL pw_copy(poisson_env%implicit_env%cstr_charge, aux_r)
          CASE (MIXED_BC)
-            CALL pw_shrink(pw_env%poisson_env%parameters%ps_implicit_params%neumann_directions, &
+            CALL pw_shrink(pw_env%poisson_env%implicit_env%dct_env, &
+                           pw_env%poisson_env%parameters%ps_implicit_params%neumann_directions, &
                            pw_env%poisson_env%implicit_env%dct_env%dests_shrink, &
                            pw_env%poisson_env%implicit_env%dct_env%srcs_shrink, &
                            pw_env%poisson_env%implicit_env%dct_env%bounds_local_shftd, &

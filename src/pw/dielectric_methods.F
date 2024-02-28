@@ -13,7 +13,7 @@
 ! **************************************************************************************************
 MODULE dielectric_methods
 
-   USE dct, ONLY: pw_expand
+   USE dct, ONLY: pw_expand, dct_type
    USE dielectric_types, ONLY: &
       derivative_cd3, derivative_cd5, derivative_cd7, derivative_fft, derivative_fft_use_deps, &
       derivative_fft_use_drho, dielectric_parameters, dielectric_type, rho_dependent, &
@@ -286,13 +286,14 @@ CONTAINS
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
       SUBROUTINE dielectric_compute_neumann_${kind}$ (dielectric, diel_rs_grid, pw_pool_orig, &
-                                                      dct_pw_grid, neumann_directions, recv_msgs_bnds, &
+                                                      dct_pw_grid, dct_env, neumann_directions, recv_msgs_bnds, &
                                                       dests_expand, srcs_expand, flipg_stat, bounds_shftd, rho, rho_core)
 
          TYPE(dielectric_type), INTENT(INOUT), POINTER      :: dielectric
          TYPE(realspace_grid_type), POINTER                 :: diel_rs_grid
          TYPE(pw_pool_type), INTENT(IN), POINTER            :: pw_pool_orig
          TYPE(pw_grid_type), INTENT(IN), POINTER            :: dct_pw_grid
+         TYPE(dct_type), INTENT(IN) :: dct_env
          INTEGER, INTENT(IN)                                :: neumann_directions
          INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: recv_msgs_bnds
          INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_expand, srcs_expand, flipg_stat
@@ -336,7 +337,7 @@ CONTAINS
          CALL pw_transfer(rho, rho_elec_rs)
          ! expand rho_elec
          CALL pw_pool_xpndd%create_pw(rho_elec_rs_xpndd)
-         CALL pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
+         CALL pw_expand(dct_env, neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
                         rho_elec_rs, rho_elec_rs_xpndd)
 
          IF (PRESENT(rho_core)) THEN
@@ -345,7 +346,7 @@ CONTAINS
             CALL pw_transfer(rho_core, rho_core_rs)
             ! expand rho_core
             CALL pw_pool_xpndd%create_pw(rho_core_rs_xpndd)
-            CALL pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
+            CALL pw_expand(dct_env, neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, flipg_stat, bounds_shftd, &
                            rho_core_rs, rho_core_rs_xpndd)
 
             IF (dielectric%params%dielec_core_correction) THEN

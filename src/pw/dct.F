@@ -42,6 +42,9 @@ MODULE dct
       INTEGER, DIMENSION(2, 3)            :: dct_bounds_local = 0
       INTEGER, DIMENSION(2, 3)            :: bounds_shftd = 0
       INTEGER, DIMENSION(2, 3)            :: bounds_local_shftd = 0
+   CONTAINS
+      PROCEDURE, PASS(dct_env), NON_OVERRIDABLE :: expand => pw_expand
+      PROCEDURE, PASS(dct_env), NON_OVERRIDABLE :: shrink => pw_shrink
    END TYPE dct_type
 
    TYPE dct_msg_type
@@ -448,6 +451,7 @@ CONTAINS
 !>      1 2 3 ... n-2 n-1 n --> 1 2 3 ... n-2 n-1 n n-1 n-2 ... 3 2
 !>   and is generalized to 3D by applying the same rule in all three directions
 !>
+!> \param dct_env ...
 !> \param neumann_directions directions in which dct should be performed
 !> \param recv_msgs_bnds bounds of the messages to be received
 !> \param dests_expand list of the destination processes
@@ -460,9 +464,9 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE pw_expand(neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, &
+   SUBROUTINE pw_expand(dct_env, neumann_directions, recv_msgs_bnds, dests_expand, srcs_expand, &
                         flipg_stat, bounds_shftd, pw_in, pw_expanded)
-
+      CLASS(dct_type), INTENT(IN) :: dct_env
       INTEGER, INTENT(IN)                                :: neumann_directions
       INTEGER, DIMENSION(:, :, :), INTENT(IN), POINTER   :: recv_msgs_bnds
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_expand, srcs_expand, flipg_stat
@@ -473,8 +477,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_expand'
 
       INTEGER :: group_size, handle, i, ind, lb1, lb1_loc, lb1_new, lb2, lb2_loc, lb2_new, lb3, &
-         lb3_loc, lb3_new, loc, maxn_sendrecv, rs_mpo, ub1, ub1_loc, ub1_new, ub2, ub2_loc, &
-         ub2_new, ub3, ub3_loc, ub3_new
+                 lb3_loc, lb3_new, loc, maxn_sendrecv, rs_mpo, ub1, ub1_loc, ub1_new, ub2, ub2_loc, &
+                 ub2_new, ub3, ub3_loc, ub3_new
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dest_hist, src_hist
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: pcs_bnds
       INTEGER, DIMENSION(2, 3)                           :: bounds_local_new
@@ -485,6 +489,8 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
       CALL timeset(routineN, handle)
+
+      MARK_USED(dct_env)
 
       pw_grid => pw_in%pw_grid
       rs_group = pw_grid%para%group
@@ -634,6 +640,7 @@ CONTAINS
 !> \brief shrinks an evenly symmetric pw_r3d_rs_type data to a pw_r3d_rs_type data that is 8
 !>        times smaller (the reverse procedure of pw_expand).
 !>
+!> \param dct_env ...
 !> \param neumann_directions directions in which dct should be performed
 !> \param dests_shrink list of the destination processes
 !> \param srcs_shrink list of the source processes
@@ -644,9 +651,9 @@ CONTAINS
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE pw_shrink(neumann_directions, dests_shrink, srcs_shrink, bounds_local_shftd, &
+   SUBROUTINE pw_shrink(dct_env, neumann_directions, dests_shrink, srcs_shrink, bounds_local_shftd, &
                         pw_in, pw_shrinked)
-
+      CLASS(dct_type), INTENT(IN) :: dct_env
       INTEGER, INTENT(IN)                                :: neumann_directions
       INTEGER, DIMENSION(:), INTENT(IN), POINTER         :: dests_shrink
       INTEGER, INTENT(INOUT)                             :: srcs_shrink
@@ -657,8 +664,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_shrink'
 
       INTEGER :: group_size, handle, i, lb1_orig, lb1_xpnd, lb2_orig, lb2_xpnd, lb3_orig, &
-         lb3_xpnd, maxn_sendrecv, rs_mpo, send_lb1, send_lb2, send_lb3, send_ub1, send_ub2, &
-         send_ub3, tag, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, ub3_xpnd
+                 lb3_xpnd, maxn_sendrecv, rs_mpo, send_lb1, send_lb2, send_lb3, send_ub1, send_ub2, &
+                 send_ub3, tag, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, ub3_xpnd
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_local_all
       INTEGER, DIMENSION(2, 3)                           :: bounds_local_xpnd
       REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: cr3d, send_crmsg
@@ -666,6 +673,8 @@ CONTAINS
       TYPE(pw_grid_type), POINTER                        :: pw_grid_orig
 
       CALL timeset(routineN, handle)
+
+      MARK_USED(dct_env)
 
       pw_grid_orig => pw_shrinked%pw_grid
       rs_group = pw_grid_orig%para%group
