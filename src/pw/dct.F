@@ -979,9 +979,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'expansion_bounds'
 
-      INTEGER                                            :: group_size, handle, i, lb1_new, lb2_new, &
-                                                            lb3_new, loc, maxn_sendrecv, rs_mpo, &
-                                                            ub1_new, ub2_new, ub3_new
+      INTEGER                                            :: group_size, handle, i, loc, &
+                                                            maxn_sendrecv, rs_mpo
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: src_hist
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_local_all, bounds_local_new_all, &
                                                             pcs_bnds
@@ -1074,31 +1073,19 @@ CONTAINS
          END SELECT
       END DO
 
-      lb1_new = MINVAL(pcs_bnds(1, 1, :)); ub1_new = MAXVAL(pcs_bnds(2, 1, :))
-      lb2_new = MINVAL(pcs_bnds(1, 2, :)); ub2_new = MAXVAL(pcs_bnds(2, 2, :))
-      lb3_new = MINVAL(pcs_bnds(1, 3, :)); ub3_new = MAXVAL(pcs_bnds(2, 3, :))
-
 ! calculate the new local and global bounds
-      bounds_local_new(1, 1) = MINVAL(pcs_bnds(1, 1, :))
-      bounds_local_new(2, 1) = MAXVAL(pcs_bnds(2, 1, :))
-      bounds_local_new(1, 2) = MINVAL(pcs_bnds(1, 2, :))
-      bounds_local_new(2, 2) = MAXVAL(pcs_bnds(2, 2, :))
-      bounds_local_new(1, 3) = MINVAL(pcs_bnds(1, 3, :))
+      bounds_local_new(1, :) = MINVAL(pcs_bnds(1, :, :), 2)
+      bounds_local_new(2, :) = MAXVAL(pcs_bnds(2, :, :), 2)
+      ! In these cases, we need a different upper bound
       SELECT CASE (neumann_directions)
       CASE (neumannXYZ, neumannXZ, neumannYZ, neumannZ)
          bounds_local_new(2, 3) = 2*(MAXVAL(pcs_bnds(2, 3, :)) + 1) - bounds_local_new(1, 3) - 1
-      CASE (neumannXY, neumannX, neumannY)
-         bounds_local_new(2, 3) = MAXVAL(pcs_bnds(2, 3, :))
       END SELECT
 
       ALLOCATE (bounds_local_new_all(2, 3, group_size))
       CALL rs_group%allgather(bounds_local_new, bounds_local_new_all)
-      bounds_new(1, 1) = MINVAL(bounds_local_new_all(1, 1, :))
-      bounds_new(2, 1) = MAXVAL(bounds_local_new_all(2, 1, :))
-      bounds_new(1, 2) = MINVAL(bounds_local_new_all(1, 2, :))
-      bounds_new(2, 2) = MAXVAL(bounds_local_new_all(2, 2, :))
-      bounds_new(1, 3) = MINVAL(bounds_local_new_all(1, 3, :))
-      bounds_new(2, 3) = MAXVAL(bounds_local_new_all(2, 3, :))
+      bounds_new(1, :) = MINVAL(bounds_local_new_all(1, :, :), 2)
+      bounds_new(2, :) = MAXVAL(bounds_local_new_all(2, :, :), 2)
 
       DEALLOCATE (bounds_local_all, bounds_local_new_all)
 
