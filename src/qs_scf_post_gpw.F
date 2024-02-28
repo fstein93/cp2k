@@ -52,7 +52,6 @@ MODULE qs_scf_post_gpw
    USE dbcsr_api,                       ONLY: dbcsr_add,&
                                               dbcsr_p_type,&
                                               dbcsr_type
-   USE dct,                             ONLY: pw_shrink
    USE ed_analysis,                     ONLY: edmf_analysis
    USE et_coupling_types,               ONLY: set_et_coupling_type
    USE hfx_ri,                          ONLY: print_ri_hfx
@@ -3086,9 +3085,7 @@ CONTAINS
          CASE (PERIODIC_BC, MIXED_PERIODIC_BC)
             CALL pw_copy(poisson_env%implicit_env%dielectric%eps, aux_r)
          CASE (MIXED_BC, NEUMANN_BC)
-            CALL pw_shrink(pw_env%poisson_env%implicit_env%dct_env, &
-                           pw_env%poisson_env%parameters%ps_implicit_params%neumann_directions, &
-                           poisson_env%implicit_env%dielectric%eps, aux_r)
+            CALL pw_env%poisson_env%implicit_env%dct_env%shrink(poisson_env%implicit_env%dielectric%eps, aux_r)
          END SELECT
 
          CALL cp_pw_to_cube(aux_r, unit_nr, "DIELECTRIC CONSTANT", particles=particles, &
@@ -3132,9 +3129,7 @@ CONTAINS
          CASE (MIXED_PERIODIC_BC)
             CALL pw_copy(poisson_env%implicit_env%cstr_charge, aux_r)
          CASE (MIXED_BC)
-            CALL pw_shrink(pw_env%poisson_env%implicit_env%dct_env, &
-                           pw_env%poisson_env%parameters%ps_implicit_params%neumann_directions, &
-                           poisson_env%implicit_env%cstr_charge, aux_r)
+            CALL pw_env%poisson_env%implicit_env%dct_env%shrink(poisson_env%implicit_env%cstr_charge, aux_r)
          END SELECT
 
          CALL cp_pw_to_cube(aux_r, unit_nr, "DIRICHLET CONSTRAINT CHARGE", particles=particles, &

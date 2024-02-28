@@ -21,7 +21,7 @@ MODULE ps_implicit_methods
                                               cp_logger_type
    USE dct,                             ONLY: &
         dct_type, dct_type_init, neumannX, neumannXY, neumannXYZ, neumannXZ, neumannY, neumannYZ, &
-        neumannZ, pw_expand, pw_shrink
+        neumannZ
    USE dielectric_methods,              ONLY: derive_fft,&
                                               dielectric_create
    USE dielectric_types,                ONLY: dielectric_type
@@ -391,8 +391,8 @@ CONTAINS
          CALL pw_copy(ps_implicit_env%initial_guess, v_old)
       END IF
 
-      CALL pw_expand(dct_env, neumann_directions, density, density_xpndd)
-      CALL pw_expand(dct_env, neumann_directions, v_new, v_new_xpndd)
+      CALL dct_env%expand(density, density_xpndd)
+      CALL dct_env%expand(v_new, v_new_xpndd)
 
       g%array = fourpi*density_xpndd%array/dielectric%eps%array
 
@@ -447,7 +447,7 @@ CONTAINS
       END DO
       CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
-      CALL pw_shrink(dct_env, neumann_directions, v_new_xpndd, v_new)
+      CALL dct_env%shrink(v_new_xpndd, v_new)
 
       IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) &
          CALL pw_copy(v_new_xpndd, ps_implicit_env%initial_guess)
@@ -456,7 +456,7 @@ CONTAINS
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
 ! veps has to be computed for the expanded data and then shrunk otherwise we loose accuracy
       CALL ps_implicit_compute_veps(pw_pool_xpndd, dielectric, v_new_xpndd, v_eps_xpndd)
-      CALL pw_shrink(dct_env, neumann_directions, v_eps_xpndd, ps_implicit_env%v_eps)
+      CALL dct_env%shrink(v_eps_xpndd, ps_implicit_env%v_eps)
 
       CALL pw_pool_xpndd%give_back_pw(g)
       CALL pw_pool_xpndd%give_back_pw(v_old)
@@ -715,12 +715,7 @@ CONTAINS
       ps_implicit_env%cstr_charge%array = Btxlambda_new3D
       IF (PRESENT(electric_enthalpy)) electric_enthalpy = ps_implicit_env%electric_enthalpy
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
-      BLOCK
-         TYPE(pw_r3d_rs_type) :: tmp
-         tmp%pw_grid => ps_implicit_env%v_eps%pw_grid
-         tmp%array => ps_implicit_env%v_eps%array
-         CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, tmp)
-      END BLOCK
+      CALL ps_implicit_compute_veps(pw_pool, dielectric, v_new, ps_implicit_env%v_eps)
 
       CALL pw_pool%give_back_pw(g)
       CALL pw_pool%give_back_pw(v_old)
@@ -874,8 +869,8 @@ CONTAINS
          lambda0(:) = ps_implicit_env%initial_lambda
       END IF
 
-      CALL pw_expand(dct_env, neumann_directions, density, density_xpndd)
-      CALL pw_expand(dct_env, neumann_directions, v_new, v_new_xpndd)
+      CALL dct_env%expand(density, density_xpndd)
+      CALL dct_env%expand(v_new, v_new_xpndd)
 
       g%array = fourpi*density_xpndd%array/dielectric%eps%array
       g_avg = accurate_sum(g%array)/ngpts
@@ -992,7 +987,7 @@ CONTAINS
       END DO
       CALL ps_implicit_print_convergence_msg(iter, max_iter, outp_unit)
 
-      CALL pw_shrink(dct_env, neumann_directions, v_new_xpndd, v_new)
+      CALL dct_env%shrink(v_new_xpndd, v_new)
 
       IF ((times_called .NE. 0) .AND. (.NOT. use_zero_initial_guess)) THEN
          CALL pw_copy(v_new_xpndd, ps_implicit_env%initial_guess)
@@ -1003,7 +998,7 @@ CONTAINS
       IF (PRESENT(electric_enthalpy)) electric_enthalpy = ps_implicit_env%electric_enthalpy
 ! compute the extra contribution to the Hamiltonian due to the presence of dielectric
       CALL ps_implicit_compute_veps(pw_pool_xpndd, dielectric, v_new_xpndd, v_eps_xpndd)
-      CALL pw_shrink(dct_env, neumann_directions, v_eps_xpndd, ps_implicit_env%v_eps)
+      CALL dct_env%shrink(v_eps_xpndd, ps_implicit_env%v_eps)
 
       CALL pw_pool_xpndd%give_back_pw(g)
       CALL pw_pool_xpndd%give_back_pw(v_old)
@@ -1188,8 +1183,7 @@ CONTAINS
             DO i = 1, n_tiles
 
                CALL pw_pool_xpndd%create_pw(pw_in)
-               CALL pw_expand(dct_env, neumann_directions, &
-                              ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw, pw_in)
+               CALL dct_env%expand(ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%tile_pw, pw_in)
 
                tile_volume = ps_implicit_env%contacts(j)%dirichlet_bc%tiles(i)%tile%volume
                CALL pw_scale(pw_in, 1.0_dp/(vol_scfac*tile_volume)) ! normalize tile_pw

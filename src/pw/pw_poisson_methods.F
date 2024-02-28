@@ -388,7 +388,6 @@ CONTAINS
                                              poisson_env%pw_pools(poisson_env%pw_level)%pool, &
                                              poisson_env%dct_pw_grid, &
                                              poisson_env%implicit_env%dct_env, &
-                                             poisson_env%parameters%ps_implicit_params%neumann_directions, &
                                              density, rho_core=rho_core)
                   END SELECT
                END IF
@@ -601,7 +600,6 @@ CONTAINS
                                                 poisson_env%pw_pools(poisson_env%pw_level)%pool, &
                                                 poisson_env%dct_pw_grid, &
                                                 poisson_env%implicit_env%dct_env, &
-                                                poisson_env%parameters%ps_implicit_params%neumann_directions, &
                                                 density, rho_core=rho_core)
                      END SELECT
                   END IF
@@ -807,7 +805,6 @@ CONTAINS
                                                 poisson_env%pw_pools(poisson_env%pw_level)%pool, &
                                                 poisson_env%dct_pw_grid, &
                                                 poisson_env%implicit_env%dct_env, &
-                                                poisson_env%parameters%ps_implicit_params%neumann_directions, &
                                                 density, rho_core=rho_core)
                      END SELECT
                   END IF
@@ -1005,7 +1002,6 @@ CONTAINS
                                                    poisson_env%pw_pools(poisson_env%pw_level)%pool, &
                                                    poisson_env%dct_pw_grid, &
                                                    poisson_env%implicit_env%dct_env, &
-                                                   poisson_env%parameters%ps_implicit_params%neumann_directions, &
                                                    density, rho_core=rho_core)
                         END SELECT
                      END IF

@@ -42,6 +42,7 @@ MODULE dct
       INTEGER, DIMENSION(2, 3)            :: dct_bounds_local = 0
       INTEGER, DIMENSION(2, 3)            :: bounds_shftd = 0
       INTEGER, DIMENSION(2, 3)            :: bounds_local_shftd = 0
+      INTEGER                             :: neumann_directions = 0
    CONTAINS
       PROCEDURE, PASS(dct_env), NON_OVERRIDABLE :: expand => pw_expand
       PROCEDURE, PASS(dct_env), NON_OVERRIDABLE :: shrink => pw_shrink
@@ -55,9 +56,7 @@ MODULE dct
    PUBLIC dct_type, &
       dct_type_init, &
       dct_type_release, &
-      setup_dct_pw_grids, &
-      pw_shrink, &
-      pw_expand
+      setup_dct_pw_grids
 
    INTEGER, PARAMETER, PRIVATE    :: NOT_FLIPPED = 0, &
                                      UD_FLIPPED = 1, &
@@ -95,6 +94,8 @@ CONTAINS
       INTEGER                                            :: handle, maxn_sendrecv
 
       CALL timeset(routineN, handle)
+
+      dct_env%neumann_directions = neumann_directions
 
       SELECT CASE (neumann_directions)
       CASE (neumannXYZ, neumannXY)
@@ -452,16 +453,14 @@ CONTAINS
 !>   and is generalized to 3D by applying the same rule in all three directions
 !>
 !> \param dct_env ...
-!> \param neumann_directions directions in which dct should be performed
 !> \param pw_in the original plane wave data
 !> \param pw_expanded the pw data after expansion
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE pw_expand(dct_env, neumann_directions, pw_in, pw_expanded)
+   SUBROUTINE pw_expand(dct_env, pw_in, pw_expanded)
       CLASS(dct_type), INTENT(IN) :: dct_env
-      INTEGER, INTENT(IN)                                :: neumann_directions
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_expanded
 
@@ -488,7 +487,7 @@ CONTAINS
 
       bounds_local_new = pw_expanded%pw_grid%bounds_local
 
-      SELECT CASE (neumann_directions)
+      SELECT CASE (dct_env%neumann_directions)
       CASE (neumannXYZ, neumannXY)
          maxn_sendrecv = 4
       CASE (neumannX, neumannY, neumannXZ, neumannYZ)
@@ -586,7 +585,7 @@ CONTAINS
       lb2_new = bounds_local_new(1, 2); ub2_new = bounds_local_new(2, 2)
       lb3_new = bounds_local_new(1, 3); ub3_new = bounds_local_new(2, 3)
 
-      SELECT CASE (neumann_directions)
+      SELECT CASE (dct_env%neumann_directions)
       CASE (neumannXYZ, neumannXZ, neumannYZ, neumannZ)
          ind = INT(0.5*(ub3_new + lb3_new + 1))
          ALLOCATE (catd(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ind - 1))
@@ -604,7 +603,7 @@ CONTAINS
       CALL flipbf(catd, catd_flipdbf, dct_env%bounds_shftd)
 ! concatenate catd and catd_flipdbf to get cr3d_xpndd
       ALLOCATE (cr3d_xpndd(lb1_new:ub1_new, lb2_new:ub2_new, lb3_new:ub3_new))
-      SELECT CASE (neumann_directions)
+      SELECT CASE (dct_env%neumann_directions)
       CASE (neumannXYZ, neumannXZ, neumannYZ, neumannZ)
          cr3d_xpndd(:, :, lb3_new:ind - 1) = catd
          cr3d_xpndd(:, :, ind:ub3_new) = catd_flipdbf
@@ -630,16 +629,14 @@ CONTAINS
 !>        times smaller (the reverse procedure of pw_expand).
 !>
 !> \param dct_env ...
-!> \param neumann_directions directions in which dct should be performed
 !> \param pw_in the original plane wave data
 !> \param pw_shrinked the shrunk plane wave data
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE pw_shrink(dct_env, neumann_directions, pw_in, pw_shrinked)
+   SUBROUTINE pw_shrink(dct_env, pw_in, pw_shrinked)
       CLASS(dct_type), INTENT(INOUT) :: dct_env
-      INTEGER, INTENT(IN)                                :: neumann_directions
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: pw_in
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: pw_shrinked
 
@@ -665,7 +662,7 @@ CONTAINS
       bounds_local_xpnd = pw_in%pw_grid%bounds_local
       tag = 1
 
-      SELECT CASE (neumann_directions)
+      SELECT CASE (dct_env%neumann_directions)
       CASE (neumannXYZ, neumannXY)
          maxn_sendrecv = 4
       CASE (neumannX, neumannY, neumannXZ, neumannYZ)
