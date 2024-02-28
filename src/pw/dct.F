@@ -45,6 +45,8 @@ MODULE dct
       INTEGER, DIMENSION(2, 3)            :: bounds_local_shftd = 0
       INTEGER                             :: neumann_directions = 0
    CONTAINS
+      PROCEDURE, PASS(dct_env), NON_OVERRIDABLE :: create => dct_type_init
+      PROCEDURE, PASS(dct_env), NON_OVERRIDABLE :: release => dct_type_release
       PROCEDURE, PASS(dct_env), NON_OVERRIDABLE :: expand => pw_expand
       PROCEDURE, PASS(dct_env), NON_OVERRIDABLE :: shrink => pw_shrink
    END TYPE dct_type
@@ -54,10 +56,7 @@ MODULE dct
       REAL(dp), DIMENSION(:, :, :), ALLOCATABLE :: msg
    END TYPE dct_msg_type
 
-   PUBLIC dct_type, &
-      dct_type_init, &
-      dct_type_release, &
-      setup_dct_pw_grids
+   PUBLIC dct_type, setup_dct_pw_grids
 
    ! Just convenience to keep the components of the type private
    TYPE(dct_type), PARAMETER, PUBLIC :: dct_null = dct_type(dests_expand=NULL(), srcs_expand=NULL(), flipg_stat=NULL(), &
@@ -92,7 +91,8 @@ CONTAINS
 
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
       INTEGER, INTENT(IN)                                :: neumann_directions
-      TYPE(dct_type), INTENT(INOUT)                      :: dct_env
+
+      CLASS(dct_type), INTENT(INOUT)                      :: dct_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'dct_type_init'
 
@@ -138,7 +138,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dct_type_release(dct_env)
 
-      TYPE(dct_type), INTENT(INOUT)                      :: dct_env
+      CLASS(dct_type), INTENT(INOUT)                      :: dct_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'dct_type_release'
 

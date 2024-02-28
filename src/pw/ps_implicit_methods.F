@@ -19,9 +19,14 @@ MODULE ps_implicit_methods
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_get_default_unit_nr,&
                                               cp_logger_type
-   USE dct,                             ONLY: &
-        dct_type, dct_type_init, neumannX, neumannXY, neumannXYZ, neumannXZ, neumannY, neumannYZ, &
-        neumannZ
+   USE dct,                             ONLY: dct_type,&
+                                              neumannX,&
+                                              neumannXY,&
+                                              neumannXYZ,&
+                                              neumannXZ,&
+                                              neumannY,&
+                                              neumannYZ,&
+                                              neumannZ
    USE dielectric_methods,              ONLY: derive_fft,&
                                               dielectric_create
    USE dielectric_types,                ONLY: dielectric_type
@@ -152,7 +157,7 @@ CONTAINS
 
 ! dct env
          IF (boundary_condition .EQ. MIXED_BC .OR. boundary_condition .EQ. NEUMANN_BC) THEN
-            CALL dct_type_init(pw_pool%pw_grid, neumann_directions, ps_implicit_env%dct_env)
+            CALL ps_implicit_env%dct_env%create(pw_pool%pw_grid, neumann_directions)
          END IF
 
 ! prepare dirichlet bc

@@ -15,8 +15,7 @@
 MODULE ps_implicit_types
 
    USE dct,                             ONLY: dct_null,&
-                                              dct_type,&
-                                              dct_type_release
+                                              dct_type
    USE dielectric_types,                ONLY: dielectric_release,&
                                               dielectric_type
    USE dirichlet_bc_types,              ONLY: dbc_release,&
@@ -130,7 +129,7 @@ CONTAINS
          CALL dielectric_release(ps_implicit_env%dielectric, pw_pool)
          boundary_condition = ps_implicit_params%boundary_condition
          IF (boundary_condition .EQ. MIXED_BC .OR. boundary_condition .EQ. NEUMANN_BC) THEN
-            CALL dct_type_release(ps_implicit_env%dct_env)
+            CALL ps_implicit_env%dct_env%release()
          END IF
 
          DEALLOCATE (ps_implicit_env)
