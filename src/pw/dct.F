@@ -12,6 +12,8 @@
 !>       11.2015 dealt with periodic grids [Hossein Bani-Hashemian]
 !>       03.2016 dct in one or two directions [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
+!> \note
+!>       Could be replaced with FFTW3 (provides DCTs of different types)
 ! **************************************************************************************************
 MODULE dct
 
@@ -294,9 +296,11 @@ CONTAINS
 !                                               [-2 -1 -2 -1]
 ! schematically :
 ! ij : coordinates in a 2D process grid (starting from 1 just for demonstration)
+!      in the compressed format
 ! () : to be flipped from left to right
 ! [] : to be flipped from up to down
 ! {} : to be rotated 180 degrees
+!      in the expanded format
 !    11 | 12 | 13 | 14          11   12  |  13   14  | (14) (13) | (12) (11)
 !    -----------------    ==>   21   22  |  23   24  | (24) (23) | (22) (21)
 !    21 | 22 | 23 | 24         ---------------------------------------------

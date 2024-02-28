@@ -308,9 +308,9 @@ CONTAINS
          INTEGER, DIMENSION(3)                              :: lb, ub
          REAL(dp)                                           :: eps0, rho_max, rho_min
          TYPE(pw_pool_type), POINTER                        :: pw_pool_xpndd
-         TYPE(pw_r3d_rs_type)                                      :: ln_eps, rho_core_rs, rho_core_rs_xpndd, &
-                                                                      rho_elec_rs, rho_elec_rs_xpndd
-         TYPE(pw_r3d_rs_type), DIMENSION(3)                        :: deps, drho
+         TYPE(pw_r3d_rs_type)                               :: ln_eps, rho_core_rs, rho_core_rs_xpndd, &
+                                                               rho_elec_rs, rho_elec_rs_xpndd
+         TYPE(pw_r3d_rs_type), DIMENSION(3)                 :: deps, drho
 
          CALL timeset(routineN, handle)
 
@@ -411,7 +411,7 @@ CONTAINS
 
                lb(1:3) = pw_pool_xpndd%pw_grid%bounds_local(1, 1:3)
                ub(1:3) = pw_pool_xpndd%pw_grid%bounds_local(2, 1:3)
-               ! damp oscillations cuased by fft-based derivative in the region
+               ! damp oscillations caused by fft-based derivative in the region
                ! where electron density is zero
                DO idir = 1, 3
                   DO k = lb(3), ub(3)
