@@ -119,11 +119,7 @@ CONTAINS
       ALLOCATE (dct_env%recv_msgs_bnds(2, 3, maxn_sendrecv))
 
       CALL set_dests_srcs_pid(pw_grid, dct_env)
-      CALL expansion_bounds(pw_grid, neumann_directions, &
-                            dct_env%srcs_expand, dct_env%flipg_stat, &
-                            dct_env%bounds_shftd, dct_env%bounds_local_shftd, &
-                            dct_env%recv_msgs_bnds, dct_env%dct_bounds, &
-                            dct_env%dct_bounds_local)
+      CALL expansion_bounds(pw_grid, dct_env)
 
       CALL timestop(handle)
 
@@ -205,9 +201,7 @@ CONTAINS
       CALL dct_type_init(pw_grid, neumann_directions, dct_env)
 
       CALL set_dests_srcs_pid(pw_grid, dct_env)
-      CALL expansion_bounds(pw_grid, dct_env%neumann_directions, dct_env%srcs_expand, dct_env%flipg_stat, &
-                            dct_env%bounds_shftd, dct_env%bounds_local_shftd, dct_env%recv_msgs_bnds, &
-                            dct_env%dct_bounds, dct_env%dct_bounds_local)
+      CALL expansion_bounds(pw_grid, dct_env)
 
       hmat2 = 0.0_dp
       hmat2(1, 1) = scfac(1)*cell_hmat(1, 1)
@@ -933,28 +927,15 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief   calculates the global and local bounds of the expanded data
 !> \param pw_grid original plane-wave grid
-!> \param neumann_directions directions in which dct should be performed
-!> \param srcs_expand list of the source processes (pw_expand)
-!> \param flipg_stat flipping status for the received data chunks (pw_expand)
-!> \param bounds_shftd bounds of the original grid shifted to have g0 in the middle of the cell
-!> \param bounds_local_shftd local bounds of the original grid after shifting
-!> \param recv_msgs_bnds bounds of the messages to be received (pw_expand)
-!> \param bounds_new new global lower and upper bounds
-!> \param bounds_local_new new local lower and upper bounds
+!> \param dct_env ...
 !> \par History
 !>       07.2014 created [Hossein Bani-Hashemian]
 !> \author Mohammad Hossein Bani-Hashemian
 ! **************************************************************************************************
-   SUBROUTINE expansion_bounds(pw_grid, neumann_directions, srcs_expand, flipg_stat, &
-                               bounds_shftd, bounds_local_shftd, &
-                               recv_msgs_bnds, bounds_new, bounds_local_new)
+   SUBROUTINE expansion_bounds(pw_grid, dct_env)
 
       TYPE(pw_grid_type), INTENT(IN), POINTER            :: pw_grid
-      INTEGER, INTENT(IN)                                :: neumann_directions
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: srcs_expand, flipg_stat
-      INTEGER, DIMENSION(2, 3), INTENT(OUT)              :: bounds_shftd, bounds_local_shftd
-      INTEGER, DIMENSION(:, :, :), INTENT(INOUT)         :: recv_msgs_bnds
-      INTEGER, DIMENSION(2, 3), INTENT(OUT)              :: bounds_new, bounds_local_new
+      TYPE(dct_type), INTENT(INOUT)                      :: dct_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'expansion_bounds'
 
@@ -975,7 +956,7 @@ CONTAINS
       bounds = pw_grid%bounds
       bounds_local = pw_grid%bounds_local
 
-      SELECT CASE (neumann_directions)
+      SELECT CASE (dct_env%neumann_directions)
       CASE (neumannXYZ)
          maxn_sendrecv = 4
          shf_yesno = (/1, 1, 1/)
@@ -1009,62 +990,62 @@ CONTAINS
       npts_new = 2*pw_grid%npts
       shift = -npts_new/2
       shift = shift - bounds(1, :)
-      bounds_shftd(:, 1) = bounds(:, 1) + shf_yesno(1)*shift(1)
-      bounds_shftd(:, 2) = bounds(:, 2) + shf_yesno(2)*shift(2)
-      bounds_shftd(:, 3) = bounds(:, 3) + shf_yesno(3)*shift(3)
-      bounds_local_shftd(:, 1) = bounds_local(:, 1) + shf_yesno(1)*shift(1)
-      bounds_local_shftd(:, 2) = bounds_local(:, 2) + shf_yesno(2)*shift(2)
-      bounds_local_shftd(:, 3) = bounds_local(:, 3) + shf_yesno(3)*shift(3)
+      dct_env%bounds_shftd(:, 1) = bounds(:, 1) + shf_yesno(1)*shift(1)
+      dct_env%bounds_shftd(:, 2) = bounds(:, 2) + shf_yesno(2)*shift(2)
+      dct_env%bounds_shftd(:, 3) = bounds(:, 3) + shf_yesno(3)*shift(3)
+      dct_env%bounds_local_shftd(:, 1) = bounds_local(:, 1) + shf_yesno(1)*shift(1)
+      dct_env%bounds_local_shftd(:, 2) = bounds_local(:, 2) + shf_yesno(2)*shift(2)
+      dct_env%bounds_local_shftd(:, 3) = bounds_local(:, 3) + shf_yesno(3)*shift(3)
 
 ! let all the nodes know about each others local shifted bounds
       ALLOCATE (bounds_local_all(2, 3, group_size))
-      CALL rs_group%allgather(bounds_local_shftd, bounds_local_all)
+      CALL rs_group%allgather(dct_env%bounds_local_shftd, bounds_local_all)
 
       src_hist = -1 ! keeps the history of sources
 
       DO i = 1, maxn_sendrecv
 ! no need to receive from myself
-         IF (srcs_expand(i) .EQ. rs_mpo) THEN
-            recv_msgs_bnds(:, :, i) = bounds_local_shftd(:, :)
+         IF (dct_env%srcs_expand(i) .EQ. rs_mpo) THEN
+            dct_env%recv_msgs_bnds(:, :, i) = dct_env%bounds_local_shftd(:, :)
 ! if I have already received data from the source, just use the one from the last time
-         ELSE IF (ANY(src_hist .EQ. srcs_expand(i))) THEN
-            loc = MINLOC(ABS(src_hist - srcs_expand(i)), 1)
-            recv_msgs_bnds(:, :, i) = bounds_local_all(:, :, srcs_expand(loc) + 1)
+         ELSE IF (ANY(src_hist .EQ. dct_env%srcs_expand(i))) THEN
+            loc = MINLOC(ABS(src_hist - dct_env%srcs_expand(i)), 1)
+            dct_env%recv_msgs_bnds(:, :, i) = bounds_local_all(:, :, dct_env%srcs_expand(loc) + 1)
          ELSE
-            recv_msgs_bnds(:, :, i) = bounds_local_all(:, :, srcs_expand(i) + 1)
+            dct_env%recv_msgs_bnds(:, :, i) = bounds_local_all(:, :, dct_env%srcs_expand(i) + 1)
          END IF
-         src_hist(i) = srcs_expand(i)
+         src_hist(i) = dct_env%srcs_expand(i)
       END DO
 
 ! flip the received data based on the flipping status
       DO i = 1, maxn_sendrecv
-         SELECT CASE (flipg_stat(i))
+         SELECT CASE (dct_env%flipg_stat(i))
          CASE (NOT_FLIPPED)
-            pcs_bnds(:, :, i) = recv_msgs_bnds(:, :, i)
+            pcs_bnds(:, :, i) = dct_env%recv_msgs_bnds(:, :, i)
          CASE (UD_FLIPPED)
-            pcs_bnds(:, :, i) = flipud_bounds_local(recv_msgs_bnds(:, :, i), bounds_shftd)
+            pcs_bnds(:, :, i) = flipud_bounds_local(dct_env%recv_msgs_bnds(:, :, i), dct_env%bounds_shftd)
          CASE (LR_FLIPPED)
-            pcs_bnds(:, :, i) = fliplr_bounds_local(recv_msgs_bnds(:, :, i), bounds_shftd)
+            pcs_bnds(:, :, i) = fliplr_bounds_local(dct_env%recv_msgs_bnds(:, :, i), dct_env%bounds_shftd)
          CASE (BF_FLIPPED)
-            pcs_bnds(:, :, i) = flipbf_bounds_local(recv_msgs_bnds(:, :, i), bounds_shftd)
+            pcs_bnds(:, :, i) = flipbf_bounds_local(dct_env%recv_msgs_bnds(:, :, i), dct_env%bounds_shftd)
          CASE (ROTATED)
-            pcs_bnds(:, :, i) = rot180_bounds_local(recv_msgs_bnds(:, :, i), bounds_shftd)
+            pcs_bnds(:, :, i) = rot180_bounds_local(dct_env%recv_msgs_bnds(:, :, i), dct_env%bounds_shftd)
          END SELECT
       END DO
 
 ! calculate the new local and global bounds
-      bounds_local_new(1, :) = MINVAL(pcs_bnds(1, :, :), 2)
-      bounds_local_new(2, :) = MAXVAL(pcs_bnds(2, :, :), 2)
+      dct_env%dct_bounds_local(1, :) = MINVAL(pcs_bnds(1, :, :), 2)
+      dct_env%dct_bounds_local(2, :) = MAXVAL(pcs_bnds(2, :, :), 2)
       ! In these cases, we need a different upper bound
-      SELECT CASE (neumann_directions)
+      SELECT CASE (dct_env%neumann_directions)
       CASE (neumannXYZ, neumannXZ, neumannYZ, neumannZ)
-         bounds_local_new(2, 3) = 2*(MAXVAL(pcs_bnds(2, 3, :)) + 1) - bounds_local_new(1, 3) - 1
+         dct_env%dct_bounds_local(2, 3) = 2*(MAXVAL(pcs_bnds(2, 3, :)) + 1) - dct_env%dct_bounds_local(1, 3) - 1
       END SELECT
 
       ALLOCATE (bounds_local_new_all(2, 3, group_size))
-      CALL rs_group%allgather(bounds_local_new, bounds_local_new_all)
-      bounds_new(1, :) = MINVAL(bounds_local_new_all(1, :, :), 2)
-      bounds_new(2, :) = MAXVAL(bounds_local_new_all(2, :, :), 2)
+      CALL rs_group%allgather(dct_env%dct_bounds_local, bounds_local_new_all)
+      dct_env%dct_bounds(1, :) = MINVAL(bounds_local_new_all(1, :, :), 2)
+      dct_env%dct_bounds(2, :) = MAXVAL(bounds_local_new_all(2, :, :), 2)
 
       DEALLOCATE (bounds_local_all, bounds_local_new_all)
 
