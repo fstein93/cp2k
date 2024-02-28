@@ -627,8 +627,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      MARK_USED(dct_env)
-
       pw_grid_orig => pw_shrinked%pw_grid
       rs_group = pw_grid_orig%para%group
       rs_mpo = pw_grid_orig%para%group%mepos
@@ -945,7 +943,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_local_all, bounds_local_new_all, &
                                                             pcs_bnds
       INTEGER, DIMENSION(2, 3)                           :: bounds, bounds_local
-      INTEGER, DIMENSION(3)                              :: npts_new, shf_yesno, shift
+      INTEGER, DIMENSION(3)                              :: shf_yesno, shift
       TYPE(mp_comm_type)                                 :: rs_group
 
       CALL timeset(routineN, handle)
@@ -987,8 +985,7 @@ CONTAINS
       ALLOCATE (src_hist(maxn_sendrecv))
 
       ! Note that this is not easily FFT-able ... needed anyway, so link in FFTW.
-      npts_new = 2*pw_grid%npts
-      shift = -npts_new/2
+      shift = -pw_grid%npts
       shift = shift - bounds(1, :)
       dct_env%bounds_shftd(:, 1) = bounds(:, 1) + shf_yesno(1)*shift(1)
       dct_env%bounds_shftd(:, 2) = bounds(:, 2) + shf_yesno(2)*shift(2)
