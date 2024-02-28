@@ -79,6 +79,26 @@ MODULE dct
 CONTAINS
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param direction ...
+!> \return ...
+! **************************************************************************************************
+   INTEGER FUNCTION neumann_direction_to_maxn_sendrecv(direction) RESULT(maxn_sendrecv)
+      INTEGER, INTENT(IN)                                :: direction
+
+      SELECT CASE (direction)
+      CASE (neumannXYZ, neumannXY)
+         maxn_sendrecv = 4
+      CASE (neumannX, neumannY, neumannXZ, neumannYZ)
+         maxn_sendrecv = 2
+      CASE (neumannZ)
+         maxn_sendrecv = 1
+      CASE DEFAULT
+         CPABORT("Invalid combination of Neumann and periodic conditions.")
+      END SELECT
+   END
+
+! **************************************************************************************************
 !> \brief  Initializes a dct_type
 !> \param pw_grid the original plane wave grid
 !> \param neumann_directions directions in which dct should be performed
@@ -101,17 +121,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       dct_env%neumann_directions = neumann_directions
-
-      SELECT CASE (neumann_directions)
-      CASE (neumannXYZ, neumannXY)
-         maxn_sendrecv = 4
-      CASE (neumannX, neumannY, neumannXZ, neumannYZ)
-         maxn_sendrecv = 2
-      CASE (neumannZ)
-         maxn_sendrecv = 1
-      CASE DEFAULT
-         CPABORT("Invalid combination of Neumann and periodic conditions.")
-      END SELECT
+      maxn_sendrecv = neumann_direction_to_maxn_sendrecv(neumann_directions)
 
       ALLOCATE (dct_env%flipg_stat(maxn_sendrecv))
       ALLOCATE (dct_env%dests_expand(maxn_sendrecv), dct_env%srcs_expand(maxn_sendrecv))
@@ -308,10 +318,11 @@ CONTAINS
       rs_pos = pw_grid%para%group%mepos_cart
       rs_dim1 = rs_dims(1); rs_dim2 = rs_dims(2)
 
+      maxn_sendrecv = neumann_direction_to_maxn_sendrecv(dct_env%neumann_directions)
+
 ! prepare srcs_coord
       SELECT CASE (dct_env%neumann_directions)
       CASE (neumannXYZ, neumannXY)
-         maxn_sendrecv = 4
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
 
          ALLOCATE (tmp1_arr(rs_dim1), src_pos1(2, 0:rs_dim1 - 1))
@@ -329,7 +340,6 @@ CONTAINS
          srcs_coord(:, 3) = (/src_pos1(2, rs_pos(1)), src_pos2(1, rs_pos(2))/)
          srcs_coord(:, 4) = (/src_pos1(2, rs_pos(1)), src_pos2(2, rs_pos(2))/)
       CASE (neumannXZ, neumannX)
-         maxn_sendrecv = 2
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
 
          ALLOCATE (tmp1_arr(rs_dim1), src_pos1(2, 0:rs_dim1 - 1))
@@ -340,7 +350,6 @@ CONTAINS
          srcs_coord(:, 1) = (/src_pos1(1, rs_pos(1)), rs_pos(2) + 1/)
          srcs_coord(:, 2) = (/src_pos1(2, rs_pos(1)), rs_pos(2) + 1/)
       CASE (neumannYZ, neumannY)
-         maxn_sendrecv = 2
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
          ALLOCATE (tmp2_arr(rs_dim2), src_pos2(2, 0:rs_dim2 - 1))
 
@@ -350,7 +359,6 @@ CONTAINS
          srcs_coord(:, 1) = (/rs_pos(1) + 1, src_pos2(1, rs_pos(2))/)
          srcs_coord(:, 2) = (/rs_pos(1) + 1, src_pos2(2, rs_pos(2))/)
       CASE (neumannZ)
-         maxn_sendrecv = 1
          ALLOCATE (srcs_coord(2, maxn_sendrecv))
 !---
          srcs_coord(:, 1) = (/rs_pos(1) + 1, rs_pos(2) + 1/)
@@ -461,14 +469,7 @@ CONTAINS
 
       bounds_local_new = pw_expanded%pw_grid%bounds_local
 
-      SELECT CASE (dct_env%neumann_directions)
-      CASE (neumannXYZ, neumannXY)
-         maxn_sendrecv = 4
-      CASE (neumannX, neumannY, neumannXZ, neumannYZ)
-         maxn_sendrecv = 2
-      CASE (neumannZ)
-         maxn_sendrecv = 1
-      END SELECT
+      maxn_sendrecv = neumann_direction_to_maxn_sendrecv(dct_env%neumann_directions)
 
       ALLOCATE (recv_reqs(maxn_sendrecv), send_reqs(maxn_sendrecv))
       ALLOCATE (dest_hist(maxn_sendrecv), src_hist(maxn_sendrecv))
@@ -634,14 +635,7 @@ CONTAINS
       bounds_local_xpnd = pw_in%pw_grid%bounds_local
       tag = 1
 
-      SELECT CASE (dct_env%neumann_directions)
-      CASE (neumannXYZ, neumannXY)
-         maxn_sendrecv = 4
-      CASE (neumannX, neumannY, neumannXZ, neumannYZ)
-         maxn_sendrecv = 2
-      CASE (neumannZ)
-         maxn_sendrecv = 1
-      END SELECT
+      maxn_sendrecv = neumann_direction_to_maxn_sendrecv(dct_env%neumann_directions)
 
 ! cosine transform is a real transform. The cosine transform of a 3D data must be real and 3D.
       lb1_xpnd = bounds_local_xpnd(1, 1)
@@ -954,31 +948,25 @@ CONTAINS
       bounds = pw_grid%bounds
       bounds_local = pw_grid%bounds_local
 
+      maxn_sendrecv = neumann_direction_to_maxn_sendrecv(dct_env%neumann_directions)
+
       SELECT CASE (dct_env%neumann_directions)
       CASE (neumannXYZ)
-         maxn_sendrecv = 4
          shf_yesno = (/1, 1, 1/)
       CASE (neumannXY)
-         maxn_sendrecv = 4
          shf_yesno = (/1, 1, 0/)
       CASE (neumannXZ)
-         maxn_sendrecv = 2
          shf_yesno = (/1, 0, 1/)
       CASE (neumannYZ)
-         maxn_sendrecv = 2
          shf_yesno = (/0, 1, 1/)
       CASE (neumannX)
-         maxn_sendrecv = 2
          shf_yesno = (/1, 0, 0/)
       CASE (neumannY)
-         maxn_sendrecv = 2
          shf_yesno = (/0, 1, 0/)
       CASE (neumannZ)
-         maxn_sendrecv = 1
          shf_yesno = (/0, 0, 1/)
       CASE DEFAULT
          CPABORT("Unknown neumann direction")
-         shf_yesno = (/0, 0, 0/)
       END SELECT
 
       ALLOCATE (pcs_bnds(2, 3, maxn_sendrecv))
