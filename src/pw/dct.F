@@ -21,7 +21,8 @@ MODULE dct
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_request_null,&
                                               mp_request_type,&
-                                              mp_waitall
+                                              mp_waitall,&
+                                              mp_waitany
    USE pw_grid_types,                   ONLY: pw_grid_type
    USE pw_grids,                        ONLY: pw_grid_create
    USE pw_types,                        ONLY: pw_r3d_rs_type
@@ -617,75 +618,158 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'pw_shrink'
 
-      INTEGER :: group_size, handle, i, lb1_orig, lb1_xpnd, lb2_orig, lb2_xpnd, lb3_orig, &
-                 lb3_xpnd, maxn_sendrecv, rs_mpo, send_lb1, send_lb2, send_lb3, send_ub1, send_ub2, &
-                 send_ub3, tag, ub1_orig, ub1_xpnd, ub2_orig, ub2_xpnd, ub3_orig, ub3_xpnd
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_local_all
-      INTEGER, DIMENSION(2, 3)                           :: bounds_local_xpnd
-      REAL(dp), ALLOCATABLE, DIMENSION(:, :, :)          :: cr3d, send_crmsg
-      TYPE(mp_comm_type)                                 :: rs_group
-      TYPE(pw_grid_type), POINTER                        :: pw_grid_orig
+      INTEGER :: handle, i, proc, number_recv, number_send, tag, send_counter, recv_counter, finished, sent_elements, recv_elements
+      INTEGER, DIMENSION(3) :: comm_size, shift
+      INTEGER, DIMENSION(:), ALLOCATABLE :: recv_proc
+      INTEGER, DIMENSION(:, :, :), ALLOCATABLE :: data_to_recv, data_to_send
+      INTEGER, DIMENSION(:, :, :), ALLOCATABLE  :: bounds_xpndd_all, bounds_shrnk_all
+      TYPE(dct_msg_type), DIMENSION(:), ALLOCATABLE :: send_msg, recv_msg
+      TYPE(mp_request_type), DIMENSION(:), ALLOCATABLE :: send_req, recv_req
 
       CALL timeset(routineN, handle)
 
-      pw_grid_orig => pw_shrinked%pw_grid
-      rs_group = pw_grid_orig%para%group
-      rs_mpo = pw_grid_orig%para%group%mepos
-      group_size = pw_grid_orig%para%group%num_pe
-      bounds_local_xpnd = pw_in%pw_grid%bounds_local
+      MARK_USED(dct_env)
+
+! irecv may change the tag (it won't)
       tag = 1
 
-      maxn_sendrecv = neumann_direction_to_maxn_sendrecv(dct_env%neumann_directions)
+      ASSOCIATE (group => pw_in%pw_grid%para%group, bounds_xpndd => pw_in%pw_grid%bounds_local, &
+                 bounds_shrnk => pw_shrinked%pw_grid%bounds_local)
 
-! cosine transform is a real transform. The cosine transform of a 3D data must be real and 3D.
-      lb1_xpnd = bounds_local_xpnd(1, 1)
-      ub1_xpnd = bounds_local_xpnd(2, 1)
-      lb2_xpnd = bounds_local_xpnd(1, 2)
-      ub2_xpnd = bounds_local_xpnd(2, 2)
-      lb3_xpnd = bounds_local_xpnd(1, 3)
-      ub3_xpnd = bounds_local_xpnd(2, 3)
-      ALLOCATE (cr3d(lb1_xpnd:ub1_xpnd, lb2_xpnd:ub2_xpnd, lb3_xpnd:ub3_xpnd))
-      cr3d(:, :, :) = pw_in%array
+         ALLOCATE (bounds_xpndd_all(2, 3, 0:group%num_pe - 1))
+         CALL group%allgather(bounds_xpndd, bounds_xpndd_all)
+         WRITE (*, *) "bounds_xpndd ", bounds_xpndd
+         ALLOCATE (bounds_shrnk_all(2, 3, 0:group%num_pe - 1))
+         CALL group%allgather(bounds_shrnk, bounds_shrnk_all)
+         WRITE (*, *) "bounds_shrnk ", bounds_shrnk
+         shift = pw_shrinked%pw_grid%bounds(1, :) - pw_in%pw_grid%bounds(1, :)
+         DO i = 1, 3
+            bounds_xpndd_all(1, i, :) = bounds_xpndd_all(1, i, :) + shift(i)
+            bounds_xpndd_all(2, i, :) = bounds_xpndd_all(2, i, :) + shift(i)
+         END DO
+         WRITE (*, *) "bounds shifted ", bounds_xpndd_all
 
-! let all the nodes know about each others shifted local bounds
-      ALLOCATE (bounds_local_all(2, 3, group_size))
-      CALL rs_group%allgather(dct_env%bounds_local_shftd, bounds_local_all)
+         ! Figure out from whom to receive new data
+         ALLOCATE (data_to_recv(2, 3, 0:group%num_pe - 1))
+! By default,choose the upper bound lower than the lower bound to indicate no data transfer
+         data_to_recv(1, :, :) = 0
+         data_to_recv(2, :, :) = -1
+         DO proc = 0, group%num_pe - 1
+! Check whether we have to recv any data from the process
+            IF (ALL(bounds_xpndd_all(1, :, proc) <= bounds_shrnk(2, :)) .AND. &
+                ALL(bounds_xpndd_all(2, :, proc) >= bounds_shrnk(1, :))) THEN
+! Store own ranges
+               data_to_recv(1, :, proc) = MAX(bounds_shrnk(1, :), bounds_xpndd_all(1, :, proc))
+               data_to_recv(2, :, proc) = MIN(bounds_shrnk(2, :), bounds_xpndd_all(2, :, proc))
+               WRITE (*, *) "Recv data from ", proc, ": ", data_to_recv(:, :, proc)
+            END IF
+         END DO
+         WRITE (*, *) "data_to_recv ", data_to_recv
 
-      DO i = 1, maxn_sendrecv
-! no need to send to myself or to an invalid destination (pid = -1)
-         IF ((dct_env%dests_shrink(i) .NE. rs_mpo) .AND. (dct_env%dests_shrink(i) .NE. -1)) THEN
-            send_lb1 = bounds_local_all(1, 1, dct_env%dests_shrink(i) + 1)
-            send_ub1 = bounds_local_all(2, 1, dct_env%dests_shrink(i) + 1)
-            send_lb2 = bounds_local_all(1, 2, dct_env%dests_shrink(i) + 1)
-            send_ub2 = bounds_local_all(2, 2, dct_env%dests_shrink(i) + 1)
-            send_lb3 = bounds_local_all(1, 3, dct_env%dests_shrink(i) + 1)
-            send_ub3 = bounds_local_all(2, 3, dct_env%dests_shrink(i) + 1)
+         ! Figure out to whom to send data (reverse positions to above
+         ALLOCATE (data_to_send(2, 3, 0:group%num_pe - 1))
+! By default,choose the upper bound lower than the lower bound to indicate no data transfer
+         data_to_send(1, :, :) = 0
+         data_to_send(2, :, :) = -1
+         DO proc = 0, group%num_pe - 1
+! Check whether we have to send any data to the process
+            IF (ALL(bounds_xpndd(1, :) <= bounds_shrnk_all(2, :, proc)) .AND. &
+                ALL(bounds_xpndd(2, :) >= bounds_shrnk_all(1, :, proc))) THEN
+! Store own ranges
+               data_to_send(1, :, proc) = MAX(bounds_shrnk_all(1, :, proc), bounds_xpndd(1, :))
+               data_to_send(2, :, proc) = MIN(bounds_shrnk_all(2, :, proc), bounds_xpndd(2, :))
+               WRITE (*, *) "Recv data from ", proc, ": ", data_to_recv(:, :, proc)
+            END IF
+         END DO
+         WRITE (*, *) "data_to_send ", data_to_send
 
-            ALLOCATE (send_crmsg(send_lb1:send_ub1, send_lb2:send_ub2, send_lb3:send_ub3))
-            send_crmsg(:, :, :) = cr3d(send_lb1:send_ub1, send_lb2:send_ub2, send_lb3:send_ub3)
-            CALL rs_group%send(send_crmsg, dct_env%dests_shrink(i), tag)
-            DEALLOCATE (send_crmsg)
+         ! Determine number of communication processes
+         number_recv = COUNT(ALL(data_to_recv(2, :, :) >= data_to_recv(1, :, :), 1))
+         number_send = COUNT(ALL(data_to_send(2, :, :) >= data_to_send(1, :, :), 1))
+         WRITE (*, *) "data to be communicated 1 ", number_recv, number_send
+
+! Do not send to/recv from yourself
+         IF (ALL(data_to_recv(2, :, group%mepos) - data_to_recv(1, :, group%mepos) >= 0)) number_recv = number_recv - 1
+         IF (ALL(data_to_send(2, :, group%mepos) - data_to_send(1, :, group%mepos) >= 0)) number_send = number_send - 1
+         WRITE (*, *) "data to be communicated 2 ", number_recv, number_send
+
+         sent_elements = 0
+         recv_elements = 0
+
+         ! Initiate send process (only necessary if the process belongs to the left half (halves) of the respective directions)
+         IF (number_send > 0) THEN
+            ALLOCATE (send_req(number_send))
+            ALLOCATE (send_msg(number_send))
+            send_counter = 0
+            DO proc = 0, group%num_pe - 1
+               comm_size = data_to_send(2, :, proc) - data_to_send(1, :, proc) + 1
+               IF (ALL(comm_size > 0) .AND. proc /= group%mepos) THEN
+                  send_counter = send_counter + 1
+! Copy the data to a contiguous buffer (direct copy is not possible with the current MPI wrapper)
+                  ALLOCATE (send_msg(send_counter)%msg(comm_size(1), comm_size(2), comm_size(3)))
+                  send_msg(send_counter)%msg(:, :, :) = pw_in%array(data_to_send(1, 1, proc):data_to_send(2, 1, proc), &
+                                                                    data_to_send(1, 2, proc):data_to_send(2, 2, proc), &
+                                                                    data_to_send(1, 3, proc):data_to_send(2, 3, proc))
+                  CALL group%isend(send_msg(send_counter)%msg, proc, send_req(send_counter), tag)
+                  sent_elements = sent_elements + PRODUCT(data_to_send(2, :, proc) - data_to_send(1, :, proc) + 1)
+               END IF
+            END DO
          END IF
-      END DO
 
-      lb1_orig = dct_env%bounds_local_shftd(1, 1)
-      ub1_orig = dct_env%bounds_local_shftd(2, 1)
-      lb2_orig = dct_env%bounds_local_shftd(1, 2)
-      ub2_orig = dct_env%bounds_local_shftd(2, 2)
-      lb3_orig = dct_env%bounds_local_shftd(1, 3)
-      ub3_orig = dct_env%bounds_local_shftd(2, 3)
+         ! Receive data
+         IF (number_recv > 0) THEN
+            ALLOCATE (recv_req(number_recv))
+            ALLOCATE (recv_msg(number_recv))
+            ALLOCATE (recv_proc(number_recv))
+            recv_counter = 0
+            DO proc = 0, group%num_pe - 1
+               comm_size = data_to_recv(2, :, proc) - data_to_recv(1, :, proc) + 1
+               IF (ALL(comm_size > 0) .AND. proc /= group%mepos) THEN
+                  recv_counter = recv_counter + 1
+! Copy the data to a contiguous buffer (direct copy is not possible with the current MPI wrapper)
+                  ALLOCATE (recv_msg(recv_counter)%msg(comm_size(1), comm_size(2), comm_size(3)))
+                  CALL group%irecv(recv_msg(recv_counter)%msg, proc, recv_req(recv_counter), tag)
+                  recv_proc(recv_counter) = proc
+                  recv_elements = recv_elements + PRODUCT(comm_size)
+               END IF
+            END DO
+         END IF
 
-! no need to receive from myself
-      IF (dct_env%srcs_shrink .EQ. rs_mpo) THEN
-         pw_shrinked%array = cr3d(lb1_orig:ub1_orig, lb2_orig:ub2_orig, lb3_orig:ub3_orig)
-      ELSE IF (dct_env%srcs_shrink .EQ. -1) THEN
-! the source is invalid ... do nothing
-      ELSE
-         CALL rs_group%recv(pw_shrinked%array, dct_env%srcs_shrink, tag)
+! Copy own data
+         IF (ALL(data_to_recv(2, :, group%mepos) - data_to_recv(1, :, group%mepos) >= 0)) THEN
+            pw_shrinked%array(data_to_recv(1, 1, group%mepos):data_to_recv(2, 1, group%mepos), &
+                              data_to_recv(1, 2, group%mepos):data_to_recv(2, 2, group%mepos), &
+                              data_to_recv(1, 3, group%mepos):data_to_recv(2, 3, group%mepos)) = &
+               pw_in%array(data_to_send(1, 1, group%mepos):data_to_send(2, 1, group%mepos), &
+                           data_to_send(1, 2, group%mepos):data_to_send(2, 2, group%mepos), &
+                           data_to_send(1, 3, group%mepos):data_to_send(2, 3, group%mepos))
+            recv_elements = recv_elements + PRODUCT(data_to_recv(2, :, group%mepos) - data_to_recv(1, :, group%mepos) + 1)
+            sent_elements = sent_elements + PRODUCT(data_to_recv(2, :, group%mepos) - data_to_recv(1, :, group%mepos) + 1)
+         END IF
+         WRITE (*, *) recv_elements, SIZE(pw_shrinked%array)
+         CPASSERT(recv_elements == SIZE(pw_shrinked%array))
+
+! Check receive requests and copy data
+         DO recv_counter = 1, number_recv
+            CALL mp_waitany(recv_req, finished)
+            proc = recv_proc(finished)
+            pw_shrinked%array(data_to_recv(1, 1, proc):data_to_recv(2, 1, group%mepos), &
+                              data_to_recv(1, 2, proc):data_to_recv(2, 2, group%mepos), &
+                              data_to_recv(1, 3, proc):data_to_recv(2, 3, group%mepos)) = &
+               recv_msg(recv_counter)%msg
+            DEALLOCATE (recv_msg(recv_counter)%msg)
+         END DO
+      END ASSOCIATE
+
+      IF (number_recv > 0) THEN
+         CALL mp_waitall(send_req)
+         DEALLOCATE (send_req, recv_msg, recv_proc)
       END IF
+      DO send_counter = 1, number_send
+         DEALLOCATE (send_msg(send_counter)%msg)
+      END DO
+      IF (ALLOCATED(send_msg)) DEALLOCATE (send_msg)
 
-      DEALLOCATE (bounds_local_all)
-      DEALLOCATE (cr3d)
       CALL timestop(handle)
 
    END SUBROUTINE pw_shrink
