@@ -267,6 +267,13 @@ CONTAINS
          END IF
       END IF
 
+      IF (scf_control%smear%do_smear) THEN
+         IF (mp2_env%method .NE. ri_rpa_method_gpw) &
+CPABORT("Smearing only available with RPA calculations")
+IF (mp2_env%ri_rpa%do_ri_g0w0) &
+CPABORT("Smearing not available with GW calculations")
+      END IF
+
       IF (mp2_env%do_im_time .AND. mp2_env%eri_method .NE. do_eri_gpw) THEN
          mp2_env%mp2_num_proc = 1
       END IF
