@@ -4252,7 +4252,7 @@
       IF (len > 0) THEN
          do_local_copy = .FALSE.
          IF (PRESENT(myproc) .AND. .NOT. PRESENT(origin_datatype) .AND. .NOT. PRESENT(target_datatype)) THEN
-            IF (myproc .EQ. source) do_local_copy = .TRUE.
+            IF (myproc == source) do_local_copy = .TRUE.
          END IF
          IF (do_local_copy) THEN
             !$OMP PARALLEL WORKSHARE DEFAULT(none) SHARED(base,win_data,disp_aint,len)
@@ -4428,7 +4428,7 @@
       IF (PRESENT(msglen)) msg_len = msglen
 #if defined(__parallel)
       CALL MPI_FILE_WRITE_AT(fh%handle, offset, msg, msg_len, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
-      IF (ierr .NE. 0) &
+      IF (ierr /= 0) &
          CPABORT("mpi_file_write_at_${nametype1}$v @ mp_file_write_at_${nametype1}$v")
 #else
       WRITE (UNIT=fh%handle, POS=offset + 1) msg(1:msg_len)
@@ -4451,7 +4451,7 @@
 
       ierr = 0
       CALL MPI_FILE_WRITE_AT(fh%handle, offset, msg, 1, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
-      IF (ierr .NE. 0) &
+      IF (ierr /= 0) &
          CPABORT("mpi_file_write_at_${nametype1}$ @ mp_file_write_at_${nametype1}$")
 #else
       WRITE (UNIT=fh%handle, POS=offset + 1) msg
@@ -4483,7 +4483,7 @@
       IF (PRESENT(msglen)) msg_len = msglen
 #if defined(__parallel)
       CALL MPI_FILE_WRITE_AT_ALL(fh%handle, offset, msg, msg_len, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
-      IF (ierr .NE. 0) &
+      IF (ierr /= 0) &
          CPABORT("mpi_file_write_at_all_${nametype1}$v @ mp_file_write_at_all_${nametype1}$v")
 #else
       WRITE (UNIT=fh%handle, POS=offset + 1) msg(1:msg_len)
@@ -4506,7 +4506,7 @@
 
       ierr = 0
       CALL MPI_FILE_WRITE_AT_ALL(fh%handle, offset, msg, 1, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
-      IF (ierr .NE. 0) &
+      IF (ierr /= 0) &
          CPABORT("mpi_file_write_at_all_${nametype1}$ @ mp_file_write_at_all_${nametype1}$")
 #else
       WRITE (UNIT=fh%handle, POS=offset + 1) msg
@@ -4539,7 +4539,7 @@
       IF (PRESENT(msglen)) msg_len = msglen
 #if defined(__parallel)
       CALL MPI_FILE_READ_AT(fh%handle, offset, msg, msg_len, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
-      IF (ierr .NE. 0) &
+      IF (ierr /= 0) &
          CPABORT("mpi_file_read_at_${nametype1}$v @ mp_file_read_at_${nametype1}$v")
 #else
       READ (UNIT=fh%handle, POS=offset + 1) msg(1:msg_len)
@@ -4562,7 +4562,7 @@
 
       ierr = 0
       CALL MPI_FILE_READ_AT(fh%handle, offset, msg, 1, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
-      IF (ierr .NE. 0) &
+      IF (ierr /= 0) &
          CPABORT("mpi_file_read_at_${nametype1}$ @ mp_file_read_at_${nametype1}$")
 #else
       READ (UNIT=fh%handle, POS=offset + 1) msg
@@ -4594,7 +4594,7 @@
       IF (PRESENT(msglen)) msg_len = msglen
 #if defined(__parallel)
       CALL MPI_FILE_READ_AT_ALL(fh%handle, offset, msg, msg_len, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
-      IF (ierr .NE. 0) &
+      IF (ierr /= 0) &
          CPABORT("mpi_file_read_at_all_${nametype1}$v @ mp_file_read_at_all_${nametype1}$v")
 #else
       READ (UNIT=fh%handle, POS=offset + 1) msg(1:msg_len)
@@ -4617,7 +4617,7 @@
 
       ierr = 0
       CALL MPI_FILE_READ_AT_ALL(fh%handle, offset, msg, 1, ${mpi_type1}$, MPI_STATUS_IGNORE, ierr)
-      IF (ierr .NE. 0) &
+      IF (ierr /= 0) &
          CPABORT("mpi_file_read_at_all_${nametype1}$ @ mp_file_read_at_all_${nametype1}$")
 #else
       READ (UNIT=fh%handle, POS=offset + 1) msg
@@ -4689,7 +4689,7 @@
       length = MAX(len, 1)
       CALL MPI_TYPE_SIZE(${mpi_type1}$, size, ierr)
       mp_size = INT(length, KIND=MPI_ADDRESS_KIND)*size
-      IF (mp_size .GT. mp_max_memory_size) THEN
+      IF (mp_size > mp_max_memory_size) THEN
          CPABORT("MPI cannot allocate more than 2 GiByte")
       END IF
       mp_info = MPI_INFO_NULL
