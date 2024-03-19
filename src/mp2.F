@@ -503,10 +503,10 @@ CPABORT("Smearing not available with GW calculations")
             END IF
          END IF
 
-         CALL get_mo_set(mos_mp2(ispin), mo_coeff=mo_coeff)
 IF (scf_control%smear%do_smear) &
 CALL set_mo_occupation(mos_mp2, scf_control%smear)
 
+         CALL get_mo_set(mos_mp2(ispin), mo_coeff=mo_coeff)
       END DO
 
       CALL cp_fm_release(fm_matrix_s)
