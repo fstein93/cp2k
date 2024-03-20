@@ -574,7 +574,7 @@ CONTAINS
 
          ! Scale fm_work_iaP
          CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), &
-                                hom, omega, 0.0_dp)
+                                omega, 0.0_dp)
 
          ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2)
          CALL parallel_gemm(transa="T", transb="N", m=exchange_work%dimen_RI, n=dimen_ia, k=exchange_work%dimen_RI, alpha=1.0_dp, &
@@ -596,7 +596,7 @@ CONTAINS
          CALL exchange_work%redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, ispin, virt_dist)
 
          ! Return to the original tensor
-         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), hom, omega, 0.0_dp)
+         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), omega, 0.0_dp)
 
          L_size_Gamma = SIZE(mat_Gamma_3_3D, 3)
          my_virt = SIZE(mat_Gamma_3_3D, 1)
@@ -722,7 +722,7 @@ CONTAINS
 
          ! Scale fm_work_iaP
          CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), &
-                                hom, omega, 0.0_dp)
+                                omega, 0.0_dp)
 
          ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2)
          CALL parallel_gemm(transa="T", transb="N", m=dimen_ia, n=exchange_work%dimen_RI, &

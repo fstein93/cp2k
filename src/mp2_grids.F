@@ -51,6 +51,7 @@ CONTAINS
 !> \param para_env ...
 !> \param unit_nr ...
 !> \param homo ...
+!> \param virtual ...
 !> \param Eigenval ...
 !> \param num_integ_points ...
 !> \param do_im_time ...
@@ -69,14 +70,14 @@ CONTAINS
 !> \param weights_sin_tf_t_to_w ...
 !> \param regularization ...
 ! **************************************************************************************************
-   SUBROUTINE get_minimax_grid(para_env, unit_nr, homo, Eigenval, num_integ_points, &
+   SUBROUTINE get_minimax_grid(para_env, unit_nr, homo, virtual, Eigenval, num_integ_points, &
                                do_im_time, do_ri_sos_laplace_mp2, do_print, tau_tj, tau_wj, qs_env, do_gw_im_time, &
                                do_kpoints_cubic_RPA, e_fermi, tj, wj, weights_cos_tf_t_to_w, &
                                weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, regularization)
 
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       INTEGER, INTENT(IN)                                :: unit_nr
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       INTEGER, INTENT(IN)                                :: num_integ_points
       LOGICAL, INTENT(IN)                                :: do_im_time, do_ri_sos_laplace_mp2, &
@@ -105,7 +106,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      CALL determine_energy_range(qs_env, para_env, homo, Eigenval, do_ri_sos_laplace_mp2, &
+      CALL determine_energy_range(qs_env, para_env, homo, virtual, Eigenval, do_ri_sos_laplace_mp2, &
                                   do_kpoints_cubic_RPA, Emin, Emax, e_range, e_fermi)
 
       CALL greenx_get_minimax_grid(unit_nr, num_integ_points, emin, emax, &
@@ -404,12 +405,12 @@ CONTAINS
          cottj(jquad) = 1.0_dp/TAN(tj_ext(jquad))
       END DO
 
-      CALL calc_ia_ia_integrals(para_env_RPA, homo(1), virtual(1), ncol_local, right_term_ref, Eigenval(:, 1, 1), &
+      CALL calc_ia_ia_integrals(para_env_RPA, virtual(1), ncol_local, right_term_ref, Eigenval(:, 1, 1), &
                                 D_ia, iaia_RI, M_ia, fm_mat_S(1), para_env_col)
 
       ! In the open shell case do point 1-2-3 for the beta spin
       IF (my_open_shell) THEN
-         CALL calc_ia_ia_integrals(para_env_RPA, homo(2), virtual(2), ncol_local_beta, right_term_ref_beta, Eigenval(:, 1, 2), &
+         CALL calc_ia_ia_integrals(para_env_RPA, virtual(2), ncol_local_beta, right_term_ref_beta, Eigenval(:, 1, 2), &
                                    D_ia_beta, iaia_RI_beta, M_ia_beta, fm_mat_S(2), para_env_col_beta)
 
          right_term_ref = right_term_ref + right_term_ref_beta
@@ -495,7 +496,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param para_env_RPA ...
-!> \param homo ...
 !> \param virtual ...
 !> \param ncol_local ...
 !> \param right_term_ref ...
@@ -506,11 +506,11 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param para_env_col ...
 ! **************************************************************************************************
-   SUBROUTINE calc_ia_ia_integrals(para_env_RPA, homo, virtual, ncol_local, right_term_ref, Eigenval, &
+   SUBROUTINE calc_ia_ia_integrals(para_env_RPA, virtual, ncol_local, right_term_ref, Eigenval, &
                                    D_ia, iaia_RI, M_ia, fm_mat_S, para_env_col)
 
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
-      INTEGER, INTENT(IN)                                :: homo, virtual
+      INTEGER, INTENT(IN)                                :: virtual
       INTEGER, INTENT(OUT)                               :: ncol_local
       REAL(KIND=dp), INTENT(OUT)                         :: right_term_ref
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
@@ -521,8 +521,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ia_ia_integrals'
 
-      INTEGER                                            :: avirt, color_col, color_row, handle, &
-                                                            i_global, iiB, iocc, nrow_local
+      INTEGER                                            :: avirt, color_col, color_row, dimen, &
+                                                            handle, i_global, iiB, iocc, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: eigen_diff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: iaia_RI_dp
@@ -584,14 +584,20 @@ CONTAINS
 
       ALLOCATE (M_ia(ncol_local))
 
+      dimen = SIZE(Eigenval)
+
       DO iiB = 1, ncol_local
          i_global = col_indices(iiB)
 
          iocc = MAX(1, i_global - 1)/virtual + 1
          avirt = i_global - (iocc - 1)*virtual
-         eigen_diff = Eigenval(avirt + homo) - Eigenval(iocc)
-
-         D_ia(iiB) = eigen_diff
+! Skip half of the partially occupied pairs to consider them only once
+         IF (avirt + dimen - virtual > iocc) THEN
+            eigen_diff = ABS(Eigenval(avirt + dimen - virtual) - Eigenval(iocc))
+            D_ia(iiB) = eigen_diff
+         ELSE
+            D_ia(iiB) = 0.0_dp
+         END IF
       END DO
 
       DO iiB = 1, ncol_local
@@ -1514,6 +1520,7 @@ CONTAINS
 !> \param qs_env ...
 !> \param para_env ...
 !> \param homo index of the homo level for the respective spin channel
+!> \param virtual ...
 !> \param Eigenval eigenvalues
 !> \param do_ri_sos_laplace_mp2 flag for SOS-MP2
 !> \param do_kpoints_cubic_RPA flag for cubic-scaling RPA with k-points
@@ -1522,12 +1529,12 @@ CONTAINS
 !> \param e_range ...
 !> \param e_fermi Fermi level
 ! **************************************************************************************************
-   SUBROUTINE determine_energy_range(qs_env, para_env, homo, Eigenval, do_ri_sos_laplace_mp2, &
+   SUBROUTINE determine_energy_range(qs_env, para_env, homo, virtual, Eigenval, do_ri_sos_laplace_mp2, &
                                      do_kpoints_cubic_RPA, Emin, Emax, e_range, e_fermi)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, &
                                                             do_kpoints_cubic_RPA
@@ -1535,13 +1542,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'determine_energy_range'
 
-      INTEGER                                            :: handle, ispin, nspins
+      INTEGER                                            :: handle, ispin, nmo, nspins
       LOGICAL                                            :: my_do_kpoints
       TYPE(section_vals_type), POINTER                   :: input
 
       CALL timeset(routineN, handle)
       ! Test for spin unrestricted
       nspins = SIZE(homo)
+      nmo = SIZE(Eigenval, 1)
 
       ! Test whether all necessary variables are available
       my_do_kpoints = .FALSE.
@@ -1558,13 +1566,21 @@ CONTAINS
             Emax = 0.0_dp
             DO ispin = 1, nspins
                IF (homo(ispin) > 0) THEN
-                  Emin = MIN(Emin, Eigenval(homo(ispin) + 1, 1, ispin) - Eigenval(homo(ispin), 1, ispin))
+                  Emin = MIN(Emin, Eigenval(nmo - virtual(ispin) + 1, 1, ispin) - Eigenval(homo(ispin), 1, ispin))
                   Emax = MAX(Emax, MAXVAL(Eigenval(:, :, ispin)) - MINVAL(Eigenval(:, :, ispin)))
                END IF
             END DO
-            E_Range = Emax/Emin
-            qs_env%mp2_env%e_range = e_range
-            qs_env%mp2_env%e_gap = Emin
+            ! without smearing, the number of occupied and unoccupied orbitals
+            ! add up to the total number
+            IF (ALL(homo + virtual == nmo)) THEN
+               E_Range = Emax/Emin
+               qs_env%mp2_env%e_range = e_range
+               qs_env%mp2_env%e_gap = Emin
+            ELSE
+               E_range = Emax
+               qs_env%mp2_env%e_range = e_range
+               qs_env%mp2_env%e_gap = 0.0_dp
+            END IF
 
             CALL get_qs_env(qs_env, input=input)
             CALL section_vals_val_set(input, "DFT%XC%WF_CORRELATION%E_RANGE", r_val=e_range)
@@ -1572,7 +1588,11 @@ CONTAINS
          ELSE
             E_range = qs_env%mp2_env%E_range
             Emin = qs_env%mp2_env%E_gap
-            Emax = Emin*E_range
+            IF (ALL(homo + virtual == nmo)) THEN
+               Emax = Emin*E_range
+            ELSE
+               Emax = E_range
+            END IF
          END IF
       END IF
 

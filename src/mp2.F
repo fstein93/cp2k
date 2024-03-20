@@ -92,12 +92,12 @@ MODULE mp2
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_kind_types,                   ONLY: qs_kind_type
+   USE qs_mo_occupation,                ONLY: set_mo_occupation
    USE qs_mo_types,                     ONLY: allocate_mo_set,&
                                               deallocate_mo_set,&
                                               get_mo_set,&
                                               init_mo_set,&
                                               mo_set_type
-USE qs_mo_occupation, ONLY: set_mo_occupation
    USE qs_scf_methods,                  ONLY: eigensolver,&
                                               eigensolver_symm
    USE qs_scf_types,                    ONLY: qs_scf_env_type
@@ -144,7 +144,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: evals
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Auto
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: C
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
+      REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_occupation_numbers
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -521,11 +521,19 @@ CONTAINS
             END IF
          END IF
 
-IF (scf_control%smear%do_smear) &
-CALL set_mo_occupation(mos_mp2, scf_control%smear)
-
-         CALL get_mo_set(mos_mp2(ispin), mo_coeff=mo_coeff)
+         IF (scf_control%smear%do_smear) &
+            CALL set_mo_occupation(mos_mp2, scf_control%smear)
       END DO
+
+      IF (scf_control%smear%do_smear) THEN
+         CALL set_mo_occupation(mos_mp2, scf_control%smear)
+      END IF
+
+      ! Normalize occupation numbers to 1
+      IF (nspins == 1) THEN
+         CALL get_mo_set(mos_mp2(1), occupation_numbers=mo_occupation_numbers)
+         mo_occupation_numbers = mo_occupation_numbers/2.0_dp
+      END IF
 
       CALL cp_fm_release(fm_matrix_s)
       CALL cp_fm_release(fm_matrix_ks)
