@@ -256,9 +256,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      MARK_USED(occupation_numbers)
-      WRITE (*, *) "Occupation numbers", occupation_numbers
-
       CALL cite_reference(DelBen2013)
       CALL cite_reference(DelBen2015)
 
@@ -626,7 +623,7 @@ CONTAINS
       ! fm_mo_coeff_occ, fm_mo_coeff_virt will be deallocated here
       CALL rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                        homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
-                       Eigenval_kp, num_integ_points, num_integ_group, color_rpa_group, &
+                       Eigenval_kp, occupation_numbers, num_integ_points, num_integ_group, color_rpa_group, &
                        fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw(1), &
                        fm_mat_S_ij_bse(1), fm_mat_S_ab_bse(1), &
                        my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
@@ -1002,6 +999,7 @@ CONTAINS
 !> \param dimen_ia ...
 !> \param dimen_nm_gw ...
 !> \param Eigenval ...
+!> \param occupation_numbers ...
 !> \param num_integ_points ...
 !> \param num_integ_group ...
 !> \param color_rpa_group ...
@@ -1045,7 +1043,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rpa_num_int(qs_env, Erpa, mp2_env, para_env, para_env_RPA, para_env_sub, unit_nr, &
                           homo, virtual, dimen_RI, dimen_RI_red, dimen_ia, dimen_nm_gw, &
-                          Eigenval, num_integ_points, num_integ_group, color_rpa_group, &
+                          Eigenval, occupation_numbers, num_integ_points, num_integ_group, color_rpa_group, &
                           fm_matrix_PQ, fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw, fm_mat_R_gw, &
                           fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
                           my_do_gw, do_bse, gw_corr_lev_occ, gw_corr_lev_virt, &
@@ -1068,8 +1066,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
       INTEGER, DIMENSION(:), INTENT(IN)                  :: dimen_ia
       INTEGER, INTENT(IN)                                :: dimen_nm_gw
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: occupation_numbers
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
@@ -1478,28 +1476,28 @@ CONTAINS
                END IF
 
                IF (iter_sc_GW0 > 1) THEN
-               DO ispin = 1, nspins
-                  CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
-                                  Eigenval_scf(:, 1, ispin), homo(ispin), omega, omega_old, jquad, mm_style, &
-                                  dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
-                                  fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
-                                  num_integ_points, count_ev_sc_GW)
-               END DO
+                  DO ispin = 1, nspins
+                     CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
+                                    Eigenval_scf(:, 1, ispin), occupation_numbers(:, ispin), homo(ispin), &
+                                    omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
+                                    fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                                    num_integ_points, count_ev_sc_GW)
+                  END DO
 
-               ! For SOS-MP2 we need both matrices separately
-               IF (.NOT. do_ri_sos_laplace_mp2) THEN
-               DO ispin = 2, nspins
-                  CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(ispin))
-               END DO
-               END IF
+                  ! For SOS-MP2 we need both matrices separately
+                  IF (.NOT. do_ri_sos_laplace_mp2) THEN
+                     DO ispin = 2, nspins
+                        CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(ispin))
+                     END DO
+                  END IF
                ELSE
-               DO ispin = 1, nspins
-                  CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
-                                  Eigenval(:, 1, ispin), homo(ispin), omega, omega_old, jquad, mm_style, &
-                                  dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
-                                  fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
-                                  num_integ_points, count_ev_sc_GW)
-               END DO
+                  DO ispin = 1, nspins
+                     CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
+                                    Eigenval(:, 1, ispin), occupation_numbers(:, ispin), homo(ispin), &
+                                    omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
+                                    fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                                    num_integ_points, count_ev_sc_GW)
+                  END DO
 
                ! For SOS-MP2 we need both matrices separately
                IF (.NOT. do_ri_sos_laplace_mp2) THEN
