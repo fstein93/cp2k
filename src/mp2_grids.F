@@ -42,7 +42,7 @@ MODULE mp2_grids
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_grids'
 
    PUBLIC :: get_minimax_grid, get_clenshaw_grid, test_least_square_ft, get_l_sq_wghts_cos_tf_t_to_w, &
-             get_l_sq_wghts_cos_tf_w_to_t, get_l_sq_wghts_sin_tf_t_to_w
+             get_l_sq_wghts_cos_tf_w_to_t, get_l_sq_wghts_sin_tf_t_to_w, get_matsubara_grid
 
 CONTAINS
 
@@ -1606,5 +1606,51 @@ CONTAINS
 
       CALL timestop(handle)
    END SUBROUTINE determine_energy_range
+
+! **************************************************************************************************
+!> \brief ...
+!> \param unit_nr ...
+!> \param electronic_temperature ...
+!> \param num_integ_points ...
+!> \param tj ...
+!> \param wj ...
+! **************************************************************************************************
+   SUBROUTINE get_matsubara_grid(unit_nr, electronic_temperature, num_integ_points, tj, wj)
+      INTEGER, INTENT(IN)                                :: unit_nr
+      REAL(KIND=dp), INTENT(IN)                          :: electronic_temperature
+      INTEGER, INTENT(IN)                                :: num_integ_points
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: tj, wj
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_matsubara_grid'
+
+      INTEGER                                            :: handle, j
+      REAL(KIND=dp)                                      :: w_0
+
+      CALL timeset(routineN, handle)
+
+      w_0 = 2.0_dp*pi*electronic_temperature
+
+      ALLOCATE (tj(num_integ_points), wj(num_integ_points))
+
+      ! Matrix Q is an even function, so the first summand (omega=0) occurs only once, the others twice (+omega and -omega)
+      wj(1) = 0.5_dp*electronic_temperature
+      wj(2:) = electronic_temperature
+
+      DO j = 1, num_integ_points
+         tj(j) = REAL(j - 1, KIND=dp)*w_0
+      END DO
+
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+            "MINIMAX_INFO| Number of integration points:", num_integ_points
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+            "MINIMAX_INFO| Size of frequency step:", w_0
+         CALL m_flush(unit_nr)
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_matsubara_grid
 
 END MODULE mp2_grids
