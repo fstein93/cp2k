@@ -1,3 +1,5 @@
-"RPA_smearing_H2O.inp"                    = [{matcher="M011", tol=1e-09, ref=-16.852840306082424}]
-"RPA_smearing_CH3.inp"                    = [{matcher="M011", tol=3e-04, ref=-7.182458810212713}]
+"RPA_smearing_H2O.inp"                    = [{matcher="M011", tol=1e-09, ref=-16.86157842818799}]
+"RPA_smearing_H2O_extrap2.inp"            = [{matcher="M011", tol=1e-09, ref=-16.867724896661507}]
+"RPA_smearing_H2O_extrap3.inp"            = [{matcher="M011", tol=1e-09, ref=-16.86962315970348}]
+"RPA_smearing_CH3.inp"                    = [{matcher="M011", tol=3e-04, ref=-7.199535606307073}]
 #EOF
