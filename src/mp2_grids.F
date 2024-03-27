@@ -319,7 +319,7 @@ CONTAINS
 
       INTEGER                                            :: handle, jquad, nspins
       LOGICAL                                            :: my_open_shell
-      REAL(KIND=dp)                                      :: a_scaling
+      REAL(KIND=dp)                                      :: a_scaling, tmp
 
       CALL timeset(routineN, handle)
 
@@ -334,11 +334,12 @@ CONTAINS
       wj = 0.0_dp
 
       DO jquad = 1, num_integ_points - 1
-         tj(jquad) = jquad*pi/(2.0_dp*num_integ_points)
-         wj(jquad) = pi/(num_integ_points*SIN(tj(jquad))**2)
+         tmp = jquad*pi/(2.0_dp*num_integ_points)
+         tj(jquad) = 1.0_dp/TAN(tmp)
+         wj(jquad) = pi/(num_integ_points*SIN(tmp)**2)
       END DO
-      tj(num_integ_points) = pi/2.0_dp
-      wj(num_integ_points) = pi/(2.0_dp*num_integ_points*SIN(tj(num_integ_points))**2)
+      tj(num_integ_points) = 0.0_dp
+      wj(num_integ_points) = pi/(2.0_dp*num_integ_points)
 
       IF (my_do_gw .AND. ext_scaling > 0.0_dp) THEN
          a_scaling = ext_scaling
@@ -351,7 +352,7 @@ CONTAINS
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.5)') 'INTEG_INFO| Scaling parameter:', a_scaling
 
       wj(:) = wj(:)*a_scaling
-      tj(:) = a_scaling/TAN(tj)
+      tj(:) = tj*a_scaling
 
       CALL timestop(handle)
 
@@ -392,14 +393,14 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_scaling_factor'
 
-      INTEGER                                            :: handle, icycle, jquad, nspins
+      INTEGER                                            :: handle, icycle, nspins
       LOGICAL                                            :: my_open_shell
       REAL(KIND=dp)                                      :: a_high, a_low, a_scaling, conv_param, &
                                                             eps, left_term, right_term, &
                                                             right_term_ref, right_term_ref_beta, &
                                                             step
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cottj, D_ia, D_ia_beta, iaia_RI, &
-                                                            iaia_RI_beta, M_ia, M_ia_beta
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: D_ia, D_ia_beta, iaia_RI, iaia_RI_beta, &
+                                                            M_ia, M_ia_beta
       TYPE(mp_para_env_type), POINTER                    :: para_env_col, para_env_col_beta
 
       CALL timeset(routineN, handle)
@@ -408,13 +409,6 @@ CONTAINS
       my_open_shell = (nspins == 2)
 
       eps = 1.0E-10_dp
-
-      ALLOCATE (cottj(num_integ_points))
-
-      ! calculate the cotangent of the abscissa tj
-      DO jquad = 1, num_integ_points
-         cottj(jquad) = 1.0_dp/TAN(tj_ext(jquad))
-      END DO
 
       CALL calc_ia_ia_integrals(para_env_RPA, virtual(1), right_term_ref, &
                                 Eigenval(:, 1, 1), occupation_numbers(:, 1), electronic_temperature, &
@@ -448,10 +442,14 @@ CONTAINS
          a_scaling = a_high
 
          CALL calculate_objfunc(a_scaling, left_term, num_integ_points, my_open_shell, &
-                                M_ia, cottj, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
+                                M_ia, tj_ext, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
                                 num_integ_group, color_rpa_group, &
                                 para_env, para_env_col, para_env_col_beta)
-         left_term = left_term/4.0_dp/pi*a_scaling
+         IF (electronic_temperature > 0.0_dp) THEN
+            left_term = 2.0_dp*left_term*a_scaling
+         ELSE
+            left_term = left_term/4.0_dp/pi*a_scaling
+         END IF
 
          IF (ABS(left_term) > ABS(right_term) .OR. ABS(left_term + right_term) <= conv_param) EXIT
          a_low = a_high
@@ -468,10 +466,14 @@ CONTAINS
                a_scaling = (a_low + a_high)/2.0_dp
 
                CALL calculate_objfunc(a_scaling, left_term, num_integ_points, my_open_shell, &
-                                      M_ia, cottj, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
+                                      M_ia, tj_ext, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
                                       num_integ_group, color_rpa_group, &
                                       para_env, para_env_col, para_env_col_beta)
-               left_term = left_term/4.0_dp/pi*a_scaling
+               IF (electronic_temperature > 0.0_dp) THEN
+                  left_term = 2.0_dp*left_term*a_scaling
+               ELSE
+                  left_term = left_term/4.0_dp/pi*a_scaling
+               END IF
 
                IF (ABS(left_term) > ABS(right_term)) THEN
                   a_high = a_scaling
@@ -487,10 +489,9 @@ CONTAINS
       END IF
 
       a_scaling_ext = a_scaling
-      !IF (electronic_temperature > 0.0_dp) a_scaling_ext = a_scaling_ext*electronic_temperature
+      IF (electronic_temperature > 0.0_dp) a_scaling_ext = a_scaling_ext*electronic_temperature
       CALL para_env%bcast(a_scaling_ext, 0)
 
-      DEALLOCATE (cottj)
       DEALLOCATE (iaia_RI)
       DEALLOCATE (D_ia)
       DEALLOCATE (M_ia)
@@ -630,10 +631,17 @@ CONTAINS
       END DO
 
       right_term_ref = 0.0_dp
-      DO iiB = 1, ncol_local
-         right_term_ref = right_term_ref + (SQRT(M_ia(iiB) + D_ia(iiB)**2) - D_ia(iiB) - iaia_RI(iiB))
-      END DO
-      right_term_ref = right_term_ref/2.0_dp
+      IF (electronic_temperature > 0.0_dp) THEN
+         DO iiB = 1, ncol_local
+            right_term_ref = right_term_ref + (SQRT(M_ia(iiB) + D_ia(iiB)**2) - D_ia(iiB) - iaia_RI(iiB))
+         END DO
+         right_term_ref = right_term_ref/2.0_dp
+      ELSE
+         DO iiB = 1, ncol_local
+            right_term_ref = right_term_ref + (SQRT(M_ia(iiB) + D_ia(iiB)**2) - D_ia(iiB) - iaia_RI(iiB))
+         END DO
+         right_term_ref = right_term_ref/2.0_dp
+      END IF
 
       ! sum the result with the processes of the RPA_group having the same row
       color_row = fm_mat_S%matrix_struct%context%mepos(1)
@@ -651,12 +659,27 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
+!> \param x ...
+!> \return ...
+! **************************************************************************************************
+   ELEMENTAL REAL(KIND=dp) FUNCTION f_rpa(x)
+      REAL(KIND=dp), INTENT(IN)                          :: x
+
+      IF (ABS(x) > 0.001_dp) THEN
+         f_rpa = LOG(1.0_dp + x) - x
+      ELSE
+         f_rpa = x**2*(-0.5_dp + x/3.0_dp - x**2/4.0_dp)
+      END IF
+   END FUNCTION f_rpa
+
+! **************************************************************************************************
+!> \brief ...
 !> \param a_scaling ...
 !> \param left_term ...
 !> \param num_integ_points ...
 !> \param my_open_shell ...
 !> \param M_ia ...
-!> \param cottj ...
+!> \param tj ...
 !> \param wj ...
 !> \param D_ia ...
 !> \param D_ia_beta ...
@@ -668,7 +691,7 @@ CONTAINS
 !> \param para_env_col_beta ...
 ! **************************************************************************************************
    SUBROUTINE calculate_objfunc(a_scaling, left_term, num_integ_points, my_open_shell, &
-                                M_ia, cottj, wj, D_ia, D_ia_beta, M_ia_beta, &
+                                M_ia, tj, wj, D_ia, D_ia_beta, M_ia_beta, &
                                 num_integ_group, color_rpa_group, &
                                 para_env, para_env_col, para_env_col_beta)
       REAL(KIND=dp), INTENT(IN)                          :: a_scaling
@@ -676,8 +699,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_integ_points
       LOGICAL, INTENT(IN)                                :: my_open_shell
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(IN)                                      :: M_ia, cottj, wj, D_ia, D_ia_beta, &
-                                                            M_ia_beta
+         INTENT(IN)                                      :: M_ia, tj, wj, D_ia, D_ia_beta, M_ia_beta
       INTEGER, INTENT(IN)                                :: num_integ_group, color_rpa_group
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_col
       TYPE(mp_para_env_type), POINTER                    :: para_env_col_beta
@@ -690,15 +712,18 @@ CONTAINS
       DO jquad = 1, num_integ_points
          ! parallelize over integration points
          IF (MODULO(jquad, num_integ_group) /= color_rpa_group) CYCLE
-         omega = a_scaling*cottj(jquad)
+         omega = a_scaling*tj(jquad)
 
          DO iiB = 1, SIZE(M_ia)
             ! parallelize over ia elements in the para_env_row group
             IF (MODULO(iiB, para_env_col%num_pe) /= para_env_col%mepos) CYCLE
             ! calculate left_term
-            left_term = left_term + wj(jquad)* &
-                        (LOG(1.0_dp + M_ia(iiB)/(omega**2 + D_ia(iiB)**2)) - &
-                         M_ia(iiB)/(omega**2 + D_ia(iiB)**2))
+! Branch required at finite temperatures
+            IF (omega**2 + D_ia(iiB)**2 > 0.0_dp) THEN
+               left_term = left_term + wj(jquad)* &
+                           (LOG(1.0_dp + M_ia(iiB)/(omega**2 + D_ia(iiB)**2)) - &
+                            M_ia(iiB)/(omega**2 + D_ia(iiB)**2))
+            END IF
          END DO
 
          IF (my_open_shell) THEN
@@ -706,9 +731,11 @@ CONTAINS
                ! parallelize over ia elements in the para_env_row group
                IF (MODULO(iiB, para_env_col_beta%num_pe) /= para_env_col_beta%mepos) CYCLE
                ! calculate left_term
-               left_term = left_term + wj(jquad)* &
-                           (LOG(1.0_dp + M_ia_beta(iiB)/(omega**2 + D_ia_beta(iiB)**2)) - &
-                            M_ia_beta(iiB)/(omega**2 + D_ia_beta(iiB)**2))
+               IF (omega**2 + D_ia_beta(iiB)**2 > 0.0_dp) THEN
+                  left_term = left_term + wj(jquad)* &
+                              (LOG(1.0_dp + M_ia_beta(iiB)/(omega**2 + D_ia_beta(iiB)**2)) - &
+                               M_ia_beta(iiB)/(omega**2 + D_ia_beta(iiB)**2))
+               END IF
             END DO
          END IF
 
