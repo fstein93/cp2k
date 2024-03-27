@@ -285,6 +285,8 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param Eigenval ...
+!> \param occupation_numbers ...
+!> \param electronic_temperature ...
 !> \param num_integ_points ...
 !> \param num_integ_group ...
 !> \param color_rpa_group ...
@@ -295,7 +297,8 @@ CONTAINS
 !> \param tj ...
 !> \param wj ...
 ! **************************************************************************************************
-   SUBROUTINE get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
+   SUBROUTINE get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, occupation_numbers, &
+                                electronic_temperature, num_integ_points, &
                                 num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
                                 ext_scaling, a_scaling, tj, wj)
 
@@ -303,6 +306,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: unit_nr
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: occupation_numbers
+      REAL(KIND=dp), INTENT(IN)                          :: electronic_temperature
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
@@ -339,9 +344,9 @@ CONTAINS
       IF (my_do_gw .AND. ext_scaling > 0.0_dp) THEN
          a_scaling = ext_scaling
       ELSE
-         CALL calc_scaling_factor(a_scaling, para_env, para_env_RPA, homo, virtual, Eigenval, &
-                                  num_integ_points, num_integ_group, color_rpa_group, &
-                                  tj, wj, fm_mat_S)
+         CALL calc_scaling_factor(a_scaling, para_env, para_env_RPA, homo, virtual, Eigenval, occupation_numbers, &
+                                  electronic_temperature, num_integ_points, &
+                                  num_integ_group, color_rpa_group, tj, wj, fm_mat_S)
       END IF
 
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.5)') 'INTEG_INFO| Scaling parameter:', a_scaling
@@ -360,6 +365,8 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param Eigenval ...
+!> \param occupation_numbers ...
+!> \param electronic_temperature ...
 !> \param num_integ_points ...
 !> \param num_integ_group ...
 !> \param color_rpa_group ...
@@ -367,23 +374,25 @@ CONTAINS
 !> \param wj_ext ...
 !> \param fm_mat_S ...
 ! **************************************************************************************************
-   SUBROUTINE calc_scaling_factor(a_scaling_ext, para_env, para_env_RPA, homo, virtual, Eigenval, &
-                                  num_integ_points, num_integ_group, color_rpa_group, &
+   SUBROUTINE calc_scaling_factor(a_scaling_ext, para_env, para_env_RPA, homo, virtual, Eigenval, occupation_numbers, &
+                                  electronic_temperature, num_integ_points, &
+                                  num_integ_group, color_rpa_group, &
                                   tj_ext, wj_ext, fm_mat_S)
       REAL(KIND=dp), INTENT(OUT)                         :: a_scaling_ext
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_RPA
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
-      INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
-                                                            color_rpa_group
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: occupation_numbers
+      REAL(KIND=dp), INTENT(IN)                          :: electronic_temperature
+      INTEGER, INTENT(IN)                                :: num_integ_points, &
+                                                            num_integ_group, color_rpa_group
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj_ext, wj_ext
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_scaling_factor'
 
-      INTEGER                                            :: handle, icycle, jquad, ncol_local, &
-                                                            ncol_local_beta, nspins
+      INTEGER                                            :: handle, icycle, jquad, nspins
       LOGICAL                                            :: my_open_shell
       REAL(KIND=dp)                                      :: a_high, a_low, a_scaling, conv_param, &
                                                             eps, left_term, right_term, &
@@ -407,12 +416,14 @@ CONTAINS
          cottj(jquad) = 1.0_dp/TAN(tj_ext(jquad))
       END DO
 
-      CALL calc_ia_ia_integrals(para_env_RPA, virtual(1), ncol_local, right_term_ref, Eigenval(:, 1, 1), &
+      CALL calc_ia_ia_integrals(para_env_RPA, virtual(1), right_term_ref, &
+                                Eigenval(:, 1, 1), occupation_numbers(:, 1), electronic_temperature, &
                                 D_ia, iaia_RI, M_ia, fm_mat_S(1), para_env_col)
 
       ! In the open shell case do point 1-2-3 for the beta spin
       IF (my_open_shell) THEN
-         CALL calc_ia_ia_integrals(para_env_RPA, virtual(2), ncol_local_beta, right_term_ref_beta, Eigenval(:, 1, 2), &
+         CALL calc_ia_ia_integrals(para_env_RPA, virtual(2), right_term_ref_beta, &
+                                   Eigenval(:, 1, 2), occupation_numbers(:, 2), electronic_temperature, &
                                    D_ia_beta, iaia_RI_beta, M_ia_beta, fm_mat_S(2), para_env_col_beta)
 
          right_term_ref = right_term_ref + right_term_ref_beta
@@ -438,7 +449,7 @@ CONTAINS
 
          CALL calculate_objfunc(a_scaling, left_term, num_integ_points, my_open_shell, &
                                 M_ia, cottj, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
-                                ncol_local, ncol_local_beta, num_integ_group, color_rpa_group, &
+                                num_integ_group, color_rpa_group, &
                                 para_env, para_env_col, para_env_col_beta)
          left_term = left_term/4.0_dp/pi*a_scaling
 
@@ -458,7 +469,7 @@ CONTAINS
 
                CALL calculate_objfunc(a_scaling, left_term, num_integ_points, my_open_shell, &
                                       M_ia, cottj, wj_ext, D_ia, D_ia_beta, M_ia_beta, &
-                                      ncol_local, ncol_local_beta, num_integ_group, color_rpa_group, &
+                                      num_integ_group, color_rpa_group, &
                                       para_env, para_env_col, para_env_col_beta)
                left_term = left_term/4.0_dp/pi*a_scaling
 
@@ -499,23 +510,25 @@ CONTAINS
 !> \brief ...
 !> \param para_env_RPA ...
 !> \param virtual ...
-!> \param ncol_local ...
 !> \param right_term_ref ...
 !> \param Eigenval ...
+!> \param occupation_numbers ...
+!> \param electronic_temperature ...
 !> \param D_ia ...
 !> \param iaia_RI ...
 !> \param M_ia ...
 !> \param fm_mat_S ...
 !> \param para_env_col ...
 ! **************************************************************************************************
-   SUBROUTINE calc_ia_ia_integrals(para_env_RPA, virtual, ncol_local, right_term_ref, Eigenval, &
+   SUBROUTINE calc_ia_ia_integrals(para_env_RPA, virtual, right_term_ref, Eigenval, &
+                                   occupation_numbers, electronic_temperature, &
                                    D_ia, iaia_RI, M_ia, fm_mat_S, para_env_col)
 
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
       INTEGER, INTENT(IN)                                :: virtual
-      INTEGER, INTENT(OUT)                               :: ncol_local
       REAL(KIND=dp), INTENT(OUT)                         :: right_term_ref
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, occupation_numbers
+      REAL(KIND=dp), INTENT(IN)                          :: electronic_temperature
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: D_ia, iaia_RI, M_ia
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
@@ -524,7 +537,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'calc_ia_ia_integrals'
 
       INTEGER                                            :: avirt, color_col, color_row, dimen, &
-                                                            handle, i_global, iiB, iocc, nrow_local
+                                                            handle, i_global, iiB, iocc, &
+                                                            ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       REAL(KIND=dp)                                      :: eigen_diff
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: iaia_RI_dp
@@ -546,9 +560,25 @@ CONTAINS
       iaia_RI_dp = 0.0_dp
 
       ! 2) perform the local multiplication SUM_K (ia|K)*(ia|K)
-      DO iiB = 1, ncol_local
-         iaia_RI_dp(iiB) = iaia_RI_dp(iiB) + DOT_PRODUCT(fm_mat_S%local_data(:, iiB), fm_mat_S%local_data(:, iiB))
-      END DO
+      IF (electronic_temperature > 0.0_dp) THEN
+         DO iiB = 1, ncol_local
+            i_global = col_indices(iiB)
+
+            iocc = MAX(1, i_global - 1)/virtual + 1
+            avirt = i_global - (iocc - 1)*virtual
+
+            IF (avirt + dimen - virtual > iocc) THEN
+               iaia_RI_dp(iiB) = iaia_RI_dp(iiB) + (occupation_numbers(avirt + dimen - virtual) - occupation_numbers(iocc))* &
+                                 DOT_PRODUCT(fm_mat_S%local_data(:, iiB), fm_mat_S%local_data(:, iiB))
+            ELSE
+               iaia_RI_dp(iiB) = 0.0_dp
+            END IF
+         END DO
+      ELSE
+         DO iiB = 1, ncol_local
+            iaia_RI_dp(iiB) = iaia_RI_dp(iiB) + DOT_PRODUCT(fm_mat_S%local_data(:, iiB), fm_mat_S%local_data(:, iiB))
+         END DO
+      END IF
 
       ! 3) sum the result with the processes of the RPA_group having the same columns
       !          _______ia______               _
@@ -638,8 +668,6 @@ CONTAINS
 !> \param D_ia ...
 !> \param D_ia_beta ...
 !> \param M_ia_beta ...
-!> \param ncol_local ...
-!> \param ncol_local_beta ...
 !> \param num_integ_group ...
 !> \param color_rpa_group ...
 !> \param para_env ...
@@ -648,7 +676,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_objfunc(a_scaling, left_term, num_integ_points, my_open_shell, &
                                 M_ia, cottj, wj, D_ia, D_ia_beta, M_ia_beta, &
-                                ncol_local, ncol_local_beta, num_integ_group, color_rpa_group, &
+                                num_integ_group, color_rpa_group, &
                                 para_env, para_env_col, para_env_col_beta)
       REAL(KIND=dp), INTENT(IN)                          :: a_scaling
       REAL(KIND=dp), INTENT(INOUT)                       :: left_term
@@ -657,8 +685,7 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: M_ia, cottj, wj, D_ia, D_ia_beta, &
                                                             M_ia_beta
-      INTEGER, INTENT(IN)                                :: ncol_local, ncol_local_beta, &
-                                                            num_integ_group, color_rpa_group
+      INTEGER, INTENT(IN)                                :: num_integ_group, color_rpa_group
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env, para_env_col
       TYPE(mp_para_env_type), POINTER                    :: para_env_col_beta
 
@@ -672,7 +699,7 @@ CONTAINS
          IF (MODULO(jquad, num_integ_group) /= color_rpa_group) CYCLE
          omega = a_scaling*cottj(jquad)
 
-         DO iiB = 1, ncol_local
+         DO iiB = 1, SIZE(M_ia)
             ! parallelize over ia elements in the para_env_row group
             IF (MODULO(iiB, para_env_col%num_pe) /= para_env_col%mepos) CYCLE
             ! calculate left_term
@@ -682,7 +709,7 @@ CONTAINS
          END DO
 
          IF (my_open_shell) THEN
-            DO iiB = 1, ncol_local_beta
+            DO iiB = 1, SIZE(M_ia_beta)
                ! parallelize over ia elements in the para_env_row group
                IF (MODULO(iiB, para_env_col_beta%num_pe) /= para_env_col_beta%mepos) CYCLE
                ! calculate left_term

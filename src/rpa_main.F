@@ -296,7 +296,7 @@ CONTAINS
       ALLOCATE (Eigenval_kp(nmo, 1, nspins))
       Eigenval_kp(:, 1, :) = Eigenval(:, :)
 
-      IF (do_im_time) mp2_env%ri_rpa%minimax_quad = .TRUE.
+      IF (do_im_time .OR. do_ri_sos_laplace_mp2) mp2_env%ri_rpa%minimax_quad = .TRUE.
       do_minimax_quad = mp2_env%ri_rpa%minimax_quad
 
       IF (do_ri_sos_laplace_mp2) THEN
@@ -1304,7 +1304,8 @@ CONTAINS
          END IF
       ELSE
          IF (calc_forces) CPABORT("Forces with Clenshaw-Curtis grid not implemented.")
-         CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, num_integ_points, &
+         CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, occupation_numbers, &
+                                scf_control%smear%electronic_temperature, num_integ_points, &
                                 num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
                                 ext_scaling, a_scaling, tj, wj)
       END IF
