@@ -939,9 +939,8 @@ CONTAINS
 !> \param para_env_RPA ...
 !> \param Erpa ...
 !> \param wjquad ...
-!> \param jquad ...
 ! **************************************************************************************************
-   SUBROUTINE compute_Erpa_by_freq_int(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA, Erpa, wjquad, jquad)
+   SUBROUTINE compute_Erpa_by_freq_int(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA, Erpa, wjquad)
 
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(IN)     :: trace_Qomega
@@ -949,7 +948,6 @@ CONTAINS
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       REAL(KIND=dp), INTENT(IN)                          :: wjquad
-      INTEGER, INTENT(IN)                                :: jquad
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Erpa_by_freq_int'
 
@@ -1005,7 +1003,6 @@ CONTAINS
       END DO
       Erpa = Erpa + FComega*wjquad
       CALL fm_mat_Q%matrix_struct%para_env%sum(FComega)
-      IF (fm_mat_Q%matrix_struct%para_env%mepos == 0) WRITE (*, *) jquad, FComega
 
       DEALLOCATE (Q_log)
 
