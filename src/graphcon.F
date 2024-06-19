@@ -528,6 +528,7 @@ CONTAINS
       LOGICAL                                            :: first
 
       INTEGER                                            :: k, m, t
+LOGICAL :: found_fixpoint
 
       IF (n == 1) RETURN
       IF (first) THEN
@@ -543,23 +544,27 @@ CONTAINS
          x(n - 1) = t
          RETURN
       END IF
+      found_fixpoint = .TRUE.
       DO k = n - 1, 1, -1
          IF (q(k) .EQ. k) THEN
             q(k) = n
          ELSE
-            go to 1
+            found_fixpoint = .FALSE.
+            EXIT
          END IF
       END DO
+IF (found_fixpoint) THEN
       first = .TRUE.
       k = 1
-      GOTO 2
-1     m = q(k)
+ELSE
+      m = q(k)
       t = x(m)
       x(m) = x(k)
       x(k) = t
       q(k) = m - 1
       k = k + 1
-2     m = n
+END IF
+      m = n
       t = x(m)
       x(m) = x(k)
       x(k) = t

@@ -63,7 +63,6 @@ free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_no
 free_energy_methods.F: Found WRITE statement with hardcoded unit in "ui_check_trend" https://cp2k.org/conv#c012
 glbopt_history.F: Found WRITE statement with hardcoded unit in "verify_history_lookup" https://cp2k.org/conv#c012
 glbopt_mincrawl.F: Found WRITE statement with hardcoded unit in "print_tempdist" https://cp2k.org/conv#c012
-graphcon.F: Found GOTO statement in procedure "all_permutations" https://cp2k.org/conv#c201
 graphcon.F: Found WRITE statement with hardcoded unit in "reorder_graph" https://cp2k.org/conv#c012
 graph.F: Found CALL RANDOM_SEED in procedure "graph" https://cp2k.org/conv#c105
 graph.F: Found WRITE statement with hardcoded unit in "graph" https://cp2k.org/conv#c012
