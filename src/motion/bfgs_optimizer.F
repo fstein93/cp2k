@@ -472,7 +472,7 @@ CONTAINS
       INTEGER                                            :: handle, i, indf, iref, iter, j, k, l, &
                                                             maxit, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: bisec, fail, set
+      LOGICAL                                            :: bisec, fail, set, converged
       REAL(KIND=dp)                                      :: fun, fun1, fun2, fun3, fung, lam1, lam2, &
                                                             ln, lp, ssize, step, stol
       REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), POINTER            :: local_data
@@ -510,9 +510,8 @@ CONTAINS
          ln = 0.0_dp
          IF (eigval(iref) < 0.0_dp) ln = eigval(iref) - 0.01_dp
 
-         iter = 0
-         DO
-            iter = iter + 1
+converged = .FALSE.
+         DO iter = 1, maxit
             fun = 0.0_dp
             fung = 0.0_dp
             DO indf = 1, ndf
@@ -523,10 +522,13 @@ CONTAINS
             fung = fung - one
             step = fun/fung
             ln = ln - step
-            IF (ABS(step) < stol) GOTO 200
-            IF (iter >= maxit) EXIT
+            IF (ABS(step) < stol) THEN
+converged = .TRUE.
+EXIT
+END IF
          END DO
 100      CONTINUE
+IF (.NOT. converged) THEN
          bisec = .TRUE.
          iter = 0
          maxit = 9999
@@ -539,13 +541,13 @@ CONTAINS
          fun1 = fun1 - lam1
          step = ABS(lam1)/1000.0_dp
          IF (step < ssize) step = ssize
-         DO
+         bisection: DO
             iter = iter + 1
             IF (iter > maxit) THEN
                ln = 0.0_dp
                lp = 0.0_dp
                fail = .TRUE.
-               GOTO 300
+               EXIT bisection
             END IF
             fun2 = 0.0_dp
             lam2 = lam1 - iter*step
@@ -561,7 +563,7 @@ CONTAINS
                      ln = 0.0_dp
                      lp = 0.0_dp
                      fail = .TRUE.
-                     GOTO 300
+                     EXIT bisection
                   END IF
                   step = (lam1 + lam2)/2
                   fun3 = 0.0_dp
@@ -572,7 +574,7 @@ CONTAINS
 
                   IF (ABS(step - lam2) < stol) THEN
                      ln = step
-                     GOTO 200
+                     EXIT bisection
                   END IF
 
                   IF (fun3*fun1 < stol) THEN
@@ -582,9 +584,11 @@ CONTAINS
                   END IF
                END DO
             END IF
-         END DO
+         END DO bisection
+END IF
 
-200      CONTINUE
+IF (converged .OR. .NOT. fail) THEN
+converged = .FALSE.
          IF ((ln > eigval(iref)) .OR. ((ln > 0.0_dp) .AND. &
                                        (eigval(iref) > 0.0_dp))) THEN
 
@@ -593,8 +597,7 @@ CONTAINS
             lp = 0.0_dp
             fail = .TRUE.
          END IF
-
-300      CONTINUE
+END IF
 
          IF (fail .AND. .NOT. set) THEN
             set = .TRUE.
