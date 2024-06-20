@@ -401,67 +401,6 @@ CONTAINS
          x(j) = xpt(nf, j) + xbase(j)
       END DO
       GOTO 310
-70    fval(nf) = f
-      IF (nf == 1) THEN
-         fbeg = f
-         fopt = f
-         kopt = 1
-      ELSE IF (f < fopt) THEN
-         fopt = f
-         kopt = nf
-      END IF
-      !
-      !     Set the nonzero initial elements of BMAT and the quadratic model i
-      !     the cases when NF is at most 2*N+1.
-      !
-      IF (NFM <= 2*N) THEN
-         IF (nfm >= 1 .AND. nfm <= n) THEN
-            gq(nfm) = (f - fbeg)/rhobeg
-            IF (npt < nf + n) THEN
-               bmat(1, nfm) = -one/rhobeg
-               bmat(nf, nfm) = one/rhobeg
-               bmat(npt + nfm, nfm) = -half*rhosq
-            END IF
-         ELSE IF (nfm > n) THEN
-            bmat(nf - n, nfmm) = half/rhobeg
-            bmat(nf, nfmm) = -half/rhobeg
-            zmat(1, nfmm) = -reciq - reciq
-            zmat(nf - n, nfmm) = reciq
-            zmat(nf, nfmm) = reciq
-            ih = (nfmm*(nfmm + 1))/2
-            temp = (fbeg - f)/rhobeg
-            hq(ih) = (gq(nfmm) - temp)/rhobeg
-            gq(nfmm) = half*(gq(nfmm) + temp)
-         END IF
-         !
-         !     Set the off-diagonal second derivatives of the Lagrange functions
-         !     the initial quadratic model.
-         !
-      ELSE
-         ih = (ipt*(ipt - 1))/2 + jpt
-         IF (xipt < zero) ipt = ipt + n
-         IF (xjpt < zero) jpt = jpt + n
-         zmat(1, nfmm) = recip
-         zmat(nf, nfmm) = recip
-         zmat(ipt + 1, nfmm) = -recip
-         zmat(jpt + 1, nfmm) = -recip
-         hq(ih) = (fbeg - fval(ipt + 1) - fval(jpt + 1) + f)/(xipt*xjpt)
-      END IF
-      IF (nf < npt) GOTO 50
-      !
-      !     Begin the iterative procedure, because the initial model is comple
-      !
-      rho = rhobeg
-      delta = rho
-      idz = 1
-      diffa = zero
-      diffb = zero
-      itest = 0
-      xoptsq = zero
-      DO i = 1, n
-         xopt(i) = xpt(kopt, i)
-         xoptsq = xoptsq + xopt(i)**2
-      END DO
 90    nfsav = nf
       !
       !     Generate the next trust region step and test its length. Set KNEW
@@ -660,7 +599,70 @@ CONTAINS
 
       CALL set_state
 
-      IF (nf <= npt) GOTO 70
+      IF (nf <= npt) THEN
+         fval(nf) = f
+         IF (nf == 1) THEN
+            fbeg = f
+            fopt = f
+            kopt = 1
+         ELSE IF (f < fopt) THEN
+            fopt = f
+            kopt = nf
+         END IF
+         !
+         !     Set the nonzero initial elements of BMAT and the quadratic model i
+         !     the cases when NF is at most 2*N+1.
+         !
+         IF (NFM <= 2*N) THEN
+            IF (nfm >= 1 .AND. nfm <= n) THEN
+               gq(nfm) = (f - fbeg)/rhobeg
+               IF (npt < nf + n) THEN
+                  bmat(1, nfm) = -one/rhobeg
+                  bmat(nf, nfm) = one/rhobeg
+                  bmat(npt + nfm, nfm) = -half*rhosq
+               END IF
+            ELSE IF (nfm > n) THEN
+               bmat(nf - n, nfmm) = half/rhobeg
+               bmat(nf, nfmm) = -half/rhobeg
+               zmat(1, nfmm) = -reciq - reciq
+               zmat(nf - n, nfmm) = reciq
+               zmat(nf, nfmm) = reciq
+               ih = (nfmm*(nfmm + 1))/2
+               temp = (fbeg - f)/rhobeg
+               hq(ih) = (gq(nfmm) - temp)/rhobeg
+               gq(nfmm) = half*(gq(nfmm) + temp)
+            END IF
+            !
+            !     Set the off-diagonal second derivatives of the Lagrange functions
+            !     the initial quadratic model.
+            !
+         ELSE
+            ih = (ipt*(ipt - 1))/2 + jpt
+            IF (xipt < zero) ipt = ipt + n
+            IF (xjpt < zero) jpt = jpt + n
+            zmat(1, nfmm) = recip
+            zmat(nf, nfmm) = recip
+            zmat(ipt + 1, nfmm) = -recip
+            zmat(jpt + 1, nfmm) = -recip
+            hq(ih) = (fbeg - fval(ipt + 1) - fval(jpt + 1) + f)/(xipt*xjpt)
+         END IF
+         IF (nf < npt) GOTO 50
+         !
+         !     Begin the iterative procedure, because the initial model is comple
+         !
+         rho = rhobeg
+         delta = rho
+         idz = 1
+         diffa = zero
+         diffb = zero
+         itest = 0
+         xoptsq = zero
+         DO i = 1, n
+            xopt(i) = xpt(kopt, i)
+            xoptsq = xoptsq + xopt(i)**2
+         END DO
+         GOTO 90
+      END IF
       IF (knew == -1) THEN
          opt%state = 6
          CALL get_state
