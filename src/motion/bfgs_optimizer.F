@@ -510,7 +510,7 @@ CONTAINS
          ln = 0.0_dp
          IF (eigval(iref) < 0.0_dp) ln = eigval(iref) - 0.01_dp
 
-converged = .FALSE.
+         converged = .FALSE.
          DO iter = 1, maxit
             fun = 0.0_dp
             fung = 0.0_dp
@@ -523,81 +523,83 @@ converged = .FALSE.
             step = fun/fung
             ln = ln - step
             IF (ABS(step) < stol) THEN
-converged = .TRUE.
-EXIT
-END IF
+               converged = .TRUE.
+               EXIT
+            END IF
          END DO
-100      CONTINUE
-IF (.NOT. converged) THEN
-         bisec = .TRUE.
-         iter = 0
-         maxit = 9999
-         lam1 = 0.0_dp
-         IF (eigval(iref) < 0.0_dp) lam1 = eigval(iref) - 0.01_dp
-         fun1 = 0.0_dp
-         DO indf = 1, ndf
-            fun1 = fun1 + dg(indf)**2/(lam1 - eigval(indf))
-         END DO
-         fun1 = fun1 - lam1
-         step = ABS(lam1)/1000.0_dp
-         IF (step < ssize) step = ssize
-         bisection: DO
-            iter = iter + 1
-            IF (iter > maxit) THEN
+         DO WHILE (.TRUE.)
+         IF (.NOT. converged) THEN
+            bisec = .TRUE.
+            iter = 0
+            maxit = 9999
+            lam1 = 0.0_dp
+            IF (eigval(iref) < 0.0_dp) lam1 = eigval(iref) - 0.01_dp
+            fun1 = 0.0_dp
+            DO indf = 1, ndf
+               fun1 = fun1 + dg(indf)**2/(lam1 - eigval(indf))
+            END DO
+            fun1 = fun1 - lam1
+            step = ABS(lam1)/1000.0_dp
+            IF (step < ssize) step = ssize
+            bisection: DO
+               iter = iter + 1
+               IF (iter > maxit) THEN
+                  ln = 0.0_dp
+                  lp = 0.0_dp
+                  fail = .TRUE.
+                  EXIT bisection
+               END IF
+               fun2 = 0.0_dp
+               lam2 = lam1 - iter*step
+               DO indf = 1, ndf
+                  fun2 = fun2 + eigval(indf)**2/(lam2 - eigval(indf))
+               END DO
+               fun2 = fun2 - lam2
+               IF (fun2*fun1 < 0.0_dp) THEN
+                  iter = 0
+                  DO
+                     iter = iter + 1
+                     IF (iter > maxit) THEN
+                        ln = 0.0_dp
+                        lp = 0.0_dp
+                        fail = .TRUE.
+                        EXIT bisection
+                     END IF
+                     step = (lam1 + lam2)/2
+                     fun3 = 0.0_dp
+                     DO indf = 1, ndf
+                        fun3 = fun3 + dg(indf)**2/(step - eigval(indf))
+                     END DO
+                     fun3 = fun3 - step
+
+                     IF (ABS(step - lam2) < stol) THEN
+                        ln = step
+                        EXIT bisection
+                     END IF
+
+                     IF (fun3*fun1 < stol) THEN
+                        lam2 = step
+                     ELSE
+                        lam1 = step
+                     END IF
+                  END DO
+               END IF
+            END DO bisection
+         END IF
+
+         IF (converged .OR. .NOT. fail) THEN
+            converged = .FALSE.
+            IF ((ln > eigval(iref)) .OR. ((ln > 0.0_dp) .AND. &
+                                          (eigval(iref) > 0.0_dp))) THEN
+
+               IF (bisec) CYCLE
                ln = 0.0_dp
                lp = 0.0_dp
                fail = .TRUE.
-               EXIT bisection
             END IF
-            fun2 = 0.0_dp
-            lam2 = lam1 - iter*step
-            DO indf = 1, ndf
-               fun2 = fun2 + eigval(indf)**2/(lam2 - eigval(indf))
-            END DO
-            fun2 = fun2 - lam2
-            IF (fun2*fun1 < 0.0_dp) THEN
-               iter = 0
-               DO
-                  iter = iter + 1
-                  IF (iter > maxit) THEN
-                     ln = 0.0_dp
-                     lp = 0.0_dp
-                     fail = .TRUE.
-                     EXIT bisection
-                  END IF
-                  step = (lam1 + lam2)/2
-                  fun3 = 0.0_dp
-                  DO indf = 1, ndf
-                     fun3 = fun3 + dg(indf)**2/(step - eigval(indf))
-                  END DO
-                  fun3 = fun3 - step
-
-                  IF (ABS(step - lam2) < stol) THEN
-                     ln = step
-                     EXIT bisection
-                  END IF
-
-                  IF (fun3*fun1 < stol) THEN
-                     lam2 = step
-                  ELSE
-                     lam1 = step
-                  END IF
-               END DO
-            END IF
-         END DO bisection
-END IF
-
-IF (converged .OR. .NOT. fail) THEN
-converged = .FALSE.
-         IF ((ln > eigval(iref)) .OR. ((ln > 0.0_dp) .AND. &
-                                       (eigval(iref) > 0.0_dp))) THEN
-
-            IF (.NOT. bisec) GOTO 100
-            ln = 0.0_dp
-            lp = 0.0_dp
-            fail = .TRUE.
          END IF
-END IF
+         EXIT
+         END DO
 
          IF (fail .AND. .NOT. set) THEN
             set = .TRUE.
