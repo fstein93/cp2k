@@ -401,7 +401,6 @@ CONTAINS
          x(j) = xpt(nf, j) + xbase(j)
       END DO
       GOTO 310
-90    nfsav = nf
       !
       !     Generate the next trust region step and test its length. Set KNEW
       !     to -1 if the purpose of the next F will be to improve the model.
@@ -661,7 +660,8 @@ CONTAINS
             xopt(i) = xpt(kopt, i)
             xoptsq = xoptsq + xopt(i)**2
          END DO
-         GOTO 90
+         nfsav = nf
+         GOTO 100
       END IF
       IF (knew == -1) THEN
          opt%state = 6
@@ -888,7 +888,8 @@ CONTAINS
             rho = tenth*rho
          END IF
          delta = MAX(delta, rho)
-         GOTO 90
+         nfsav = nf
+         GOTO 100
       END IF
       !
       !     Return from the calculation, after another Newton-Raphson step, if
