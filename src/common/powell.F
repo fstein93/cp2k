@@ -706,60 +706,61 @@ CONTAINS
          END DO
       END IF
       ksave = knew
-      IF (knew > 0) GOTO 410
-      !
-      !     Pick the next value of DELTA after a trust region step.
-      !
-      IF (vquad >= zero) THEN
-         ! Return because a trust region step has failed to reduce Q
-         opt%state = 4
-         CALL get_state
-         GOTO 530
-      END IF
-      ratio = (f - fsave)/vquad
-      IF (ratio <= tenth) THEN
-         delta = half*dnorm
-      ELSE IF (ratio <= 0.7_dp) THEN
-         delta = MAX(half*delta, dnorm)
-      ELSE
-         delta = MAX(half*delta, dnorm + dnorm)
-      END IF
-      IF (delta <= 1.5_dp*rho) delta = rho
-      !
-      !     Set KNEW to the index of the next interpolation point to be delete
-      !
-      rhosq = MAX(tenth*delta, rho)**2
-      ktemp = 0
-      detrat = zero
-      IF (f >= fsave) THEN
-         ktemp = kopt
-         detrat = one
-      END IF
-      DO k = 1, npt
-         hdiag = zero
-         DO j = 1, nptm
-            temp = one
-            IF (j < idz) temp = -one
-            hdiag = hdiag + temp*zmat(k, j)**2
-         END DO
-         temp = ABS(beta*hdiag + vlag(k)**2)
-         distsq = zero
-         DO j = 1, n
-            distsq = distsq + (xpt(k, j) - xopt(j))**2
-         END DO
-         IF (distsq > rhosq) temp = temp*(distsq/rhosq)**3
-         IF (temp > detrat .AND. k /= ktemp) THEN
-            detrat = temp
-            knew = k
+      IF (knew <= 0) THEN
+         !
+         !     Pick the next value of DELTA after a trust region step.
+         !
+         IF (vquad >= zero) THEN
+            ! Return because a trust region step has failed to reduce Q
+            opt%state = 4
+            CALL get_state
+            GOTO 530
          END IF
-      END DO
-      IF (knew == 0) GOTO 460
-      !
-      !     Update BMAT, ZMAT and IDZ, so that the KNEW-th interpolation point
-      !     can be moved. Begin the updating of the quadratic model, starting
-      !     with the explicit second derivative term.
-      !
-410   CALL update(n, npt, bmat, zmat, idz, ndim, vlag, beta, knew, w)
+         ratio = (f - fsave)/vquad
+         IF (ratio <= tenth) THEN
+            delta = half*dnorm
+         ELSE IF (ratio <= 0.7_dp) THEN
+            delta = MAX(half*delta, dnorm)
+         ELSE
+            delta = MAX(half*delta, dnorm + dnorm)
+         END IF
+         IF (delta <= 1.5_dp*rho) delta = rho
+         !
+         !     Set KNEW to the index of the next interpolation point to be delete
+         !
+         rhosq = MAX(tenth*delta, rho)**2
+         ktemp = 0
+         detrat = zero
+         IF (f >= fsave) THEN
+            ktemp = kopt
+            detrat = one
+         END IF
+         DO k = 1, npt
+            hdiag = zero
+            DO j = 1, nptm
+               temp = one
+               IF (j < idz) temp = -one
+               hdiag = hdiag + temp*zmat(k, j)**2
+            END DO
+            temp = ABS(beta*hdiag + vlag(k)**2)
+            distsq = zero
+            DO j = 1, n
+               distsq = distsq + (xpt(k, j) - xopt(j))**2
+            END DO
+            IF (distsq > rhosq) temp = temp*(distsq/rhosq)**3
+            IF (temp > detrat .AND. k /= ktemp) THEN
+               detrat = temp
+               knew = k
+            END IF
+         END DO
+         IF (knew == 0) GOTO 460
+         !
+         !     Update BMAT, ZMAT and IDZ, so that the KNEW-th interpolation point
+         !     can be moved. Begin the updating of the quadratic model, starting
+         !     with the explicit second derivative term.
+         !
+      END IF
+      CALL update(n, npt, bmat, zmat, idz, ndim, vlag, beta, knew, w)
       fval(knew) = f
       ih = 0
       DO i = 1, n
