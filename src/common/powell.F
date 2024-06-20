@@ -400,7 +400,19 @@ CONTAINS
       DO j = 1, n
          x(j) = xpt(nf, j) + xbase(j)
       END DO
-      GOTO 310
+      IF (nf > nftest) THEN
+         !         return to many steps
+         nf = nf - 1
+         opt%state = 3
+         CALL get_state
+         GOTO 530
+      END IF
+
+      CALL get_state
+
+      opt%state = 2
+
+      RETURN
       !
       !     Generate the next trust region step and test its length. Set KNEW
       !     to -1 if the purpose of the next F will be to improve the model.
@@ -580,7 +592,7 @@ CONTAINS
          x(i) = xbase(i) + xnew(i)
       END DO
       nf = nf + 1
-310   IF (nf > nftest) THEN
+      IF (nf > nftest) THEN
          !         return to many steps
          nf = nf - 1
          opt%state = 3
