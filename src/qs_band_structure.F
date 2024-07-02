@@ -405,7 +405,7 @@ CONTAINS
             NULLIFY (kpoint%kp_sym(i)%kpoint_sym)
             CALL kpoint_sym_create(kpoint%kp_sym(i)%kpoint_sym)
          END DO
-      CASE ("MACDONALD")
+      CASE ("MACDONALD", "RANDOM")
          CPABORT("MACDONALD not implemented")
       CASE ("GENERAL")
          CPASSERT(PRESENT(kpgeneral))

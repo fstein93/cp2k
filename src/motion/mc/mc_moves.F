@@ -773,7 +773,6 @@ CONTAINS
 
 ! call a random number to figure out which direction we're moving
       IF (ionode) rand = rng_stream%next()
-!      CALL RANDOM_NUMBER(rand)
       CALL group%bcast(rand, source)
       ! 1,2,3 with equal prob
       dir = INT(3*rand) + 1

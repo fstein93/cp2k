@@ -236,7 +236,7 @@ CONTAINS
          CALL release_csym_type(crys_sym)
          DEALLOCATE (scoord, atype)
 
-      CASE ("GENERAL")
+      CASE ("GENERAL", "RANDOM")
          ! default: no symmetry settings
          ALLOCATE (kpoint%kp_sym(kpoint%nkp))
          DO i = 1, kpoint%nkp

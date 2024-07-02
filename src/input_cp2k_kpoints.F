@@ -76,11 +76,13 @@ CONTAINS
                           "- `GAMMA`"//newline// &
                           "- `MONKHORST-PACK`"//newline// &
                           "- `MACDONALD`"//newline// &
+                          "- `RANDOM`"//newline// &
                           "- `GENERAL`"//newline// &
                           newline// &
                           "For `MONKHORST-PACK` and `MACDONALD` the number of k points in all "// &
                           "3 dimensions has to be supplied along with the keyword. "// &
-                          "E.g. `MONKHORST-PACK 12 12 8`", &
+                          "E.g. `MONKHORST-PACK 12 12 8`. "// &
+                          "For `RANDOM`, the number of k points and a seed has to be supplied with the keyword ", &
                           usage="SCHEME {KPMETHOD} {integer} {integer} ..", &
                           citations=(/Monkhorst1976, MacDonald1978/), &
                           n_var=-1, type_of_var=char_t)

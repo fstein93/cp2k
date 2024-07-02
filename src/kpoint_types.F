@@ -31,6 +31,8 @@ MODULE kpoint_types
    USE mathconstants,                   ONLY: twopi
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
+   USE parallel_rng_types,              ONLY: UNIFORM,&
+                                              rng_stream_type
    USE physcon,                         ONLY: angstrom
    USE qs_diis_types,                   ONLY: qs_diis_b_release_kp,&
                                               qs_diis_buffer_type_kp
@@ -130,6 +132,7 @@ MODULE kpoint_types
 !> \param full_grid           [input] don't reduce kpoints at all
 !> \param verbose             [input] more output information
 !> \param eps_geo             [input] accuracy of atom symmetry detection
+!> \param seed                [input] seed if random k-points are required
 !> \param parallel_group_size [input] kpoint group size
 !> \param nkp     number of kpoints
 !> \param xkp     kpoint coordinates
@@ -156,6 +159,7 @@ MODULE kpoint_types
       LOGICAL                                 :: full_grid = .FALSE.
       LOGICAL                                 :: verbose = .FALSE.
       REAL(KIND=dp)                           :: eps_geo = 0.0_dp
+      INTEGER                                 :: seed = -1
       INTEGER                                 :: parallel_group_size = -1
       INTEGER                                 :: nkp = -1
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: xkp => Null()
@@ -535,21 +539,29 @@ CONTAINS
 !> \brief Read the kpoint input section
 !> \param kpoint  The kpoint environment
 !> \param kpoint_section The input section
-!> \param a_vec ...
+!> \param a_vec base vectors in reciprocal space
+!> \param perd periodicity for each direction in space ("1" indicates periodic, "0" indicates non-periodic)
 !> \author JGH
 ! **************************************************************************************************
-   SUBROUTINE read_kpoint_section(kpoint, kpoint_section, a_vec)
+   SUBROUTINE read_kpoint_section(kpoint, kpoint_section, a_vec, perd)
       TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
       TYPE(section_vals_type), POINTER                   :: kpoint_section
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: a_vec
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: perd
 
       CHARACTER(LEN=default_string_length)               :: ustr
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), POINTER                           :: tmpstringlist
-      INTEGER                                            :: i, n_rep, nval, wfntype
+      INTEGER                                            :: i, i_kpoint, n_rep, &
+                                                            number_of_random_points, nval, seed, &
+                                                            wfntype
       LOGICAL                                            :: available
-      REAL(KIND=dp)                                      :: ff
+      REAL(KIND=dp)                                      :: ff, random_number_x, random_number_y, &
+                                                            random_number_z
       REAL(KIND=dp), DIMENSION(:), POINTER               :: reallist
+      TYPE(rng_stream_type), ALLOCATABLE                 :: rng_stream
+
+      CPASSERT(ALL(perd == 0 .OR. perd == 1))
 
       CALL section_vals_get(kpoint_section, explicit=available)
 
@@ -560,7 +572,7 @@ CONTAINS
          kpoint%kp_scheme = tmpstringlist(1)
          CALL uppercase(kpoint%kp_scheme)
 
-         ! SCHEME [None, Gamma, Monkhorst-Pack, MacDonald, General]
+         ! SCHEME [None, Gamma, Monkhorst-Pack, MacDonald, General, Random]
          SELECT CASE (kpoint%kp_scheme)
          CASE ("NONE")
             ! do nothing
@@ -594,13 +606,13 @@ CONTAINS
                CASE ("B_VECTOR")
                   kpoint%xkp(1:3, i) = reallist(1:3)
                CASE ("CART_ANGSTROM")
-                  kpoint%xkp(1:3, i) = (reallist(1)*a_vec(1, 1:3) + &
-                                        reallist(2)*a_vec(2, 1:3) + &
-                                        reallist(3)*a_vec(3, 1:3))/twopi*angstrom
+                  kpoint%xkp(1:3, i) = (reallist(1)*a_vec(1, 1:3)*perd(1) + &
+                                        reallist(2)*a_vec(2, 1:3)*perd(2) + &
+                                        reallist(3)*a_vec(3, 1:3)*perd(3))/twopi*angstrom
                CASE ("CART_BOHR")
-                  kpoint%xkp(1:3, i) = (reallist(1)*a_vec(1, 1:3) + &
-                                        reallist(2)*a_vec(2, 1:3) + &
-                                        reallist(3)*a_vec(3, 1:3))/twopi
+                  kpoint%xkp(1:3, i) = (reallist(1)*a_vec(1, 1:3)*perd(1) + &
+                                        reallist(2)*a_vec(2, 1:3)*perd(2) + &
+                                        reallist(3)*a_vec(3, 1:3)*perd(3))/twopi
                CASE DEFAULT
                   CPABORT("Unknown Unit for kpoint definition")
                END SELECT
@@ -608,6 +620,35 @@ CONTAINS
             END DO
             ff = 1.0_dp/SUM(kpoint%wkp(:))
             kpoint%wkp(:) = ff*kpoint%wkp(:)
+         CASE ("RANDOM")
+            CPASSERT(nval >= 3)
+            READ (tmpstringlist(2), *) number_of_random_points
+            READ (tmpstringlist(3), *) seed
+            kpoint%nkp = number_of_random_points
+            kpoint%seed = seed
+
+            ! In random mode, all kpoints have the same weight
+            ALLOCATE (kpoint%xkp(3, number_of_random_points), kpoint%wkp(number_of_random_points))
+            kpoint%wkp(:) = 1.0_dp/REAL(number_of_random_points, KIND=dp)
+
+            ! Create a RNG stream to draw random k-points
+            rng_stream = rng_stream_type( &
+                         name="tmp_rng_uniform", &
+                         distribution_type=UNIFORM, &
+                         extended_precision=.TRUE., &
+                         seed=RESHAPE(REAL(seed, KIND=dp)*[1.0_dp, 1.0_dp, 1.0_dp, 1.0_dp, 1.0_dp, 1.0_dp], [3, 2]))
+            DO i_kpoint = 1, number_of_random_points
+               random_number_x = rng_stream%next() - 0.5_dp
+               random_number_y = rng_stream%next() - 0.5_dp
+               random_number_z = rng_stream%next() - 0.5_dp
+               IF (.FALSE.) THEN
+                  kpoint%xkp(1:3, i_kpoint) = (random_number_x*a_vec(1, 1:3)*perd(1) + &
+                                               random_number_y*a_vec(2, 1:3)*perd(2) + &
+                                               random_number_z*a_vec(3, 1:3)*perd(3))/twopi
+               ELSE
+                  kpoint%xkp(1:3, i_kpoint) = [random_number_x*perd(1), random_number_y*perd(2), random_number_z*perd(3)]
+               END IF
+            END DO
          CASE DEFAULT
             CPABORT("")
          END SELECT
@@ -672,6 +713,9 @@ CONTAINS
             WRITE (punit, '(A,T66,G15.6)') ' BRILLOUIN| Accuracy in Symmetry determination', kpoint%eps_geo
          CASE ("GENERAL")
             WRITE (punit, '(A,T71,A10)') ' BRILLOUIN| K-point scheme ', '   General'
+         CASE ("RANDOM")
+            WRITE (punit, '(A,T71,3I5)') ' BRILLOUIN| Number of k-points', kpoint%nkp
+            WRITE (punit, '(A,T71,3I5)') ' BRILLOUIN| Seed', kpoint%seed
          CASE DEFAULT
             CPABORT("")
          END SELECT
