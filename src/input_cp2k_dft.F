@@ -481,6 +481,10 @@ CONTAINS
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
 
+      CALL create_kpoints_section(subsection, "TWIST_AVERAGING", "Sets up twist-angle averaging calculations.")
+      CALL section_add_subsection(section, subsection)
+      CALL section_release(subsection)
+
       CALL create_implicit_solv_section(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)

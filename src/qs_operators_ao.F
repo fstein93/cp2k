@@ -73,7 +73,7 @@ CONTAINS
    SUBROUTINE build_lin_mom_matrix(qs_env, matrix)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix
+      TYPE(dbcsr_p_type), DIMENSION(3)          :: matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_lin_mom_matrix'
 
@@ -284,19 +284,6 @@ CONTAINS
       ! *** Release work storage ***
 
       DEALLOCATE (intab, work, integral, basis_set_list)
-
-!   *** Print the spin orbit matrix, if requested ***
-
-      !IF (BTEST(cp_print_key_should_output(logger%iter_info,&
-      !     qs_env%input,"DFT%PRINT%AO_MATRICES/LINEAR_MOMENTUM"),cp_p_file)) THEN
-      !   iw = cp_print_key_unit_nr(logger,qs_env%input,"DFT%PRINT%AO_MATRICES/LINEA_MOMENTUM",&
-      !        extension=".Log")
-      !   CALL cp_dbcsr_write_sparse_matrix(matrix(1)%matrix,4,6,qs_env,para_env,output_unit=iw)
-      !   CALL cp_dbcsr_write_sparse_matrix(matrix(2)%matrix,4,6,qs_env,para_env,output_unit=iw)
-      !   CALL cp_dbcsr_write_sparse_matrix(matrix(3)%matrix,4,6,qs_env,para_env,output_unit=iw)
-      !   CALL cp_print_key_finished_output(iw,logger,qs_env%input,&
-      !        "DFT%PRINT%AO_MATRICES/LINEAR_MOMENTUM")
-      !END IF
 
       CALL timestop(handle)
 
