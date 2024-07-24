@@ -1210,12 +1210,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_sccs_results(energy, sccs_control, output_unit)
 
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(IN)                   :: energy
       TYPE(sccs_control_type), POINTER                   :: sccs_control
       INTEGER, INTENT(IN)                                :: output_unit
 
       IF (output_unit > 0) THEN
-         CPASSERT(ASSOCIATED(energy))
          CPASSERT(ASSOCIATED(sccs_control))
          WRITE (UNIT=output_unit, FMT="(T3,A,T56,F25.14)") &
             "SCCS| Hartree energy of solute and solvent [Hartree]", energy%sccs_hartree, &

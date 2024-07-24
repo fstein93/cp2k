@@ -57,7 +57,7 @@ CONTAINS
    SUBROUTINE calc_dipsurf_potential(qs_env, energy)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calc_dipsurf_potential'
 

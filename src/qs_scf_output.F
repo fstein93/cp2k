@@ -491,7 +491,7 @@ CONTAINS
       INTEGER                                            :: output_unit
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(IN)                   :: energy
       INTEGER                                            :: total_steps
       LOGICAL, INTENT(IN)                                :: should_stop, outer_loop_converged
 
@@ -530,7 +530,7 @@ CONTAINS
       INTEGER                                            :: output_unit
       LOGICAL                                            :: just_energy
       REAL(KIND=dp)                                      :: t1, t2
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(IN)                   :: energy
 
       IF ((output_unit > 0) .AND. scf_env%print_iter_line) THEN
          IF (just_energy) THEN
@@ -579,7 +579,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: output_unit
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(qs_charges_type), POINTER                     :: qs_charges
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(IN)                   :: energy
       INTEGER, INTENT(IN)                                :: nelectron_total
       TYPE(dft_control_type), POINTER                    :: dft_control
       LOGICAL, INTENT(IN)                                :: qmmm
@@ -951,7 +951,7 @@ CONTAINS
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(qs_scf_env_type), POINTER                     :: scf_env
       TYPE(cdft_control_type), POINTER                   :: cdft_control
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(IN)                   :: energy
       INTEGER                                            :: total_steps
       LOGICAL, INTENT(IN)                                :: should_stop, outer_loop_converged, &
                                                             cdft_loop

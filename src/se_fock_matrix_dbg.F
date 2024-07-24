@@ -10,7 +10,7 @@ MODULE se_fock_matrix_dbg
                                               dbcsr_p_type,&
                                               dbcsr_set
    USE kinds,                           ONLY: dp
-   USE qs_energy_types,                 ONLY: init_qs_energy,&
+   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
                                               qs_energy_type
    USE qs_environment_types,            ONLY: qs_environment_type
    USE se_fock_matrix_coulomb,          ONLY: build_fock_matrix_coulomb_lr
@@ -40,7 +40,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dbg_energy_coulomb_lr(energy, ks_matrix, nspins, qs_env, matrix_p, &
                                     calculate_forces, store_int_env)
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(OUT)                  :: energy
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix
       INTEGER, INTENT(IN)                                :: nspins
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -53,7 +53,7 @@ CONTAINS
 
 ! Zero structures only for debugging purpose
 
-      CALL init_qs_energy(energy)
+      CALL allocate_qs_energy(energy)
       DO ispin = 1, nspins
          CALL dbcsr_set(ks_matrix(ispin)%matrix, 0.0_dp)
       END DO

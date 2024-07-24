@@ -454,6 +454,7 @@ CONTAINS
 
       IF (dft_control%qs_control%do_kg) THEN
          CALL cite_reference(Iannuzzi2006)
+         ALLOCATE (qs_env%kg_env)
          CALL kg_env_create(qs_env, qs_env%kg_env, qs_kind_set, qs_env%input)
       END IF
 
@@ -1075,6 +1076,7 @@ CONTAINS
       CALL scf_c_read_parameters(scf_control, dft_section)
 
       !   *** Allocate the data structure for Quickstep energies ***
+      ALLOCATE (energy)
       CALL allocate_qs_energy(energy)
 
       ! check for orthogonal basis

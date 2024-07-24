@@ -96,7 +96,7 @@ CONTAINS
 
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: v_hartree_rspace
       TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_hartree_gspace
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       TYPE(qmmm_env_qm_type), POINTER                    :: qmmm_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
@@ -860,7 +860,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), INTENT(OUT)                  :: v_metal_rspace
       REAL(KIND=dp), DIMENSION(:), POINTER               :: coeff
       TYPE(pw_c1d_gs_type), INTENT(IN), OPTIONAL         :: rho_hartree_gspace
-      TYPE(qs_energy_type), OPTIONAL, POINTER            :: energy
+      TYPE(qs_energy_type), INTENT(INOUT), OPTIONAL      :: energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'calculate_potential_metal'

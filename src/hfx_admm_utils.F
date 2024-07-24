@@ -967,7 +967,7 @@ CONTAINS
    SUBROUTINE hfx_ks_matrix_kp(qs_env, matrix_ks, energy, calculate_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'hfx_ks_matrix_kp'
@@ -1146,7 +1146,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks
       TYPE(qs_rho_type), POINTER                         :: rho
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: v_rspace_new, v_tau_rspace
 

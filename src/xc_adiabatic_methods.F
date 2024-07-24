@@ -60,7 +60,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       REAL(dp), INTENT(INOUT)                            :: hf_energy(*)
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(IN)                   :: energy
       REAL(dp), INTENT(IN)                               :: adiabatic_lambda, adiabatic_omega
       REAL(dp), INTENT(INOUT)                            :: scale_dEx1, scale_ddW0, scale_dDFA, &
                                                             scale_dEx2, total_energy_xc

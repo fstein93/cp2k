@@ -83,7 +83,7 @@ CONTAINS
       TYPE(pw_pool_type), POINTER                        :: auxbas_pw_pool
       TYPE(pw_c1d_gs_type), INTENT(IN)                   :: rho_tot_gspace, v_hartree_gspace
       TYPE(pw_r3d_rs_type), POINTER                      :: v_spin_ddapc_rest_r
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       LOGICAL, INTENT(in)                                :: just_energy

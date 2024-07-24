@@ -68,37 +68,38 @@ CONTAINS
 !> \param ks_matrix ...
 !> \param rho ...
 !> \param mcharge ...
-!> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 ! **************************************************************************************************
-   SUBROUTINE efield_tb_matrix(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+   SUBROUTINE efield_tb_matrix(qs_env, ks_matrix, rho, mcharge, calculate_forces, just_energy)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(dp), DIMENSION(:), INTENT(in)                 :: mcharge
-      TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'efield_tb_matrix'
 
       INTEGER                                            :: handle
       TYPE(dft_control_type), POINTER                    :: dft_control
+      TYPE(qs_energy_type), POINTER                      :: energy
 
       CALL timeset(routineN, handle)
+
+      CALL get_qs_env(qs_env, energy=energy)
 
       energy%efield = 0.0_dp
       CALL get_qs_env(qs_env, dft_control=dft_control)
       IF (dft_control%qs_control%dftb .OR. dft_control%qs_control%xtb) THEN
          IF (dft_control%apply_period_efield) THEN
             IF (dft_control%period_efield%displacement_field) THEN
-               CALL dfield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+               CALL dfield_tb_berry(qs_env, ks_matrix, rho, mcharge, calculate_forces, just_energy)
             ELSE
-               CALL efield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+               CALL efield_tb_berry(qs_env, ks_matrix, rho, mcharge, calculate_forces, just_energy)
             END IF
          ELSE IF (dft_control%apply_efield) THEN
-            CALL efield_tb_local(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+            CALL efield_tb_local(qs_env, ks_matrix, rho, mcharge, calculate_forces, just_energy)
          ELSE IF (dft_control%apply_efield_field) THEN
             CPABORT("efield_filed")
          END IF
@@ -116,16 +117,14 @@ CONTAINS
 !> \param ks_matrix ...
 !> \param rho ...
 !> \param mcharge ...
-!> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 ! **************************************************************************************************
-   SUBROUTINE efield_tb_local(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+   SUBROUTINE efield_tb_local(qs_env, ks_matrix, rho, mcharge, calculate_forces, just_energy)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(dp), DIMENSION(:), INTENT(in)                 :: mcharge
-      TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'efield_tb_local'
@@ -145,6 +144,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(virial_type), POINTER                         :: virial
@@ -262,16 +262,14 @@ CONTAINS
 !> \param ks_matrix ...
 !> \param rho ...
 !> \param mcharge ...
-!> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 ! **************************************************************************************************
-   SUBROUTINE efield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+   SUBROUTINE efield_tb_berry(qs_env, ks_matrix, rho, mcharge, calculate_forces, just_energy)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(dp), DIMENSION(:), INTENT(in)                 :: mcharge
-      TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'efield_tb_berry'
@@ -304,6 +302,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
@@ -586,16 +585,14 @@ CONTAINS
 !> \param ks_matrix ...
 !> \param rho ...
 !> \param mcharge ...
-!> \param energy ...
 !> \param calculate_forces ...
 !> \param just_energy ...
 ! **************************************************************************************************
-   SUBROUTINE dfield_tb_berry(qs_env, ks_matrix, rho, mcharge, energy, calculate_forces, just_energy)
+   SUBROUTINE dfield_tb_berry(qs_env, ks_matrix, rho, mcharge, calculate_forces, just_energy)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(dp), DIMENSION(:), INTENT(in)                 :: mcharge
-      TYPE(qs_energy_type), POINTER                      :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dfield_tb_berry'
@@ -628,6 +625,7 @@ CONTAINS
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_orb
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
+      TYPE(qs_energy_type), POINTER                      :: energy
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: force
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(virial_type), POINTER                         :: virial
@@ -636,7 +634,7 @@ CONTAINS
 
       NULLIFY (dft_control, cell, particle_set)
       CALL get_qs_env(qs_env, dft_control=dft_control, cell=cell, &
-                      particle_set=particle_set, virial=virial)
+                      particle_set=particle_set, virial=virial, energy=energy)
       NULLIFY (qs_kind_set, para_env, sab_orb)
       CALL get_qs_env(qs_env=qs_env, qs_kind_set=qs_kind_set, &
                       efield=efield, energy=energy, para_env=para_env, sab_orb=sab_orb)

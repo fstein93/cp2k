@@ -82,26 +82,6 @@ MODULE kg_environment
 CONTAINS
 
 ! **************************************************************************************************
-!> \brief Allocates and intitializes kg_env
-!> \param qs_env ...
-!> \param kg_env the object to create
-!> \param qs_kind_set ...
-!> \param input ...
-!> \par History
-!>       2012.07 created [Martin Haeufel]
-!> \author Martin Haeufel
-! **************************************************************************************************
-   SUBROUTINE kg_env_create(qs_env, kg_env, qs_kind_set, input)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(kg_environment_type), POINTER                 :: kg_env
-      TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
-      TYPE(section_vals_type), OPTIONAL, POINTER         :: input
-
-      ALLOCATE (kg_env)
-      CALL init_kg_env(qs_env, kg_env, qs_kind_set, input)
-   END SUBROUTINE kg_env_create
-
-! **************************************************************************************************
 !> \brief Initializes kg_env
 !> \param qs_env ...
 !> \param kg_env ...
@@ -112,13 +92,13 @@ CONTAINS
 !>       2018.01 TNADD correction {JGH]
 !> \author Martin Haeufel
 ! **************************************************************************************************
-   SUBROUTINE init_kg_env(qs_env, kg_env, qs_kind_set, input)
+   SUBROUTINE kg_env_create(qs_env, kg_env, qs_kind_set, input)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(kg_environment_type), POINTER                 :: kg_env
+      TYPE(kg_environment_type), INTENT(OUT)             :: kg_env
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(section_vals_type), OPTIONAL, POINTER         :: input
 
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'init_kg_env'
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_env_create'
 
       CHARACTER(LEN=10)                                  :: intgrid
       INTEGER                                            :: handle, i, iatom, ib, ikind, iunit, n, &
@@ -283,7 +263,7 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE init_kg_env
+   END SUBROUTINE kg_env_create
 
 ! **************************************************************************************************
 !> \brief builds either the full neighborlist or neighborlists of molecular

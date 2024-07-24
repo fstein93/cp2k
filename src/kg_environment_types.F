@@ -132,15 +132,13 @@ CONTAINS
 !> \param kg_env ...
 ! **************************************************************************************************
    SUBROUTINE kg_env_release(kg_env)
-      TYPE(kg_environment_type), POINTER                 :: kg_env
+      TYPE(kg_environment_type), INTENT(INOUT)           :: kg_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'kg_env_release'
 
       INTEGER                                            :: handle, isub
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(kg_env))
 
       CALL release_neighbor_list_sets(kg_env%sab_orb_full)
       CALL release_neighbor_list_sets(kg_env%sac_kin)
@@ -187,8 +185,6 @@ CONTAINS
       IF (ASSOCIATED(kg_env%int_grid_full)) THEN
          CALL deallocate_intgrid(kg_env%int_grid_full)
       END IF
-
-      DEALLOCATE (kg_env)
 
       CALL timestop(handle)
 

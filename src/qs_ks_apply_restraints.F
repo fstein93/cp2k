@@ -136,7 +136,7 @@ CONTAINS
    SUBROUTINE qs_ks_mulliken_restraint(energy, dft_control, just_energy, para_env, &
                                        ks_matrix, matrix_s, rho, mulliken_order_p)
 
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       TYPE(dft_control_type), POINTER                    :: dft_control
       LOGICAL, INTENT(in)                                :: just_energy
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -185,7 +185,7 @@ CONTAINS
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
       INTEGER                                            :: i

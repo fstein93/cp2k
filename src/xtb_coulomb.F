@@ -106,7 +106,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(dp), DIMENSION(:, :), INTENT(in)              :: charges
       REAL(dp), DIMENSION(:), INTENT(in)                 :: mcharge
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'build_xtb_coulomb'

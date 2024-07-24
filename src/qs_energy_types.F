@@ -85,36 +85,9 @@ MODULE qs_energy_types
    ! Public subroutines
 
    PUBLIC :: allocate_qs_energy, &
-             deallocate_qs_energy, &
-             init_qs_energy
+             deallocate_qs_energy
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief   Allocate and/or initialise a Quickstep energy data structure.
-!> \param qs_energy ...
-!> \date    13.06.2002
-!> \author  MK
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE allocate_qs_energy(qs_energy)
-
-      TYPE(qs_energy_type), POINTER                      :: qs_energy
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'allocate_qs_energy'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-      IF (.NOT. ASSOCIATED(qs_energy)) THEN
-         ALLOCATE (qs_energy)
-         NULLIFY (qs_energy%ddapc_restraint)
-      END IF
-
-      CALL init_qs_energy(qs_energy)
-      CALL timestop(handle)
-
-   END SUBROUTINE allocate_qs_energy
 
 ! **************************************************************************************************
 !> \brief   Deallocate a Quickstep energy data structure.
@@ -124,17 +97,10 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE deallocate_qs_energy(qs_energy)
-      TYPE(qs_energy_type), POINTER                      :: qs_energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: qs_energy
 
-      IF (ASSOCIATED(qs_energy)) THEN
-         IF (ASSOCIATED(qs_energy%ddapc_restraint)) THEN
-            DEALLOCATE (qs_energy%ddapc_restraint)
-         END IF
-         DEALLOCATE (qs_energy)
-      ELSE
-         CALL cp_abort(__LOCATION__, &
-                       "The qs_energy pointer is not associated "// &
-                       "and cannot be deallocated")
+      IF (ASSOCIATED(qs_energy%ddapc_restraint)) THEN
+         DEALLOCATE (qs_energy%ddapc_restraint)
       END IF
 
    END SUBROUTINE deallocate_qs_energy
@@ -146,63 +112,15 @@ CONTAINS
 !> \author  MK
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE init_qs_energy(qs_energy)
+   SUBROUTINE allocate_qs_energy(qs_energy)
 
-      TYPE(qs_energy_type), POINTER                      :: qs_energy
+      TYPE(qs_energy_type), INTENT(OUT)                  :: qs_energy
 
-      IF (ASSOCIATED(qs_energy)) THEN
-         qs_energy%core = 0.0_dp
-         qs_energy%core_overlap = 0.0_dp
-         qs_energy%core_overlap0 = 0.0_dp
-         qs_energy%core_self = 0.0_dp
-         qs_energy%repulsive = 0.0_dp
-         qs_energy%dispersion = 0.0_dp
-         qs_energy%gcp = 0.0_dp
-         qs_energy%qmmm_el = 0.0_dp
-         qs_energy%qmmm_nu = 0.0_dp
-         qs_energy%ex = 0.0_dp
-         qs_energy%exc = 0.0_dp
-         qs_energy%exc_aux_fit = 0.0_dp
-         qs_energy%exc1 = 0.0_dp
-         qs_energy%exc1_aux_fit = 0.0_dp
-         qs_energy%e_hartree = 0.0_dp
-         qs_energy%hartree = 0.0_dp
-         qs_energy%hartree_1c = 0.0_dp
-         qs_energy%image_charge = 0.0_dp
-         qs_energy%mulliken = 0.0_dp
-         qs_energy%cdft = 0.0_dp
-         qs_energy%efield = 0.0_dp
-         qs_energy%efield_core = 0.0_dp
-         qs_energy%ee = 0.0_dp
-         qs_energy%ee_core = 0.0_dp
-         qs_energy%s2_restraint = 0.0_dp
-         qs_energy%dft_plus_u = 0.0_dp
-         qs_energy%sccs_hartree = 0.0_dp
-         qs_energy%sccs_pol = 0.0_dp
-         qs_energy%sccs_cav = 0.0_dp
-         qs_energy%sccs_dis = 0.0_dp
-         qs_energy%sccs_rep = 0.0_dp
-         qs_energy%sccs_sol = 0.0_dp
-         qs_energy%dftb3 = 0.0_dp
-         qs_energy%kTS = 0.0_dp
-         qs_energy%mp2 = 0.0_dp
-         qs_energy%efermi = 0.0_dp
-         qs_energy%kinetic = 0.0_dp
-         qs_energy%surf_dipole = 0.0_dp
-         qs_energy%excited_state = 0.0_dp
-         qs_energy%total = 0.0_dp
-         qs_energy%singles_corr = 0.0_dp
-         qs_energy%nonscf_correction = 0.0_dp
-         IF (.NOT. ASSOCIATED(qs_energy%ddapc_restraint)) THEN
-            ALLOCATE (qs_energy%ddapc_restraint(1))
-         END IF
-         qs_energy%ddapc_restraint(:) = 0.0_dp
-      ELSE
-         CALL cp_abort(__LOCATION__, &
-                       "The qs_energy pointer is not associated "// &
-                       "and cannot be initialised")
+      IF (.NOT. ASSOCIATED(qs_energy%ddapc_restraint)) THEN
+         ALLOCATE (qs_energy%ddapc_restraint(1))
       END IF
+      qs_energy%ddapc_restraint(:) = 0.0_dp
 
-   END SUBROUTINE init_qs_energy
+   END SUBROUTINE allocate_qs_energy
 
 END MODULE qs_energy_types

@@ -582,7 +582,7 @@ CONTAINS
          CALL build_dftb_coulomb(qs_env, ks_matrix, rho, mcharge, energy, &
                                  calculate_forces, just_energy)
 
-         CALL efield_tb_matrix(qs_env, ks_matrix, rho, mcharge, energy, &
+         CALL efield_tb_matrix(qs_env, ks_matrix, rho, mcharge, &
                                calculate_forces, just_energy)
 
          DEALLOCATE (mcharge)

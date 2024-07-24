@@ -75,7 +75,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(dp), DIMENSION(:)                             :: mcharge
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_tb_coulomb_qmqm'

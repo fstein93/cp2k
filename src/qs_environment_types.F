@@ -1587,6 +1587,7 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%kg_env)) THEN
          CALL kg_env_release(qs_env%kg_env)
+         DEALLOCATE (qs_env%kg_env)
       END IF
 
       ! dispersion
@@ -1814,6 +1815,8 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%kg_env)) THEN
          CALL kg_env_release(qs_env%kg_env)
+         DEALLOCATE (qs_env%kg_env)
+         NULLIFY (qs_env%kg_env)
       END IF
 
       ! dispersion

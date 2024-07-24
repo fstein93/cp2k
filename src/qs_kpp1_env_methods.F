@@ -60,9 +60,6 @@ MODULE qs_kpp1_env_methods
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
-   USE qs_energy_types,                 ONLY: allocate_qs_energy,&
-                                              deallocate_qs_energy,&
-                                              qs_energy_type
    USE qs_environment_types,            ONLY: get_qs_env,&
                                               qs_environment_type
    USE qs_gapw_densities,               ONLY: prepare_gapw_den
@@ -577,13 +574,11 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_2, matrix_s, rho1_ao, rho_ao
       TYPE(pw_c1d_gs_type), DIMENSION(:), POINTER        :: rho1_g, rho_g
       TYPE(pw_r3d_rs_type), DIMENSION(:), POINTER        :: rho1_r, rho_r
-      TYPE(qs_energy_type), POINTER                      :: qs_energy
 
-      NULLIFY (ks_2, matrix_s, qs_energy, rho_ao, rho1_ao, rho_r, rho1_r, rho_g, rho1_g)
+      NULLIFY (ks_2, matrix_s, rho_ao, rho1_ao, rho_r, rho1_r, rho_g, rho1_g)
       nspins = SIZE(k_p_p1)
       my_diff = 1.0e-6_dp
       IF (PRESENT(diff)) my_diff = diff
-      CALL allocate_qs_energy(qs_energy)
 
       CALL qs_rho_get(rho, rho_ao=rho_ao, rho_r=rho_r, rho_g=rho_g)
       CALL qs_rho_get(rho1, rho_ao=rho1_ao, rho_r=rho1_r, rho_g=rho1_g)
@@ -641,7 +636,6 @@ CONTAINS
       END DO
 
       CALL dbcsr_deallocate_matrix_set(ks_2)
-      CALL deallocate_qs_energy(qs_energy)
    END SUBROUTINE kpp1_calc_k_p_p1_fdiff
 
 ! **************************************************************************************************

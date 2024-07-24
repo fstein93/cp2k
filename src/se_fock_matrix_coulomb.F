@@ -120,7 +120,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_p
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
 
@@ -453,7 +453,6 @@ CONTAINS
       ! Two-centers one-electron terms
       CALL para_env%sum(ecore2)
       energy%hartree = ecore2 - energy%core
-!      WRITE ( *, * ) 'IN SE_F_COUL', ecore2, energy%core
 
       CALL finalize_se_taper(se_taper)
 
@@ -476,7 +475,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_p
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
 
@@ -831,7 +830,7 @@ CONTAINS
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_p
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
       TYPE(semi_empirical_si_type), POINTER              :: store_int_env
       TYPE(nddo_mpole_type), POINTER                     :: se_nddo_mpole
@@ -1196,7 +1195,7 @@ CONTAINS
    SUBROUTINE build_fock_matrix_coul_lr_r3(qs_env, ks_matrix, matrix_p, energy, calculate_forces)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: ks_matrix, matrix_p
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       LOGICAL, INTENT(in)                                :: calculate_forces
 
       CHARACTER(len=*), PARAMETER :: routineN = 'build_fock_matrix_coul_lr_r3'

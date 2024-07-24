@@ -157,7 +157,7 @@ CONTAINS
       iw = cp_logger_get_default_io_unit(logger)
       CALL sirius_header(iw)
 
-      NULLIFY (energy)
+      ALLOCATE (energy)
       CALL allocate_qs_energy(energy)
       CALL qs_subsys_set(qs_subsys, energy=energy)
 

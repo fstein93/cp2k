@@ -79,8 +79,10 @@ CONTAINS
       CALL cell_release(subsys%cell_ref)
       IF (ASSOCIATED(subsys%qs_kind_set)) &
          CALL deallocate_qs_kind_set(subsys%qs_kind_set)
-      IF (ASSOCIATED(subsys%energy)) &
+      IF (ASSOCIATED(subsys%energy)) THEN
          CALL deallocate_qs_energy(subsys%energy)
+         DEALLOCATE (subsys%energy)
+      END IF
       IF (ASSOCIATED(subsys%force)) &
          CALL deallocate_qs_force(subsys%force)
 

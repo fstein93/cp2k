@@ -147,7 +147,7 @@ CONTAINS
    SUBROUTINE low_spin_roks(energy, qs_env, dft_control, do_hfx, just_energy, &
                             calculate_forces, auxbas_pw_pool)
 
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       LOGICAL, INTENT(IN)                                :: do_hfx, just_energy, calculate_forces
@@ -463,7 +463,7 @@ CONTAINS
    SUBROUTINE sic_explicit_orbitals(energy, qs_env, dft_control, poisson_env, just_energy, &
                                     calculate_forces, auxbas_pw_pool)
 
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(pw_poisson_type), POINTER                     :: poisson_env
@@ -757,7 +757,7 @@ CONTAINS
                                 calculate_forces, auxbas_pw_pool)
 
       TYPE(pw_r3d_rs_type), POINTER                      :: v_sic_rspace
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(qs_rho_type), POINTER                         :: rho
@@ -1008,7 +1008,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(section_vals_type), POINTER                   :: input
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(IN)                   :: energy
       REAL(KIND=dp), INTENT(IN)                          :: mulliken_order_p
 
       INTEGER                                            :: bc, n, output_unit, psolver

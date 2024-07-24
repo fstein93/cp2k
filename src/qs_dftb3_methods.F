@@ -76,7 +76,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: ks_matrix
       TYPE(qs_rho_type), POINTER                         :: rho
       REAL(dp), DIMENSION(:), INTENT(in)                 :: mcharge
-      TYPE(qs_energy_type), POINTER                      :: energy
+      TYPE(qs_energy_type), INTENT(INOUT)                :: energy
       REAL(dp), DIMENSION(:), INTENT(in)                 :: xgamma, zeff
       TYPE(sap_int_type), DIMENSION(:), POINTER          :: sap_int
       LOGICAL, INTENT(in)                                :: calculate_forces, just_energy
