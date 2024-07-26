@@ -58,14 +58,10 @@ MODULE xtb_matrices
    USE mulliken,                        ONLY: ao_charges
    USE orbital_pointers,                ONLY: ncoset
    USE pair_potential,                  ONLY: init_genpot
-   USE pair_potential_types,            ONLY: not_initialized,&
-                                              pair_potential_p_type,&
-                                              pair_potential_pp_create,&
-                                              pair_potential_pp_release,&
-                                              pair_potential_pp_type,&
-                                              pair_potential_single_clean,&
-                                              pair_potential_single_copy,&
-                                              pair_potential_single_type
+   USE pair_potential_types,            ONLY: &
+        not_initialized, pair_potential_p_type, pair_potential_pp_create, &
+        pair_potential_pp_release, pair_potential_pp_type, pair_potential_single_clean, &
+        pair_potential_single_copy, pair_potential_single_create, pair_potential_single_type
    USE pair_potential_util,             ONLY: ener_pot
    USE particle_types,                  ONLY: particle_type
    USE qs_charge_mixing,                ONLY: charge_mixing
@@ -2010,6 +2006,10 @@ CONTAINS
                        ((name_atm_b) == (nonbonded%pot(ingp)%pot%at2))) .OR. &
                       (((name_atm_b) == (nonbonded%pot(ingp)%pot%at1)) .AND. &
                        ((name_atm_a) == (nonbonded%pot(ingp)%pot%at2)))) THEN
+                     IF (.NOT. ASSOCIATED(pot)) THEN
+                        ALLOCATE (pot)
+                        CALL pair_potential_single_create(pot, SIZE(nonbonded%pot(ingp)%pot%type))
+                     END IF
                      CALL pair_potential_single_copy(nonbonded%pot(ingp)%pot, pot)
                      ! multiple potential not implemented, simply overwriting
                      IF (found) &

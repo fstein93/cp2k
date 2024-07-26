@@ -95,7 +95,8 @@ MODULE pair_potential_types
    PUBLIC :: pair_potential_single_copy, &
              pair_potential_single_add, &
              pair_potential_single_clean, &
-             pair_potential_single_type
+             pair_potential_single_type, &
+             pair_potential_single_create
 
    PUBLIC :: pair_potential_pp_create, &
              pair_potential_pp_release, &
@@ -427,7 +428,7 @@ CONTAINS
 !> \author Teodoro Laino [teo] 05.2006
 ! **************************************************************************************************
    SUBROUTINE compare_pot(pot1, pot2, compare)
-      TYPE(pair_potential_single_type), POINTER          :: pot1, pot2
+      TYPE(pair_potential_single_type), INTENT(IN)       :: pot1, pot2
       LOGICAL, INTENT(OUT)                               :: compare
 
       INTEGER                                            :: i
@@ -606,13 +607,11 @@ CONTAINS
 !> \author Teodoro Laino [teo] 11.2005
 ! **************************************************************************************************
    SUBROUTINE pair_potential_single_create(potparm, nset)
-      TYPE(pair_potential_single_type), POINTER          :: potparm
+      TYPE(pair_potential_single_type), INTENT(OUT)      :: potparm
       INTEGER, INTENT(IN), OPTIONAL                      :: nset
 
       INTEGER                                            :: i, lnset
 
-      CPASSERT(.NOT. ASSOCIATED(potparm))
-      ALLOCATE (potparm)
       lnset = 1
       IF (PRESENT(nset)) lnset = nset
       ! Standard allocation to size 1
@@ -652,7 +651,7 @@ CONTAINS
 !> \author unknown
 ! **************************************************************************************************
    SUBROUTINE pair_potential_single_clean(potparm)
-      TYPE(pair_potential_single_type), POINTER          :: potparm
+      TYPE(pair_potential_single_type), INTENT(INOUT)    :: potparm
 
       INTEGER                                            :: i
 
@@ -701,16 +700,11 @@ CONTAINS
 !> \author Teodoro Laino [teo] 11.2005
 ! **************************************************************************************************
    SUBROUTINE pair_potential_single_copy(potparm_source, potparm_dest)
-      TYPE(pair_potential_single_type), POINTER          :: potparm_source, potparm_dest
+      TYPE(pair_potential_single_type), INTENT(INOUT)    :: potparm_source, potparm_dest
 
       INTEGER                                            :: i
 
-      CPASSERT(ASSOCIATED(potparm_source))
-      IF (.NOT. ASSOCIATED(potparm_dest)) THEN
-         CALL pair_potential_single_create(potparm_dest, SIZE(potparm_source%type))
-      ELSE
-         CALL pair_potential_single_clean(potparm_dest)
-      END IF
+      CALL pair_potential_single_clean(potparm_dest)
       potparm_dest%type = potparm_source%type
       potparm_dest%shell_type = potparm_source%shell_type
       potparm_dest%undef = potparm_source%undef
@@ -803,11 +797,13 @@ CONTAINS
             IF (.NOT. check) THEN
                allocate_new = .TRUE.
                CALL pair_potential_single_release(potparm_dest)
+               DEALLOCATE (potparm_dest)
             END IF
          END IF
       END IF
       IF (allocate_new) THEN
          size_dest = 0
+         ALLOCATE (potparm_dest)
          CALL pair_potential_single_create(potparm_dest, size_source)
          potparm_dest%shell_type = potparm_source%shell_type
          potparm_dest%undef = potparm_source%undef
@@ -818,7 +814,8 @@ CONTAINS
          potparm_dest%rcutsq = potparm_source%rcutsq
       ELSE
          size_dest = SIZE(potparm_dest%type)
-         NULLIFY (potparm_tmp)
+         ALLOCATE (potparm_tmp)
+         CALL pair_potential_single_create(potparm_tmp, SIZE(potparm_dest%type))
          CALL pair_potential_single_copy(potparm_dest, potparm_tmp)
          CALL pair_potential_single_release(potparm_dest)
          CALL pair_potential_single_create(potparm_dest, size_dest + size_source)
@@ -855,6 +852,7 @@ CONTAINS
             CALL pair_potential_tab_copy(potparm_tmp%set(i)%tab, potparm_dest%set(i)%tab)
          END DO
          CALL pair_potential_single_release(potparm_tmp)
+         DEALLOCATE (potparm_tmp)
       END IF
       ! Further check with main option with source and dest (already filled with few informations)
       check = (potparm_dest%shell_type == potparm_source%shell_type) .AND. &
@@ -899,11 +897,10 @@ CONTAINS
 !> \author Teodoro Laino [Teo] 11.2005
 ! **************************************************************************************************
    SUBROUTINE pair_potential_single_release(potparm)
-      TYPE(pair_potential_single_type), POINTER          :: potparm
+      TYPE(pair_potential_single_type), INTENT(INOUT)    :: potparm
 
       INTEGER                                            :: i
 
-      CPASSERT(ASSOCIATED(potparm))
       CALL spline_data_p_release(potparm%pair_spline_data)
       CALL spline_factor_release(potparm%spl_f)
       DO i = 1, SIZE(potparm%type)
@@ -929,7 +926,6 @@ CONTAINS
       END DO
       DEALLOCATE (potparm%type)
       DEALLOCATE (potparm%set)
-      DEALLOCATE (potparm)
    END SUBROUTINE pair_potential_single_release
 
 ! **************************************************************************************************
@@ -955,6 +951,7 @@ CONTAINS
       ! Use no-redundancy in the potential definition
       DO i = 1, nkinds
          DO j = i, nkinds
+            ALLOCATE (potparm%pot(i, j)%pot)
             CALL pair_potential_single_create(potparm%pot(i, j)%pot)
             potparm%pot(j, i)%pot => potparm%pot(i, j)%pot
          END DO
@@ -979,7 +976,7 @@ CONTAINS
             DO i = 1, SIZE(potparm%pot, 1)
                DO j = i, SIZE(potparm%pot, 2)
                   CALL pair_potential_single_release(potparm%pot(i, j)%pot)
-                  NULLIFY (potparm%pot(j, i)%pot)
+                  DEALLOCATE (potparm%pot(j, i)%pot)
                END DO
             END DO
             DEALLOCATE (potparm%pot)
@@ -1023,7 +1020,7 @@ CONTAINS
          CPABORT("")
       END IF
       DO i = loc_lb, loc_ub
-         NULLIFY (potparm%pot(i)%pot)
+         ALLOCATE (potparm%pot(i)%pot)
          CALL pair_potential_single_create(potparm%pot(i)%pot)
       END DO
    END SUBROUTINE pair_potential_p_create
@@ -1045,6 +1042,7 @@ CONTAINS
          IF (ASSOCIATED(potparm%pot)) THEN
             DO i = 1, SIZE(potparm%pot)
                CALL pair_potential_single_release(potparm%pot(i)%pot)
+               DEALLOCATE (potparm%pot(i)%pot)
             END DO
             DEALLOCATE (potparm%pot)
          END IF
@@ -1074,8 +1072,14 @@ CONTAINS
       IF (PRESENT(istart)) l_start = istart
       IF (PRESENT(iend)) l_end = iend
       DO i = l_start, l_end
-         IF (.NOT. ASSOCIATED(source%pot(i)%pot)) &
+         IF (.NOT. ASSOCIATED(source%pot(i)%pot)) THEN
+            ALLOCATE (source%pot(i)%pot)
             CALL pair_potential_single_create(source%pot(i)%pot)
+         END IF
+         IF (.NOT. ASSOCIATED(dest%pot(i)%pot)) THEN
+            ALLOCATE (dest%pot(i)%pot)
+            CALL pair_potential_single_create(dest%pot(i)%pot, SIZE(source%pot(i)%pot%type))
+         END IF
          CALL pair_potential_single_copy(source%pot(i)%pot, dest%pot(i)%pot)
       END DO
    END SUBROUTINE pair_potential_p_copy
