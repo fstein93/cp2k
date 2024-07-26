@@ -507,6 +507,7 @@ CONTAINS
          IF (.NOT. cdft_control%becke_control%use_bohr) THEN
             becke_control%rcavity = cp_unit_from_cp2k(becke_control%rcavity, "angstrom")
          END IF
+         IF (.NOT. ASSOCIATED(becke_control%cavity_env)) ALLOCATE (becke_control%cavity_env)
          CALL create_hirshfeld_type(becke_control%cavity_env)
          CALL set_hirshfeld_info(becke_control%cavity_env, &
                                  shape_function_type=shape_function_gaussian, iterative=.FALSE., &
@@ -835,6 +836,7 @@ CONTAINS
          hirshfeld_control%radii(:) = rtmplist
       END IF
 
+      IF (.NOT. ASSOCIATED(hirshfeld_control%hirshfeld_env)) ALLOCATE (hirshfeld_control%hirshfeld_env)
       CALL create_hirshfeld_type(hirshfeld_control%hirshfeld_env)
       CALL set_hirshfeld_info(hirshfeld_control%hirshfeld_env, &
                               shape_function_type=hirshfeld_control%shape_function, &

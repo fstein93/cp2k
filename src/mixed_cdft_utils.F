@@ -508,8 +508,13 @@ CONTAINS
                END DO
                IF (cdft_control%type == outer_scf_becke_constraint) THEN
                   IF (.NOT. cdft_control%atomic_charges) DEALLOCATE (cdft_control%atoms)
-                  IF (cdft_control%becke_control%cavity_confine) &
+                  IF (cdft_control%becke_control%cavity_confine) THEN
+                  IF (ASSOCIATED(cdft_control%becke_control%cavity_env)) THEN
                      CALL release_hirshfeld_type(cdft_control%becke_control%cavity_env)
+                     DEALLOCATE (cdft_control%becke_control%cavity_env)
+                     NULLIFY (cdft_control%becke_control%cavity_env)
+                  END IF
+                  END IF
                   IF (cdft_control%becke_control%cutoff_type == becke_cutoff_element) &
                      DEALLOCATE (cdft_control%becke_control%cutoffs_tmp)
                   IF (cdft_control%becke_control%adjust) &
@@ -752,6 +757,8 @@ CONTAINS
          CALL pw_pool_create(pw_pools(1)%pool, pw_grid=pw_grid)
          ! Initialize Gaussian cavity confinement
          IF (mixed_cdft%cdft_control%becke_control%cavity_confine) THEN
+            IF (.NOT. ASSOCIATED(mixed_cdft%cdft_control%becke_control%cavity_env)) &
+               ALLOCATE (mixed_cdft%cdft_control%becke_control%cavity_env)
             CALL create_hirshfeld_type(mixed_cdft%cdft_control%becke_control%cavity_env)
             CALL set_hirshfeld_info(mixed_cdft%cdft_control%becke_control%cavity_env, &
                                     shape_function_type=shape_function_gaussian, iterative=.FALSE., &

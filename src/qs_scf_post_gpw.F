@@ -2814,7 +2814,7 @@ CONTAINS
       TYPE(qs_rho_type), POINTER                         :: rho
       TYPE(rho0_mpole_type), POINTER                     :: rho0_mpole
 
-      NULLIFY (hirshfeld_env)
+      ALLOCATE (hirshfeld_env)
       NULLIFY (radii)
       CALL create_hirshfeld_type(hirshfeld_env)
       !
@@ -2899,6 +2899,7 @@ CONTAINS
       CALL save_hirshfeld_charges(charges, particle_set, qs_kind_set, qs_env)
       !
       CALL release_hirshfeld_type(hirshfeld_env)
+      DEALLOCATE (hirshfeld_env)
       DEALLOCATE (charges)
 
    END SUBROUTINE hirshfeld_charges

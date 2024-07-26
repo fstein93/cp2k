@@ -63,13 +63,9 @@ CONTAINS
 !> \param hirshfeld_env ...
 ! **************************************************************************************************
    SUBROUTINE create_hirshfeld_type(hirshfeld_env)
-      TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
+      TYPE(hirshfeld_type), INTENT(INOUT)                :: hirshfeld_env
 
-      IF (ASSOCIATED(hirshfeld_env)) THEN
-         CALL release_hirshfeld_type(hirshfeld_env)
-      END IF
-
-      ALLOCATE (hirshfeld_env)
+      CALL release_hirshfeld_type(hirshfeld_env)
 
       hirshfeld_env%iterative = .FALSE.
       hirshfeld_env%use_bohr = .FALSE.
@@ -86,37 +82,31 @@ CONTAINS
 !> \param hirshfeld_env ...
 ! **************************************************************************************************
    SUBROUTINE release_hirshfeld_type(hirshfeld_env)
-      TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
+      TYPE(hirshfeld_type), INTENT(INOUT)                :: hirshfeld_env
 
       INTEGER                                            :: ikind
       TYPE(shape_fn), DIMENSION(:), POINTER              :: kind_shape
 
-      IF (ASSOCIATED(hirshfeld_env)) THEN
+      IF (ASSOCIATED(hirshfeld_env%kind_shape_fn)) THEN
+         kind_shape => hirshfeld_env%kind_shape_fn
+         DO ikind = 1, SIZE(kind_shape)
+            IF (ASSOCIATED(hirshfeld_env%kind_shape_fn(ikind)%zet)) THEN
+               DEALLOCATE (kind_shape(ikind)%zet)
+            END IF
+            IF (ASSOCIATED(hirshfeld_env%kind_shape_fn(ikind)%coef)) THEN
+               DEALLOCATE (kind_shape(ikind)%coef)
+            END IF
+         END DO
+         DEALLOCATE (kind_shape)
+      END IF
 
-         IF (ASSOCIATED(hirshfeld_env%kind_shape_fn)) THEN
-            kind_shape => hirshfeld_env%kind_shape_fn
-            DO ikind = 1, SIZE(kind_shape)
-               IF (ASSOCIATED(hirshfeld_env%kind_shape_fn(ikind)%zet)) THEN
-                  DEALLOCATE (kind_shape(ikind)%zet)
-               END IF
-               IF (ASSOCIATED(hirshfeld_env%kind_shape_fn(ikind)%coef)) THEN
-                  DEALLOCATE (kind_shape(ikind)%coef)
-               END IF
-            END DO
-            DEALLOCATE (kind_shape)
-         END IF
+      IF (ASSOCIATED(hirshfeld_env%charges)) THEN
+         DEALLOCATE (hirshfeld_env%charges)
+      END IF
 
-         IF (ASSOCIATED(hirshfeld_env%charges)) THEN
-            DEALLOCATE (hirshfeld_env%charges)
-         END IF
-
-         IF (ASSOCIATED(hirshfeld_env%fnorm)) THEN
-            CALL hirshfeld_env%fnorm%release()
-            DEALLOCATE (hirshfeld_env%fnorm)
-         END IF
-
-         DEALLOCATE (hirshfeld_env)
-
+      IF (ASSOCIATED(hirshfeld_env%fnorm)) THEN
+         CALL hirshfeld_env%fnorm%release()
+         DEALLOCATE (hirshfeld_env%fnorm)
       END IF
 
    END SUBROUTINE release_hirshfeld_type
@@ -134,15 +124,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE get_hirshfeld_info(hirshfeld_env, shape_function_type, iterative, &
                                  ref_charge, fnorm, radius_type, use_bohr)
-      TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
+      TYPE(hirshfeld_type), INTENT(IN)                   :: hirshfeld_env
       INTEGER, INTENT(OUT), OPTIONAL                     :: shape_function_type
       LOGICAL, INTENT(OUT), OPTIONAL                     :: iterative
       INTEGER, INTENT(OUT), OPTIONAL                     :: ref_charge
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: fnorm
       INTEGER, INTENT(OUT), OPTIONAL                     :: radius_type
       LOGICAL, INTENT(OUT), OPTIONAL                     :: use_bohr
-
-      CPASSERT(ASSOCIATED(hirshfeld_env))
 
       IF (PRESENT(shape_function_type)) THEN
          shape_function_type = hirshfeld_env%shape_function_type
@@ -178,15 +166,13 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_hirshfeld_info(hirshfeld_env, shape_function_type, iterative, &
                                  ref_charge, fnorm, radius_type, use_bohr)
-      TYPE(hirshfeld_type), POINTER                      :: hirshfeld_env
+      TYPE(hirshfeld_type), INTENT(INOUT)                :: hirshfeld_env
       INTEGER, INTENT(IN), OPTIONAL                      :: shape_function_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: iterative
       INTEGER, INTENT(IN), OPTIONAL                      :: ref_charge
       TYPE(pw_r3d_rs_type), OPTIONAL, POINTER            :: fnorm
       INTEGER, INTENT(IN), OPTIONAL                      :: radius_type
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_bohr
-
-      CPASSERT(ASSOCIATED(hirshfeld_env))
 
       IF (PRESENT(shape_function_type)) THEN
          hirshfeld_env%shape_function_type = shape_function_type

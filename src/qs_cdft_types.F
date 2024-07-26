@@ -338,8 +338,13 @@ CONTAINS
          DEALLOCATE (becke_control%aij)
       IF (ASSOCIATED(becke_control%cavity_mat)) &
          DEALLOCATE (becke_control%cavity_mat)
-      IF (becke_control%cavity_confine) &
-         CALL release_hirshfeld_type(becke_control%cavity_env)
+      IF (becke_control%cavity_confine) THEN
+         IF (ASSOCIATED(becke_control%cavity_env)) THEN
+            CALL release_hirshfeld_type(becke_control%cavity_env)
+            DEALLOCATE (becke_control%cavity_env)
+            NULLIFY (becke_control%cavity_env)
+         END IF
+      END IF
 
    END SUBROUTINE becke_control_release
 
@@ -551,7 +556,11 @@ CONTAINS
 
       IF (ASSOCIATED(hirshfeld_control%radii)) &
          DEALLOCATE (hirshfeld_control%radii)
-      CALL release_hirshfeld_type(hirshfeld_control%hirshfeld_env)
+      IF (ASSOCIATED(hirshfeld_control%hirshfeld_env)) THEN
+         CALL release_hirshfeld_type(hirshfeld_control%hirshfeld_env)
+         DEALLOCATE (hirshfeld_control%hirshfeld_env)
+         NULLIFY (hirshfeld_control%hirshfeld_env)
+      END IF
 
    END SUBROUTINE hirshfeld_control_release
 
