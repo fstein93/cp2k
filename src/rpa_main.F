@@ -1141,9 +1141,9 @@ CONTAINS
       REAL(KIND=dp) :: alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
          eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
          my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
-                                                            trace_Qomega, vec_omega_fit_gw, wj, &
-                                                            wkp_W
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, erpa_jquad, tau_tj, &
+                                                            tau_wj, tj, trace_Qomega, &
+                                                            vec_omega_fit_gw, wj, wkp_W
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: vec_W_gw, weights_cos_tf_t_to_w, &
                                                             weights_cos_tf_w_to_t, &
                                                             weights_sin_tf_t_to_w
@@ -1372,6 +1372,8 @@ CONTAINS
       omega_old = 0.0_dp
       CALL dgemm_counter_init(dgemm_counter, unit_nr, mp2_env%ri_rpa%print_dgemm_info)
 
+      ALLOCATE (erpa_jquad(num_integ_points))
+
       DO count_ev_sc_GW = 1, iter_evGW
 
          dbcsr_time = 0.0_dp
@@ -1570,7 +1572,8 @@ CONTAINS
                                                         fm_mat_W, fm_mat_RI_global_work, mat_MinvVMinv, &
                                                         fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv)
                ELSE
-                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA, Erpa, wj(jquad))
+                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA, &
+                                                erpa_jquad(jquad), Erpa, wj(jquad))
                END IF
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
@@ -1613,6 +1616,8 @@ CONTAINS
 
          END DO ! jquad
 
+         CALL para_env%sum(erpa_jquad)
+         IF (unit_nr > 0) WRITE (*, *) erpa_jquad
          CALL para_env%sum(Erpa)
 
          IF (scf_control%smear%electronic_temperature <= 0.0_dp) THEN

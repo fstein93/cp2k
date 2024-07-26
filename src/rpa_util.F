@@ -937,16 +937,17 @@ CONTAINS
 !> \param trace_Qomega ...
 !> \param fm_mat_Q ...
 !> \param para_env_RPA ...
+!> \param erpajquad ...
 !> \param Erpa ...
 !> \param wjquad ...
 ! **************************************************************************************************
-   SUBROUTINE compute_Erpa_by_freq_int(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA, Erpa, wjquad)
+   SUBROUTINE compute_Erpa_by_freq_int(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA, erpajquad, Erpa, wjquad)
 
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(IN)     :: trace_Qomega
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
-      REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
+      REAL(KIND=dp), INTENT(INOUT)                       :: erpajquad, Erpa
       REAL(KIND=dp), INTENT(IN)                          :: wjquad
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_Erpa_by_freq_int'
@@ -1001,6 +1002,7 @@ CONTAINS
          IF (MODULO(iiB, para_env_RPA%num_pe) /= para_env_RPA%mepos) CYCLE
          FComega = FComega + (Q_log(iiB) - trace_Qomega(iiB))/2.0_dp
       END DO
+      erpajquad = FComega
       Erpa = Erpa + FComega*wjquad
       CALL fm_mat_Q%matrix_struct%para_env%sum(FComega)
 
