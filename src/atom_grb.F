@@ -133,7 +133,7 @@ CONTAINS
       grb_section => section_vals_get_subs_vals(atom_section, "PRINT%GEOMETRICAL_RESPONSE_BASIS")
 
       ! generate an atom type
-      NULLIFY (atom)
+      ALLOCATE (atom)
       CALL create_atom_type(atom)
       CALL copy_atom_basics(atom_ref, atom, state=.TRUE., potential=.TRUE., optimization=.TRUE., xc=.TRUE.)
       ! set confinement potential
@@ -205,7 +205,7 @@ CONTAINS
          END DO
       END DO
 
-      NULLIFY (orbitals)
+      ALLOCATE (orbitals)
       mo = MAXVAL(atom%state%maxn_calc)
       mb = MAXVAL(basis%nbas)
       CALL create_atom_orbs(orbitals, mb, mo)
@@ -587,12 +587,12 @@ CONTAINS
       IF (iw > 0) WRITE (iw, '(T10,A,T59,F22.9)') " Reference Energy [a.u.]  ", energy_ref
       DO ider = 0, 2*nder + 1
          ! generate an atom type
-         NULLIFY (atom_test)
+         ALLOCATE (atom_test)
          CALL create_atom_type(atom_test)
          CALL copy_atom_basics(atom_ref, atom_test, state=.TRUE., potential=.TRUE., &
                                optimization=.TRUE., xc=.TRUE.)
          basis_grb => vbasis(ider)%basis
-         NULLIFY (orbitals)
+         ALLOCATE (orbitals)
          mo = MAXVAL(atom_test%state%maxn_calc)
          mb = MAXVAL(basis_grb%nbas)
          CALL create_atom_orbs(orbitals, mb, mo)
@@ -625,6 +625,7 @@ CONTAINS
          CALL atom_relint_release(atint)
          DEALLOCATE (atom_test%state, atom_test%potential, atint)
          CALL release_atom_type(atom_test)
+         DEALLOCATE (atom_test)
       END DO
 
       ! Quickstep normalization polarization basis
@@ -704,6 +705,7 @@ CONTAINS
       CALL release_atom_basis(basis)
       DEALLOCATE (atom%potential, atom%state, atom%integrals, basis)
       CALL release_atom_type(atom)
+      DEALLOCATE (atom)
 
       IF (iw > 0) WRITE (iw, '(" ",79("*"))')
 

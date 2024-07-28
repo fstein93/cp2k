@@ -342,6 +342,7 @@ CONTAINS
       CALL cp_blacs_env_release(blacs_env)
 
       !   *** Setup the grids for the G-space Interpolation if any
+      ALLOCATE (qs_env%cp_ddapc_ewald)
       CALL cp_ddapc_ewald_create(qs_env%cp_ddapc_ewald, qmmm_decoupl, my_cell, &
                                  force_env_section, subsys_section, para_env)
 
@@ -468,7 +469,10 @@ CONTAINS
       et_coupling_section => section_vals_get_subs_vals(qs_env%input, &
                                                         "PROPERTIES%ET_COUPLING")
       CALL section_vals_get(et_coupling_section, explicit=do_et)
-      IF (do_et) CALL et_coupling_create(qs_env%et_coupling)
+      IF (do_et) THEN
+         ALLOCATE (qs_env%et_coupling)
+         CALL et_coupling_create(qs_env%et_coupling)
+      END IF
 
       transport_section => section_vals_get_subs_vals(qs_env%input, "DFT%TRANSPORT")
       CALL section_vals_get(transport_section, explicit=qs_env%do_transport)

@@ -53,9 +53,7 @@ CONTAINS
 !> \param et_coupling ...
 ! **************************************************************************************************
    SUBROUTINE et_coupling_create(et_coupling)
-      TYPE(et_coupling_type), POINTER                    :: et_coupling
-
-      ALLOCATE (et_coupling)
+      TYPE(et_coupling_type), INTENT(INOUT)              :: et_coupling
 
       NULLIFY (et_coupling%et_mo_coeff)
       NULLIFY (et_coupling%rest_mat)
@@ -72,7 +70,7 @@ CONTAINS
 !> \param rest_mat ...
 ! **************************************************************************************************
    SUBROUTINE get_et_coupling_type(et_coupling, et_mo_coeff, rest_mat)
-      TYPE(et_coupling_type), POINTER                    :: et_coupling
+      TYPE(et_coupling_type), INTENT(IN)                 :: et_coupling
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: et_mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rest_mat
@@ -89,7 +87,7 @@ CONTAINS
 !> \param rest_mat ...
 ! **************************************************************************************************
    SUBROUTINE set_et_coupling_type(et_coupling, et_mo_coeff, rest_mat)
-      TYPE(et_coupling_type), POINTER                    :: et_coupling
+      TYPE(et_coupling_type), INTENT(INOUT)              :: et_coupling
       TYPE(cp_fm_type), DIMENSION(:), OPTIONAL, POINTER  :: et_mo_coeff
       TYPE(dbcsr_p_type), DIMENSION(:), OPTIONAL, &
          POINTER                                         :: rest_mat
@@ -104,7 +102,7 @@ CONTAINS
 !> \param et_coupling ...
 ! **************************************************************************************************
    SUBROUTINE et_coupling_release(et_coupling)
-      TYPE(et_coupling_type), POINTER                    :: et_coupling
+      TYPE(et_coupling_type), INTENT(INOUT)              :: et_coupling
 
       CALL cp_fm_release(et_coupling%et_mo_coeff)
       IF (ASSOCIATED(et_coupling%rest_mat)) THEN
@@ -112,7 +110,6 @@ CONTAINS
          DEALLOCATE (et_coupling%rest_mat)
       END IF
 
-      DEALLOCATE (et_coupling)
    END SUBROUTINE et_coupling_release
 
 END MODULE et_coupling_types

@@ -194,7 +194,7 @@ CONTAINS
       DO in = 1, n_rep
          DO im = 1, n_meth
 
-            NULLIFY (atom_info(in, im)%atom, atom_refs(in, im)%atom)
+            ALLOCATE (atom_info(in, im)%atom, atom_refs(in, im)%atom)
             CALL create_atom_type(atom_info(in, im)%atom)
             CALL create_atom_type(atom_refs(in, im)%atom)
 
@@ -330,14 +330,14 @@ CONTAINS
             atom_refs(in, im)%atom%hfx_pot%nr_gh = nr_gh
 
             CALL set_atom(atom_info(in, im)%atom, state=statepp)
-            NULLIFY (orbitals)
+            ALLOCATE (orbitals)
             mo = MAXVAL(statepp%maxn_calc)
             mb = MAXVAL(atom_info(in, im)%atom%basis%nbas)
             CALL create_atom_orbs(orbitals, mb, mo)
             CALL set_atom(atom_info(in, im)%atom, orbitals=orbitals)
 
             CALL set_atom(atom_refs(in, im)%atom, state=state)
-            NULLIFY (orbitals)
+            ALLOCATE (orbitals)
             mo = MAXVAL(state%maxn_calc)
             mb = MAXVAL(atom_refs(in, im)%atom%basis%nbas)
             CALL create_atom_orbs(orbitals, mb, mo)
@@ -399,6 +399,7 @@ CONTAINS
          DO im = 1, n_meth
             CALL release_atom_type(atom_info(in, im)%atom)
             CALL release_atom_type(atom_refs(in, im)%atom)
+            DEALLOCATE (atom_info(in, im)%atom, atom_refs(in, im)%atom)
          END DO
       END DO
       DEALLOCATE (atom_info, atom_refs)

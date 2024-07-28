@@ -262,6 +262,8 @@ CONTAINS
       END IF
       IF (ASSOCIATED(thermostat%csvr)) THEN
          CALL csvr_dealloc(thermostat%csvr)
+         DEALLOCATE (thermostat%csvr)
+         NULLIFY (thermostat%csvr)
       END IF
       IF (ASSOCIATED(thermostat%al)) THEN
          CALL al_dealloc(thermostat%al)

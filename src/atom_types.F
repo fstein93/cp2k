@@ -941,11 +941,7 @@ CONTAINS
 !> \param atom ...
 ! **************************************************************************************************
    SUBROUTINE create_atom_type(atom)
-      TYPE(atom_type), POINTER                           :: atom
-
-      CPASSERT(.NOT. ASSOCIATED(atom))
-
-      ALLOCATE (atom)
+      TYPE(atom_type), INTENT(INOUT)                     :: atom
 
       NULLIFY (atom%zmp_section)
       NULLIFY (atom%xc_section)
@@ -965,9 +961,7 @@ CONTAINS
 !> \param atom ...
 ! **************************************************************************************************
    SUBROUTINE release_atom_type(atom)
-      TYPE(atom_type), POINTER                           :: atom
-
-      CPASSERT(ASSOCIATED(atom))
+      TYPE(atom_type), INTENT(INOUT)                     :: atom
 
       NULLIFY (atom%basis)
       NULLIFY (atom%integrals)
@@ -976,11 +970,15 @@ CONTAINS
       END IF
       IF (ASSOCIATED(atom%orbitals)) THEN
          CALL release_atom_orbs(atom%orbitals)
+         DEALLOCATE (atom%orbitals)
+         NULLIFY (atom%orbitals)
       END IF
 
-      IF (ASSOCIATED(atom%fmat)) CALL release_opmat(atom%fmat)
-
-      DEALLOCATE (atom)
+      IF (ASSOCIATED(atom%fmat)) THEN
+         CALL release_opmat(atom%fmat)
+         DEALLOCATE (atom%fmat)
+         NULLIFY (atom%fmat)
+      END IF
 
    END SUBROUTINE release_atom_type
 
@@ -1006,7 +1004,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE set_atom(atom, basis, state, integrals, orbitals, potential, zcore, pp_calc, do_zmp, doread, &
                        read_vxc, method_type, relativistic, coulomb_integral_type, exchange_integral_type, fmat)
-      TYPE(atom_type), POINTER                           :: atom
+      TYPE(atom_type), INTENT(INOUT)                     :: atom
       TYPE(atom_basis_type), OPTIONAL, POINTER           :: basis
       TYPE(atom_state), OPTIONAL, POINTER                :: state
       TYPE(atom_integrals), OPTIONAL, POINTER            :: integrals
@@ -1018,8 +1016,6 @@ CONTAINS
                                                             coulomb_integral_type, &
                                                             exchange_integral_type
       TYPE(opmat_type), OPTIONAL, POINTER                :: fmat
-
-      CPASSERT(ASSOCIATED(atom))
 
       IF (PRESENT(basis)) atom%basis => basis
       IF (PRESENT(state)) atom%state => state
@@ -1039,7 +1035,10 @@ CONTAINS
       IF (PRESENT(exchange_integral_type)) atom%exchange_integral_type = exchange_integral_type
 
       IF (PRESENT(fmat)) THEN
-         IF (ASSOCIATED(atom%fmat)) CALL release_opmat(atom%fmat)
+         IF (ASSOCIATED(atom%fmat)) THEN
+            CALL release_opmat(atom%fmat)
+            DEALLOCATE (atom%fmat)
+         END IF
          atom%fmat => fmat
       END IF
 
@@ -1052,12 +1051,8 @@ CONTAINS
 !> \param mo ...
 ! **************************************************************************************************
    SUBROUTINE create_atom_orbs(orbs, mbas, mo)
-      TYPE(atom_orbitals), POINTER                       :: orbs
+      TYPE(atom_orbitals), INTENT(INOUT)                 :: orbs
       INTEGER, INTENT(IN)                                :: mbas, mo
-
-      CPASSERT(.NOT. ASSOCIATED(orbs))
-
-      ALLOCATE (orbs)
 
       ALLOCATE (orbs%wfn(mbas, mo, 0:lmat), orbs%wfna(mbas, mo, 0:lmat), orbs%wfnb(mbas, mo, 0:lmat))
       orbs%wfn = 0._dp
@@ -1101,9 +1096,7 @@ CONTAINS
 !> \param orbs ...
 ! **************************************************************************************************
    SUBROUTINE release_atom_orbs(orbs)
-      TYPE(atom_orbitals), POINTER                       :: orbs
-
-      CPASSERT(ASSOCIATED(orbs))
+      TYPE(atom_orbitals), INTENT(INOUT)                 :: orbs
 
       IF (ASSOCIATED(orbs%wfn)) THEN
          DEALLOCATE (orbs%wfn, orbs%wfna, orbs%wfnb)
@@ -1154,8 +1147,6 @@ CONTAINS
          DEALLOCATE (orbs%reftype)
       END IF
 
-      DEALLOCATE (orbs)
-
    END SUBROUTINE release_atom_orbs
 
 ! **************************************************************************************************
@@ -1169,7 +1160,7 @@ CONTAINS
    SUBROUTINE setup_hf_section(hf_frac, do_hfx, atom, xc_section, extype)
       REAL(KIND=dp), INTENT(OUT)                         :: hf_frac
       LOGICAL, INTENT(OUT)                               :: do_hfx
-      TYPE(atom_type), INTENT(IN), POINTER               :: atom
+      TYPE(atom_type), INTENT(INOUT)                     :: atom
       TYPE(section_vals_type), POINTER                   :: xc_section
       INTEGER, INTENT(IN)                                :: extype
 
@@ -1337,7 +1328,7 @@ CONTAINS
 !> \param lmax ...
 ! **************************************************************************************************
    SUBROUTINE create_opmat(opmat, n, lmax)
-      TYPE(opmat_type), POINTER                          :: opmat
+      TYPE(opmat_type), INTENT(INOUT)                    :: opmat
       INTEGER, DIMENSION(0:lmat), INTENT(IN)             :: n
       INTEGER, INTENT(IN), OPTIONAL                      :: lmax
 
@@ -1350,10 +1341,6 @@ CONTAINS
          lm = lmat
       END IF
 
-      CPASSERT(.NOT. ASSOCIATED(opmat))
-
-      ALLOCATE (opmat)
-
       opmat%n = n
       ALLOCATE (opmat%op(m, m, 0:lm))
       opmat%op = 0._dp
@@ -1365,14 +1352,10 @@ CONTAINS
 !> \param opmat ...
 ! **************************************************************************************************
    SUBROUTINE release_opmat(opmat)
-      TYPE(opmat_type), POINTER                          :: opmat
-
-      CPASSERT(ASSOCIATED(opmat))
+      TYPE(opmat_type), INTENT(INOUT)                    :: opmat
 
       opmat%n = 0
       DEALLOCATE (opmat%op)
-
-      DEALLOCATE (opmat)
 
    END SUBROUTINE release_opmat
 
@@ -1382,14 +1365,10 @@ CONTAINS
 !> \param grid ...
 ! **************************************************************************************************
    SUBROUTINE create_opgrid(opgrid, grid)
-      TYPE(opgrid_type), POINTER                         :: opgrid
+      TYPE(opgrid_type), INTENT(INOUT)                   :: opgrid
       TYPE(grid_atom_type), POINTER                      :: grid
 
       INTEGER                                            :: nr
-
-      CPASSERT(.NOT. ASSOCIATED(opgrid))
-
-      ALLOCATE (opgrid)
 
       opgrid%grid => grid
 
@@ -1405,14 +1384,10 @@ CONTAINS
 !> \param opgrid ...
 ! **************************************************************************************************
    SUBROUTINE release_opgrid(opgrid)
-      TYPE(opgrid_type), POINTER                         :: opgrid
-
-      CPASSERT(ASSOCIATED(opgrid))
+      TYPE(opgrid_type), INTENT(INOUT)                   :: opgrid
 
       NULLIFY (opgrid%grid)
       DEALLOCATE (opgrid%op)
-
-      DEALLOCATE (opgrid)
 
    END SUBROUTINE release_opgrid
 

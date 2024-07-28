@@ -118,7 +118,7 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: orb_basis_set
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
-      NULLIFY (atom)
+      ALLOCATE (atom)
       CALL create_atom_type(atom)
 
       IF (PRESENT(xc_section)) THEN
@@ -306,7 +306,7 @@ CONTAINS
       CALL atom_relint_setup(integrals, basis, atom%relativistic, zcore=REAL(atom%zcore, dp))
       CALL set_atom(atom, integrals=integrals)
 
-      NULLIFY (orbitals)
+      ALLOCATE (orbitals)
       mo = MAXVAL(atom%state%maxn_calc)
       mb = MAXVAL(atom%basis%nbas)
       CALL create_atom_orbs(orbitals, mb, mo)
@@ -460,6 +460,7 @@ CONTAINS
       CALL release_atom_basis(basis)
       CALL release_atom_potential(potential)
       CALL release_atom_type(atom)
+      DEALLOCATE (atom)
 
       DEALLOCATE (potential, basis, integrals)
 
@@ -503,7 +504,7 @@ CONTAINS
       TYPE(gth_potential_type), POINTER                  :: gth_potential
       TYPE(sgp_potential_type), POINTER                  :: sgp_potential
 
-      NULLIFY (atom)
+      ALLOCATE (atom)
       CALL create_atom_type(atom)
 
       CALL get_atomic_kind(atomic_kind, z=z)
@@ -709,7 +710,7 @@ CONTAINS
       CALL atom_relint_setup(integrals, basis, atom%relativistic, zcore=REAL(atom%zcore, dp))
       CALL set_atom(atom, integrals=integrals)
 
-      NULLIFY (orbitals)
+      ALLOCATE (orbitals)
       mo = MAXVAL(atom%state%maxn_calc)
       mb = MAXVAL(atom%basis%nbas)
       CALL create_atom_orbs(orbitals, mb, mo)
@@ -737,6 +738,7 @@ CONTAINS
       CALL release_atom_basis(basis)
       CALL release_atom_potential(potential)
       CALL release_atom_type(atom)
+      DEALLOCATE (atom)
 
       DEALLOCATE (potential, basis, integrals)
 
@@ -786,7 +788,7 @@ CONTAINS
 
          CALL get_atomic_kind(atomic_kind, z=z)
          CALL get_qs_kind(qs_kind, zeff=zeff)
-         NULLIFY (atom)
+         ALLOCATE (atom)
          CALL create_atom_type(atom)
          NULLIFY (atom%xc_section)
          NULLIFY (atom%orbitals)
@@ -1064,6 +1066,7 @@ CONTAINS
          CALL release_atom_basis(basis)
          CALL release_atom_potential(potential)
          CALL release_atom_type(atom)
+         DEALLOCATE (atom)
 
          DEALLOCATE (potential, basis, integrals)
 

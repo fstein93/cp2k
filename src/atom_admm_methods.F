@@ -202,7 +202,7 @@ CONTAINS
                elref = atom_trace(ref_int%ovlp, ref_orbs%pmat)
                ! admm orbitals and density matrices
                mo = MAXVAL(atom%state%maxn_calc)
-               NULLIFY (admm1_orbs, admm2_orbs, admmq_orbs)
+               ALLOCATE (admm1_orbs, admm2_orbs, admmq_orbs)
                CALL create_atom_orbs(admm1_orbs, na, mo)
                CALL create_atom_orbs(admm2_orbs, na, mo)
                CALL create_atom_orbs(admmq_orbs, na, mo)
@@ -410,6 +410,7 @@ CONTAINS
                CALL release_atom_orbs(admm1_orbs)
                CALL release_atom_orbs(admm2_orbs)
                CALL release_atom_orbs(admmq_orbs)
+               DEALLOCATE (admm1_orbs, admm2_orbs, admmq_orbs)
             END IF
          END DO
       END DO

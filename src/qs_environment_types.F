@@ -1443,6 +1443,8 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
          CALL ls_scf_release(qs_env%ls_scf_env)
+         DEALLOCATE (qs_env%ls_scf_env)
+         NULLIFY (qs_env%ls_scf_env)
       END IF
       IF (ASSOCIATED(qs_env%molecular_scf_guess_env)) THEN
          CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env)
@@ -1529,7 +1531,11 @@ CONTAINS
          CALL cp_ddapc_release(qs_env%cp_ddapc_env)
          DEALLOCATE (qs_env%cp_ddapc_env)
       END IF
-      CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
+      IF (ASSOCIATED(qs_env%cp_ddapc_ewald)) THEN
+         CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
+         DEALLOCATE (qs_env%cp_ddapc_ewald)
+         NULLIFY (qs_env%cp_ddapc_ewald)
+      END IF
       IF (ASSOCIATED(qs_env%efield)) THEN
          CALL efield_berry_release(qs_env%efield)
          DEALLOCATE (qs_env%efield)
@@ -1539,6 +1545,8 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%et_coupling)) THEN
          CALL et_coupling_release(qs_env%et_coupling)
+         DEALLOCATE (qs_env%et_coupling)
+         NULLIFY (qs_env%et_coupling)
       END IF
       IF (ASSOCIATED(qs_env%dftb_potential)) THEN
          CALL qs_dftb_pairpot_release(qs_env%dftb_potential)
@@ -1572,6 +1580,8 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%ec_env)) THEN
          CALL ec_env_release(qs_env%ec_env)
+         DEALLOCATE (qs_env%ec_env)
+         NULLIFY (qs_env%ec_env)
       END IF
       IF (ASSOCIATED(qs_env%exstate_env)) THEN
          CALL exstate_release(qs_env%exstate_env)
@@ -1682,6 +1692,8 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
          CALL ls_scf_release(qs_env%ls_scf_env)
+         DEALLOCATE (qs_env%ls_scf_env)
+         NULLIFY (qs_env%ls_scf_env)
       END IF
       IF (ASSOCIATED(qs_env%molecular_scf_guess_env)) THEN
          CALL molecular_scf_guess_env_destroy(qs_env%molecular_scf_guess_env)
@@ -1763,7 +1775,11 @@ CONTAINS
          CALL cp_ddapc_release(qs_env%cp_ddapc_env)
          DEALLOCATE (qs_env%cp_ddapc_env)
       END IF
-      CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
+      IF (ASSOCIATED(qs_env%cp_ddapc_ewald)) THEN
+         CALL cp_ddapc_ewald_release(qs_env%cp_ddapc_ewald)
+         DEALLOCATE (qs_env%cp_ddapc_ewald)
+         NULLIFY (qs_env%cp_ddapc_ewald)
+      END IF
       IF (ASSOCIATED(qs_env%efield)) THEN
          CALL efield_berry_release(qs_env%efield)
          DEALLOCATE (qs_env%efield)
@@ -1773,6 +1789,8 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%et_coupling)) THEN
          CALL et_coupling_release(qs_env%et_coupling)
+         DEALLOCATE (qs_env%et_coupling)
+         NULLIFY (qs_env%et_coupling)
       END IF
       IF (ASSOCIATED(qs_env%dftb_potential)) THEN
          CALL qs_dftb_pairpot_release(qs_env%dftb_potential)
@@ -1806,6 +1824,8 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%ec_env)) THEN
          CALL ec_env_release(qs_env%ec_env)
+         DEALLOCATE (qs_env%ec_env)
+         NULLIFY (qs_env%ec_env)
       END IF
       IF (ASSOCIATED(qs_env%exstate_env)) THEN
          CALL exstate_release(qs_env%exstate_env)

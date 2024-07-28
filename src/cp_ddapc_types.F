@@ -96,7 +96,7 @@ CONTAINS
    SUBROUTINE cp_ddapc_create(cp_para_env, cp_ddapc_env, cp_ddapc_ewald, &
                               particle_set, radii, cell, super_cell, rho_tot_g, gcut, iw2, Vol, &
                               force_env_section)
-      TYPE(mp_para_env_type), POINTER                    :: cp_para_env
+      TYPE(mp_para_env_type), INTENT(INOUT)              :: cp_para_env
       TYPE(cp_ddapc_type), INTENT(OUT)                   :: cp_ddapc_env
       TYPE(cp_ddapc_ewald_type), POINTER                 :: cp_ddapc_ewald
       TYPE(particle_type), DIMENSION(:), POINTER         :: particle_set
@@ -218,7 +218,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_ddapc_ewald_create(cp_ddapc_ewald, qmmm_decoupl, qm_cell, &
                                     force_env_section, subsys_section, para_env)
-      TYPE(cp_ddapc_ewald_type), POINTER                 :: cp_ddapc_ewald
+      TYPE(cp_ddapc_ewald_type), INTENT(OUT)             :: cp_ddapc_ewald
       LOGICAL, INTENT(IN)                                :: qmmm_decoupl
       TYPE(cell_type), POINTER                           :: qm_cell
       TYPE(section_vals_type), POINTER                   :: force_env_section, subsys_section
@@ -239,8 +239,6 @@ CONTAINS
 
       logger => cp_get_default_logger()
       output_unit = cp_logger_get_default_io_unit(logger)
-      CPASSERT(.NOT. ASSOCIATED(cp_ddapc_ewald))
-      ALLOCATE (cp_ddapc_ewald)
       NULLIFY (cp_ddapc_ewald%pw_grid_mm, &
                cp_ddapc_ewald%pw_grid_qm, &
                cp_ddapc_ewald%ewald_section, &
@@ -403,34 +401,31 @@ CONTAINS
 !> \author Teodoro Laino - [tlaino]
 ! **************************************************************************************************
    SUBROUTINE cp_ddapc_ewald_release(cp_ddapc_ewald)
-      TYPE(cp_ddapc_ewald_type), POINTER                 :: cp_ddapc_ewald
+      TYPE(cp_ddapc_ewald_type), INTENT(INOUT)           :: cp_ddapc_ewald
 
-      IF (ASSOCIATED(cp_ddapc_ewald)) THEN
-         IF (ASSOCIATED(cp_ddapc_ewald%coeff_qm)) THEN
-            CALL cp_ddapc_ewald%pw_pool_qm%give_back_pw(cp_ddapc_ewald%coeff_qm)
-            DEALLOCATE (cp_ddapc_ewald%coeff_qm)
-         END IF
-         IF (ASSOCIATED(cp_ddapc_ewald%coeff_mm)) THEN
-            CALL cp_ddapc_ewald%pw_pool_mm%give_back_pw(cp_ddapc_ewald%coeff_mm)
-            DEALLOCATE (cp_ddapc_ewald%coeff_mm)
-         END IF
-         IF (ASSOCIATED(cp_ddapc_ewald%pw_pool_qm)) THEN
-            CALL pw_pool_release(cp_ddapc_ewald%pw_pool_qm)
-            CPASSERT(.NOT. ASSOCIATED(cp_ddapc_ewald%pw_pool_qm))
-         END IF
-         IF (ASSOCIATED(cp_ddapc_ewald%pw_pool_mm)) THEN
-            CALL pw_pool_release(cp_ddapc_ewald%pw_pool_mm)
-            CPASSERT(.NOT. ASSOCIATED(cp_ddapc_ewald%pw_pool_mm))
-         END IF
-         IF (ASSOCIATED(cp_ddapc_ewald%pw_grid_qm)) THEN
-            CALL pw_grid_release(cp_ddapc_ewald%pw_grid_qm)
-            CPASSERT(.NOT. ASSOCIATED(cp_ddapc_ewald%pw_grid_qm))
-         END IF
-         IF (ASSOCIATED(cp_ddapc_ewald%pw_grid_mm)) THEN
-            CALL pw_grid_release(cp_ddapc_ewald%pw_grid_mm)
-            CPASSERT(.NOT. ASSOCIATED(cp_ddapc_ewald%pw_grid_mm))
-         END IF
-         DEALLOCATE (cp_ddapc_ewald)
+      IF (ASSOCIATED(cp_ddapc_ewald%coeff_qm)) THEN
+         CALL cp_ddapc_ewald%pw_pool_qm%give_back_pw(cp_ddapc_ewald%coeff_qm)
+         DEALLOCATE (cp_ddapc_ewald%coeff_qm)
+      END IF
+      IF (ASSOCIATED(cp_ddapc_ewald%coeff_mm)) THEN
+         CALL cp_ddapc_ewald%pw_pool_mm%give_back_pw(cp_ddapc_ewald%coeff_mm)
+         DEALLOCATE (cp_ddapc_ewald%coeff_mm)
+      END IF
+      IF (ASSOCIATED(cp_ddapc_ewald%pw_pool_qm)) THEN
+         CALL pw_pool_release(cp_ddapc_ewald%pw_pool_qm)
+         CPASSERT(.NOT. ASSOCIATED(cp_ddapc_ewald%pw_pool_qm))
+      END IF
+      IF (ASSOCIATED(cp_ddapc_ewald%pw_pool_mm)) THEN
+         CALL pw_pool_release(cp_ddapc_ewald%pw_pool_mm)
+         CPASSERT(.NOT. ASSOCIATED(cp_ddapc_ewald%pw_pool_mm))
+      END IF
+      IF (ASSOCIATED(cp_ddapc_ewald%pw_grid_qm)) THEN
+         CALL pw_grid_release(cp_ddapc_ewald%pw_grid_qm)
+         CPASSERT(.NOT. ASSOCIATED(cp_ddapc_ewald%pw_grid_qm))
+      END IF
+      IF (ASSOCIATED(cp_ddapc_ewald%pw_grid_mm)) THEN
+         CALL pw_grid_release(cp_ddapc_ewald%pw_grid_mm)
+         CPASSERT(.NOT. ASSOCIATED(cp_ddapc_ewald%pw_grid_mm))
       END IF
 
    END SUBROUTINE cp_ddapc_ewald_release

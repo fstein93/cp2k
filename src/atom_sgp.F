@@ -128,10 +128,10 @@ CONTAINS
          CPABORT("")
       END IF
 
-      NULLIFY (core, hnl)
+      ALLOCATE (core, hnl)
       CALL create_opmat(core, basis%nbas)
       CALL create_opmat(hnl, basis%nbas, 5)
-      NULLIFY (score, shnl)
+      ALLOCATE (score, shnl)
       CALL create_opmat(score, basis%nbas)
       CALL create_opmat(shnl, basis%nbas, 5)
       !
@@ -186,6 +186,7 @@ CONTAINS
       CALL release_opmat(shnl)
       CALL release_opmat(core)
       CALL release_opmat(hnl)
+      DEALLOCATE (score, shnl, core, hnl)
 
       CALL release_atom_basis(basis)
 
@@ -255,10 +256,10 @@ CONTAINS
 
       ! Check the result
       IF (do_transform) THEN
-         NULLIFY (core, hnl)
+         ALLOCATE (core, hnl)
          CALL create_opmat(core, atom_ref%basis%nbas)
          CALL create_opmat(hnl, atom_ref%basis%nbas, 5)
-         NULLIFY (score, shnl)
+         ALLOCATE (score, shnl)
          CALL create_opmat(score, atom_ref%basis%nbas)
          CALL create_opmat(shnl, atom_ref%basis%nbas, 5)
          !
@@ -339,6 +340,7 @@ CONTAINS
          CALL release_opmat(shnl)
          CALL release_opmat(core)
          CALL release_opmat(hnl)
+         DEALLOCATE (score, shnl, core, hnl)
       END IF
 
       CALL atom_sgp_release(sgp_pot)

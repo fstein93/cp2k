@@ -63,7 +63,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! **************************************************************************************************
    SUBROUTINE csvr_init(csvr, simpar, section)
-      TYPE(csvr_system_type), POINTER                    :: csvr
+      TYPE(csvr_system_type), INTENT(INOUT)              :: csvr
       TYPE(simpar_type), POINTER                         :: simpar
       TYPE(section_vals_type), POINTER                   :: section
 
@@ -89,14 +89,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! **************************************************************************************************
    SUBROUTINE csvr_thermo_create(csvr)
-      TYPE(csvr_system_type), POINTER                    :: csvr
+      TYPE(csvr_system_type), INTENT(INOUT)              :: csvr
 
       CHARACTER(LEN=40)                                  :: name
       INTEGER                                            :: i, ithermo, my_index
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: seed
       REAL(KIND=dp), DIMENSION(3, 2)                     :: initial_seed, my_seed
 
-      CPASSERT(ASSOCIATED(csvr))
       CPASSERT(.NOT. ASSOCIATED(csvr%nvt))
 
       ALLOCATE (csvr%nvt(csvr%loc_num_csvr))
@@ -131,16 +130,13 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] 10.2007- University of Zurich
 ! **************************************************************************************************
    SUBROUTINE csvr_dealloc(csvr)
-      TYPE(csvr_system_type), POINTER                    :: csvr
+      TYPE(csvr_system_type), INTENT(INOUT)              :: csvr
 
-      IF (ASSOCIATED(csvr)) THEN
-         CALL csvr_thermo_dealloc(csvr%nvt)
-         IF (ASSOCIATED(csvr%map_info)) THEN
-            CALL release_map_info_type(csvr%map_info)
-            DEALLOCATE (csvr%map_info)
-            NULLIFY (csvr%map_info)
-         END IF
-         DEALLOCATE (csvr)
+      CALL csvr_thermo_dealloc(csvr%nvt)
+      IF (ASSOCIATED(csvr%map_info)) THEN
+         CALL release_map_info_type(csvr%map_info)
+         DEALLOCATE (csvr%map_info)
+         NULLIFY (csvr%map_info)
       END IF
 
    END SUBROUTINE csvr_dealloc

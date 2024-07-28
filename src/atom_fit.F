@@ -87,7 +87,7 @@ CONTAINS
 
       ALLOCATE (co(num_gto))
       co = 0._dp
-      NULLIFY (density)
+      ALLOCATE (density)
       CALL create_opgrid(density, atom%basis%grid)
       CALL atom_denmat(atom%orbitals%pmat, atom%orbitals%wfn, atom%basis%nbas, atom%state%occupation, &
                        atom%state%maxl_occ, atom%state%maxn_occ)
@@ -142,6 +142,7 @@ CONTAINS
       CALL density_fit(density, atom, num_gto, x(1), x(2), co, ostate%f)
 
       CALL release_opgrid(density)
+      DEALLOCATE (density)
 
       IF (iunit > 0) THEN
          WRITE (iunit, '(" POWELL| Number of function evaluations",T71,I10)') ostate%nf
@@ -1186,7 +1187,7 @@ CONTAINS
 
       rcov = ptable(atom_refs(1, 1)%atom%z)%covalent_radius*bohr
       atom => atom_info(1, 1)%atom
-      NULLIFY (density)
+      ALLOCATE (density)
       CALL create_opgrid(density, atom%basis%grid)
       density%op = 0.0_dp
       im = 0
@@ -1195,7 +1196,7 @@ CONTAINS
             atom => atom_info(i, j)%atom
             aref => atom_refs(i, j)%atom
             IF (atom_consistent_method(atom%method_type, atom%state%multiplicity)) THEN
-               NULLIFY (den, denmat)
+               ALLOCATE (den, denmat)
                CALL create_opgrid(den, atom%basis%grid)
                CALL create_opmat(denmat, atom%basis%nbas)
 
@@ -1206,7 +1207,7 @@ CONTAINS
                                    atom%basis%nbas, atom%state%core, &
                                    aref%state%maxl_occ, aref%state%maxn_occ)
                CASE (do_uks_atom, do_uhf_atom)
-                  NULLIFY (dma, dmb)
+                  ALLOCATE (dma, dmb)
                   CALL create_opmat(dma, atom%basis%nbas)
                   CALL create_opmat(dmb, atom%basis%nbas)
                   CALL atom_denmat(dma%op, aref%orbitals%wfna, &
@@ -1218,6 +1219,7 @@ CONTAINS
                   denmat%op = 0.5_dp*(dma%op + dmb%op)
                   CALL release_opmat(dma)
                   CALL release_opmat(dmb)
+                  DEALLOCATE (dma, dmb)
                CASE (do_rohf_atom)
                   CPABORT("")
                CASE DEFAULT
@@ -1229,7 +1231,7 @@ CONTAINS
                density%op = density%op + den%op
                zcore = integrate_grid(den%op, atom%basis%grid)
                zcore = fourpi*zcore
-               NULLIFY (den1, den2)
+               ALLOCATE (den1, den2)
                CALL create_opgrid(den1, atom%basis%grid)
                CALL create_opgrid(den2, atom%basis%grid)
                den1%op = 0.0_dp
@@ -1250,6 +1252,7 @@ CONTAINS
                CALL release_opgrid(den2)
                CALL release_opgrid(den)
                CALL release_opmat(denmat)
+               DEALLOCATE (den1, den2, den, denmat)
                IF (iunit > 0) THEN
                   WRITE (iunit, '(2I5,T31,F10.4,T51,F10.4,T71,F10.4)') i, j, zcore, zrc, zrch
                END IF
@@ -1266,7 +1269,7 @@ CONTAINS
          gthpot%nct_nlcc(1) = 1
          gthpot%cval_nlcc(1, 1) = 1.0_dp
          gthpot%alpha_nlcc(1) = gthpot%rc
-         NULLIFY (corden)
+         ALLOCATE (corden)
          CALL create_opgrid(corden, atom%basis%grid)
          CALL atom_core_density(corden%op, atom%potential, typ="RHO", rr=atom%basis%grid%rad)
          DO k = 1, atom%basis%grid%nr
@@ -1278,8 +1281,10 @@ CONTAINS
          zrc = fourpi*zrc
          gthpot%cval_nlcc(1, 1) = zrch/zrc
          CALL release_opgrid(corden)
+         DEALLOCATE (corden)
       END IF
       CALL release_opgrid(density)
+      DEALLOCATE (density)
 
    END SUBROUTINE opt_nlcc_param
 
@@ -1885,7 +1890,7 @@ CONTAINS
       co = 0._dp
 
       ! calculate density
-      NULLIFY (density)
+      ALLOCATE (density)
       CALL create_opgrid(density, atom%basis%grid)
       CALL atom_denmat(atom%orbitals%pmat, atom%orbitals%wfn, atom%basis%nbas, atom%state%occupation, &
                        atom%state%maxl_occ, atom%state%maxn_occ)
@@ -1947,6 +1952,7 @@ CONTAINS
       CALL getvar(x, co, num_pol, num_gau)
 
       CALL release_opgrid(density)
+      DEALLOCATE (density)
 
       IF (iunit > 0) THEN
          WRITE (iunit, '(" POWELL| Number of function evaluations",T71,I10)') ostate%nf

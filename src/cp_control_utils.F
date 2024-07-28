@@ -241,6 +241,7 @@ CONTAINS
       IF (is_present) THEN
          do_ot = .FALSE.
          CALL section_vals_val_get(scf_section, "OT%_SECTION_PARAMETERS_", l_val=do_ot)
+         ALLOCATE (dft_control%admm_control)
          CALL admm_control_create(dft_control%admm_control)
 
          CALL section_vals_val_get(dft_section, "AUXILIARY_DENSITY_MATRIX_METHOD%ADMM_TYPE", i_val=admmtype)
@@ -438,6 +439,7 @@ CONTAINS
       CALL section_vals_val_get(dft_section, "EXCITATIONS", i_val=excitations)
       dft_control%do_tddfpt_calculation = (excitations == tddfpt_excitations)
       IF (dft_control%do_tddfpt_calculation) THEN
+         ALLOCATE (dft_control%tddfpt_control)
          CALL tddfpt_control_create(dft_control%tddfpt_control)
       END IF
 
@@ -517,6 +519,7 @@ CONTAINS
       tmp_section => section_vals_get_subs_vals(dft_section, "EXTERNAL_POTENTIAL")
       CALL section_vals_get(tmp_section, explicit=dft_control%apply_external_potential)
       IF (dft_control%apply_external_potential) THEN
+         ALLOCATE (dft_control%expot_control)
          CALL expot_control_create(dft_control%expot_control)
          CALL section_vals_val_get(tmp_section, "READ_FROM_CUBE", &
                                    l_val=dft_control%expot_control%read_from_cube)
@@ -529,6 +532,7 @@ CONTAINS
          CALL section_vals_get(maxwell_section, explicit=is_present)
          IF (is_present) THEN
             dft_control%expot_control%maxwell_solver = .TRUE.
+            ALLOCATE (dft_control%maxwell_control)
             CALL maxwell_control_create(dft_control%maxwell_control)
             ! read the input values from Maxwell section
             CALL section_vals_val_get(maxwell_section, "TEST_REAL", &

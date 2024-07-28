@@ -116,6 +116,8 @@ CONTAINS
          END IF
          IF (ASSOCIATED(kernel_env%admm_control)) THEN
             CALL admm_control_release(kernel_env%admm_control)
+            DEALLOCATE (kernel_env%admm_control)
+            NULLIFY (kernel_env%admm_control)
          END IF
       END IF
 

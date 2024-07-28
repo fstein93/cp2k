@@ -204,7 +204,7 @@ CONTAINS
 
       IF (iw > 0) CALL atom_print_state(atom%state, iw)
 
-      NULLIFY (hcore)
+      ALLOCATE (hcore)
       CALL create_opmat(hcore, atom%basis%nbas)
       ! Pseudopotentials
       SELECT CASE (atom%potential%ppot_type)
@@ -229,13 +229,13 @@ CONTAINS
          hcore%op = hcore%op + atom%potential%acon*atom%integrals%conf
       END IF
 
-      NULLIFY (fmat, jmat, kmat, xcmat)
+      ALLOCATE (fmat, jmat, kmat, xcmat)
       CALL create_opmat(fmat, atom%basis%nbas)
       CALL create_opmat(jmat, atom%basis%nbas)
       CALL create_opmat(kmat, atom%basis%nbas)
       CALL create_opmat(xcmat, atom%basis%nbas)
 
-      NULLIFY (density, cpot)
+      ALLOCATE (density, cpot)
       CALL create_opgrid(density, atom%basis%grid)
       CALL create_opgrid(cpot, atom%basis%grid)
 
@@ -415,9 +415,11 @@ CONTAINS
       CALL release_opmat(kmat)
       CALL release_opmat(xcmat)
       CALL release_opmat(hcore)
+      DEALLOCATE (jmat, kmat, xcmat, hcore)
 
       CALL release_opgrid(density)
       CALL release_opgrid(cpot)
+      DEALLOCATE (density, cpot)
 
       ! ZMP deallocating ext_density ext_vxc
       IF (need_zmp) DEALLOCATE (ext_density)
@@ -521,7 +523,7 @@ CONTAINS
 
       IF (iw > 0) CALL atom_print_state(atom%state, iw)
 
-      NULLIFY (hcore, hlsd)
+      ALLOCATE (hcore, hlsd)
       CALL create_opmat(hcore, atom%basis%nbas)
       CALL create_opmat(hlsd, atom%basis%nbas)
       hlsd%op = 0._dp
@@ -555,7 +557,7 @@ CONTAINS
          hcore%op = hcore%op + atom%potential%acon*atom%integrals%conf
       END IF
 
-      NULLIFY (fmata, fmatb, jmat, kmata, kmatb, xcmata, xcmatb)
+      ALLOCATE (fmata, fmatb, jmat, kmata, kmatb, xcmata, xcmatb)
       CALL create_opmat(fmata, atom%basis%nbas)
       CALL create_opmat(fmatb, atom%basis%nbas)
       CALL create_opmat(jmat, atom%basis%nbas)
@@ -564,7 +566,7 @@ CONTAINS
       CALL create_opmat(xcmata, atom%basis%nbas)
       CALL create_opmat(xcmatb, atom%basis%nbas)
 
-      NULLIFY (density, rhoa, rhob, cpot)
+      ALLOCATE (density, rhoa, rhob, cpot)
       CALL create_opgrid(density, atom%basis%grid)
       CALL create_opgrid(rhoa, atom%basis%grid)
       CALL create_opgrid(rhob, atom%basis%grid)
@@ -771,6 +773,7 @@ CONTAINS
       CALL release_opgrid(rhoa)
       CALL release_opgrid(rhob)
       CALL release_opgrid(cpot)
+      DEALLOCATE (density, rhoa, rhob, cpot)
 
       ! conserve fmata as fmat within atom_type.
       CALL set_atom(atom, fmat=fmata)
@@ -782,6 +785,7 @@ CONTAINS
       CALL release_opmat(xcmatb)
       CALL release_opmat(hlsd)
       CALL release_opmat(hcore)
+      DEALLOCATE (fmatb, jmat, kmata, kmatb, xcmata, xcmatb, hlsd, hcore)
 
       IF (PRESENT(converged)) THEN
          converged = is_converged

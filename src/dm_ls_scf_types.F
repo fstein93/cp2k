@@ -169,7 +169,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE ls_scf_release(ls_scf_env)
-      TYPE(ls_scf_env_type), POINTER                     :: ls_scf_env
+      TYPE(ls_scf_env_type), INTENT(INOUT)               :: ls_scf_env
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'ls_scf_release'
 
@@ -218,8 +218,6 @@ CONTAINS
 
       IF (ls_scf_env%do_pao) &
          CALL pao_finalize(ls_scf_env%pao_env)
-
-      DEALLOCATE (ls_scf_env)
 
       CALL timestop(handle)
 

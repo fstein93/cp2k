@@ -780,7 +780,9 @@ CONTAINS
       dft_control%do_sccs = .FALSE.
       dft_control%apply_embed_pot = .FALSE.
       dft_control%apply_dmfet_pot = .FALSE.
+      ALLOCATE (dft_control%qs_control)
       CALL qs_control_create(dft_control%qs_control)
+      ALLOCATE (dft_control%tddfpt2_control)
       CALL tddfpt2_control_create(dft_control%tddfpt2_control)
    END SUBROUTINE dft_control_create
 
@@ -794,16 +796,39 @@ CONTAINS
    SUBROUTINE dft_control_release(dft_control)
       TYPE(dft_control_type), INTENT(INOUT)              :: dft_control
 
-      CALL qs_control_release(dft_control%qs_control)
-      CALL tddfpt_control_release(dft_control%tddfpt_control)
-      CALL tddfpt2_control_release(dft_control%tddfpt2_control)
+      IF (ASSOCIATED(dft_control%qs_control)) THEN
+         CALL qs_control_release(dft_control%qs_control)
+         DEALLOCATE (dft_control%qs_control)
+         NULLIFY (dft_control%qs_control)
+      END IF
+      IF (ASSOCIATED(dft_control%tddfpt_control)) THEN
+         CALL tddfpt_control_release(dft_control%tddfpt_control)
+         DEALLOCATE (dft_control%tddfpt_control)
+         NULLIFY (dft_control%tddfpt_control)
+      END IF
+      IF (ASSOCIATED(dft_control%tddfpt2_control)) THEN
+         CALL tddfpt2_control_release(dft_control%tddfpt2_control)
+         DEALLOCATE (dft_control%tddfpt2_control)
+      END IF
       IF (ASSOCIATED(dft_control%xas_control)) THEN
          CALL xas_control_release(dft_control%xas_control)
          DEALLOCATE (dft_control%xas_control)
       END IF
-      CALL admm_control_release(dft_control%admm_control)
-      CALL expot_control_release(dft_control%expot_control)
-      CALL maxwell_control_release(dft_control%maxwell_control)
+      IF (ASSOCIATED(dft_control%admm_control)) THEN
+         CALL admm_control_release(dft_control%admm_control)
+         DEALLOCATE (dft_control%admm_control)
+         NULLIFY (dft_control%admm_control)
+      END IF
+      IF (ASSOCIATED(dft_control%expot_control)) THEN
+         CALL expot_control_release(dft_control%expot_control)
+         DEALLOCATE (dft_control%expot_control)
+         NULLIFY (dft_control%expot_control)
+      END IF
+      IF (ASSOCIATED(dft_control%maxwell_control)) THEN
+         CALL maxwell_control_release(dft_control%maxwell_control)
+         DEALLOCATE (dft_control%maxwell_control)
+         NULLIFY (dft_control%maxwell_control)
+      END IF
       CALL efield_fields_release(dft_control%efield_fields)
       IF (ASSOCIATED(dft_control%sccs_control)) DEALLOCATE (dft_control%sccs_control)
       IF (ASSOCIATED(dft_control%period_efield)) THEN
@@ -821,10 +846,7 @@ CONTAINS
 !> \param qs_control ...
 ! **************************************************************************************************
    SUBROUTINE qs_control_create(qs_control)
-      TYPE(qs_control_type), POINTER                     :: qs_control
-
-      CPASSERT(.NOT. ASSOCIATED(qs_control))
-      ALLOCATE (qs_control)
+      TYPE(qs_control_type), INTENT(INOUT)               :: qs_control
 
       NULLIFY (qs_control%e_cutoff)
       NULLIFY (qs_control%gapw_control)
@@ -842,8 +864,11 @@ CONTAINS
       ALLOCATE (qs_control%s2_restraint_control)
       CALL s2_control_create(qs_control%s2_restraint_control)
       ALLOCATE (qs_control%gapw_control)
+      ALLOCATE (qs_control%se_control)
       CALL se_control_create(qs_control%se_control)
+      ALLOCATE (qs_control%dftb_control)
       CALL dftb_control_create(qs_control%dftb_control)
+      ALLOCATE (qs_control%xtb_control)
       CALL xtb_control_create(qs_control%xtb_control)
       ALLOCATE (qs_control%cdft_control)
       CALL cdft_control_create(qs_control%cdft_control)
@@ -854,36 +879,45 @@ CONTAINS
 !> \param qs_control ...
 ! **************************************************************************************************
    SUBROUTINE qs_control_release(qs_control)
-      TYPE(qs_control_type), POINTER                     :: qs_control
+      TYPE(qs_control_type), INTENT(INOUT)               :: qs_control
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(qs_control)) THEN
-         CALL mulliken_control_release(qs_control%mulliken_restraint_control)
-         DEALLOCATE (qs_control%mulliken_restraint_control)
-         CALL s2_control_release(qs_control%s2_restraint_control)
-         DEALLOCATE (qs_control%s2_restraint_control)
+      CALL mulliken_control_release(qs_control%mulliken_restraint_control)
+      DEALLOCATE (qs_control%mulliken_restraint_control)
+      CALL s2_control_release(qs_control%s2_restraint_control)
+      DEALLOCATE (qs_control%s2_restraint_control)
+      IF (ASSOCIATED(qs_control%se_control)) THEN
          CALL se_control_release(qs_control%se_control)
+         DEALLOCATE (qs_control%se_control)
+         NULLIFY (qs_control%se_control)
+      END IF
+      IF (ASSOCIATED(qs_control%dftb_control)) THEN
          CALL dftb_control_release(qs_control%dftb_control)
+         DEALLOCATE (qs_control%dftb_control)
+         NULLIFY (qs_control%dftb_control)
+      END IF
+      IF (ASSOCIATED(qs_control%xtb_control)) THEN
          CALL xtb_control_release(qs_control%xtb_control)
-         IF (ASSOCIATED(qs_control%cdft_control)) THEN
-            CALL cdft_control_release(qs_control%cdft_control)
-            DEALLOCATE (qs_control%cdft_control)
-         END IF
+         DEALLOCATE (qs_control%xtb_control)
+         NULLIFY (qs_control%xtb_control)
+      END IF
+      IF (ASSOCIATED(qs_control%cdft_control)) THEN
+         CALL cdft_control_release(qs_control%cdft_control)
+         DEALLOCATE (qs_control%cdft_control)
+      END IF
 
-         IF (ASSOCIATED(qs_control%e_cutoff)) THEN
-            DEALLOCATE (qs_control%e_cutoff)
-         END IF
-         IF (ASSOCIATED(qs_control%gapw_control)) THEN
-            DEALLOCATE (qs_control%gapw_control)
-         END IF
-         IF (ASSOCIATED(qs_control%ddapc_restraint_control)) THEN
-            DO i = 1, SIZE(qs_control%ddapc_restraint_control)
-               CALL ddapc_control_release(qs_control%ddapc_restraint_control(i))
-            END DO
-            DEALLOCATE (qs_control%ddapc_restraint_control)
-         END IF
-         DEALLOCATE (qs_control)
+      IF (ASSOCIATED(qs_control%e_cutoff)) THEN
+         DEALLOCATE (qs_control%e_cutoff)
+      END IF
+      IF (ASSOCIATED(qs_control%gapw_control)) THEN
+         DEALLOCATE (qs_control%gapw_control)
+      END IF
+      IF (ASSOCIATED(qs_control%ddapc_restraint_control)) THEN
+         DO i = 1, SIZE(qs_control%ddapc_restraint_control)
+            CALL ddapc_control_release(qs_control%ddapc_restraint_control(i))
+         END DO
+         DEALLOCATE (qs_control%ddapc_restraint_control)
       END IF
    END SUBROUTINE qs_control_release
 
@@ -892,10 +926,8 @@ CONTAINS
 !> \param tddfpt_control ...
 ! **************************************************************************************************
    SUBROUTINE tddfpt_control_create(tddfpt_control)
-      TYPE(tddfpt_control_type), POINTER                 :: tddfpt_control
+      TYPE(tddfpt_control_type), INTENT(INOUT)           :: tddfpt_control
 
-      CPASSERT(.NOT. ASSOCIATED(tddfpt_control))
-      ALLOCATE (tddfpt_control)
       NULLIFY (tddfpt_control%lumos)
       NULLIFY (tddfpt_control%lumos_eigenvalues)
 
@@ -906,14 +938,11 @@ CONTAINS
 !> \param tddfpt_control ...
 ! **************************************************************************************************
    SUBROUTINE tddfpt_control_release(tddfpt_control)
-      TYPE(tddfpt_control_type), POINTER                 :: tddfpt_control
+      TYPE(tddfpt_control_type), INTENT(INOUT)           :: tddfpt_control
 
-      IF (ASSOCIATED(tddfpt_control)) THEN
-         CALL cp_fm_release(tddfpt_control%lumos)
-         IF (ASSOCIATED(tddfpt_control%lumos_eigenvalues)) THEN
-            DEALLOCATE (tddfpt_control%lumos_eigenvalues)
-         END IF
-         DEALLOCATE (tddfpt_control)
+      CALL cp_fm_release(tddfpt_control%lumos)
+      IF (ASSOCIATED(tddfpt_control%lumos_eigenvalues)) THEN
+         DEALLOCATE (tddfpt_control%lumos_eigenvalues)
       END IF
    END SUBROUTINE tddfpt_control_release
 
@@ -924,16 +953,14 @@ CONTAINS
 !>    * 05.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt2_control_create(tddfpt_control)
-      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+      TYPE(tddfpt2_control_type), INTENT(INOUT)          :: tddfpt_control
 
       CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt2_control_create'
 
       INTEGER                                            :: handle
 
-      CPASSERT(.NOT. ASSOCIATED(tddfpt_control))
       CALL timeset(routineN, handle)
 
-      ALLOCATE (tddfpt_control)
       tddfpt_control%do_soc = .FALSE.
 
       CALL timestop(handle)
@@ -946,19 +973,9 @@ CONTAINS
 !>    * 05.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt2_control_release(tddfpt_control)
-      TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
+      TYPE(tddfpt2_control_type), INTENT(INOUT)          :: tddfpt_control
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'tddfpt2_control_release'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-
-      IF (ASSOCIATED(tddfpt_control)) THEN
-         DEALLOCATE (tddfpt_control)
-      END IF
-
-      CALL timestop(handle)
+      MARK_USED(tddfpt_control)
    END SUBROUTINE tddfpt2_control_release
 
 ! **************************************************************************************************
@@ -1024,10 +1041,7 @@ CONTAINS
 !> \param dftb_control ...
 ! **************************************************************************************************
    SUBROUTINE dftb_control_create(dftb_control)
-      TYPE(dftb_control_type), POINTER                   :: dftb_control
-
-      CPASSERT(.NOT. ASSOCIATED(dftb_control))
-      ALLOCATE (dftb_control)
+      TYPE(dftb_control_type), INTENT(INOUT)             :: dftb_control
 
       NULLIFY (dftb_control%sk_pair_list)
    END SUBROUTINE dftb_control_create
@@ -1037,13 +1051,10 @@ CONTAINS
 !> \param dftb_control ...
 ! **************************************************************************************************
    SUBROUTINE dftb_control_release(dftb_control)
-      TYPE(dftb_control_type), POINTER                   :: dftb_control
+      TYPE(dftb_control_type), INTENT(INOUT)             :: dftb_control
 
-      IF (ASSOCIATED(dftb_control)) THEN
-         IF (ASSOCIATED(dftb_control%sk_pair_list)) THEN
-            DEALLOCATE (dftb_control%sk_pair_list)
-         END IF
-         DEALLOCATE (dftb_control)
+      IF (ASSOCIATED(dftb_control%sk_pair_list)) THEN
+         DEALLOCATE (dftb_control%sk_pair_list)
       END IF
    END SUBROUTINE dftb_control_release
 
@@ -1052,10 +1063,7 @@ CONTAINS
 !> \param xtb_control ...
 ! **************************************************************************************************
    SUBROUTINE xtb_control_create(xtb_control)
-      TYPE(xtb_control_type), POINTER                    :: xtb_control
-
-      CPASSERT(.NOT. ASSOCIATED(xtb_control))
-      ALLOCATE (xtb_control)
+      TYPE(xtb_control_type), INTENT(INOUT)              :: xtb_control
 
       NULLIFY (xtb_control%kab_param)
       NULLIFY (xtb_control%kab_vals)
@@ -1069,22 +1077,19 @@ CONTAINS
 !> \param xtb_control ...
 ! **************************************************************************************************
    SUBROUTINE xtb_control_release(xtb_control)
-      TYPE(xtb_control_type), POINTER                    :: xtb_control
+      TYPE(xtb_control_type), INTENT(INOUT)              :: xtb_control
 
-      IF (ASSOCIATED(xtb_control)) THEN
-         IF (ASSOCIATED(xtb_control%kab_param)) THEN
-            DEALLOCATE (xtb_control%kab_param)
-         END IF
-         IF (ASSOCIATED(xtb_control%kab_vals)) THEN
-            DEALLOCATE (xtb_control%kab_vals)
-         END IF
-         IF (ASSOCIATED(xtb_control%kab_types)) THEN
-            DEALLOCATE (xtb_control%kab_types)
-         END IF
-         IF (ASSOCIATED(xtb_control%nonbonded)) THEN
-            CALL pair_potential_p_release(xtb_control%nonbonded)
-         END IF
-         DEALLOCATE (xtb_control)
+      IF (ASSOCIATED(xtb_control%kab_param)) THEN
+         DEALLOCATE (xtb_control%kab_param)
+      END IF
+      IF (ASSOCIATED(xtb_control%kab_vals)) THEN
+         DEALLOCATE (xtb_control%kab_vals)
+      END IF
+      IF (ASSOCIATED(xtb_control%kab_types)) THEN
+         DEALLOCATE (xtb_control%kab_types)
+      END IF
+      IF (ASSOCIATED(xtb_control%nonbonded)) THEN
+         CALL pair_potential_p_release(xtb_control%nonbonded)
       END IF
    END SUBROUTINE xtb_control_release
 
@@ -1093,10 +1098,9 @@ CONTAINS
 !> \param se_control ...
 ! **************************************************************************************************
    SUBROUTINE se_control_create(se_control)
-      TYPE(semi_empirical_control_type), POINTER         :: se_control
+      TYPE(semi_empirical_control_type), INTENT(INOUT)   :: se_control
 
-      CPASSERT(.NOT. ASSOCIATED(se_control))
-      ALLOCATE (se_control)
+      MARK_USED(se_control)
    END SUBROUTINE se_control_create
 
 ! **************************************************************************************************
@@ -1104,11 +1108,9 @@ CONTAINS
 !> \param se_control ...
 ! **************************************************************************************************
    SUBROUTINE se_control_release(se_control)
-      TYPE(semi_empirical_control_type), POINTER         :: se_control
+      TYPE(semi_empirical_control_type), INTENT(INOUT)   :: se_control
 
-      IF (ASSOCIATED(se_control)) THEN
-         DEALLOCATE (se_control)
-      END IF
+      MARK_USED(se_control)
    END SUBROUTINE se_control_release
 
 ! **************************************************************************************************
@@ -1118,8 +1120,7 @@ CONTAINS
    SUBROUTINE admm_control_create(admm_control)
       TYPE(admm_control_type), POINTER                   :: admm_control
 
-      CPASSERT(.NOT. ASSOCIATED(admm_control))
-      ALLOCATE (admm_control)
+      MARK_USED(admm_control)
 
    END SUBROUTINE admm_control_create
 
@@ -1130,9 +1131,7 @@ CONTAINS
    SUBROUTINE admm_control_release(admm_control)
       TYPE(admm_control_type), POINTER                   :: admm_control
 
-      IF (ASSOCIATED(admm_control)) THEN
-         DEALLOCATE (admm_control)
-      END IF
+      MARK_USED(admm_control)
    END SUBROUTINE admm_control_release
 
 ! **************************************************************************************************
@@ -1140,10 +1139,8 @@ CONTAINS
 !> \param expot_control ...
 ! **************************************************************************************************
    SUBROUTINE expot_control_create(expot_control)
-      TYPE(expot_control_type), POINTER                  :: expot_control
+      TYPE(expot_control_type), INTENT(INOUT)            :: expot_control
 
-      CPASSERT(.NOT. ASSOCIATED(expot_control))
-      ALLOCATE (expot_control)
       expot_control%read_from_cube = .FALSE.
       expot_control%maxwell_solver = .FALSE.
       expot_control%static = .TRUE.
@@ -1156,11 +1153,9 @@ CONTAINS
 !> \param expot_control ...
 ! **************************************************************************************************
    SUBROUTINE expot_control_release(expot_control)
-      TYPE(expot_control_type), POINTER                  :: expot_control
+      TYPE(expot_control_type), INTENT(INOUT)            :: expot_control
 
-      IF (ASSOCIATED(expot_control)) THEN
-         DEALLOCATE (expot_control)
-      END IF
+      MARK_USED(expot_control)
 
    END SUBROUTINE expot_control_release
 
@@ -1169,10 +1164,9 @@ CONTAINS
 !> \param maxwell_control ...
 ! **************************************************************************************************
    SUBROUTINE maxwell_control_create(maxwell_control)
-      TYPE(maxwell_control_type), POINTER                :: maxwell_control
+      TYPE(maxwell_control_type), INTENT(INOUT)          :: maxwell_control
 
-      CPASSERT(.NOT. ASSOCIATED(maxwell_control))
-      ALLOCATE (maxwell_control)
+      MARK_USED(maxwell_control)
 
    END SUBROUTINE maxwell_control_create
 
@@ -1181,11 +1175,9 @@ CONTAINS
 !> \param maxwell_control ...
 ! **************************************************************************************************
    SUBROUTINE maxwell_control_release(maxwell_control)
-      TYPE(maxwell_control_type), POINTER                :: maxwell_control
+      TYPE(maxwell_control_type), INTENT(INOUT)          :: maxwell_control
 
-      IF (ASSOCIATED(maxwell_control)) THEN
-         DEALLOCATE (maxwell_control)
-      END IF
+      MARK_USED(maxwell_control)
 
    END SUBROUTINE maxwell_control_release
 

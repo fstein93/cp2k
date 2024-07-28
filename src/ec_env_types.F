@@ -128,7 +128,7 @@ CONTAINS
 !> \param ec_env ...
 ! **************************************************************************************************
    SUBROUTINE ec_env_release(ec_env)
-      TYPE(energy_correction_type), POINTER              :: ec_env
+      TYPE(energy_correction_type), INTENT(INOUT)        :: ec_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ec_env_release'
 
@@ -136,86 +136,81 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      IF (ASSOCIATED(ec_env)) THEN
-         ! neighbor lists
-         CALL release_neighbor_list_sets(ec_env%sab_orb)
-         CALL release_neighbor_list_sets(ec_env%sac_ppl)
-         CALL release_neighbor_list_sets(ec_env%sap_ppnl)
-         ! forces
-         IF (ASSOCIATED(ec_env%force)) CALL deallocate_qs_force(ec_env%force)
-         ! operator matrices
-         IF (ASSOCIATED(ec_env%matrix_ks)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_ks)
-         IF (ASSOCIATED(ec_env%matrix_h)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_h)
-         IF (ASSOCIATED(ec_env%matrix_s)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_s)
-         IF (ASSOCIATED(ec_env%matrix_t)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_t)
-         IF (ASSOCIATED(ec_env%matrix_p)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_p)
-         IF (ASSOCIATED(ec_env%matrix_w)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_w)
-         IF (ASSOCIATED(ec_env%task_list)) THEN
-            CALL deallocate_task_list(ec_env%task_list)
-            DEALLOCATE (ec_env%task_list)
-         END IF
-         ! reduced basis
-         IF (ASSOCIATED(ec_env%mao_coef)) CALL dbcsr_deallocate_matrix_set(ec_env%mao_coef)
-         ! dispersion environment
-         IF (ASSOCIATED(ec_env%dispersion_env)) THEN
-            CALL qs_dispersion_release(ec_env%dispersion_env)
-            DEALLOCATE (ec_env%dispersion_env)
-         END IF
-
-         IF (ASSOCIATED(ec_env%matrix_hz)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_hz)
-         IF (ASSOCIATED(ec_env%matrix_wz)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_wz)
-         IF (ASSOCIATED(ec_env%matrix_z)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_z)
-         IF (ASSOCIATED(ec_env%z_admm)) CALL dbcsr_deallocate_matrix_set(ec_env%z_admm)
-         NULLIFY (ec_env%matrix_z, ec_env%matrix_hz, ec_env%matrix_wz)
-         NULLIFY (ec_env%z_admm)
-
-         IF (ASSOCIATED(ec_env%p_env)) THEN
-            CALL p_env_release(ec_env%p_env)
-            DEALLOCATE (ec_env%p_env)
-         END IF
-         ! potential
-         IF (ASSOCIATED(ec_env%vh_rspace%pw_grid)) THEN
-            CALL ec_env%vh_rspace%release()
-         END IF
-         IF (ASSOCIATED(ec_env%vxc_rspace)) THEN
-            DO iab = 1, SIZE(ec_env%vxc_rspace)
-               CALL ec_env%vxc_rspace(iab)%release()
-            END DO
-            DEALLOCATE (ec_env%vxc_rspace)
-         END IF
-         IF (ASSOCIATED(ec_env%vtau_rspace)) THEN
-            DO iab = 1, SIZE(ec_env%vtau_rspace)
-               CALL ec_env%vtau_rspace(iab)%release()
-            END DO
-            DEALLOCATE (ec_env%vtau_rspace)
-         END IF
-         IF (ASSOCIATED(ec_env%vadmm_rspace)) THEN
-            DO iab = 1, SIZE(ec_env%vadmm_rspace)
-               CALL ec_env%vadmm_rspace(iab)%release()
-            END DO
-            DEALLOCATE (ec_env%vadmm_rspace)
-         END IF
-         IF (ASSOCIATED(ec_env%efield)) THEN
-            CALL efield_berry_release(ec_env%efield)
-            DEALLOCATE (ec_env%efield)
-         END IF
-
-         IF (ASSOCIATED(ec_env%ls_env)) THEN
-            CALL ls_scf_release(ec_env%ls_env)
-         END IF
-
-         IF (.NOT. ec_env%reuse_hfx) THEN
-            IF (ASSOCIATED(ec_env%x_data)) CALL hfx_release(ec_env%x_data)
-         END IF
-
-         IF (ASSOCIATED(ec_env%xc_section_aux)) CALL section_vals_release(ec_env%xc_section_aux)
-         IF (ASSOCIATED(ec_env%xc_section_primary)) CALL section_vals_release(ec_env%xc_section_primary)
-
-         DEALLOCATE (ec_env)
-
+      ! neighbor lists
+      CALL release_neighbor_list_sets(ec_env%sab_orb)
+      CALL release_neighbor_list_sets(ec_env%sac_ppl)
+      CALL release_neighbor_list_sets(ec_env%sap_ppnl)
+      ! forces
+      IF (ASSOCIATED(ec_env%force)) CALL deallocate_qs_force(ec_env%force)
+      ! operator matrices
+      IF (ASSOCIATED(ec_env%matrix_ks)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_ks)
+      IF (ASSOCIATED(ec_env%matrix_h)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_h)
+      IF (ASSOCIATED(ec_env%matrix_s)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_s)
+      IF (ASSOCIATED(ec_env%matrix_t)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_t)
+      IF (ASSOCIATED(ec_env%matrix_p)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_p)
+      IF (ASSOCIATED(ec_env%matrix_w)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_w)
+      IF (ASSOCIATED(ec_env%task_list)) THEN
+         CALL deallocate_task_list(ec_env%task_list)
+         DEALLOCATE (ec_env%task_list)
+      END IF
+      ! reduced basis
+      IF (ASSOCIATED(ec_env%mao_coef)) CALL dbcsr_deallocate_matrix_set(ec_env%mao_coef)
+      ! dispersion environment
+      IF (ASSOCIATED(ec_env%dispersion_env)) THEN
+         CALL qs_dispersion_release(ec_env%dispersion_env)
+         DEALLOCATE (ec_env%dispersion_env)
       END IF
 
-      NULLIFY (ec_env)
+      IF (ASSOCIATED(ec_env%matrix_hz)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_hz)
+      IF (ASSOCIATED(ec_env%matrix_wz)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_wz)
+      IF (ASSOCIATED(ec_env%matrix_z)) CALL dbcsr_deallocate_matrix_set(ec_env%matrix_z)
+      IF (ASSOCIATED(ec_env%z_admm)) CALL dbcsr_deallocate_matrix_set(ec_env%z_admm)
+      NULLIFY (ec_env%matrix_z, ec_env%matrix_hz, ec_env%matrix_wz)
+      NULLIFY (ec_env%z_admm)
+
+      IF (ASSOCIATED(ec_env%p_env)) THEN
+         CALL p_env_release(ec_env%p_env)
+         DEALLOCATE (ec_env%p_env)
+      END IF
+      ! potential
+      IF (ASSOCIATED(ec_env%vh_rspace%pw_grid)) THEN
+         CALL ec_env%vh_rspace%release()
+      END IF
+      IF (ASSOCIATED(ec_env%vxc_rspace)) THEN
+         DO iab = 1, SIZE(ec_env%vxc_rspace)
+            CALL ec_env%vxc_rspace(iab)%release()
+         END DO
+         DEALLOCATE (ec_env%vxc_rspace)
+      END IF
+      IF (ASSOCIATED(ec_env%vtau_rspace)) THEN
+         DO iab = 1, SIZE(ec_env%vtau_rspace)
+            CALL ec_env%vtau_rspace(iab)%release()
+         END DO
+         DEALLOCATE (ec_env%vtau_rspace)
+      END IF
+      IF (ASSOCIATED(ec_env%vadmm_rspace)) THEN
+         DO iab = 1, SIZE(ec_env%vadmm_rspace)
+            CALL ec_env%vadmm_rspace(iab)%release()
+         END DO
+         DEALLOCATE (ec_env%vadmm_rspace)
+      END IF
+      IF (ASSOCIATED(ec_env%efield)) THEN
+         CALL efield_berry_release(ec_env%efield)
+         DEALLOCATE (ec_env%efield)
+      END IF
+
+      IF (ASSOCIATED(ec_env%ls_env)) THEN
+         CALL ls_scf_release(ec_env%ls_env)
+         DEALLOCATE (ec_env%ls_env)
+         NULLIFY (ec_env%ls_env)
+      END IF
+
+      IF (.NOT. ec_env%reuse_hfx) THEN
+         IF (ASSOCIATED(ec_env%x_data)) CALL hfx_release(ec_env%x_data)
+      END IF
+
+      IF (ASSOCIATED(ec_env%xc_section_aux)) CALL section_vals_release(ec_env%xc_section_aux)
+      IF (ASSOCIATED(ec_env%xc_section_primary)) CALL section_vals_release(ec_env%xc_section_primary)
 
       CALL timestop(handle)
 
