@@ -2265,6 +2265,7 @@ CONTAINS
                   TRIM(atm_name1)
                IF (my_atm_name1 == atm_name1) THEN
                   IF (.NOT. ASSOCIATED(damping)) THEN
+                     ALLOCATE (damping)
                      CALL damping_p_create(damping, nkinds)
                   END IF
 

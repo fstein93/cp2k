@@ -695,7 +695,7 @@ CONTAINS
             atomic_kind => atomic_kind_set(i)
             CALL get_atomic_kind(atomic_kind=atomic_kind, name=atmname)
             qeff = charge(i)
-            NULLIFY (fist_potential)
+            ALLOCATE (fist_potential)
             CALL allocate_potential(fist_potential)
             CALL set_potential(potential=fist_potential, qeff=qeff)
             CALL set_atomic_kind(atomic_kind=atomic_kind, fist_potential=fist_potential)

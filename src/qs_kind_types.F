@@ -272,15 +272,23 @@ CONTAINS
          DO ikind = 1, nkind
             IF (ASSOCIATED(qs_kind_set(ikind)%all_potential)) THEN
                CALL deallocate_potential(qs_kind_set(ikind)%all_potential)
+               DEALLOCATE (qs_kind_set(ikind)%all_potential)
+               NULLIFY (qs_kind_set(ikind)%all_potential)
             END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%tnadd_potential)) THEN
                CALL deallocate_potential(qs_kind_set(ikind)%tnadd_potential)
+               DEALLOCATE (qs_kind_set(ikind)%tnadd_potential)
+               NULLIFY (qs_kind_set(ikind)%tnadd_potential)
             END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%gth_potential)) THEN
                CALL deallocate_potential(qs_kind_set(ikind)%gth_potential)
+               DEALLOCATE (qs_kind_set(ikind)%gth_potential)
+               NULLIFY (qs_kind_set(ikind)%gth_potential)
             END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%sgp_potential)) THEN
                CALL deallocate_potential(qs_kind_set(ikind)%sgp_potential)
+               DEALLOCATE (qs_kind_set(ikind)%sgp_potential)
+               NULLIFY (qs_kind_set(ikind)%sgp_potential)
             END IF
             IF (ASSOCIATED(qs_kind_set(ikind)%upf_potential)) THEN
                CALL atom_release_upf(qs_kind_set(ikind)%upf_potential)
@@ -1224,7 +1232,7 @@ CONTAINS
 !>                20.09.2002 adapted for pol/kg use, gtb
 ! **************************************************************************************************
    SUBROUTINE init_qs_kind(qs_kind)
-      TYPE(qs_kind_type), POINTER                        :: qs_kind
+      TYPE(qs_kind_type), INTENT(INOUT)                  :: qs_kind
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'init_qs_kind'
 
@@ -1233,8 +1241,6 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: tmp_basis_set
 
       CALL timeset(routineN, handle)
-
-      CPASSERT(ASSOCIATED(qs_kind))
 
       IF (ASSOCIATED(qs_kind%gth_potential)) THEN
          CALL init_potential(qs_kind%gth_potential)
@@ -2055,6 +2061,7 @@ CONTAINS
       CASE (do_method_rm1, do_method_am1, do_method_mndo, do_method_pdg, do_method_pm3, do_method_pm6, &
             do_method_pm6fm, do_method_mndod, do_method_pnnl)
          ! Allocate all_potential
+         ALLOCATE (qs_kind%all_potential)
          CALL allocate_potential(qs_kind%all_potential)
          CALL set_default_all_potential(qs_kind%all_potential, z, zeff_correction)
          CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
@@ -2095,8 +2102,10 @@ CONTAINS
          NULLIFY (tmp_basis_set)
          CALL init_se_param(qs_kind%se_parameter, tmp_basis_set, ngauss)
          CALL add_basis_set_to_container(qs_kind%basis_sets, tmp_basis_set, "ORB")
-         CALL init_potential(qs_kind%all_potential, itype="BARE", &
-                             zeff=qs_kind%se_parameter%zeff, zeff_correction=zeff_correction)
+         IF (ASSOCIATED(qs_kind%all_potential)) THEN
+            CALL init_potential(qs_kind%all_potential, itype="BARE", &
+                                zeff=qs_kind%se_parameter%zeff, zeff_correction=zeff_correction)
+         END IF
          qs_kind%se_parameter%zeff = qs_kind%se_parameter%zeff - zeff_correction
 
          check = ((potential_name /= '') .OR. explicit_potential)
@@ -2113,6 +2122,7 @@ CONTAINS
 
       CASE (do_method_dftb)
          ! Allocate all_potential
+         ALLOCATE (qs_kind%all_potential)
          CALL allocate_potential(qs_kind%all_potential)
          CALL set_default_all_potential(qs_kind%all_potential, z, zeff_correction)
          CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
@@ -2146,6 +2156,7 @@ CONTAINS
 
       CASE (do_method_xtb)
          ! Allocate all_potential
+         ALLOCATE (qs_kind%all_potential)
          CALL allocate_potential(qs_kind%all_potential)
          CALL set_default_all_potential(qs_kind%all_potential, z, zeff_correction)
          CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
@@ -2193,6 +2204,7 @@ CONTAINS
                ELSE
                   potential_file_name = potential_fn_kind
                END IF
+               ALLOCATE (qs_kind%gth_potential)
                CALL allocate_potential(qs_kind%gth_potential)
                CALL read_potential(qs_kind%element_symbol, potential_name, &
                                    qs_kind%gth_potential, zeff_correction, para_env, &
@@ -2319,6 +2331,7 @@ CONTAINS
                !
                SELECT CASE (TRIM(potential_type))
                CASE ("ALL")
+                  ALLOCATE (qs_kind%all_potential)
                   CALL allocate_potential(qs_kind%all_potential)
                   CALL read_potential(qs_kind%element_symbol, potential_name, &
                                       qs_kind%all_potential, zeff_correction, para_env, &
@@ -2332,6 +2345,7 @@ CONTAINS
                      CALL set_potential(potential=qs_kind%all_potential, elec_conf=elec_conf)
                   END IF
                CASE ("GTH")
+                  ALLOCATE (qs_kind%gth_potential)
                   CALL allocate_potential(qs_kind%gth_potential)
                   CALL read_potential(qs_kind%element_symbol, potential_name, &
                                       qs_kind%gth_potential, zeff_correction, para_env, &
@@ -2345,6 +2359,7 @@ CONTAINS
                      CALL set_potential(potential=qs_kind%gth_potential, elec_conf=elec_conf)
                   END IF
                CASE ("ECP")
+                  ALLOCATE (qs_kind%sgp_potential)
                   CALL allocate_potential(qs_kind%sgp_potential)
                   CALL get_potential(qs_kind%sgp_potential, description=description)
                   CALL read_ecp_potential(ptable(z)%symbol, ecppot, &
@@ -2420,6 +2435,7 @@ CONTAINS
                   CALL get_qs_kind(qs_kind, elec_conf=elec_conf)
                   CALL set_potential(qs_kind%sgp_potential, elec_conf=elec_conf)
                CASE ("UPF")
+                  ALLOCATE (qs_kind%sgp_potential)
                   CALL allocate_potential(qs_kind%sgp_potential)
                   CALL get_potential(qs_kind%sgp_potential, description=description)
                   description(4) = "UPF "//TRIM(potential_name)
@@ -2520,6 +2536,7 @@ CONTAINS
                   ELSE
                      potential_file_name = kg_potential_fn_kind
                   END IF
+                  ALLOCATE (qs_Kind%tnadd_potential)
                   CALL allocate_potential(qs_kind%tnadd_potential)
                   CALL read_potential(qs_kind%element_symbol, kgpot_name, &
                                       qs_kind%tnadd_potential, para_env, &

@@ -536,12 +536,15 @@ CONTAINS
 
          !copying potentials of interest from qs_kind_set
          IF (ASSOCIATED(qs_kind_set(ikind)%all_potential)) THEN
+            IF (.NOT. ASSOCIATED(admm_kind_set(ikind)%all_potential)) ALLOCATE (admm_kind_set(ikind)%all_potential)
             CALL copy_potential(qs_kind_set(ikind)%all_potential, admm_kind_set(ikind)%all_potential)
          END IF
          IF (ASSOCIATED(qs_kind_set(ikind)%gth_potential)) THEN
+            IF (.NOT. ASSOCIATED(admm_kind_set(ikind)%gth_potential)) ALLOCATE (admm_kind_set(ikind)%gth_potential)
             CALL copy_potential(qs_kind_set(ikind)%gth_potential, admm_kind_set(ikind)%gth_potential)
          END IF
          IF (ASSOCIATED(qs_kind_set(ikind)%sgp_potential)) THEN
+            IF (.NOT. ASSOCIATED(admm_kind_set(ikind)%sgp_potential)) ALLOCATE (admm_kind_set(ikind)%sgp_potential)
             CALL copy_potential(qs_kind_set(ikind)%sgp_potential, admm_kind_set(ikind)%sgp_potential)
          END IF
 

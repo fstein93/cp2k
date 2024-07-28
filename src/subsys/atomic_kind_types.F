@@ -99,13 +99,19 @@ CONTAINS
       DO ikind = 1, nkind
          IF (ASSOCIATED(atomic_kind_set(ikind)%fist_potential)) THEN
             CALL deallocate_potential(atomic_kind_set(ikind)%fist_potential)
+            DEALLOCATE (atomic_kind_set(ikind)%fist_potential)
+            NULLIFY (atomic_kind_set(ikind)%fist_potential)
          END IF
          IF (ASSOCIATED(atomic_kind_set(ikind)%atom_list)) THEN
             DEALLOCATE (atomic_kind_set(ikind)%atom_list)
          END IF
          IF (ASSOCIATED(atomic_kind_set(ikind)%shell)) DEALLOCATE (atomic_kind_set(ikind)%shell)
 
-         CALL damping_p_release(atomic_kind_set(ikind)%damping)
+         IF (ASSOCIATED(atomic_kind_set(ikind)%damping)) THEN
+            CALL damping_p_release(atomic_kind_set(ikind)%damping)
+            DEALLOCATE (atomic_kind_set(ikind)%damping)
+            NULLIFY (atomic_kind_set(ikind)%damping)
+         END IF
       END DO
       DEALLOCATE (atomic_kind_set)
    END SUBROUTINE deallocate_atomic_kind_set

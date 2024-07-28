@@ -65,11 +65,9 @@ CONTAINS
 !> \author Rodolphe Vuilleumier
 ! **************************************************************************************************
    SUBROUTINE damping_p_create(damping, nkinds)
-      TYPE(damping_p_type), POINTER                      :: damping
+      TYPE(damping_p_type), INTENT(OUT)                  :: damping
       INTEGER, INTENT(IN)                                :: nkinds
 
-      CPASSERT(.NOT. ASSOCIATED(damping))
-      ALLOCATE (damping)
       ALLOCATE (damping%damp(nkinds))
 
    END SUBROUTINE damping_p_create
@@ -79,15 +77,11 @@ CONTAINS
 !> \author Rodolphe Vuilleumier [RV]
 ! **************************************************************************************************
    SUBROUTINE damping_p_release(damping)
-      TYPE(damping_p_type), POINTER                      :: damping
+      TYPE(damping_p_type), INTENT(INOUT)                :: damping
 
-      IF (ASSOCIATED(damping)) THEN
-         IF (ASSOCIATED(damping%damp)) THEN
-            DEALLOCATE (damping%damp)
-         END IF
-         DEALLOCATE (damping)
+      IF (ASSOCIATED(damping%damp)) THEN
+         DEALLOCATE (damping%damp)
       END IF
-      NULLIFY (damping)
 
    END SUBROUTINE damping_p_release
 
