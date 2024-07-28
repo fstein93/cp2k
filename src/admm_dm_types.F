@@ -61,7 +61,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE admm_dm_create(admm_dm, admm_control, nspins, natoms)
       TYPE(admm_dm_type), INTENT(OUT)                    :: admm_dm
-      TYPE(admm_control_type), POINTER                   :: admm_control
+      TYPE(admm_control_type), INTENT(IN)                :: admm_control
       INTEGER, INTENT(IN)                                :: nspins, natoms
 
       INTEGER                                            :: i, iatom, iblock, j, jatom

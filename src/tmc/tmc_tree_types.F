@@ -241,10 +241,9 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE write_subtree_elem_unformated(elem, io_unit)
-      TYPE(tree_type), POINTER                           :: elem
+      TYPE(tree_type), INTENT(IN)                        :: elem
       INTEGER                                            :: io_unit
 
-      CPASSERT(ASSOCIATED(elem))
       CPASSERT(io_unit .GT. 0)
       WRITE (io_unit) elem%nr, &
          elem%sub_tree_nr, &
@@ -271,10 +270,9 @@ CONTAINS
 !> \author Mandes 11.2012
 ! **************************************************************************************************
    SUBROUTINE read_subtree_elem_unformated(elem, io_unit)
-      TYPE(tree_type), POINTER                           :: elem
+      TYPE(tree_type), INTENT(INOUT)                     :: elem
       INTEGER                                            :: io_unit
 
-      CPASSERT(ASSOCIATED(elem))
       CPASSERT(io_unit .GT. 0)
 
       READ (io_unit) elem%nr, &

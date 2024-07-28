@@ -1439,6 +1439,8 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
          CALL almo_scf_env_release(qs_env%almo_scf_env)
+         DEALLOCATE (qs_env%almo_scf_env)
+         NULLIFY (qs_env%almo_scf_env)
       END IF
 
       IF (ASSOCIATED(qs_env%ls_scf_env)) THEN
@@ -1688,6 +1690,8 @@ CONTAINS
 
       IF (ASSOCIATED(qs_env%almo_scf_env)) THEN
          CALL almo_scf_env_release(qs_env%almo_scf_env)
+         DEALLOCATE (qs_env%almo_scf_env)
+         NULLIFY (qs_env%almo_scf_env)
       END IF
 
       IF (ASSOCIATED(qs_env%ls_scf_env)) THEN

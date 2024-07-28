@@ -102,6 +102,7 @@ CONTAINS
 
       CALL section_vals_get(tmc_ana_section, explicit=explicit)
       IF (explicit) THEN
+         ALLOCATE (tmc_ana)
          CALL tmc_ana_env_create(tmc_ana=tmc_ana)
          ! restarting
          CALL section_vals_val_get(tmc_ana_section, "RESTART", l_val=tmc_ana%restart)
@@ -131,6 +132,7 @@ CONTAINS
             ELSE
                CPABORT("unknown amount of dimensions for the binning.")
             END IF
+            ALLOCATE (tmc_ana%density_3d)
             CALL tmc_ana_density_create(tmc_ana%density_3d, nr_bins)
          END IF
 
@@ -138,6 +140,7 @@ CONTAINS
          CALL section_vals_val_get(tmc_ana_section, "G_R", explicit=explicit_key)
          IF (explicit_key) THEN
             CALL section_vals_val_get(tmc_ana_section, "G_R", i_val=i_tmp)
+            ALLOCATE (tmc_ana%pair_correl)
             CALL tmc_ana_pair_correl_create(ana_pair_correl=tmc_ana%pair_correl, &
                                             nr_bins=i_tmp)
          END IF
@@ -159,6 +162,7 @@ CONTAINS
                              "the charges has to be specified")
             END IF
 
+            ALLOCATE (tmc_ana%dip_mom)
             CALL tmc_ana_dipole_moment_create(tmc_ana%dip_mom, charge_atm, charge, &
                                               tmc_ana%dim_per_elem)
 
@@ -169,6 +173,7 @@ CONTAINS
          ! dipole moment analysis
          CALL section_vals_val_get(tmc_ana_section, "DIPOLE_ANALYSIS", explicit=explicit_key)
          IF (explicit_key) THEN
+            ALLOCATE (tmc_ana%dip_ana)
             CALL tmc_ana_dipole_analysis_create(tmc_ana%dip_ana)
             CALL section_vals_val_get(tmc_ana_section, "DIPOLE_ANALYSIS", c_val=c_tmp)
             SELECT CASE (TRIM(c_tmp))
@@ -189,6 +194,7 @@ CONTAINS
       ! cell displacement (deviation)
       CALL section_vals_val_get(tmc_ana_section, "DEVIATION", l_val=flag)
       IF (flag) THEN
+         ALLOCATE (tmc_ana%displace)
          CALL tmc_ana_displacement_create(ana_disp=tmc_ana%displace, &
                                           dim_per_elem=tmc_ana%dim_per_elem)
       END IF

@@ -15,7 +15,7 @@
 ! **************************************************************************************************
 MODULE qs_p_env_methods
    USE admm_methods,                    ONLY: admm_aux_response_density
-   USE admm_types,                      ONLY: admm_gapw_r3d_rs_type,&
+   USE admm_types,                      ONLY: admm_gapw_type,&
                                               admm_type,&
                                               get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -141,7 +141,7 @@ CONTAINS
       CHARACTER(len=*), PARAMETER                        :: routineN = 'p_env_create'
 
       INTEGER                                            :: handle, n_ao, n_mo, n_spins, natom, spin
-      TYPE(admm_gapw_r3d_rs_type), POINTER               :: admm_gapw_env
+      TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env

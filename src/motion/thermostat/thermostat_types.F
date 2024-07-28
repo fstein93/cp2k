@@ -267,6 +267,8 @@ CONTAINS
       END IF
       IF (ASSOCIATED(thermostat%al)) THEN
          CALL al_dealloc(thermostat%al)
+         DEALLOCATE (thermostat%al)
+         NULLIFY (thermostat%al)
       END IF
       IF (ASSOCIATED(thermostat%gle)) THEN
          CALL gle_dealloc(thermostat%gle)

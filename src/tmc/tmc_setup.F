@@ -298,6 +298,7 @@ CONTAINS
                IF (ASSOCIATED(tmc_ana_env_list(i)%temp%last_elem)) &
                   CALL deallocate_sub_tree_node(tree_elem=tmc_ana_env_list(i)%temp%last_elem)
                CALL tmc_ana_env_release(tmc_ana_env_list(i)%temp)
+               DEALLOCATE (tmc_ana_env_list(i)%temp)
             END DO
             DEALLOCATE (tmc_ana_env_list)
             IF (bcast_output_unit .NE. output_unit) THEN
@@ -444,6 +445,7 @@ CONTAINS
                CALL deallocate_sub_tree_node(tree_elem=ana_list(temp)%temp%last_elem)
 
             CALL tmc_ana_env_release(ana_list(temp)%temp)
+            DEALLOCATE (ana_list(temp)%temp)
          END DO
 
          DEALLOCATE (ana_list)

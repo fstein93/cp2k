@@ -388,8 +388,6 @@ CONTAINS
 
       ALLOCATE (atoms(nr_atoms))
 
-      CPASSERT(ASSOCIATED(atoms))
-
    END SUBROUTINE allocate_tmc_atom_type
 
 ! **************************************************************************************************
@@ -403,8 +401,6 @@ CONTAINS
       CPASSERT(ASSOCIATED(atoms))
 
       DEALLOCATE (atoms)
-
-      CPASSERT(.NOT. ASSOCIATED(atoms))
    END SUBROUTINE deallocate_tmc_atom_type
 
 END MODULE tmc_types

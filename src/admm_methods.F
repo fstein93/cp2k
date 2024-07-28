@@ -13,7 +13,7 @@
 !> \author Manuel Guidon
 ! **************************************************************************************************
 MODULE admm_methods
-   USE admm_types,                      ONLY: admm_gapw_r3d_rs_type,&
+   USE admm_types,                      ONLY: admm_gapw_type,&
                                               admm_type,&
                                               get_admm_env
    USE atomic_kind_types,               ONLY: atomic_kind_type
@@ -2393,7 +2393,7 @@ CONTAINS
       LOGICAL                                            :: gapw
       REAL(dp)                                           :: tmp
       REAL(KIND=dp), DIMENSION(:), POINTER               :: tot_rho_r
-      TYPE(admm_gapw_r3d_rs_type), POINTER               :: admm_gapw_env
+      TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho_ao
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_ks_aux_fit_hfx, rho_ao_aux, &

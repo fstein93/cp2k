@@ -138,11 +138,9 @@ CONTAINS
 !> \author Mandes 02.2013
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_env_create(tmc_ana)
-      TYPE(tmc_analysis_env), POINTER                    :: tmc_ana
+      TYPE(tmc_analysis_env), INTENT(INOUT)              :: tmc_ana
 
-      CPASSERT(.NOT. ASSOCIATED(tmc_ana))
-
-      ALLOCATE (tmc_ana)
+      MARK_USED(tmc_ana)
 
    END SUBROUTINE tmc_ana_env_create
 
@@ -152,28 +150,39 @@ CONTAINS
 !> \author Mandes 02.2013
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_env_release(tmc_ana)
-      TYPE(tmc_analysis_env), POINTER                    :: tmc_ana
-
-      CPASSERT(ASSOCIATED(tmc_ana))
+      TYPE(tmc_analysis_env), INTENT(INOUT)              :: tmc_ana
 
       IF (ASSOCIATED(tmc_ana%dirs)) &
          DEALLOCATE (tmc_ana%dirs)
 
-      IF (ASSOCIATED(tmc_ana%density_3d)) &
+      IF (ASSOCIATED(tmc_ana%density_3d)) THEN
          CALL tmc_ana_dens_release(tmc_ana%density_3d)
-      IF (ASSOCIATED(tmc_ana%pair_correl)) &
+         DEALLOCATE (tmc_ana%density_3d)
+         NULLIFY (tmc_ana%density_3d)
+      END IF
+      IF (ASSOCIATED(tmc_ana%pair_correl)) THEN
          CALL tmc_ana_pair_correl_release(tmc_ana%pair_correl)
+         DEALLOCATE (tmc_ana%pair_correl)
+         NULLIFY (tmc_ana%pair_correl)
+      END IF
 
-      IF (ASSOCIATED(tmc_ana%dip_mom)) &
+      IF (ASSOCIATED(tmc_ana%dip_mom)) THEN
          CALL tmc_ana_dipole_moment_release(tmc_ana%dip_mom)
+         DEALLOCATE (tmc_ana%dip_mom)
+         NULLIFY (tmc_ana%dip_mom)
+      END IF
 
-      IF (ASSOCIATED(tmc_ana%dip_ana)) &
+      IF (ASSOCIATED(tmc_ana%dip_ana)) THEN
          CALL tmc_ana_dipole_analysis_release(tmc_ana%dip_ana)
+         DEALLOCATE (tmc_ana%dip_ana)
+         NULLIFY (tmc_ana%dip_ana)
+      END IF
 
-      IF (ASSOCIATED(tmc_ana%displace)) &
+      IF (ASSOCIATED(tmc_ana%displace)) THEN
          CALL tmc_ana_displacement_release(ana_disp=tmc_ana%displace)
-
-      DEALLOCATE (tmc_ana)
+         DEALLOCATE (tmc_ana%displace)
+         NULLIFY (tmc_ana%displace)
+      END IF
 
    END SUBROUTINE tmc_ana_env_release
 
@@ -188,12 +197,8 @@ CONTAINS
 !> \author Mandes 02.2013
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_density_create(ana_dens, nr_bins)
-      TYPE(density_3d_type), POINTER                     :: ana_dens
+      TYPE(density_3d_type), INTENT(OUT)                 :: ana_dens
       INTEGER, DIMENSION(3)                              :: nr_bins
-
-      CPASSERT(.NOT. ASSOCIATED(ana_dens))
-
-      ALLOCATE (ana_dens)
 
       ana_dens%nr_bins(:) = nr_bins(:)
 
@@ -209,13 +214,10 @@ CONTAINS
 !> \author Mandes 02.2013
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_dens_release(ana_dens)
-      TYPE(density_3d_type), POINTER                     :: ana_dens
-
-      CPASSERT(ASSOCIATED(ana_dens))
+      TYPE(density_3d_type), INTENT(INOUT)               :: ana_dens
 
       DEALLOCATE (ana_dens%sum_density)
       DEALLOCATE (ana_dens%sum_dens2)
-      DEALLOCATE (ana_dens)
    END SUBROUTINE tmc_ana_dens_release
 
    !============================================================================
@@ -230,11 +232,8 @@ CONTAINS
 !> \author Mandes 02.2013
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_pair_correl_create(ana_pair_correl, nr_bins)
-      TYPE(pair_correl_type), POINTER                    :: ana_pair_correl
+      TYPE(pair_correl_type), INTENT(OUT)                :: ana_pair_correl
       INTEGER                                            :: nr_bins
-
-      CPASSERT(.NOT. ASSOCIATED(ana_pair_correl))
-      ALLOCATE (ana_pair_correl)
 
       ana_pair_correl%nr_bins = nr_bins
    END SUBROUTINE tmc_ana_pair_correl_create
@@ -246,13 +245,10 @@ CONTAINS
 !> \author Mandes 02.2013
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_pair_correl_release(ana_pair_correl)
-      TYPE(pair_correl_type), POINTER                    :: ana_pair_correl
-
-      CPASSERT(ASSOCIATED(ana_pair_correl))
+      TYPE(pair_correl_type), INTENT(INOUT)              :: ana_pair_correl
 
       DEALLOCATE (ana_pair_correl%g_r)
       DEALLOCATE (ana_pair_correl%pairs)
-      DEALLOCATE (ana_pair_correl)
    END SUBROUTINE tmc_ana_pair_correl_release
 
 ! **************************************************************************************************
@@ -308,15 +304,12 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_dipole_moment_create(ana_dip_mom, charge_atm, charge, &
                                            dim_per_elem)
-      TYPE(dipole_moment_type), POINTER                  :: ana_dip_mom
+      TYPE(dipole_moment_type), INTENT(OUT)              :: ana_dip_mom
       CHARACTER(LEN=default_string_length), POINTER      :: charge_atm(:)
       REAL(KIND=dp), POINTER                             :: charge(:)
       INTEGER                                            :: dim_per_elem
 
       INTEGER                                            :: i
-
-      CPASSERT(.NOT. ASSOCIATED(ana_dip_mom))
-      ALLOCATE (ana_dip_mom)
 
       ALLOCATE (ana_dip_mom%charges_inp(SIZE(charge)))
       DO i = 1, SIZE(charge)
@@ -336,14 +329,11 @@ CONTAINS
 !> \author Mandes 02.2013
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_dipole_moment_release(ana_dip_mom)
-      TYPE(dipole_moment_type), POINTER                  :: ana_dip_mom
-
-      CPASSERT(ASSOCIATED(ana_dip_mom))
+      TYPE(dipole_moment_type), INTENT(INOUT)            :: ana_dip_mom
 
       IF (ASSOCIATED(ana_dip_mom%charges_inp)) DEALLOCATE (ana_dip_mom%charges_inp)
       IF (ASSOCIATED(ana_dip_mom%charges)) DEALLOCATE (ana_dip_mom%charges)
       DEALLOCATE (ana_dip_mom%last_dip_cl)
-      DEALLOCATE (ana_dip_mom)
    END SUBROUTINE tmc_ana_dipole_moment_release
 
 ! **************************************************************************************************
@@ -353,10 +343,7 @@ CONTAINS
 !> \author Mandes 02.2013
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_dipole_analysis_create(ana_dip_ana)
-      TYPE(dipole_analysis_type), POINTER                :: ana_dip_ana
-
-      CPASSERT(.NOT. ASSOCIATED(ana_dip_ana))
-      ALLOCATE (ana_dip_ana)
+      TYPE(dipole_analysis_type), INTENT(OUT)            :: ana_dip_ana
 
       ALLOCATE (ana_dip_ana%mu_psv(3))
       ana_dip_ana%mu_psv = 0.0_dp
@@ -375,16 +362,13 @@ CONTAINS
 !> \author Mandes 02.2013
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_dipole_analysis_release(ana_dip_ana)
-      TYPE(dipole_analysis_type), POINTER                :: ana_dip_ana
-
-      CPASSERT(ASSOCIATED(ana_dip_ana))
+      TYPE(dipole_analysis_type), INTENT(INOUT)          :: ana_dip_ana
 
       DEALLOCATE (ana_dip_ana%mu_psv)
       DEALLOCATE (ana_dip_ana%mu_pv)
       DEALLOCATE (ana_dip_ana%mu2_pv)
       DEALLOCATE (ana_dip_ana%mu2_pv_mat)
 
-      DEALLOCATE (ana_dip_ana)
    END SUBROUTINE tmc_ana_dipole_analysis_release
 
    !============================================================================
@@ -399,14 +383,13 @@ CONTAINS
 !> \author Mandes 02.2013
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_displacement_create(ana_disp, dim_per_elem)
-      TYPE(displacement_type), POINTER                   :: ana_disp
+      TYPE(displacement_type), INTENT(OUT)               :: ana_disp
       INTEGER                                            :: dim_per_elem
 
-      CPASSERT(.NOT. ASSOCIATED(ana_disp))
       CPASSERT(dim_per_elem .GT. 0)
       MARK_USED(dim_per_elem)
 
-      ALLOCATE (ana_disp)
+      MARK_USED(ana_disp)
 
    END SUBROUTINE tmc_ana_displacement_create
 
@@ -417,10 +400,8 @@ CONTAINS
 !> \author Mandes 02.2013
 ! **************************************************************************************************
    SUBROUTINE tmc_ana_displacement_release(ana_disp)
-      TYPE(displacement_type), POINTER                   :: ana_disp
+      TYPE(displacement_type), INTENT(INOUT)             :: ana_disp
 
-      CPASSERT(ASSOCIATED(ana_disp))
-
-      DEALLOCATE (ana_disp)
+      MARK_USED(ana_disp)
    END SUBROUTINE tmc_ana_displacement_release
 END MODULE tmc_analysis_types

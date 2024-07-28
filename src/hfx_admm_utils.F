@@ -19,7 +19,7 @@ MODULE hfx_admm_utils
    USE admm_methods,                    ONLY: kpoint_calc_admm_matrices,&
                                               scale_dm
    USE admm_types,                      ONLY: admm_env_create,&
-                                              admm_gapw_r3d_rs_type,&
+                                              admm_gapw_type,&
                                               admm_type,&
                                               get_admm_env,&
                                               set_admm_env
@@ -490,7 +490,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       INTEGER                                            :: ikind, nkind
-      TYPE(admm_gapw_r3d_rs_type), POINTER               :: admm_gapw_env
+      TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(dft_control_type), POINTER                    :: dft_control
@@ -796,7 +796,7 @@ CONTAINS
       REAL(dp)                                           :: subcells
       REAL(dp), ALLOCATABLE, DIMENSION(:)                :: aux_radius, oce_radius
       REAL(dp), ALLOCATABLE, DIMENSION(:, :)             :: pair_radius
-      TYPE(admm_gapw_r3d_rs_type), POINTER               :: admm_gapw_env
+      TYPE(admm_gapw_type), POINTER                      :: admm_gapw_env
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(atomic_kind_type), DIMENSION(:), POINTER      :: atomic_kind_set
       TYPE(cell_type), POINTER                           :: cell

@@ -60,8 +60,8 @@ CONTAINS
 !> \author Noam Bernstein [noamb] 02.2012
 ! **************************************************************************************************
    SUBROUTINE al_init(al, simpar, section)
-      TYPE(al_system_type), POINTER                      :: al
-      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(al_system_type), INTENT(INOUT)                :: al
+      TYPE(simpar_type), INTENT(IN)                      :: simpar
       TYPE(section_vals_type), POINTER                   :: section
 
       NULLIFY (al%nvt)
@@ -84,13 +84,12 @@ CONTAINS
 !> \author Noam Bernstein [noamb]  02.2012
 ! **************************************************************************************************
    SUBROUTINE al_thermo_create(al)
-      TYPE(al_system_type), POINTER                      :: al
+      TYPE(al_system_type), INTENT(INOUT)                :: al
 
       INTEGER                                            :: i
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: seed
 
-      CPASSERT(ASSOCIATED(al))
-      CPASSERT(.NOT. ASSOCIATED(al%nvt))
+      IF (ASSOCIATED(al%nvt)) DEALLOCATE (al%nvt)
 
       ALLOCATE (al%nvt(al%loc_num_al))
       DO i = 1, al%loc_num_al
@@ -107,16 +106,13 @@ CONTAINS
 !> \author Noam Bernstein [noamb] 02.2012
 ! **************************************************************************************************
    SUBROUTINE al_dealloc(al)
-      TYPE(al_system_type), POINTER                      :: al
+      TYPE(al_system_type), INTENT(INOUT)                :: al
 
-      IF (ASSOCIATED(al)) THEN
-         CALL al_thermo_dealloc(al%nvt)
-         IF (ASSOCIATED(al%map_info)) THEN
-            CALL release_map_info_type(al%map_info)
-            DEALLOCATE (al%map_info)
-            NULLIFY (al%map_info)
-         END IF
-         DEALLOCATE (al)
+      CALL al_thermo_dealloc(al%nvt)
+      IF (ASSOCIATED(al%map_info)) THEN
+         CALL release_map_info_type(al%map_info)
+         DEALLOCATE (al%map_info)
+         NULLIFY (al%map_info)
       END IF
 
    END SUBROUTINE al_dealloc

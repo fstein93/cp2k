@@ -181,20 +181,6 @@ MODULE almo_scf_types
       ! ALMO  constraint type.
       INTEGER :: constraint_type = 0
 
-      ! Desciptors of molecules
-      !INTEGER, DIMENSION(:), ALLOCATABLE        :: molecule_index_of_atom
-      !INTEGER, DIMENSION(:), ALLOCATABLE        :: first_atom_of_molecule
-      !INTEGER, DIMENSION(:), ALLOCATABLE        :: nbasis_of_molecule
-      !INTEGER, DIMENSION(:,:), ALLOCATABLE      :: nocc_of_molecule
-      !INTEGER, DIMENSION(:,:), ALLOCATABLE      :: nvirt_of_molecule
-      !REAL(KIND=dp),DIMENSION(:,:), ALLOCATABLE :: mu_of_molecule
-
-      ! Descriptors of atoms
-      !INTEGER, DIMENSION(:), ALLOCATABLE        :: nbasis_of_atom
-      !INTEGER, DIMENSION(:,:), ALLOCATABLE      :: nocc_of_atom
-      !INTEGER, DIMENSION(:,:), ALLOCATABLE      :: nvirt_of_atom
-      !REAL(KIND=dp),DIMENSION(:,:), ALLOCATABLE :: mu_of_atom
-
       ! All AO and MO matrices are distributed for parallel computations.
       ! The following flags specify what constitues a block for a parallel
       ! distribution. Both AOs and MOs can be divided into atomic or
@@ -547,7 +533,7 @@ CONTAINS
 !> \author Rustam Z Khaliullin
 ! **************************************************************************************************
    SUBROUTINE almo_scf_env_release(almo_scf_env)
-      TYPE(almo_scf_env_type), POINTER                   :: almo_scf_env
+      TYPE(almo_scf_env_type), INTENT(INOUT)             :: almo_scf_env
 
       CHARACTER(len=*), PARAMETER :: routineN = 'almo_scf_env_release'
 
@@ -575,10 +561,7 @@ CONTAINS
             CALL dbcsr_release(almo_scf_env%xalmo_history%matrix_t(ispin))
       END DO
       DEALLOCATE (almo_scf_env%xalmo_history%matrix_p_up_down)
-      !DEALLOCATE (almo_scf_env%xalmo_history%matrix_x)
       DEALLOCATE (almo_scf_env%xalmo_history%matrix_t)
-
-      DEALLOCATE (almo_scf_env)
 
       CALL timestop(handle)
 

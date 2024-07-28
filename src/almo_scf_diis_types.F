@@ -261,28 +261,6 @@ CONTAINS
       IF (diis_env%buffer_length .GT. diis_env%max_buffer_length) &
          diis_env%buffer_length = diis_env%max_buffer_length
 
-      !!!! resize B matrix
-      !!!IF (old_buffer_length.lt.diis_env%buffer_length) THEN
-      !!!   ALLOCATE(m_b_tmp(diis_env%buffer_length+1,diis_env%buffer_length+1))
-      !!!   m_b_tmp(1:diis_env%buffer_length,1:diis_env%buffer_length)=&
-      !!!      diis_env%m_b(:,:)
-      !!!   DEALLOCATE(diis_env%m_b)
-      !!!   ALLOCATE(diis_env%m_b(diis_env%buffer_length+1,&
-      !!!      diis_env%buffer_length+1))
-      !!!   diis_env%m_b(:,:)=m_b_tmp(:,:)
-      !!!   DEALLOCATE(m_b_tmp)
-      !!!ENDIF
-      !!!! update B matrix elements
-      !!!diis_env%m_b(1,in_point+1)=-1.0_dp
-      !!!diis_env%m_b(in_point+1,1)=-1.0_dp
-      !!!DO irow=1,diis_env%buffer_length
-      !!!   trace0=almo_scf_diis_error_overlap(diis_env,&
-      !!!      A=diis_env%m_err(irow),B=diis_env%m_err(in_point))
-      !!!
-      !!!   diis_env%m_b(irow+1,in_point+1)=trace0
-      !!!   diis_env%m_b(in_point+1,irow+1)=trace0
-      !!!ENDDO
-
       ! resize B matrix and update its elements
       ndomains = SIZE(diis_env%m_b)
       IF (old_buffer_length .LT. diis_env%buffer_length) THEN
@@ -404,23 +382,11 @@ CONTAINS
 
             ! use the eigensystem to invert (implicitly) B matrix
             ! and compute the extrapolation coefficients
-            !! ALLOCATE(tmp1(diis_env%buffer_length+1,1))
-            !! ALLOCATE(coeff(diis_env%buffer_length+1,1))
-            !! tmp1(:,1)=-1.0_dp*m_b_copy(1,:)/eigenvalues(:)
-            !! coeff=MATMUL(m_b_copy,tmp1)
-            !! DEALLOCATE(tmp1)
             ALLOCATE (tmp1(diis_env%buffer_length + 1))
             ALLOCATE (coeff(diis_env%buffer_length + 1))
             tmp1(:) = -1.0_dp*m_b_copy(1, :)/eigenvalues(:)
             coeff(:) = MATMUL(m_b_copy, tmp1)
             DEALLOCATE (tmp1)
-
-            !IF (unit_nr.gt.0) THEN
-            !   DO im=1,diis_env%buffer_length+1
-            !      WRITE(unit_nr,*) diis_env%m_b(idomain)%mdata(im,:)
-            !   ENDDO
-            !   WRITE (unit_nr,*) coeff(:,1)
-            !ENDIF
 
             ! extrapolate the variable
             checksum = 0.0_dp
