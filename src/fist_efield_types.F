@@ -49,12 +49,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_efield_section(input_section, efield)
       TYPE(section_vals_type), POINTER                   :: input_section
-      TYPE(fist_efield_type), POINTER                    :: efield
+      TYPE(fist_efield_type), INTENT(INOUT)              :: efield
 
       REAL(KIND=dp), DIMENSION(:), POINTER               :: pp
       TYPE(section_vals_type), POINTER                   :: tmp_section
-
-      IF (.NOT. ASSOCIATED(efield)) ALLOCATE (efield)
 
       ! Read the finite field input section for periodic fields
       tmp_section => section_vals_get_subs_vals(input_section, "PERIODIC_EFIELD")

@@ -66,42 +66,39 @@ CONTAINS
 !> \author Teodoro Laino
 ! **************************************************************************************************
    SUBROUTINE fist_neighbor_deallocate(fist_neighbor)
-      TYPE(fist_neighbor_type), POINTER                  :: fist_neighbor
+      TYPE(fist_neighbor_type), INTENT(INOUT)            :: fist_neighbor
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(fist_neighbor)) THEN
-         ! deallocate neighbor_kind_pairs
-         IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs)) THEN
-            DO i = 1, SIZE(fist_neighbor%neighbor_kind_pairs)
-               IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%list)) THEN
-                  DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%list)
-               END IF
-               IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%id_kind)) THEN
-                  DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%id_kind)
-               END IF
-               IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ij_kind)) THEN
-                  DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%ij_kind)
-               END IF
-               IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start)) THEN
-                  DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start)
-               END IF
-               IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)) THEN
-                  DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)
-               END IF
-               IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ei_scale)) THEN
-                  DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%ei_scale)
-               END IF
-               IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)) THEN
-                  DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)
-               END IF
-               IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%is_onfo)) THEN
-                  DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%is_onfo)
-               END IF
-            END DO
-            DEALLOCATE (fist_neighbor%neighbor_kind_pairs)
-         END IF
-         DEALLOCATE (fist_neighbor)
+      ! deallocate neighbor_kind_pairs
+      IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs)) THEN
+         DO i = 1, SIZE(fist_neighbor%neighbor_kind_pairs)
+            IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%list)) THEN
+               DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%list)
+            END IF
+            IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%id_kind)) THEN
+               DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%id_kind)
+            END IF
+            IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ij_kind)) THEN
+               DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%ij_kind)
+            END IF
+            IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start)) THEN
+               DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%grp_kind_start)
+            END IF
+            IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)) THEN
+               DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%grp_kind_end)
+            END IF
+            IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%ei_scale)) THEN
+               DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%ei_scale)
+            END IF
+            IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)) THEN
+               DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%vdw_scale)
+            END IF
+            IF (ASSOCIATED(fist_neighbor%neighbor_kind_pairs(i)%is_onfo)) THEN
+               DEALLOCATE (fist_neighbor%neighbor_kind_pairs(i)%is_onfo)
+            END IF
+         END DO
+         DEALLOCATE (fist_neighbor%neighbor_kind_pairs)
       END IF
    END SUBROUTINE fist_neighbor_deallocate
 

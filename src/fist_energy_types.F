@@ -48,11 +48,15 @@ CONTAINS
    SUBROUTINE allocate_fist_energy(fist_energy)
       TYPE(fist_energy_type), POINTER                    :: fist_energy
 
-      IF (.NOT. ASSOCIATED(fist_energy)) THEN
-         ALLOCATE (fist_energy)
-      END IF
-
-      CALL init_fist_energy(fist_energy)
+      fist_energy%kin = 0.0_dp
+      fist_energy%pot = 0.0_dp
+      fist_energy%e_gspace = 0.0_dp
+      fist_energy%e_self = 0.0_dp
+      fist_energy%e_neut = 0.0_dp
+      fist_energy%e_bonded = 0.0_dp
+      fist_energy%e_induction = 0.0_dp
+      fist_energy%kin_shell = 0.0_dp
+      fist_energy%harm_shell = 0.0_dp
 
    END SUBROUTINE allocate_fist_energy
 
@@ -64,44 +68,10 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE deallocate_fist_energy(fist_energy)
-      TYPE(fist_energy_type), POINTER                    :: fist_energy
+      TYPE(fist_energy_type), INTENT(INOUT)              :: fist_energy
 
-      IF (ASSOCIATED(fist_energy)) THEN
-         DEALLOCATE (fist_energy)
-      ELSE
-         CALL cp_abort(__LOCATION__, &
-                       "The fist_energy pointer is not associated "// &
-                       "and cannot be deallocated.")
-      END IF
+      MARK_USED(fist_energy)
 
    END SUBROUTINE deallocate_fist_energy
-
-! **************************************************************************************************
-!> \brief   Initialise a Fist energy data structure.
-!> \param fist_energy ...
-!> \date    13.06.2002
-!> \author  MK
-!> \version 1.0
-! **************************************************************************************************
-   SUBROUTINE init_fist_energy(fist_energy)
-      TYPE(fist_energy_type), POINTER                    :: fist_energy
-
-      IF (ASSOCIATED(fist_energy)) THEN
-         fist_energy%kin = 0.0_dp
-         fist_energy%pot = 0.0_dp
-         fist_energy%e_gspace = 0.0_dp
-         fist_energy%e_self = 0.0_dp
-         fist_energy%e_neut = 0.0_dp
-         fist_energy%e_bonded = 0.0_dp
-         fist_energy%e_induction = 0.0_dp
-         fist_energy%kin_shell = 0.0_dp
-         fist_energy%harm_shell = 0.0_dp
-      ELSE
-         CALL cp_abort(__LOCATION__, &
-                       "The fist_energy pointer is not associated "// &
-                       "and cannot be initialised.")
-      END IF
-
-   END SUBROUTINE init_fist_energy
 
 END MODULE fist_energy_types

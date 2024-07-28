@@ -156,7 +156,7 @@ CONTAINS
       CALL ewald_env_set(ewald_env, poisson_section=poisson_section)
 
       ! Read the efield section
-      NULLIFY (efield)
+      ALLOCATE (efield)
       CALL read_efield_section(mm_section, efield)
       CALL fist_env_set(fist_env, efield=efield)
 
@@ -263,6 +263,7 @@ CONTAINS
       END IF
 
       ! Create the fist_energy_type
+      ALLOCATE (thermo)
       CALL allocate_fist_energy(thermo)
 
       ! Print the molecule kind set

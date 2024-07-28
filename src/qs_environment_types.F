@@ -1575,6 +1575,8 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%exstate_env)) THEN
          CALL exstate_release(qs_env%exstate_env)
+         DEALLOCATE(qs_env%exstate_env)
+         NULLIFY(qs_env%exstate_env)
       END IF
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
          CALL mp2_env_release(qs_env%mp2_env)
@@ -1807,6 +1809,8 @@ CONTAINS
       END IF
       IF (ASSOCIATED(qs_env%exstate_env)) THEN
          CALL exstate_release(qs_env%exstate_env)
+         DEALLOCATE(qs_env%exstate_env)
+         NULLIFY(qs_env%exstate_env)
       END IF
       IF (ASSOCIATED(qs_env%mp2_env)) THEN
          CALL mp2_env_release(qs_env%mp2_env)

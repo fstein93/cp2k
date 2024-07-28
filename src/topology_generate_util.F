@@ -863,6 +863,7 @@ CONTAINS
             "  Achieved consistency in connectivity generation."
       END IF
       CALL fist_neighbor_deallocate(nonbonded)
+      DEALLOCATE (nonbonded)
       CALL timestop(handle2)
       CALL timeset(TRIM(routineN)//"_6", handle2)
       ! Deallocate temporary working arrays

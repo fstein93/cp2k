@@ -47,7 +47,7 @@ CONTAINS
 !> \param todo ...
 ! **************************************************************************************************
    SUBROUTINE get_next_job(farming_env, start, END, current, todo)
-      TYPE(farming_env_type), POINTER                    :: farming_env
+      TYPE(farming_env_type), INTENT(IN)                 :: farming_env
       INTEGER, INTENT(IN)                                :: start, END
       INTEGER, INTENT(INOUT)                             :: current
       INTEGER, INTENT(OUT)                               :: todo
@@ -116,7 +116,7 @@ CONTAINS
 !> \param para_env ...
 ! **************************************************************************************************
    SUBROUTINE farming_parse_input(farming_env, root_section, para_env)
-      TYPE(farming_env_type), POINTER                    :: farming_env
+      TYPE(farming_env_type), INTENT(INOUT)              :: farming_env
       TYPE(section_vals_type), POINTER                   :: root_section
       TYPE(mp_para_env_type), POINTER                    :: para_env
 

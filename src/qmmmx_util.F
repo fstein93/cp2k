@@ -337,6 +337,7 @@ CONTAINS
 
       DEALLOCATE (cur_indices, cur_labels)
       CALL fist_neighbor_deallocate(nlist)
+      DEALLOCATE (nlist)
 
       ![NB] perhap be controlled by some &PRINT section?
       CALL cp_subsys_get(subsys, para_env=para_env)

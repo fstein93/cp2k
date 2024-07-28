@@ -504,7 +504,7 @@ CONTAINS
       TYPE(cp_logger_type), POINTER            :: logger
       TYPE(cp_parser_type), POINTER            :: my_parser
       TYPE(cp_unit_set_type)         :: default_units
-      TYPE(farming_env_type), POINTER          :: farming_env
+      TYPE(farming_env_type)          :: farming_env
       TYPE(section_type), POINTER              :: g_section
       TYPE(section_vals_type), POINTER         :: g_data
       TYPE(mp_comm_type)                       :: minion_group, new_group
@@ -519,7 +519,6 @@ CONTAINS
 
       IF (output_unit > 0) WRITE (output_unit, FMT="(T2,A)") "FARMING| Hi, welcome on this farm!"
 
-      ALLOCATE (farming_env)
       CALL init_farming_env(farming_env)
       ! remember where we started
       CALL m_getcwd(farming_env%cwd)

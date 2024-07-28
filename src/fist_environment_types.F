@@ -211,13 +211,13 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Initialise the FIST environment.
-!> \param fist_env the pointer to the fist_env
+!> \param fist_env the fist_env
 !> \param para_env ...
 !> \par History
 !>      11/03
 !> \author CJM
 ! **************************************************************************************************
-   SUBROUTINE init_fist_env(fist_env, para_env)
+   SUBROUTINE fist_env_create(fist_env, para_env)
 
       TYPE(fist_environment_type), INTENT(OUT)           :: fist_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -241,7 +241,7 @@ CONTAINS
       CALL para_env%retain()
       fist_env%para_env => para_env
 
-   END SUBROUTINE init_fist_env
+   END SUBROUTINE fist_env_create
 
 ! **************************************************************************************************
 !> \brief Set the FIST environment.
@@ -402,21 +402,6 @@ CONTAINS
    END SUBROUTINE fist_env_set
 
 ! **************************************************************************************************
-!> \brief allocates and intitializes a fist_env
-!> \param fist_env the object to create
-!> \param para_env the parallel environment for the qs_env
-!> \par History
-!>      12.2002 created [fawzi]
-!> \author Fawzi Mohamed
-! **************************************************************************************************
-   SUBROUTINE fist_env_create(fist_env, para_env)
-      TYPE(fist_environment_type), INTENT(OUT)           :: fist_env
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
-
-      CALL init_fist_env(fist_env, para_env=para_env)
-   END SUBROUTINE fist_env_create
-
-! **************************************************************************************************
 !> \brief releases the given fist_env (see doc/ReferenceCounting.html)
 !> \param fist_env the object to release
 !> \par History
@@ -440,7 +425,11 @@ CONTAINS
          DEALLOCATE (fist_env%ewald_env)
       END IF
       CALL mp_para_env_release(fist_env%para_env)
-      CALL deallocate_fist_energy(fist_env%thermo)
+      IF (ASSOCIATED(fist_env%thermo)) THEN
+         CALL deallocate_fist_energy(fist_env%thermo)
+         DEALLOCATE (fist_env%thermo)
+         NULLIFY (fist_env%thermo)
+      END IF
 
       IF (ASSOCIATED(fist_env%fist_nonbond_env)) THEN
          CALL fist_nonbond_env_release(fist_env%fist_nonbond_env)

@@ -191,6 +191,8 @@ CONTAINS
       IF (build_from_scratch) THEN
          IF (ASSOCIATED(nonbonded)) THEN
             CALL fist_neighbor_deallocate(nonbonded)
+            DEALLOCATE (nonbonded)
+            NULLIFY (nonbonded)
          END IF
       END IF
 

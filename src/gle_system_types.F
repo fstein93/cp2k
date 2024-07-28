@@ -153,6 +153,7 @@ CONTAINS
             gle%c_mat(i, i) = gle%temp
          END DO
       END IF
+      ALLOCATE(gle%map_info)
       CALL create_map_info_type(gle%map_info)
    END SUBROUTINE gle_init
 
@@ -240,8 +241,11 @@ CONTAINS
          IF (ASSOCIATED(gle%mal)) THEN
             DEALLOCATE (gle%mal)
          END IF
-
+IF (ASSOCIATED(gle%map_info)) THEN
          CALL release_map_info_type(gle%map_info)
+         DEALLOCATE(gle%map_info)
+         NULLIFY(gle%map_info)
+         END IF
          DEALLOCATE (gle)
       END IF
 

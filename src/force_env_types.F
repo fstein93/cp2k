@@ -187,9 +187,8 @@ CONTAINS
 !>      see doc/ReferenceCounting.html
 ! **************************************************************************************************
    SUBROUTINE force_env_retain(force_env)
-      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(force_env_type), INTENT(INOUT)                :: force_env
 
-      CPASSERT(ASSOCIATED(force_env))
       CPASSERT(force_env%ref_count > 0)
       force_env%ref_count = force_env%ref_count + 1
    END SUBROUTINE force_env_retain

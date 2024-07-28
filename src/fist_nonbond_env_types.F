@@ -513,6 +513,7 @@ CONTAINS
 
       IF (ASSOCIATED(fist_nonbond_env%nonbonded)) THEN
          CALL fist_neighbor_deallocate(fist_nonbond_env%nonbonded)
+         DEALLOCATE (fist_nonbond_env%nonbonded)
       END IF
       ! Release potparm
       CALL pair_potential_pp_release(fist_nonbond_env%potparm)

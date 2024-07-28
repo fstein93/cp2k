@@ -268,7 +268,7 @@ CONTAINS
 !> \author ikuo
 ! **************************************************************************************************
    SUBROUTINE init_gromos_info(gro_info)
-      TYPE(gromos_info_type), POINTER                    :: gro_info
+      TYPE(gromos_info_type), INTENT(INOUT)              :: gro_info
 
       NULLIFY (gro_info%solvent_k)
       NULLIFY (gro_info%solvent_r0)
@@ -298,7 +298,7 @@ CONTAINS
 !> \author teo
 ! **************************************************************************************************
    SUBROUTINE init_chm_info(chm_info)
-      TYPE(charmm_info_type), POINTER                    :: chm_info
+      TYPE(charmm_info_type), INTENT(INOUT)              :: chm_info
 
       NULLIFY (chm_info%bond_a)
       NULLIFY (chm_info%bond_b)
@@ -344,7 +344,7 @@ CONTAINS
 !> \author teo
 ! **************************************************************************************************
    SUBROUTINE init_amber_info(amb_info)
-      TYPE(amber_info_type), POINTER                     :: amb_info
+      TYPE(amber_info_type), INTENT(INOUT)               :: amb_info
 
       NULLIFY (amb_info%bond_a)
       NULLIFY (amb_info%bond_b)
@@ -380,7 +380,7 @@ CONTAINS
 !> \author teo
 ! **************************************************************************************************
    SUBROUTINE init_inp_info(inp_info)
-      TYPE(input_info_type), POINTER                     :: inp_info
+      TYPE(input_info_type), INTENT(INOUT)               :: inp_info
 
       NULLIFY (inp_info%charge_atm)
       NULLIFY (inp_info%charge)
@@ -494,7 +494,7 @@ CONTAINS
 !> \author ikuo
 ! **************************************************************************************************
    SUBROUTINE deallocate_gromos_info(gro_info)
-      TYPE(gromos_info_type), POINTER                    :: gro_info
+      TYPE(gromos_info_type), INTENT(INOUT)              :: gro_info
 
       IF (ASSOCIATED(gro_info%solvent_k)) THEN
          DEALLOCATE (gro_info%solvent_k)
@@ -558,7 +558,7 @@ CONTAINS
 !> \author teo
 ! **************************************************************************************************
    SUBROUTINE deallocate_chm_info(chm_info)
-      TYPE(charmm_info_type), POINTER                    :: chm_info
+      TYPE(charmm_info_type), INTENT(INOUT)              :: chm_info
 
       IF (ASSOCIATED(chm_info%bond_a)) THEN
          DEALLOCATE (chm_info%bond_a)
@@ -670,7 +670,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    SUBROUTINE deallocate_amb_info(amb_info)
-      TYPE(amber_info_type), POINTER                     :: amb_info
+      TYPE(amber_info_type), INTENT(INOUT)               :: amb_info
 
       IF (ASSOCIATED(amb_info%bond_a)) THEN
          DEALLOCATE (amb_info%bond_a)
@@ -752,7 +752,7 @@ CONTAINS
 !> \author teo
 ! **************************************************************************************************
    SUBROUTINE deallocate_inp_info(inp_info)
-      TYPE(input_info_type), POINTER                     :: inp_info
+      TYPE(input_info_type), INTENT(INOUT)               :: inp_info
 
       INTEGER                                            :: i
 

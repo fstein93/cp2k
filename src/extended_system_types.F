@@ -91,7 +91,7 @@ CONTAINS
 !> \param section ...
 ! **************************************************************************************************
    SUBROUTINE lnhc_init(lnhc, section)
-      TYPE(lnhc_parameters_type), POINTER                :: lnhc
+      TYPE(lnhc_parameters_type), INTENT(INOUT)                :: lnhc
       TYPE(section_vals_type), POINTER                   :: section
 
       NULLIFY (lnhc%dt_yosh)
@@ -106,6 +106,7 @@ CONTAINS
       CALL section_vals_val_get(section, "YOSHIDA", i_val=lnhc%nyosh)
       CALL section_vals_val_get(section, "TIMECON", r_val=lnhc%tau_nhc)
       CALL section_vals_val_get(section, "MTS", i_val=lnhc%nc)
+      ALLOCATE(lnhc%map_info)
       CALL create_map_info_type(lnhc%map_info)
 
    END SUBROUTINE lnhc_init
@@ -115,9 +116,8 @@ CONTAINS
 !> \param map_info ...
 ! **************************************************************************************************
    SUBROUTINE create_map_info_type(map_info)
-      TYPE(map_info_type), POINTER                       :: map_info
+      TYPE(map_info_type), INTENT(OUT)                       :: map_info
 
-      ALLOCATE (map_info)
       NULLIFY (map_info%index, map_info%map_index)
       NULLIFY (map_info%v_scale)
       NULLIFY (map_info%p_scale)
@@ -132,9 +132,8 @@ CONTAINS
 !> \param map_info ...
 ! **************************************************************************************************
    SUBROUTINE release_map_info_type(map_info)
-      TYPE(map_info_type), POINTER                       :: map_info
+      TYPE(map_info_type), INTENT(INOUT)                       :: map_info
 
-      IF (ASSOCIATED(map_info)) THEN
          IF (ASSOCIATED(map_info%p_kin)) THEN
             DEALLOCATE (map_info%p_kin)
          END IF
@@ -154,9 +153,6 @@ CONTAINS
             DEALLOCATE (map_info%map_index)
          END IF
 
-         DEALLOCATE (map_info)
-      END IF
-
    END SUBROUTINE release_map_info_type
 
 ! **************************************************************************************************
@@ -164,18 +160,19 @@ CONTAINS
 !> \param lnhc ...
 ! **************************************************************************************************
    SUBROUTINE lnhc_dealloc(lnhc)
-      TYPE(lnhc_parameters_type), POINTER                :: lnhc
+      TYPE(lnhc_parameters_type), INTENT(INOUT)                :: lnhc
 
-      IF (ASSOCIATED(lnhc)) THEN
          IF (ASSOCIATED(lnhc%dt_yosh)) THEN
             DEALLOCATE (lnhc%dt_yosh)
          END IF
          IF (ASSOCIATED(lnhc%nvt)) THEN
             DEALLOCATE (lnhc%nvt)
          END IF
+         IF (ASSOCIATED(lnhx%map_info)) THEN
          CALL release_map_info_type(lnhc%map_info)
-         DEALLOCATE (lnhc)
-      END IF
+         DEALLOCATE(lnhc%map_info)
+         NULLIFY(lnh%map_info)
+         END IF
 
    END SUBROUTINE lnhc_dealloc
 

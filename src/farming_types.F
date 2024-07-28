@@ -59,25 +59,23 @@ CONTAINS
 !> \par History
 !>      03.2004 created [Joost VandeVondele ]
 ! **************************************************************************************************
-   SUBROUTINE init_farming_env(farming_env)
-      TYPE(farming_env_type), POINTER                    :: farming_env
+   ELEMENTAL SUBROUTINE init_farming_env(farming_env)
+      TYPE(farming_env_type), INTENT(INOUT)              :: farming_env
 
-      IF (ASSOCIATED(farming_env)) THEN
-         farming_env%group_size_wish = 0
-         farming_env%group_size_wish_set = .FALSE.
-         farming_env%ngroup_wish = 0
-         farming_env%ngroup_wish_set = .FALSE.
-         farming_env%restart = .FALSE.
-         farming_env%restart_n = 1
-         farming_env%cycle = .FALSE.
-         farming_env%captain_minion = .FALSE.
-         NULLIFY (farming_env%group_partition)
-         farming_env%cwd = "."
-         farming_env%Njobs = 0
-         ! so that maxsteps*ngroup is (likely) not overflowing
-         farming_env%max_steps = 65535
-         NULLIFY (farming_env%Job)
-      END IF
+      farming_env%group_size_wish = 0
+      farming_env%group_size_wish_set = .FALSE.
+      farming_env%ngroup_wish = 0
+      farming_env%ngroup_wish_set = .FALSE.
+      farming_env%restart = .FALSE.
+      farming_env%restart_n = 1
+      farming_env%cycle = .FALSE.
+      farming_env%captain_minion = .FALSE.
+      NULLIFY (farming_env%group_partition)
+      farming_env%cwd = "."
+      farming_env%Njobs = 0
+      ! so that maxsteps*ngroup is (likely) not overflowing
+      farming_env%max_steps = 65535
+      NULLIFY (farming_env%Job)
    END SUBROUTINE
 
 ! **************************************************************************************************
@@ -119,19 +117,17 @@ CONTAINS
 !>      03.2004 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE deallocate_farming_env(farming_env)
-      TYPE(farming_env_type), POINTER                    :: farming_env
+      TYPE(farming_env_type), INTENT(INOUT)              :: farming_env
 
       INTEGER                                            :: I
 
-      IF (ASSOCIATED(farming_env)) THEN
-         IF (ASSOCIATED(farming_env%job)) THEN
-            DO I = 1, SIZE(farming_env%job, 1)
-               CALL deallocate_job_type(farming_env%job(I))
-            END DO
-            DEALLOCATE (farming_env%job)
-         END IF
-         IF (ASSOCIATED(farming_env%group_partition)) DEALLOCATE (farming_env%group_partition)
-         DEALLOCATE (farming_env) ! and the type itself
+      IF (ASSOCIATED(farming_env%job)) THEN
+         DO I = 1, SIZE(farming_env%job, 1)
+            CALL deallocate_job_type(farming_env%job(I))
+         END DO
+         DEALLOCATE (farming_env%job)
       END IF
+      IF (ASSOCIATED(farming_env%group_partition)) DEALLOCATE (farming_env%group_partition)
+
    END SUBROUTINE deallocate_farming_env
 END MODULE farming_types

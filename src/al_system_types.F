@@ -73,6 +73,7 @@ CONTAINS
       CALL cite_reference(Jones2011)
       CALL section_vals_val_get(section, "TIMECON_NH", r_val=al%tau_nh)
       CALL section_vals_val_get(section, "TIMECON_LANGEVIN", r_val=al%tau_langevin)
+      ALLOCATE(al%map_info)
       CALL create_map_info_type(al%map_info)
 
    END SUBROUTINE al_init
@@ -110,7 +111,11 @@ CONTAINS
 
       IF (ASSOCIATED(al)) THEN
          CALL al_thermo_dealloc(al%nvt)
+         IF (ASSOCIATED(al%map_info)) THEN
          CALL release_map_info_type(al%map_info)
+         DEALLOCATE(al%map_info)
+         NULLIFY(al%map_info)
+         END IF
          DEALLOCATE (al)
       END IF
 

@@ -81,7 +81,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ewald_pw_create(ewald_pw, ewald_env, cell, cell_ref, print_section)
       TYPE(ewald_pw_type), INTENT(OUT)                   :: ewald_pw
-      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_environment_type), INTENT(IN)              :: ewald_env
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: print_section
 
@@ -128,7 +128,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ewald_pw_init(ewald_pw, ewald_env, cell, cell_ref, print_section)
       TYPE(ewald_pw_type), INTENT(INOUT)                 :: ewald_pw
-      TYPE(ewald_environment_type), POINTER              :: ewald_env
+      TYPE(ewald_environment_type), INTENT(IN)              :: ewald_env
       TYPE(cell_type), POINTER                           :: cell, cell_ref
       TYPE(section_vals_type), POINTER                   :: print_section
 
@@ -154,7 +154,6 @@ CONTAINS
       NULLIFY (pw_big_grid)
       NULLIFY (pw_small_grid, poisson_section)
 
-      CPASSERT(ASSOCIATED(ewald_env))
       CPASSERT(ASSOCIATED(cell))
       CALL ewald_env_get(ewald_env=ewald_env, &
                          para_env=para_env, &
