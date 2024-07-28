@@ -244,6 +244,7 @@ CONTAINS
       IF (my_subsection(1)) THEN
          ! Distance
          wrk_section => distance_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, dist_colvar_id)
          CALL colvar_check_points(colvar, distance_section)
          CALL section_vals_val_get(distance_section, "ATOMS", i_vals=iatms)
@@ -254,6 +255,7 @@ CONTAINS
       ELSE IF (my_subsection(2)) THEN
          ! Angle
          wrk_section => angle_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, angle_colvar_id)
          CALL colvar_check_points(colvar, angle_section)
          CALL section_vals_val_get(angle_section, "ATOMS", i_vals=iatms)
@@ -261,6 +263,7 @@ CONTAINS
       ELSE IF (my_subsection(3)) THEN
          ! Torsion
          wrk_section => torsion_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, torsion_colvar_id)
          CALL colvar_check_points(colvar, torsion_section)
          CALL section_vals_val_get(torsion_section, "ATOMS", i_vals=iatms)
@@ -269,6 +272,7 @@ CONTAINS
       ELSE IF (my_subsection(4)) THEN
          ! Coordination
          wrk_section => coordination_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, coord_colvar_id)
          CALL colvar_check_points(colvar, coordination_section)
          NULLIFY (colvar%coord_param%i_at_from, colvar%coord_param%c_kinds_from)
@@ -389,6 +393,7 @@ CONTAINS
       ELSE IF (my_subsection(5)) THEN
          ! Distance point from plane
          wrk_section => plane_dist_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, plane_distance_colvar_id)
          CALL colvar_check_points(colvar, plane_dist_section)
          CALL section_vals_val_get(plane_dist_section, "ATOMS_PLANE", i_vals=iatms)
@@ -400,6 +405,7 @@ CONTAINS
       ELSE IF (my_subsection(6)) THEN
          ! Rotation colvar of a segment w.r.t. another segment
          wrk_section => rotation_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, rotation_colvar_id)
          CALL colvar_check_points(colvar, rotation_section)
          CALL section_vals_val_get(rotation_section, "P1_BOND1", i_val=colvar%rotation_param%i_at1_bond1)
@@ -409,6 +415,7 @@ CONTAINS
       ELSE IF (my_subsection(7)) THEN
          ! Difference of two distances
          wrk_section => dfunct_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, dfunct_colvar_id)
          CALL colvar_check_points(colvar, dfunct_section)
          CALL section_vals_val_get(dfunct_section, "ATOMS", i_vals=iatms)
@@ -418,6 +425,7 @@ CONTAINS
       ELSE IF (my_subsection(8)) THEN
          ! Q Parameter
          wrk_section => qparm_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, qparm_colvar_id)
          CALL colvar_check_points(colvar, qparm_section)
          CALL section_vals_val_get(qparm_section, "RCUT", r_val=colvar%qparm_param%rcut)
@@ -448,6 +456,7 @@ CONTAINS
          colvar%qparm_param%n_atoms_to = ndim
       ELSE IF (my_subsection(9)) THEN
          ! Hydronium
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, hydronium_shell_colvar_id)
          NULLIFY (colvar%hydronium_shell_param%i_oxygens)
          NULLIFY (colvar%hydronium_shell_param%i_hydrogens)
@@ -460,6 +469,7 @@ CONTAINS
          !reaction path or distance from reaction path
          IF (my_subsection(10)) THEN
             path_section => reaction_path_section
+            ALLOCATE (colvar)
             CALL colvar_create(colvar, reaction_path_colvar_id)
             fmid = "POS"
             ifunc = 1
@@ -586,6 +596,7 @@ CONTAINS
 
       ELSE IF (my_subsection(11)) THEN
          ! combine colvar
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, combine_colvar_id)
          colvar%use_points = .FALSE.
          colvar_subsection => section_vals_get_subs_vals(combine_section, "COLVAR")
@@ -643,6 +654,7 @@ CONTAINS
       ELSE IF (my_subsection(12)) THEN
          ! Population
          wrk_section => population_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, population_colvar_id)
          CALL colvar_check_points(colvar, population_section)
 
@@ -718,6 +730,7 @@ CONTAINS
       ELSE IF (my_subsection(13)) THEN
          ! Angle between two planes
          wrk_section => plane_plane_angle_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, plane_plane_angle_colvar_id)
          CALL colvar_check_points(colvar, plane_plane_angle_section)
          ! Read the specification of the two planes
@@ -753,6 +766,7 @@ CONTAINS
       ELSE IF (my_subsection(14)) THEN
          ! Gyration Radius
          wrk_section => gyration_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, gyration_colvar_id)
          CALL colvar_check_points(colvar, gyration_section)
 
@@ -791,6 +805,7 @@ CONTAINS
       ELSE IF (my_subsection(15)) THEN
          ! RMSD_AB
          wrk_section => rmsd_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, rmsd_colvar_id)
 
          NULLIFY (colvar%rmsd_param%i_rmsd, colvar%rmsd_param%r_ref, colvar%rmsd_param%weights)
@@ -874,6 +889,7 @@ CONTAINS
       ELSE IF (my_subsection(17)) THEN
          ! Work on XYZ positions of atoms
          wrk_section => xyz_diag_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, xyz_diag_colvar_id)
          CALL colvar_check_points(colvar, wrk_section)
          CALL section_vals_val_get(wrk_section, "ATOM", i_val=iatm)
@@ -885,6 +901,7 @@ CONTAINS
       ELSE IF (my_subsection(18)) THEN
          ! Work on the outer diagonal (two atoms A,B) XYZ positions
          wrk_section => xyz_outerdiag_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, xyz_outerdiag_colvar_id)
          CALL colvar_check_points(colvar, wrk_section)
          CALL section_vals_val_get(wrk_section, "ATOMS", i_vals=iatms)
@@ -897,6 +914,7 @@ CONTAINS
       ELSE IF (my_subsection(19)) THEN
          ! Energy
          wrk_section => u_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, u_colvar_id)
          colvar%u_param%mixed_energy_section => section_vals_get_subs_vals(wrk_section, "MIXED")
          CALL section_vals_get(colvar%u_param%mixed_energy_section, explicit=use_mixed_energy)
@@ -904,6 +922,7 @@ CONTAINS
       ELSE IF (my_subsection(20)) THEN
          ! Wc hydrogen bond
          wrk_section => Wc_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, Wc_colvar_id)
          CALL colvar_check_points(colvar, Wc_section)
          CALL section_vals_val_get(Wc_section, "ATOMS", i_vals=iatms)
@@ -913,6 +932,7 @@ CONTAINS
       ELSE IF (my_subsection(21)) THEN
          ! HBP colvar
          wrk_section => HBP_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, HBP_colvar_id)
          CALL colvar_check_points(colvar, HBP_section)
          CALL section_vals_val_get(wrk_section, "NPOINTS", i_val=colvar%HBP%nPoints)
@@ -928,6 +948,7 @@ CONTAINS
          END DO
       ELSE IF (my_subsection(22)) THEN
          ! Ring Puckering
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, ring_puckering_colvar_id)
          CALL section_vals_val_get(ring_puckering_section, "ATOMS", i_vals=iatms)
          colvar%ring_puckering_param%nring = SIZE(iatms)
@@ -945,6 +966,7 @@ CONTAINS
       ELSE IF (my_subsection(23)) THEN
          ! Minimum Distance
          wrk_section => mindist_section
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, mindist_colvar_id)
          CALL colvar_check_points(colvar, mindist_section)
          NULLIFY (colvar%mindist_param%i_dist_from, colvar%mindist_param%i_coord_from, &
@@ -1021,6 +1043,7 @@ CONTAINS
          CALL section_vals_val_get(mindist_section, "LAMBDA", r_val=colvar%mindist_param%lambda)
       ELSE IF (my_subsection(24)) THEN
          ! Distance carboxylic acid and hydronium
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, acid_hyd_dist_colvar_id)
          NULLIFY (colvar%acid_hyd_dist_param%i_oxygens_water)
          NULLIFY (colvar%acid_hyd_dist_param%i_oxygens_acid)
@@ -1034,6 +1057,7 @@ CONTAINS
                                           colvar%acid_hyd_dist_param%i_hydrogens)
       ELSE IF (my_subsection(25)) THEN
          ! Number of oxygens in 1st shell of hydronium for carboxylic acid / water system
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, acid_hyd_shell_colvar_id)
          NULLIFY (colvar%acid_hyd_shell_param%i_oxygens_water)
          NULLIFY (colvar%acid_hyd_shell_param%i_oxygens_acid)
@@ -1047,6 +1071,7 @@ CONTAINS
                                           colvar%acid_hyd_shell_param%i_hydrogens)
       ELSE IF (my_subsection(26)) THEN
          ! Distance hydronium and hydroxide, autoionization of water
+         ALLOCATE (colvar)
          CALL colvar_create(colvar, hydronium_dist_colvar_id)
          NULLIFY (colvar%hydronium_dist_param%i_oxygens)
          NULLIFY (colvar%hydronium_dist_param%i_hydrogens)

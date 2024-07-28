@@ -177,7 +177,10 @@ CONTAINS
       CALL exclusion_release(exclusions)
       CALL deallocate_molecule_set(molecule_set)
       CALL deallocate_molecule_kind_set(molecule_kind_set)
-      CALL deallocate_global_constraint(gci)
+      IF (ASSOCIATED(gci)) THEN
+         CALL deallocate_global_constraint(gci)
+         DEALLOCATE (gci)
+      END IF
       CALL colvar_p_release(colvar_p)
 
    END SUBROUTINE glbopt_read_particle_set

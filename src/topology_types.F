@@ -585,6 +585,7 @@ CONTAINS
          DO i = 1, SIZE(constraint_info%colvar_set)
             IF (ASSOCIATED(constraint_info%colvar_set(i)%colvar)) THEN
                CALL colvar_release(constraint_info%colvar_set(i)%colvar)
+               DEALLOCATE (constraint_info%colvar_set(i)%colvar)
                NULLIFY (constraint_info%colvar_set(i)%colvar)
             END IF
          END DO

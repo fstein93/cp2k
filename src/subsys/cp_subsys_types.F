@@ -167,8 +167,16 @@ CONTAINS
                DEALLOCATE (subsys%multipoles)
             END IF
             CALL colvar_p_release(subsys%colvar_p)
-            CALL deallocate_global_constraint(subsys%gci)
-            CALL atprop_release(subsys%atprop)
+            IF (ASSOCIATED(subsys%gci)) THEN
+               CALL deallocate_global_constraint(subsys%gci)
+               DEALLOCATE (subsys%gci)
+               NULLIFY (subsys%gci)
+            END IF
+            IF (ASSOCIATED(subsys%atprop)) THEN
+               CALL atprop_release(subsys%atprop)
+               DEALLOCATE (subsys%atprop)
+               NULLIFY (subsys%atprop)
+            END IF
             IF (ASSOCIATED(subsys%virial)) DEALLOCATE (subsys%virial)
             CALL cp_result_release(subsys%results)
             CALL cell_release(subsys%cell)
@@ -446,7 +454,7 @@ CONTAINS
       TYPE(cp_subsys_type), INTENT(IN)                   :: subsys
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: f, r, s, v
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
+      TYPE(cell_type), INTENT(IN), OPTIONAL              :: cell
 
       INTEGER                                            :: i, iatom, j, k, natom, nparticle, nsize, &
                                                             shell_index
@@ -456,7 +464,6 @@ CONTAINS
 
       IF (PRESENT(s)) THEN
          CPASSERT(PRESENT(cell))
-         CPASSERT(ASSOCIATED(cell))
       END IF
 
       NULLIFY (core_particles)
@@ -596,7 +603,7 @@ CONTAINS
       TYPE(cp_subsys_type), INTENT(IN)                   :: subsys
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: f, r, s, v
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: fscale
-      TYPE(cell_type), OPTIONAL, POINTER                 :: cell
+      TYPE(cell_type), INTENT(IN), OPTIONAL              :: cell
 
       INTEGER                                            :: i, iatom, j, k, natom, nparticle, nsize, &
                                                             shell_index
@@ -684,7 +691,6 @@ CONTAINS
       IF (PRESENT(s)) THEN
          CPASSERT((SIZE(s) >= nsize))
          CPASSERT(PRESENT(cell))
-         CPASSERT(ASSOCIATED(cell))
          j = 0
          DO iatom = 1, natom
             shell_index = particles%els(iatom)%shell_index

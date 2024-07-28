@@ -205,6 +205,7 @@ CONTAINS
                       pv_diagonal=pv_diagonal)
 
       ! Should we compute atomic properties?
+      IF (.NOT. ASSOCIATED(subsys%atprop)) ALLOCATE (subsys%atprop)
       CALL atprop_create(subsys%atprop)
       CALL section_vals_val_get(my_force_env_section, "PROPERTIES%ATOMIC%ENERGY", l_val=atomic_energy)
       subsys%atprop%energy = atomic_energy
@@ -391,6 +392,7 @@ CONTAINS
       CALL molecule_kind_list_release(mol_kinds)
 
       ALLOCATE (small_subsys%virial)
+      IF (.NOT. ASSOCIATED(small_subsys%atprop)) ALLOCATE (small_subsys%atprop)
       CALL atprop_create(small_subsys%atprop)
       CALL cp_result_create(small_subsys%results)
    END SUBROUTINE create_small_subsys

@@ -418,11 +418,9 @@ CONTAINS
 !> \author alessandro laio and fawzi mohamed
 ! **************************************************************************************************
    SUBROUTINE colvar_create(colvar, colvar_id)
-      TYPE(colvar_type), POINTER                         :: colvar
+      TYPE(colvar_type), INTENT(OUT)                     :: colvar
       INTEGER, INTENT(in)                                :: colvar_id
 
-      CPASSERT(.NOT. ASSOCIATED(colvar))
-      ALLOCATE (colvar)
       colvar%type_id = colvar_id
       colvar%use_points = .FALSE.
       SELECT CASE (colvar_id)
@@ -1173,11 +1171,10 @@ CONTAINS
 !> \author alessandro laio and fawzi mohamed
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE colvar_release(colvar)
-      TYPE(colvar_type), POINTER                         :: colvar
+      TYPE(colvar_type), INTENT(INOUT)                   :: colvar
 
       INTEGER                                            :: i
 
-      CPASSERT(ASSOCIATED(colvar))
       IF (ASSOCIATED(colvar%dsdr)) THEN
          DEALLOCATE (colvar%dsdr)
       END IF
@@ -1288,6 +1285,7 @@ CONTAINS
          ELSE
             DO i = 1, SIZE(colvar%reaction_path_param%colvar_p)
                CALL colvar_release(colvar%reaction_path_param%colvar_p(i)%colvar)
+               DEALLOCATE (colvar%reaction_path_param%colvar_p(i)%colvar)
             END DO
             DEALLOCATE (colvar%reaction_path_param%colvar_p)
             DEALLOCATE (colvar%reaction_path_param%f_vals)
@@ -1296,6 +1294,7 @@ CONTAINS
       CASE (combine_colvar_id)
          DO i = 1, SIZE(colvar%combine_cvs_param%colvar_p)
             CALL colvar_release(colvar%combine_cvs_param%colvar_p(i)%colvar)
+            DEALLOCATE (colvar%combine_cvs_param%colvar_p(i)%colvar)
          END DO
          DEALLOCATE (colvar%combine_cvs_param%colvar_p)
          DEALLOCATE (colvar%combine_cvs_param%c_parameters)
@@ -1338,7 +1337,6 @@ CONTAINS
       CASE default
          CPABORT("")
       END SELECT
-      DEALLOCATE (colvar)
 
    END SUBROUTINE colvar_release
 
@@ -1350,7 +1348,7 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] 04.2006
 ! **************************************************************************************************
    RECURSIVE SUBROUTINE colvar_clone(colvar_out, colvar_in, i_atom_offset)
-      TYPE(colvar_type), INTENT(INOUT), POINTER          :: colvar_out
+      TYPE(colvar_type), INTENT(INOUT)                   :: colvar_out
       TYPE(colvar_type), INTENT(IN)                      :: colvar_in
       INTEGER, INTENT(IN), OPTIONAL                      :: i_atom_offset
 
@@ -1625,6 +1623,7 @@ CONTAINS
             ndim = SIZE(colvar_in%reaction_path_param%colvar_p)
             ALLOCATE (colvar_out%reaction_path_param%colvar_p(ndim))
             DO i = 1, ndim
+               ALLOCATE (colvar_out%reaction_path_param%colvar_p(i)%colvar)
                CALL colvar_clone(colvar_out%reaction_path_param%colvar_p(i)%colvar, &
                                  colvar_in%reaction_path_param%colvar_p(i)%colvar, &
                                  my_offset)
@@ -1642,6 +1641,7 @@ CONTAINS
          ndim = SIZE(colvar_in%combine_cvs_param%colvar_p)
          ALLOCATE (colvar_out%combine_cvs_param%colvar_p(ndim))
          DO i = 1, ndim
+            ALLOCATE (colvar_out%combine_cvs_param%colvar_p(i)%colvar)
             CALL colvar_clone(colvar_out%combine_cvs_param%colvar_p(i)%colvar, &
                               colvar_in%combine_cvs_param%colvar_p(i)%colvar, &
                               my_offset)
@@ -1802,10 +1802,12 @@ CONTAINS
          ub1 = MIN(ub1_new, ub1_old)
          ALLOCATE (work(lb1:ub1))
          DO j = lb1, ub1
+            ALLOCATE (work(j)%colvar)
             CALL colvar_clone(work(j)%colvar, colvar_set(j)%colvar)
          END DO
          DO j = lb1, ub1
             CALL colvar_release(colvar_set(j)%colvar)
+            DEALLOCATE (colvar_set(j)%colvar)
          END DO
          DEALLOCATE (colvar_set)
       END IF
@@ -1816,6 +1818,7 @@ CONTAINS
          lb1 = MAX(lb1_new, lb1_old)
          ub1 = MIN(ub1_new, ub1_old)
          DO j = lb1, ub1
+            ALLOCATE (colvar_set(j)%colvar)
             CALL colvar_clone(colvar_set(j)%colvar, work(j)%colvar)
          END DO
          DO j = lb1, ub1
@@ -1842,8 +1845,10 @@ CONTAINS
 
       IF (ASSOCIATED(colvar_p)) THEN
          DO i = 1, SIZE(colvar_p)
-            IF (ASSOCIATED(colvar_p(i)%colvar)) &
+            IF (ASSOCIATED(colvar_p(i)%colvar)) THEN
                CALL colvar_release(colvar_p(i)%colvar)
+               DEALLOCATE (colvar_p(i)%colvar)
+            END IF
          END DO
          DEALLOCATE (colvar_p)
       END IF

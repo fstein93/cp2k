@@ -103,9 +103,9 @@ CONTAINS
 !> \par History
 !>      - Optional tag added (17.05.2023, MK)
 ! **************************************************************************************************
-   SUBROUTINE cell_clone(cell_in, cell_out, tag)
+   PURE SUBROUTINE cell_clone(cell_in, cell_out, tag)
 
-      TYPE(cell_type), POINTER                           :: cell_in, cell_out
+      TYPE(cell_type), INTENT(INOUT)                     :: cell_in, cell_out
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: tag
 
       cell_out = cell_in
@@ -122,9 +122,9 @@ CONTAINS
 !> \par History
 !>      - Optional tag added (17.05.2023, MK)
 ! **************************************************************************************************
-   SUBROUTINE cell_copy(cell_in, cell_out, tag)
+   PURE SUBROUTINE cell_copy(cell_in, cell_out, tag)
 
-      TYPE(cell_type), POINTER                           :: cell_in, cell_out
+      TYPE(cell_type), INTENT(INOUT)                     :: cell_in, cell_out
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL             :: tag
 
       cell_out%deth = cell_in%deth
@@ -190,10 +190,10 @@ CONTAINS
 !> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE get_cell(cell, alpha, beta, gamma, deth, orthorhombic, abc, periodic, &
-                       h, h_inv, symmetry_id, tag)
+   PURE SUBROUTINE get_cell(cell, alpha, beta, gamma, deth, orthorhombic, abc, periodic, &
+                            h, h_inv, symmetry_id, tag)
 
-      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cell_type), INTENT(IN)                        :: cell
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: alpha, beta, gamma, deth
       LOGICAL, INTENT(OUT), OPTIONAL                     :: orthorhombic
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT), OPTIONAL :: abc
@@ -202,8 +202,6 @@ CONTAINS
          OPTIONAL                                        :: h, h_inv
       INTEGER, INTENT(OUT), OPTIONAL                     :: symmetry_id
       CHARACTER(LEN=*), INTENT(OUT), OPTIONAL            :: tag
-
-      CPASSERT(ASSOCIATED(cell))
 
       IF (PRESENT(deth)) deth = cell%deth ! the volume
       IF (PRESENT(orthorhombic)) orthorhombic = cell%orthorhombic
@@ -248,10 +246,10 @@ CONTAINS
 !> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION plane_distance(h, k, l, cell) RESULT(distance)
+   PURE FUNCTION plane_distance(h, k, l, cell) RESULT(distance)
 
       INTEGER, INTENT(IN)                                :: h, k, l
-      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cell_type), INTENT(IN)                        :: cell
       REAL(KIND=dp)                                      :: distance
 
       REAL(KIND=dp)                                      :: a, alpha, b, beta, c, cosa, cosb, cosg, &
@@ -312,15 +310,13 @@ CONTAINS
 !> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION pbc1(r, cell) RESULT(r_pbc)
+   PURE FUNCTION pbc1(r, cell) RESULT(r_pbc)
 
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
-      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cell_type), INTENT(IN)                        :: cell
       REAL(KIND=dp), DIMENSION(3)                        :: r_pbc
 
       REAL(KIND=dp), DIMENSION(3)                        :: s
-
-      CPASSERT(ASSOCIATED(cell))
 
       IF (cell%orthorhombic) THEN
          r_pbc(1) = r(1) - cell%hmat(1, 1)*cell%perd(1)*ANINT(cell%h_inv(1, 1)*r(1))
@@ -351,16 +347,14 @@ CONTAINS
 !> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION pbc2(r, cell, nl) RESULT(r_pbc)
+   PURE FUNCTION pbc2(r, cell, nl) RESULT(r_pbc)
 
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
-      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cell_type), INTENT(IN)                        :: cell
       INTEGER, DIMENSION(3), INTENT(IN)                  :: nl
       REAL(KIND=dp), DIMENSION(3)                        :: r_pbc
 
       REAL(KIND=dp), DIMENSION(3)                        :: s
-
-      CPASSERT(ASSOCIATED(cell))
 
       IF (cell%orthorhombic) THEN
          r_pbc(1) = r(1) - cell%hmat(1, 1)*cell%perd(1)* &
@@ -394,10 +388,10 @@ CONTAINS
 !> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
-   FUNCTION pbc3(ra, rb, cell) RESULT(rab_pbc)
+   PURE FUNCTION pbc3(ra, rb, cell) RESULT(rab_pbc)
 
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: ra, rb
-      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cell_type), INTENT(IN)                        :: cell
       REAL(KIND=dp), DIMENSION(3)                        :: rab_pbc
 
       INTEGER                                            :: icell, jcell, kcell
@@ -439,16 +433,14 @@ CONTAINS
 !> \param positive_range ...
 !> \return ...
 ! **************************************************************************************************
-   FUNCTION pbc4(r, cell, positive_range) RESULT(r_pbc)
+   PURE FUNCTION pbc4(r, cell, positive_range) RESULT(r_pbc)
 
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
-      TYPE(cell_type), POINTER                           :: cell
-      LOGICAL                                            :: positive_range
+      TYPE(cell_type), INTENT(IN)                        :: cell
+      LOGICAL, INTENT(IN)                                :: positive_range
       REAL(KIND=dp), DIMENSION(3)                        :: r_pbc
 
       REAL(KIND=dp), DIMENSION(3)                        :: s
-
-      CPASSERT(ASSOCIATED(cell))
 
       IF (positive_range) THEN
          IF (cell%orthorhombic) THEN
@@ -482,13 +474,11 @@ CONTAINS
 !> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE real_to_scaled(s, r, cell)
+   PURE SUBROUTINE real_to_scaled(s, r, cell)
 
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: s
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: r
-      TYPE(cell_type), POINTER                           :: cell
-
-      CPASSERT(ASSOCIATED(cell))
+      TYPE(cell_type), INTENT(IN)                        :: cell
 
       IF (cell%orthorhombic) THEN
          s(1) = cell%h_inv(1, 1)*r(1)
@@ -512,13 +502,11 @@ CONTAINS
 !> \author  Matthias Krack
 !> \version 1.0
 ! **************************************************************************************************
-   SUBROUTINE scaled_to_real(r, s, cell)
+   PURE SUBROUTINE scaled_to_real(r, s, cell)
 
       REAL(KIND=dp), DIMENSION(3), INTENT(OUT)           :: r
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: s
-      TYPE(cell_type), POINTER                           :: cell
-
-      CPASSERT(ASSOCIATED(cell))
+      TYPE(cell_type), INTENT(IN)                        :: cell
 
       IF (cell%orthorhombic) THEN
          r(1) = cell%hmat(1, 1)*s(1)
@@ -540,9 +528,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cell_retain(cell)
 
-      TYPE(cell_type), POINTER                           :: cell
+      TYPE(cell_type), INTENT(INOUT)                     :: cell
 
-      CPASSERT(ASSOCIATED(cell))
       CPASSERT(cell%ref_count > 0)
       cell%ref_count = cell%ref_count + 1
 

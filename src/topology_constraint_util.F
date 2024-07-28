@@ -922,12 +922,13 @@ CONTAINS
          colv_list(ncolv_mol)%restraint%k0 = cons_info%colv_k0(j)
          IF (cons_info%const_colv_target(j) == -HUGE(0.0_dp)) THEN
             ! Let's compute the value..
-            NULLIFY (local_colvar)
+            ALLOCATE (local_colvar)
             CALL colvar_clone(local_colvar, cons_info%colvar_set(j)%colvar, &
                               i_atom_offset=first_atom - 1)
             CALL colvar_eval_mol_f(local_colvar, topology%cell, particle_set)
             colv_list(ncolv_mol)%expected_value = local_colvar%ss
             CALL colvar_release(local_colvar)
+            DEALLOCATE (local_colvar)
          ELSE
             colv_list(ncolv_mol)%expected_value = cons_info%const_colv_target(j)
          END IF
@@ -1102,8 +1103,8 @@ CONTAINS
          lcolv(kk)%sigma = 0.0_dp
 
          ! Set Up colvar variable
-         NULLIFY (lcolv(kk)%colvar, lcolv(kk)%colvar_old)
          ! Colvar
+         ALLOCATE (lcolv(kk)%colvar)
          CALL colvar_clone(lcolv(kk)%colvar, cons_info%colvar_set(k)%colvar, &
                            i_atom_offset=first_atom - 1)
 
@@ -1148,6 +1149,7 @@ CONTAINS
          END IF
 
          ! Setup Colvar_old
+         ALLOCATE (lcolv(kk)%colvar_old)
          CALL colvar_clone(lcolv(kk)%colvar_old, lcolv(kk)%colvar)
 
          ! Check for consistency in the constraint definition

@@ -545,7 +545,7 @@ CONTAINS
                                 "Constraint section error: you have to specify at least one of the "// &
                                 "following keywords: MOLECULE, MOLNAME or INTERMOLECULAR! ")
                END IF
-               NULLIFY (cons_info%colvar_set(ig)%colvar)
+               ALLOCATE (cons_info%colvar_set(ig)%colvar)
                CALL section_vals_val_get(collective_section, "COLVAR", i_rep_section=ig, &
                                          i_val=icolvar)
                CALL colvar_clone(cons_info%colvar_set(ig)%colvar, &

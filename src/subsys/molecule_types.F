@@ -149,45 +149,44 @@ CONTAINS
 !> \author  Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE deallocate_global_constraint(gci)
-      TYPE(global_constraint_type), POINTER              :: gci
+      TYPE(global_constraint_type), INTENT(INOUT)        :: gci
 
       INTEGER                                            :: i
 
-      IF (ASSOCIATED(gci)) THEN
-         ! List of constraints
-         IF (ASSOCIATED(gci%colv_list)) THEN
-            DO i = 1, SIZE(gci%colv_list)
-               DEALLOCATE (gci%colv_list(i)%i_atoms)
-            END DO
-            DEALLOCATE (gci%colv_list)
-         END IF
-
-         IF (ASSOCIATED(gci%g3x3_list)) &
-            DEALLOCATE (gci%g3x3_list)
-
-         IF (ASSOCIATED(gci%g4x6_list)) &
-            DEALLOCATE (gci%g4x6_list)
-
-         ! Local information
-         IF (ASSOCIATED(gci%lcolv)) THEN
-            DO i = 1, SIZE(gci%lcolv)
-               CALL colvar_release(gci%lcolv(i)%colvar)
-               CALL colvar_release(gci%lcolv(i)%colvar_old)
-            END DO
-            DEALLOCATE (gci%lcolv)
-         END IF
-
-         IF (ASSOCIATED(gci%lg3x3)) &
-            DEALLOCATE (gci%lg3x3)
-
-         IF (ASSOCIATED(gci%lg4x6)) &
-            DEALLOCATE (gci%lg4x6)
-
-         IF (ASSOCIATED(gci%fixd_list)) &
-            DEALLOCATE (gci%fixd_list)
-
-         DEALLOCATE (gci)
+      ! List of constraints
+      IF (ASSOCIATED(gci%colv_list)) THEN
+         DO i = 1, SIZE(gci%colv_list)
+            DEALLOCATE (gci%colv_list(i)%i_atoms)
+         END DO
+         DEALLOCATE (gci%colv_list)
       END IF
+
+      IF (ASSOCIATED(gci%g3x3_list)) &
+         DEALLOCATE (gci%g3x3_list)
+
+      IF (ASSOCIATED(gci%g4x6_list)) &
+         DEALLOCATE (gci%g4x6_list)
+
+      ! Local information
+      IF (ASSOCIATED(gci%lcolv)) THEN
+         DO i = 1, SIZE(gci%lcolv)
+            CALL colvar_release(gci%lcolv(i)%colvar)
+            DEALLOCATE (gci%lcolv(i)%colvar)
+            CALL colvar_release(gci%lcolv(i)%colvar_old)
+            DEALLOCATE (gci%lcolv(i)%colvar_old)
+         END DO
+         DEALLOCATE (gci%lcolv)
+      END IF
+
+      IF (ASSOCIATED(gci%lg3x3)) &
+         DEALLOCATE (gci%lg3x3)
+
+      IF (ASSOCIATED(gci%lg4x6)) &
+         DEALLOCATE (gci%lg4x6)
+
+      IF (ASSOCIATED(gci%fixd_list)) &
+         DEALLOCATE (gci%fixd_list)
+
    END SUBROUTINE deallocate_global_constraint
 
 ! **************************************************************************************************
@@ -235,7 +234,9 @@ CONTAINS
                IF (ASSOCIATED(molecule_set(imolecule)%lci%lcolv)) THEN
                   DO j = 1, SIZE(molecule_set(imolecule)%lci%lcolv)
                      CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar)
+                     DEALLOCATE (molecule_set(imolecule)%lci%lcolv(j)%colvar)
                      CALL colvar_release(molecule_set(imolecule)%lci%lcolv(j)%colvar_old)
+                     DEALLOCATE (molecule_set(imolecule)%lci%lcolv(j)%colvar_old)
                   END DO
                   DEALLOCATE (molecule_set(imolecule)%lci%lcolv)
                END IF

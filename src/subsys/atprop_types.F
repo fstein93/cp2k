@@ -50,10 +50,9 @@ CONTAINS
 !> \param atprop_env ...
 ! **************************************************************************************************
    SUBROUTINE atprop_create(atprop_env)
-      TYPE(atprop_type), POINTER                         :: atprop_env
+      TYPE(atprop_type), INTENT(INOUT)                   :: atprop_env
 
       CALL atprop_release(atprop_env)
-      ALLOCATE (atprop_env)
 
    END SUBROUTINE atprop_create
 
@@ -141,27 +140,22 @@ CONTAINS
 !> \author fawzi
 ! **************************************************************************************************
    SUBROUTINE atprop_release(atprop_env)
-      TYPE(atprop_type), POINTER                         :: atprop_env
+      TYPE(atprop_type), INTENT(INOUT)                   :: atprop_env
 
-      IF (ASSOCIATED(atprop_env)) THEN
-         ! energy
-         CALL atprop_array_release(atprop_env%atener)
-         CALL atprop_array_release(atprop_env%ateb)
-         CALL atprop_array_release(atprop_env%ateself)
-         CALL atprop_array_release(atprop_env%atexc)
-         CALL atprop_array_release(atprop_env%atevdw)
-         CALL atprop_array_release(atprop_env%ategcp)
-         CALL atprop_array_release(atprop_env%atecc)
-         CALL atprop_array_release(atprop_env%ate1c)
-         CALL atprop_array_release(atprop_env%atecoul)
-         ! stress
-         IF (ASSOCIATED(atprop_env%atstress)) THEN
-            DEALLOCATE (atprop_env%atstress)
-         END IF
-         ! atprop type
-         DEALLOCATE (atprop_env)
+      ! energy
+      CALL atprop_array_release(atprop_env%atener)
+      CALL atprop_array_release(atprop_env%ateb)
+      CALL atprop_array_release(atprop_env%ateself)
+      CALL atprop_array_release(atprop_env%atexc)
+      CALL atprop_array_release(atprop_env%atevdw)
+      CALL atprop_array_release(atprop_env%ategcp)
+      CALL atprop_array_release(atprop_env%atecc)
+      CALL atprop_array_release(atprop_env%ate1c)
+      CALL atprop_array_release(atprop_env%atecoul)
+      ! stress
+      IF (ASSOCIATED(atprop_env%atstress)) THEN
+         DEALLOCATE (atprop_env%atstress)
       END IF
-      NULLIFY (atprop_env)
    END SUBROUTINE atprop_release
 
 END MODULE atprop_types
