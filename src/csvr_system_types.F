@@ -78,7 +78,7 @@ CONTAINS
       ! if applied once.. divided by two if the process is applied both to the first
       ! and the second verlet step
       csvr%tau_csvr = csvr%tau_csvr/(0.5_dp*simpar%dt)
-      ALLOCATE(csvr%map_info)
+      ALLOCATE (csvr%map_info)
       CALL create_map_info_type(csvr%map_info)
 
    END SUBROUTINE csvr_init
@@ -136,9 +136,9 @@ CONTAINS
       IF (ASSOCIATED(csvr)) THEN
          CALL csvr_thermo_dealloc(csvr%nvt)
          IF (ASSOCIATED(csvr%map_info)) THEN
-         CALL release_map_info_type(csvr%map_info)
-         DEALLOCATE(csvr%map_info)
-         NULLIFY(csvr%map_info)
+            CALL release_map_info_type(csvr%map_info)
+            DEALLOCATE (csvr%map_info)
+            NULLIFY (csvr%map_info)
          END IF
          DEALLOCATE (csvr)
       END IF

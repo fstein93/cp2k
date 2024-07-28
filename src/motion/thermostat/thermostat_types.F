@@ -257,9 +257,9 @@ CONTAINS
       NULLIFY (thermostat%section)
       IF (ASSOCIATED(thermostat%nhc)) THEN
          CALL lnhc_dealloc(thermostat%nhc)
-         DEALLOCATE(thermostat%nhc)
-         NULLIFY(thermostat%nhc)
-               END IF
+         DEALLOCATE (thermostat%nhc)
+         NULLIFY (thermostat%nhc)
+      END IF
       IF (ASSOCIATED(thermostat%csvr)) THEN
          CALL csvr_dealloc(thermostat%csvr)
       END IF
