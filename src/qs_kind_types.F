@@ -1255,10 +1255,10 @@ CONTAINS
          IF (basis_type == "") CYCLE
          IF (basis_type == "AUX") THEN
             IF (tmp_basis_set%norm_type < 0) tmp_basis_set%norm_type = 1
-            CALL init_aux_basis_set(tmp_basis_set)
+            IF (ASSOCIATED(tmp_basis_set)) CALL init_aux_basis_set(tmp_basis_set)
          ELSE
             IF (tmp_basis_set%norm_type < 0) tmp_basis_set%norm_type = 2
-            CALL init_orb_basis_set(tmp_basis_set)
+            IF (ASSOCIATED(tmp_basis_set)) CALL init_orb_basis_set(tmp_basis_set)
          END IF
       END DO
 
@@ -1336,7 +1336,7 @@ CONTAINS
             CALL get_qs_kind(qs_kind=qs_kind, hard_radius=rc, &
                              max_rad_local=max_rad_local_type, gpw_type_forced=gpw)
 
-            NULLIFY (soft_basis)
+            ALLOCATE (soft_basis)
             CALL allocate_gto_basis_set(soft_basis)
             CALL create_soft_basis(orb_basis, soft_basis, &
                                    qs_control%gapw_control%eps_fit, rc, paw_atom, &
@@ -2246,18 +2246,19 @@ CONTAINS
          DO i = 1, nb_rep
             SELECT CASE (basis_set_form(i))
             CASE ("GTO")
-               NULLIFY (tmp_basis_set)
+               ALLOCATE (tmp_basis_set)
                CALL allocate_gto_basis_set(tmp_basis_set)
                CALL read_gto_basis_set(qs_kind%element_symbol, basis_set_name(i), &
                                        tmp_basis_set, para_env, dft_section)
             CASE ("STO")
-               NULLIFY (sto_basis_set)
+               ALLOCATE (sto_basis_set)
                CALL allocate_sto_basis_set(sto_basis_set)
                CALL read_sto_basis_set(qs_kind%element_symbol, basis_set_name(i), &
                                        sto_basis_set, para_env, dft_section)
-               NULLIFY (tmp_basis_set)
+               ALLOCATE (tmp_basis_set)
                CALL create_gto_from_sto_basis(sto_basis_set, tmp_basis_set, ngauss)
                CALL deallocate_sto_basis_set(sto_basis_set)
+               DEALLOCATE (sto_basis_set)
             CASE DEFAULT
                CALL cp_abort(__LOCATION__, &
                              "Invalid basis set form "//TRIM(basis_set_form(i))// &
@@ -2271,7 +2272,7 @@ CONTAINS
          IF (explicit_basis) THEN
             CALL section_vals_get(basis_section, n_repetition=nexp)
             DO i = 1, nexp
-               NULLIFY (tmp_basis_set)
+               ALLOCATE (tmp_basis_set)
                CALL allocate_gto_basis_set(tmp_basis_set)
                CALL read_gto_basis_set(qs_kind%element_symbol, basis_type, &
                                        tmp_basis_set, basis_section, i, dft_section)

@@ -283,7 +283,7 @@ CONTAINS
                CALL get_basis_from_container(qs_kind_set(ikind)%basis_sets, basis_set=gto_basis, &
                                              basis_type=basis_type)
                CALL transfer_data_to_gto(gto_basis, opt_bas%kind_basis(jkind)%flex_basis(ibasis))
-               CALL init_orb_basis_set(gto_basis)
+               IF (ASSOCIATED(gto_basis)) CALL init_orb_basis_set(gto_basis)
             END IF
          END DO
       END DO

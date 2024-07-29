@@ -238,20 +238,24 @@ CONTAINS
          CALL cp_abort(__LOCATION__, &
                        "Provide basis sets")
       END IF
+      ALLOCATE (oba)
       CALL allocate_gto_basis_set(oba)
       CALL read_gto_basis_set(TRIM("A"), basis_type, oba, basis_section, irep=1)
       lamax = MAXVAL(oba%lmax)
+      ALLOCATE (obb)
       CALL allocate_gto_basis_set(obb)
       CALL read_gto_basis_set(TRIM("B"), basis_type, obb, basis_section, irep=2)
       lbmax = MAXVAL(obb%lmax)
       lmax = MAX(lamax, lbmax)
       IF (test_overlap_aba) THEN
+         ALLOCATE (fba)
          CALL allocate_gto_basis_set(fba)
          CALL read_gto_basis_set(TRIM("CA"), basis_type, fba, basis_section, irep=3)
          lcamax = MAXVAL(fba%lmax)
          lmax = MAX(lamax + lcamax, lbmax)
       END IF
       IF (test_overlap_abb) THEN
+         ALLOCATE (fbb)
          CALL allocate_gto_basis_set(fbb)
          CALL read_gto_basis_set(TRIM("CB"), basis_type, fbb, basis_section, irep=3)
          lcbmax = MAXVAL(fbb%lmax)
@@ -315,8 +319,15 @@ CONTAINS
       DEALLOCATE (scona_shg, sconb_shg, rab)
       CALL deallocate_gto_basis_set(oba)
       CALL deallocate_gto_basis_set(obb)
-      IF (test_overlap_aba) CALL deallocate_gto_basis_set(fba)
-      IF (test_overlap_abb) CALL deallocate_gto_basis_set(fbb)
+      DEALLOCATE (oba, obb)
+      IF (test_overlap_aba) THEN
+         CALL deallocate_gto_basis_set(fba)
+         DEALLOCATE (fba)
+      END IF
+      IF (test_overlap_abb) THEN
+         CALL deallocate_gto_basis_set(fbb)
+         DEALLOCATE (fbb)
+      END IF
 
       CALL timestop(handle)
 

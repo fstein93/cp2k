@@ -212,27 +212,31 @@ CONTAINS
       INTEGER                                            :: i
 
       IF (ASSOCIATED(sep)) THEN
+      IF (ASSOCIATED(sep%basis)) THEN
          CALL deallocate_sto_basis_set(sep%basis)
-         CALL semi_empirical_mpole_p_release(sep%w_mpole)
-         IF (ASSOCIATED(sep%beta)) THEN
-            DEALLOCATE (sep%beta)
-         END IF
-         IF (ASSOCIATED(sep%sto_exponents)) THEN
-            DEALLOCATE (sep%sto_exponents)
-         END IF
-         IF (ASSOCIATED(sep%zn)) THEN
-            DEALLOCATE (sep%zn)
-         END IF
-         IF (ASSOCIATED(sep%w)) THEN
-            DEALLOCATE (sep%w)
-         END IF
-         IF (ALLOCATED(sep%expns3_int)) THEN
-            DO i = 1, SIZE(sep%expns3_int)
-               CALL semi_empirical_expns3_release(sep%expns3_int(i))
-            END DO
-            DEALLOCATE (sep%expns3_int)
-         END IF
-         DEALLOCATE (sep)
+         DEALLOCATE (sep%basis)
+         NULLIFY (sep%basis)
+      END IF
+      CALL semi_empirical_mpole_p_release(sep%w_mpole)
+      IF (ASSOCIATED(sep%beta)) THEN
+         DEALLOCATE (sep%beta)
+      END IF
+      IF (ASSOCIATED(sep%sto_exponents)) THEN
+         DEALLOCATE (sep%sto_exponents)
+      END IF
+      IF (ASSOCIATED(sep%zn)) THEN
+         DEALLOCATE (sep%zn)
+      END IF
+      IF (ASSOCIATED(sep%w)) THEN
+         DEALLOCATE (sep%w)
+      END IF
+      IF (ALLOCATED(sep%expns3_int)) THEN
+         DO i = 1, SIZE(sep%expns3_int)
+            CALL semi_empirical_expns3_release(sep%expns3_int(i))
+         END DO
+         DEALLOCATE (sep%expns3_int)
+      END IF
+      DEALLOCATE (sep)
       END IF
 
    END SUBROUTINE semi_empirical_release

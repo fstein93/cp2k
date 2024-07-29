@@ -1579,6 +1579,7 @@ CONTAINS
       NULLIFY (lmax, lmin, npgf, nshell, l, n, zet, gcc)
 
       ! allocate the basis
+      IF (.NOT. ASSOCIATED(gto_basis_set)) ALLOCATE (gto_basis_set)
       CALL allocate_gto_basis_set(gto_basis_set)
 
       ! brute force

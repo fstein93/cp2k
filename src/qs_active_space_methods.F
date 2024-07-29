@@ -2576,12 +2576,15 @@ CONTAINS
          sym(i) = lnam(i)
          zet(i) = srules(zval, ne, nq(1), lq(1))
       END DO
+      ALLOCATE (sto_basis_set)
       CALL allocate_sto_basis_set(sto_basis_set)
       CALL set_sto_basis_set(sto_basis_set, nshell=1, nq=nq, lq=lq, zet=zet, symbol=sym)
+      ALLOCATE (pro_basis_set)
       CALL create_gto_from_sto_basis(sto_basis_set, pro_basis_set, 6)
       pro_basis_set%norm_type = 2
       CALL init_orb_basis_set(pro_basis_set)
       CALL deallocate_sto_basis_set(sto_basis_set)
+      DEALLOCATE (sto_basis_set)
 
    END SUBROUTINE create_pro_basis
 

@@ -59,7 +59,7 @@ CONTAINS
    SUBROUTINE create_soft_basis(orb_basis, soft_basis, eps_fit, rc, paw_atom, &
                                 paw_type_forced, gpw_r3d_rs_type_forced)
 
-      TYPE(gto_basis_set_type), POINTER                  :: orb_basis, soft_basis
+      TYPE(gto_basis_set_type), INTENT(INOUT)            :: orb_basis, soft_basis
       REAL(dp), INTENT(IN)                               :: eps_fit, rc
       LOGICAL, INTENT(OUT)                               :: paw_atom
       LOGICAL, INTENT(IN)                                :: paw_type_forced, gpw_r3d_rs_type_forced

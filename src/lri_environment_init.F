@@ -159,6 +159,8 @@ CONTAINS
          NULLIFY (lri_env%orb_basis(ikind)%gto_basis_set)
          NULLIFY (lri_env%ri_basis(ikind)%gto_basis_set)
          IF (ASSOCIATED(orb_basis_set)) THEN
+            ALLOCATE (lri_env%orb_basis(ikind)%gto_basis_set)
+            ALLOCATE (lri_env%ri_basis(ikind)%gto_basis_set)
             CALL copy_gto_basis_set(orb_basis_set, lri_env%orb_basis(ikind)%gto_basis_set)
             CALL copy_gto_basis_set(ri_basis_set, lri_env%ri_basis(ikind)%gto_basis_set)
          END IF

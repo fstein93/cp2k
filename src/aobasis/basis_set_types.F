@@ -153,11 +153,11 @@ CONTAINS
 
       ! - Creation (26.10.2000,MK)
 
-      TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
+      TYPE(gto_basis_set_type), INTENT(INOUT)            :: gto_basis_set
 
       CALL deallocate_gto_basis_set(gto_basis_set)
 
-      ALLOCATE (gto_basis_set)
+      gto_basis_set = gto_basis_set_type()
 
    END SUBROUTINE allocate_gto_basis_set
 
@@ -171,37 +171,34 @@ CONTAINS
 
       ! - Creation (03.11.2000,MK)
 
-      TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
+      TYPE(gto_basis_set_type), INTENT(INOUT)            :: gto_basis_set
 
-      IF (ASSOCIATED(gto_basis_set)) THEN
-         IF (ASSOCIATED(gto_basis_set%cgf_symbol)) DEALLOCATE (gto_basis_set%cgf_symbol)
-         IF (ASSOCIATED(gto_basis_set%sgf_symbol)) DEALLOCATE (gto_basis_set%sgf_symbol)
-         IF (ASSOCIATED(gto_basis_set%norm_cgf)) DEALLOCATE (gto_basis_set%norm_cgf)
-         IF (ASSOCIATED(gto_basis_set%set_radius)) DEALLOCATE (gto_basis_set%set_radius)
-         IF (ASSOCIATED(gto_basis_set%lmax)) DEALLOCATE (gto_basis_set%lmax)
-         IF (ASSOCIATED(gto_basis_set%lmin)) DEALLOCATE (gto_basis_set%lmin)
-         IF (ASSOCIATED(gto_basis_set%lx)) DEALLOCATE (gto_basis_set%lx)
-         IF (ASSOCIATED(gto_basis_set%ly)) DEALLOCATE (gto_basis_set%ly)
-         IF (ASSOCIATED(gto_basis_set%lz)) DEALLOCATE (gto_basis_set%lz)
-         IF (ASSOCIATED(gto_basis_set%m)) DEALLOCATE (gto_basis_set%m)
-         IF (ASSOCIATED(gto_basis_set%ncgf_set)) DEALLOCATE (gto_basis_set%ncgf_set)
-         IF (ASSOCIATED(gto_basis_set%npgf)) DEALLOCATE (gto_basis_set%npgf)
-         IF (ASSOCIATED(gto_basis_set%nsgf_set)) DEALLOCATE (gto_basis_set%nsgf_set)
-         IF (ASSOCIATED(gto_basis_set%nshell)) DEALLOCATE (gto_basis_set%nshell)
-         IF (ASSOCIATED(gto_basis_set%cphi)) DEALLOCATE (gto_basis_set%cphi)
-         IF (ASSOCIATED(gto_basis_set%pgf_radius)) DEALLOCATE (gto_basis_set%pgf_radius)
-         IF (ASSOCIATED(gto_basis_set%sphi)) DEALLOCATE (gto_basis_set%sphi)
-         IF (ASSOCIATED(gto_basis_set%scon)) DEALLOCATE (gto_basis_set%scon)
-         IF (ASSOCIATED(gto_basis_set%zet)) DEALLOCATE (gto_basis_set%zet)
-         IF (ASSOCIATED(gto_basis_set%first_cgf)) DEALLOCATE (gto_basis_set%first_cgf)
-         IF (ASSOCIATED(gto_basis_set%first_sgf)) DEALLOCATE (gto_basis_set%first_sgf)
-         IF (ASSOCIATED(gto_basis_set%l)) DEALLOCATE (gto_basis_set%l)
-         IF (ASSOCIATED(gto_basis_set%last_cgf)) DEALLOCATE (gto_basis_set%last_cgf)
-         IF (ASSOCIATED(gto_basis_set%last_sgf)) DEALLOCATE (gto_basis_set%last_sgf)
-         IF (ASSOCIATED(gto_basis_set%n)) DEALLOCATE (gto_basis_set%n)
-         IF (ASSOCIATED(gto_basis_set%gcc)) DEALLOCATE (gto_basis_set%gcc)
-         DEALLOCATE (gto_basis_set)
-      END IF
+      IF (ASSOCIATED(gto_basis_set%cgf_symbol)) DEALLOCATE (gto_basis_set%cgf_symbol)
+      IF (ASSOCIATED(gto_basis_set%sgf_symbol)) DEALLOCATE (gto_basis_set%sgf_symbol)
+      IF (ASSOCIATED(gto_basis_set%norm_cgf)) DEALLOCATE (gto_basis_set%norm_cgf)
+      IF (ASSOCIATED(gto_basis_set%set_radius)) DEALLOCATE (gto_basis_set%set_radius)
+      IF (ASSOCIATED(gto_basis_set%lmax)) DEALLOCATE (gto_basis_set%lmax)
+      IF (ASSOCIATED(gto_basis_set%lmin)) DEALLOCATE (gto_basis_set%lmin)
+      IF (ASSOCIATED(gto_basis_set%lx)) DEALLOCATE (gto_basis_set%lx)
+      IF (ASSOCIATED(gto_basis_set%ly)) DEALLOCATE (gto_basis_set%ly)
+      IF (ASSOCIATED(gto_basis_set%lz)) DEALLOCATE (gto_basis_set%lz)
+      IF (ASSOCIATED(gto_basis_set%m)) DEALLOCATE (gto_basis_set%m)
+      IF (ASSOCIATED(gto_basis_set%ncgf_set)) DEALLOCATE (gto_basis_set%ncgf_set)
+      IF (ASSOCIATED(gto_basis_set%npgf)) DEALLOCATE (gto_basis_set%npgf)
+      IF (ASSOCIATED(gto_basis_set%nsgf_set)) DEALLOCATE (gto_basis_set%nsgf_set)
+      IF (ASSOCIATED(gto_basis_set%nshell)) DEALLOCATE (gto_basis_set%nshell)
+      IF (ASSOCIATED(gto_basis_set%cphi)) DEALLOCATE (gto_basis_set%cphi)
+      IF (ASSOCIATED(gto_basis_set%pgf_radius)) DEALLOCATE (gto_basis_set%pgf_radius)
+      IF (ASSOCIATED(gto_basis_set%sphi)) DEALLOCATE (gto_basis_set%sphi)
+      IF (ASSOCIATED(gto_basis_set%scon)) DEALLOCATE (gto_basis_set%scon)
+      IF (ASSOCIATED(gto_basis_set%zet)) DEALLOCATE (gto_basis_set%zet)
+      IF (ASSOCIATED(gto_basis_set%first_cgf)) DEALLOCATE (gto_basis_set%first_cgf)
+      IF (ASSOCIATED(gto_basis_set%first_sgf)) DEALLOCATE (gto_basis_set%first_sgf)
+      IF (ASSOCIATED(gto_basis_set%l)) DEALLOCATE (gto_basis_set%l)
+      IF (ASSOCIATED(gto_basis_set%last_cgf)) DEALLOCATE (gto_basis_set%last_cgf)
+      IF (ASSOCIATED(gto_basis_set%last_sgf)) DEALLOCATE (gto_basis_set%last_sgf)
+      IF (ASSOCIATED(gto_basis_set%n)) DEALLOCATE (gto_basis_set%n)
+      IF (ASSOCIATED(gto_basis_set%gcc)) DEALLOCATE (gto_basis_set%gcc)
    END SUBROUTINE deallocate_gto_basis_set
 
 ! **************************************************************************************************
@@ -214,7 +211,7 @@ CONTAINS
       ! Copy a Gaussian-type orbital (GTO) basis set data set.
 
       TYPE(gto_basis_set_type), INTENT(IN)               :: basis_set_in
-      TYPE(gto_basis_set_type), POINTER                  :: basis_set_out
+      TYPE(gto_basis_set_type), INTENT(INOUT)            :: basis_set_out
 
       INTEGER                                            :: maxco, maxpgf, maxshell, ncgf, nset, nsgf
 
@@ -285,7 +282,7 @@ CONTAINS
       ! Create a primitives only basis set
 
       TYPE(gto_basis_set_type), INTENT(IN)               :: basis_set
-      TYPE(gto_basis_set_type), POINTER                  :: pbasis
+      TYPE(gto_basis_set_type), INTENT(INOUT)            :: pbasis
 
       INTEGER                                            :: i, ico, ip, ipgf, iset, ishell, l, lm, &
                                                             lshell, m, maxco, mpgf, nc, ncgf, ns, &
@@ -742,15 +739,11 @@ CONTAINS
 
       ! - Creation (06.12.2000,MK)
 
-      TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
+      TYPE(gto_basis_set_type), INTENT(INOUT)            :: gto_basis_set
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_aux_basis_set'
 
       INTEGER                                            :: handle
-
-! -------------------------------------------------------------------------
-
-      IF (.NOT. ASSOCIATED(gto_basis_set)) RETURN
 
       CALL timeset(routineN, handle)
 
@@ -1065,15 +1058,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE init_orb_basis_set(gto_basis_set)
 
-      TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
+      TYPE(gto_basis_set_type), INTENT(INOUT)            :: gto_basis_set
 
       CHARACTER(len=*), PARAMETER :: routineN = 'init_orb_basis_set'
 
       INTEGER                                            :: handle
-
-! -------------------------------------------------------------------------
-
-      IF (.NOT. ASSOCIATED(gto_basis_set)) RETURN
 
       CALL timeset(routineN, handle)
 
@@ -1108,7 +1097,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE normalise_gcc_orb(gto_basis_set)
 
-      TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
+      TYPE(gto_basis_set_type), INTENT(INOUT)            :: gto_basis_set
 
       INTEGER                                            :: ipgf, iset, ishell, l
       REAL(KIND=dp)                                      :: expzet, gcca, prefac, zeta
@@ -1958,11 +1947,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE allocate_sto_basis_set(sto_basis_set)
 
-      TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
+      TYPE(sto_basis_set_type), INTENT(INOUT)            :: sto_basis_set
 
       CALL deallocate_sto_basis_set(sto_basis_set)
 
-      ALLOCATE (sto_basis_set)
+      sto_basis_set = sto_basis_set_type()
 
    END SUBROUTINE allocate_sto_basis_set
 
@@ -1972,26 +1961,25 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE deallocate_sto_basis_set(sto_basis_set)
 
-      TYPE(sto_basis_set_type), POINTER                  :: sto_basis_set
+      TYPE(sto_basis_set_type), INTENT(INOUT)            :: sto_basis_set
 
-! -------------------------------------------------------------------------
-
-      IF (ASSOCIATED(sto_basis_set)) THEN
-         IF (ASSOCIATED(sto_basis_set%symbol)) THEN
-            DEALLOCATE (sto_basis_set%symbol)
-         END IF
-         IF (ASSOCIATED(sto_basis_set%nq)) THEN
-            DEALLOCATE (sto_basis_set%nq)
-         END IF
-         IF (ASSOCIATED(sto_basis_set%lq)) THEN
-            DEALLOCATE (sto_basis_set%lq)
-         END IF
-         IF (ASSOCIATED(sto_basis_set%zet)) THEN
-            DEALLOCATE (sto_basis_set%zet)
-         END IF
-
-         DEALLOCATE (sto_basis_set)
+      IF (ASSOCIATED(sto_basis_set%symbol)) THEN
+         DEALLOCATE (sto_basis_set%symbol)
+         NULLIFY (sto_basis_set%symbol)
       END IF
+      IF (ASSOCIATED(sto_basis_set%nq)) THEN
+         DEALLOCATE (sto_basis_set%nq)
+         NULLIFY (sto_basis_set%nq)
+      END IF
+      IF (ASSOCIATED(sto_basis_set%lq)) THEN
+         DEALLOCATE (sto_basis_set%lq)
+         NULLIFY (sto_basis_set%lq)
+      END IF
+      IF (ASSOCIATED(sto_basis_set%zet)) THEN
+         DEALLOCATE (sto_basis_set%zet)
+         NULLIFY (sto_basis_set%zet)
+      END IF
+
    END SUBROUTINE deallocate_sto_basis_set
 
 ! **************************************************************************************************
@@ -2263,7 +2251,7 @@ CONTAINS
    SUBROUTINE create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss, ortho)
 
       TYPE(sto_basis_set_type), INTENT(IN)               :: sto_basis_set
-      TYPE(gto_basis_set_type), POINTER                  :: gto_basis_set
+      TYPE(gto_basis_set_type), INTENT(INOUT)            :: gto_basis_set
       INTEGER, INTENT(IN), OPTIONAL                      :: ngauss
       LOGICAL, INTENT(IN), OPTIONAL                      :: ortho
 

@@ -222,6 +222,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), POINTER               :: zet
 
       IF (ASSOCIATED(sep)) THEN
+         IF (.NOT. ASSOCIATED(sep%basis)) ALLOCATE (sep%basis)
          CALL allocate_sto_basis_set(sep%basis)
          nshell = 0
          IF (sep%natorb == 1) nshell = 1
@@ -248,6 +249,7 @@ CONTAINS
             sep%ngauss = ngauss
             CALL set_sto_basis_set(sep%basis, name=sep%name, nshell=nshell, symbol=symbol, &
                                    nq=nq, lq=lq, zet=zet)
+            IF (.NOT. ASSOCIATED(orb_basis_set)) ALLOCATE (orb_basis_set)
             CALL create_gto_from_sto_basis(sep%basis, orb_basis_set, sep%ngauss)
          END IF
 

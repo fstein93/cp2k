@@ -217,7 +217,7 @@ CONTAINS
                   IF (ASSOCIATED(harris_basis)) THEN
                      CALL remove_basis_from_container(qs_kind%basis_sets, basis_type="HARRIS")
                   END IF
-                  NULLIFY (harris_basis)
+                  ALLOCATE (harris_basis)
                   CALL copy_gto_basis_set(basis_set, harris_basis)
                   CALL add_basis_set_to_container(qs_kind%basis_sets, harris_basis, "HARRIS")
                END IF
@@ -232,7 +232,7 @@ CONTAINS
                   IF (ASSOCIATED(harris_basis)) THEN
                      CALL remove_basis_from_container(qs_kind%basis_sets, basis_type="HARRIS")
                   END IF
-                  NULLIFY (harris_basis)
+                  ALLOCATE (harris_basis)
                   CALL create_primitive_basis_set(basis_set, harris_basis)
                   CALL get_qs_env(qs_env, dft_control=dft_control)
                   eps_pgf_orb = dft_control%qs_control%eps_pgf_orb

@@ -440,6 +440,7 @@ CONTAINS
          nkind = SIZE(lri_env%orb_basis)
          DO ikind = 1, nkind
             CALL deallocate_gto_basis_set(lri_env%orb_basis(ikind)%gto_basis_set)
+            DEALLOCATE (lri_env%orb_basis(ikind)%gto_basis_set)
          END DO
          DEALLOCATE (lri_env%orb_basis)
       END IF
@@ -447,6 +448,7 @@ CONTAINS
          nkind = SIZE(lri_env%ri_basis)
          DO ikind = 1, nkind
             CALL deallocate_gto_basis_set(lri_env%ri_basis(ikind)%gto_basis_set)
+            DEALLOCATE (lri_env%ri_basis(ikind)%gto_basis_set)
          END DO
          DEALLOCATE (lri_env%ri_basis)
       END IF

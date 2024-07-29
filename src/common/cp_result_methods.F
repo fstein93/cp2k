@@ -401,7 +401,7 @@ CONTAINS
             ALLOCATE (clean_results%result_label(new_size))
             ALLOCATE (clean_results%result_value(new_size))
             DO i = 1, new_size
-               NULLIFY (clean_results%result_value(i)%value)
+               ALLOCATE (clean_results%result_value(i)%value)
                CALL cp_result_value_create(clean_results%result_value(i)%value)
             END DO
             k = 0
@@ -460,7 +460,7 @@ CONTAINS
          ALLOCATE (results%result_label(nlist))
          DO i = 1, nlist
             results%result_label(i) = ""
-            NULLIFY (results%result_value(i)%value)
+            ALLOCATE (results%result_value(i)%value)
             CALL cp_result_value_create(results%result_value(i)%value)
             CALL cp_result_value_init(results%result_value(i)%value, &
                                       type_in_use=type_in_use(i), size_value=size_value(i))

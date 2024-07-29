@@ -384,6 +384,7 @@ CONTAINS
       IF (ASSOCIATED(xas_env%my_gto_basis)) THEN
          DO ik = 1, SIZE(xas_env%my_gto_basis, 1)
             CALL deallocate_gto_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
+            DEALLOCATE (xas_env%my_gto_basis(ik)%gto_basis_set)
          END DO
          DEALLOCATE (xas_env%my_gto_basis)
       END IF

@@ -1551,6 +1551,7 @@ CONTAINS
       zeta(1) = srules(zval, ne, nq(1), lq(1))
 
 !     Allocating memory and initiate STO
+      ALLOCATE (sto_basis_set)
       CALL allocate_sto_basis_set(sto_basis_set)
       CALL set_sto_basis_set(sto_basis_set, nshell=1, nq=nq, lq=lq, zet=zeta)
 
@@ -1558,6 +1559,7 @@ CONTAINS
       DEALLOCATE (nq, lq, zeta)
 
 !  Expanding the STO into (normalized) GTOs for later calculations, use standard 3 gaussians
+      ALLOCATE (sto_to_gto_basis_set)
       CALL create_gto_from_sto_basis(sto_basis_set=sto_basis_set, &
                                      gto_basis_set=sto_to_gto_basis_set, &
                                      ngauss=3)
@@ -1577,7 +1579,9 @@ CONTAINS
 
 !     Some clean-up
       CALL deallocate_sto_basis_set(sto_basis_set)
+      DEALLOCATE (sto_basis_set)
       CALL deallocate_gto_basis_set(sto_to_gto_basis_set)
+      DEALLOCATE (sto_to_gto_basis_set)
 
 !  Looping over the potential donor states to compute overlap with STO basis
       mos_of_ex_atoms => xas_tdp_env%mos_of_ex_atoms

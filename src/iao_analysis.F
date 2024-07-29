@@ -449,8 +449,8 @@ CONTAINS
          CALL iao_oce_expansion(qs_env, oce_basis_set_list, smat_kind, sxo, iao_coef, oce_atom, unit_nr)
          !
          DO ikind = 1, nkind
-            ocebasis => oce_basis_set_list(ikind)%gto_basis_set
-            CALL deallocate_gto_basis_set(ocebasis)
+            CALL deallocate_gto_basis_set(oce_basis_set_list(ikind)%gto_basis_set)
+            DEALLOCATE (oce_basis_set_list(ikind)%gto_basis_set)
          END DO
          DEALLOCATE (oce_basis_set_list, orb_basis_set_list)
          !

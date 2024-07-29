@@ -80,6 +80,8 @@ CONTAINS
          basis(i)%basis_type_nr = 0
          IF (ASSOCIATED(basis(i)%basis_set)) THEN
             CALL deallocate_gto_basis_set(basis(i)%basis_set)
+            DEALLOCATE (basis(i)%basis_set)
+            NULLIFY (basis(i)%basis_set)
          END IF
       END DO
 
@@ -204,6 +206,8 @@ CONTAINS
          container(ibas)%basis_type_nr = 0
          IF (ASSOCIATED(container(ibas)%basis_set)) THEN
             CALL deallocate_gto_basis_set(container(ibas)%basis_set)
+            DEALLOCATE (container(ibas)%basis_set)
+            NULLIFY (container(ibas)%basis_set)
          END IF
          ! shift other basis sets
          DO i = ibas + 1, SIZE(container)

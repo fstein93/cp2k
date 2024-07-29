@@ -504,7 +504,7 @@ CONTAINS
 
       IF (ASSOCIATED(param)) THEN
          IF (param%defined) THEN
-            NULLIFY (sto_basis_set)
+            ALLOCATE (sto_basis_set)
             CALL allocate_sto_basis_set(sto_basis_set)
             nshell = param%nshell
 
@@ -532,11 +532,13 @@ CONTAINS
                zet(1:nshell) = param%zeta(1:nshell)
                CALL set_sto_basis_set(sto_basis_set, name=param%aname, nshell=nshell, symbol=symbol, &
                                       nq=nq, lq=lq, zet=zet)
+               IF (.NOT. ASSOCIATED(gto_basis_set)) ALLOCATE (gto_basis_set)
                CALL create_gto_from_sto_basis(sto_basis_set, gto_basis_set, ngauss=ngauss, ortho=.TRUE.)
             END IF
 
             ! this will remove the allocated arrays
             CALL deallocate_sto_basis_set(sto_basis_set)
+            DEALLOCATE (sto_basis_set)
             DEALLOCATE (symbol, nq, lq, zet)
          END IF
 

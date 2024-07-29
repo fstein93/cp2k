@@ -100,10 +100,12 @@ CONTAINS
             IF (nprim > 0) THEN
                ngau = nprim
                CALL create_min_basis(refbasis, z, elcon, mao, ngau)
+               ALLOCATE (pbasis)
                CALL create_primitive_basis_set(refbasis, pbasis)
                CALL init_interaction_radii_orb_basis(pbasis, dft_control%qs_control%eps_pgf_orb)
                CALL add_basis_set_to_container(qs_kind%basis_sets, pbasis, btype)
                CALL deallocate_gto_basis_set(refbasis)
+               DEALLOCATE (refbasis)
             ELSE
                ! STO-3G
                ngau = 3
@@ -246,13 +248,16 @@ CONTAINS
       END DO
 
       bname = ADJUSTR(ptable(zval)%symbol)//"_MBas"
+      ALLOCATE (sto_basis_set)
       CALL allocate_sto_basis_set(sto_basis_set)
       CALL set_sto_basis_set(sto_basis_set, name=bname, nshell=nss, nq=nq, &
                              lq=lq, zet=zet, symbol=sym)
+      ALLOCATE (min_basis_set)
       CALL create_gto_from_sto_basis(sto_basis_set, min_basis_set, ngau)
       min_basis_set%norm_type = 2
       CALL init_orb_basis_set(min_basis_set)
       CALL deallocate_sto_basis_set(sto_basis_set)
+      DEALLOCATE (sto_basis_set)
 
       DEALLOCATE (sym, lq, nq, zet)
 

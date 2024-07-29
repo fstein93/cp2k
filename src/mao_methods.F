@@ -560,6 +560,7 @@ CONTAINS
             CALL get_qs_kind(qs_kind=qs_kind, basis_set=basis_set, basis_type="ORB")
             NULLIFY (pbasis)
             IF (ASSOCIATED(basis_set)) THEN
+               ALLOCATE (pbasis)
                CALL create_primitive_basis_set(basis_set, pbasis)
                CALL get_qs_env(qs_env, dft_control=dft_control)
                eps_pgf_orb = dft_control%qs_control%eps_pgf_orb

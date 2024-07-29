@@ -136,6 +136,7 @@ CONTAINS
             IF (ASSOCIATED(results%result_value)) THEN
                DO i = 1, SIZE(results%result_value)
                   CALL cp_result_value_release(results%result_value(i)%value)
+                  DEALLOCATE (results%result_value(i)%value)
                END DO
                DEALLOCATE (results%result_value)
             END IF
@@ -166,6 +167,7 @@ CONTAINS
       IF (ASSOCIATED(results%result_value)) THEN
          DO i = 1, SIZE(results%result_value)
             CALL cp_result_value_release(results%result_value(i)%value)
+            DEALLOCATE (results%result_value(i)%value)
          END DO
          DEALLOCATE (results%result_value)
       END IF
@@ -191,16 +193,10 @@ CONTAINS
 !> \param value ...
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
-   SUBROUTINE cp_result_value_create(value)
-      TYPE(cp_result_value_type), POINTER                :: value
+   ELEMENTAL SUBROUTINE cp_result_value_create(value)
+      TYPE(cp_result_value_type), INTENT(INOUT)          :: value
 
-      CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_value_create'
-
-      INTEGER                                            :: handle
-
-      CALL timeset(routineN, handle)
-      ALLOCATE (value)
-      CALL timestop(handle)
+      value = cp_result_value_type()
    END SUBROUTINE cp_result_value_create
 
 ! **************************************************************************************************
@@ -240,39 +236,36 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich 10.2008
 ! **************************************************************************************************
    SUBROUTINE cp_result_value_release(value)
-      TYPE(cp_result_value_type), POINTER                :: value
+      TYPE(cp_result_value_type), INTENT(INOUT)          :: value
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_result_value_release'
 
       INTEGER                                            :: handle
 
       CALL timeset(routineN, handle)
-      IF (ASSOCIATED(value)) THEN
-         SELECT CASE (value%type_in_use)
-         CASE (result_type_real)
-            IF (ASSOCIATED(value%real_type)) THEN
-               DEALLOCATE (value%real_type)
-            END IF
-            CPASSERT(.NOT. ASSOCIATED(value%integer_type))
-            CPASSERT(.NOT. ASSOCIATED(value%logical_type))
-         CASE (result_type_integer)
-            IF (ASSOCIATED(value%integer_type)) THEN
-               DEALLOCATE (value%integer_type)
-            END IF
-            CPASSERT(.NOT. ASSOCIATED(value%real_type))
-            CPASSERT(.NOT. ASSOCIATED(value%logical_type))
-         CASE (result_type_logical)
-            IF (ASSOCIATED(value%logical_type)) THEN
-               DEALLOCATE (value%logical_type)
-            END IF
-            CPASSERT(.NOT. ASSOCIATED(value%integer_type))
-            CPASSERT(.NOT. ASSOCIATED(value%real_type))
-         CASE DEFAULT
-            ! Type not implemented in cp_result_type
-            CPABORT("")
-         END SELECT
-         DEALLOCATE (value)
-      END IF
+      SELECT CASE (value%type_in_use)
+      CASE (result_type_real)
+         IF (ASSOCIATED(value%real_type)) THEN
+            DEALLOCATE (value%real_type)
+         END IF
+         CPASSERT(.NOT. ASSOCIATED(value%integer_type))
+         CPASSERT(.NOT. ASSOCIATED(value%logical_type))
+      CASE (result_type_integer)
+         IF (ASSOCIATED(value%integer_type)) THEN
+            DEALLOCATE (value%integer_type)
+         END IF
+         CPASSERT(.NOT. ASSOCIATED(value%real_type))
+         CPASSERT(.NOT. ASSOCIATED(value%logical_type))
+      CASE (result_type_logical)
+         IF (ASSOCIATED(value%logical_type)) THEN
+            DEALLOCATE (value%logical_type)
+         END IF
+         CPASSERT(.NOT. ASSOCIATED(value%integer_type))
+         CPASSERT(.NOT. ASSOCIATED(value%real_type))
+      CASE DEFAULT
+         ! Type not implemented in cp_result_type
+         CPABORT("")
+      END SELECT
       CALL timestop(handle)
    END SUBROUTINE cp_result_value_release
 
@@ -300,6 +293,7 @@ CONTAINS
       ALLOCATE (results_out%result_value(ndim))
       DO i = 1, ndim
          results_out%result_label(i) = results_in%result_label(i)
+         ALLOCATE (results_out%result_value(i)%value)
          CALL cp_result_value_create(results_out%result_value(i)%value)
          CALL cp_result_value_copy(results_out%result_value(i)%value, &
                                    results_in%result_value(i)%value)
@@ -370,11 +364,12 @@ CONTAINS
       ! Allocate and copy new values while releases old
       ALLOCATE (tmp_value(istart:iend))
       DO i = istart, iend
-         NULLIFY (tmp_value(i)%value)
+         ALLOCATE (tmp_value(i)%value)
          CALL cp_result_value_create(tmp_value(i)%value)
          IF ((i <= ub_size) .AND. (i >= lb_size)) THEN
             CALL cp_result_value_copy(tmp_value(i)%value, result_value(i)%value)
             CALL cp_result_value_release(result_value(i)%value)
+            DEALLOCATE (result_value(i)%value)
          END IF
       END DO
       DEALLOCATE (result_value)

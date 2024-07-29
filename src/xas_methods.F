@@ -993,13 +993,16 @@ CONTAINS
          END DO
 
          sto_zet(1) = srules(kind_z_tmp(ik), ne, nq(1), lq(1))
+         ALLOCATE (sto_basis_set)
          CALL allocate_sto_basis_set(sto_basis_set)
          name_sto = 'xas_tmp_sto'
          CALL set_sto_basis_set(sto_basis_set, nshell=1, nq=nq, &
                                 lq=lq, zet=sto_zet, name=name_sto)
+         ALLOCATE (xas_env%my_gto_basis(ik)%gto_basis_set)
          CALL create_gto_from_sto_basis(sto_basis_set, &
                                         xas_env%my_gto_basis(ik)%gto_basis_set, xas_control%ngauss)
          CALL deallocate_sto_basis_set(sto_basis_set)
+         DEALLOCATE (sto_basis_set)
          xas_env%my_gto_basis(ik)%gto_basis_set%norm_type = 2
          CALL init_orb_basis_set(xas_env%my_gto_basis(ik)%gto_basis_set)
 

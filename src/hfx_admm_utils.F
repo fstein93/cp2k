@@ -548,7 +548,7 @@ CONTAINS
             CALL copy_potential(qs_kind_set(ikind)%sgp_potential, admm_kind_set(ikind)%sgp_potential)
          END IF
 
-         NULLIFY (orb_basis)
+         ALLOCATE (orb_basis)
          CALL get_qs_kind(qs_kind_set(ikind), basis_set=aux_fit_basis, basis_type="AUX_FIT")
          CALL copy_gto_basis_set(aux_fit_basis, orb_basis)
          CALL add_basis_set_to_container(admm_kind_set(ikind)%basis_sets, orb_basis, "ORB")
@@ -572,7 +572,7 @@ CONTAINS
 
       !Need to have access to the soft AUX_FIT basis from the qs_env => add it to the qs_kinds
       DO ikind = 1, nkind
-         NULLIFY (aux_fit_soft_basis)
+         ALLOCATE (aux_fit_soft_basis)
          CALL get_qs_kind(admm_kind_set(ikind), basis_set=soft_basis, basis_type="ORB_SOFT")
          CALL copy_gto_basis_set(soft_basis, aux_fit_soft_basis)
          CALL add_basis_set_to_container(qs_kind_set(ikind)%basis_sets, aux_fit_soft_basis, "AUX_FIT_SOFT")

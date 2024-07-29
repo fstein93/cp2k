@@ -64,13 +64,14 @@ CONTAINS
       TYPE(gto_basis_set_type), POINTER                  :: ext_basis, p_basis
 
       CPASSERT(.NOT. ASSOCIATED(gapw_1c_basis))
+      ALLOCATE (gapw_1c_basis)
 
       IF (basis_1c_level == 0) THEN
          ! we use the orbital basis set
          CALL copy_gto_basis_set(orb_basis, gapw_1c_basis)
       ELSE
          CALL copy_gto_basis_set(orb_basis, gapw_1c_basis)
-         NULLIFY (ext_basis)
+         ALLOCATE (ext_basis)
          CALL allocate_gto_basis_set(ext_basis)
          ! get information on orbital basis and soft basis
          CALL get_gto_basis_set(gto_basis_set=orb_basis, maxl=maxlo, nset=nseto, &
@@ -191,12 +192,13 @@ CONTAINS
          ext_basis%short_kind_radius = orb_basis%short_kind_radius
          ext_basis%norm_type = orb_basis%norm_type
 
-         NULLIFY (p_basis)
+         ALLOCATE (p_basis)
          CALL create_primitive_basis_set(ext_basis, p_basis)
          CALL combine_basis_sets(gapw_1c_basis, p_basis)
 
          CALL deallocate_gto_basis_set(ext_basis)
          CALL deallocate_gto_basis_set(p_basis)
+         DEALLOCATE (ext_basis, p_basis)
          DEALLOCATE (zmaxs, zexs, nps, z1, z2, zeta)
       END IF
 
