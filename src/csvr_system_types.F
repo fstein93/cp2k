@@ -64,7 +64,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE csvr_init(csvr, simpar, section)
       TYPE(csvr_system_type), INTENT(INOUT)              :: csvr
-      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(simpar_type), INTENT(IN)                      :: simpar
       TYPE(section_vals_type), POINTER                   :: section
 
       NULLIFY (csvr%nvt)

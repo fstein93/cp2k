@@ -216,6 +216,7 @@ CONTAINS
             CALL gopt_f_release(gopt_env%gopt_dimer_env)
             IF (ASSOCIATED(gopt_env%gopt_dimer_param)) DEALLOCATE (gopt_env%gopt_dimer_param)
             CALL release_spgr_type(gopt_env%spgr)
+            DEALLOCATE (gopt_env%spgr)
             DEALLOCATE (gopt_env)
          END IF
       END IF

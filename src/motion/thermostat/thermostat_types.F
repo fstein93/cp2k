@@ -184,7 +184,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE create_thermostat_type(thermostat, simpar, section, skip_region, label)
       TYPE(thermostat_type), INTENT(OUT)                 :: thermostat
-      TYPE(simpar_type), POINTER                         :: simpar
+      TYPE(simpar_type), INTENT(IN)                      :: simpar
       TYPE(section_vals_type), POINTER                   :: section
       LOGICAL, INTENT(IN), OPTIONAL                      :: skip_region
       CHARACTER(LEN=*), INTENT(IN)                       :: label
@@ -285,65 +285,63 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE set_thermostats(thermostats, dt_fact)
-      TYPE(thermostats_type), POINTER                    :: thermostats
+      TYPE(thermostats_type), INTENT(INOUT)              :: thermostats
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: dt_fact
 
-      IF (ASSOCIATED(thermostats)) THEN
-         IF (PRESENT(dt_fact)) THEN
-            ! Particles
+      IF (PRESENT(dt_fact)) THEN
+         ! Particles
 !cjm
-            IF (ASSOCIATED(thermostats%thermostat_fast)) THEN
-               SELECT CASE (thermostats%thermostat_fast%type_of_thermostat)
-               CASE (do_thermo_nose)
-                  thermostats%thermostat_fast%nhc%dt_fact = dt_fact
-               END SELECT
-            END IF
-            IF (ASSOCIATED(thermostats%thermostat_slow)) THEN
-               SELECT CASE (thermostats%thermostat_slow%type_of_thermostat)
-               CASE (do_thermo_nose)
-                  thermostats%thermostat_slow%nhc%dt_fact = dt_fact
-               END SELECT
-            END IF
+         IF (ASSOCIATED(thermostats%thermostat_fast)) THEN
+            SELECT CASE (thermostats%thermostat_fast%type_of_thermostat)
+            CASE (do_thermo_nose)
+               thermostats%thermostat_fast%nhc%dt_fact = dt_fact
+            END SELECT
+         END IF
+         IF (ASSOCIATED(thermostats%thermostat_slow)) THEN
+            SELECT CASE (thermostats%thermostat_slow%type_of_thermostat)
+            CASE (do_thermo_nose)
+               thermostats%thermostat_slow%nhc%dt_fact = dt_fact
+            END SELECT
+         END IF
 !cjm
-            IF (ASSOCIATED(thermostats%thermostat_part)) THEN
-               SELECT CASE (thermostats%thermostat_part%type_of_thermostat)
-               CASE (do_thermo_nose)
-                  thermostats%thermostat_part%nhc%dt_fact = dt_fact
-               CASE (do_thermo_csvr)
-                  thermostats%thermostat_part%csvr%dt_fact = dt_fact
-               CASE (do_thermo_al)
-                  thermostats%thermostat_part%al%dt_fact = dt_fact
-               CASE (do_thermo_gle)
-                  thermostats%thermostat_part%gle%dt_fact = dt_fact
-               END SELECT
-            END IF
-            ! Coefficients
-            IF (ASSOCIATED(thermostats%thermostat_coef)) THEN
-               SELECT CASE (thermostats%thermostat_coef%type_of_thermostat)
-               CASE (do_thermo_nose)
-                  thermostats%thermostat_coef%nhc%dt_fact = dt_fact
-               CASE (do_thermo_csvr)
-                  thermostats%thermostat_coef%csvr%dt_fact = dt_fact
-               END SELECT
-            END IF
-            ! Shell
-            IF (ASSOCIATED(thermostats%thermostat_shell)) THEN
-               SELECT CASE (thermostats%thermostat_shell%type_of_thermostat)
-               CASE (do_thermo_nose)
-                  thermostats%thermostat_shell%nhc%dt_fact = dt_fact
-               CASE (do_thermo_csvr)
-                  thermostats%thermostat_shell%csvr%dt_fact = dt_fact
-               END SELECT
-            END IF
-            ! Baro
-            IF (ASSOCIATED(thermostats%thermostat_baro)) THEN
-               SELECT CASE (thermostats%thermostat_baro%type_of_thermostat)
-               CASE (do_thermo_nose)
-                  thermostats%thermostat_baro%nhc%dt_fact = dt_fact
-               CASE (do_thermo_csvr)
-                  thermostats%thermostat_baro%csvr%dt_fact = dt_fact
-               END SELECT
-            END IF
+         IF (ASSOCIATED(thermostats%thermostat_part)) THEN
+            SELECT CASE (thermostats%thermostat_part%type_of_thermostat)
+            CASE (do_thermo_nose)
+               thermostats%thermostat_part%nhc%dt_fact = dt_fact
+            CASE (do_thermo_csvr)
+               thermostats%thermostat_part%csvr%dt_fact = dt_fact
+            CASE (do_thermo_al)
+               thermostats%thermostat_part%al%dt_fact = dt_fact
+            CASE (do_thermo_gle)
+               thermostats%thermostat_part%gle%dt_fact = dt_fact
+            END SELECT
+         END IF
+         ! Coefficients
+         IF (ASSOCIATED(thermostats%thermostat_coef)) THEN
+            SELECT CASE (thermostats%thermostat_coef%type_of_thermostat)
+            CASE (do_thermo_nose)
+               thermostats%thermostat_coef%nhc%dt_fact = dt_fact
+            CASE (do_thermo_csvr)
+               thermostats%thermostat_coef%csvr%dt_fact = dt_fact
+            END SELECT
+         END IF
+         ! Shell
+         IF (ASSOCIATED(thermostats%thermostat_shell)) THEN
+            SELECT CASE (thermostats%thermostat_shell%type_of_thermostat)
+            CASE (do_thermo_nose)
+               thermostats%thermostat_shell%nhc%dt_fact = dt_fact
+            CASE (do_thermo_csvr)
+               thermostats%thermostat_shell%csvr%dt_fact = dt_fact
+            END SELECT
+         END IF
+         ! Baro
+         IF (ASSOCIATED(thermostats%thermostat_baro)) THEN
+            SELECT CASE (thermostats%thermostat_baro%type_of_thermostat)
+            CASE (do_thermo_nose)
+               thermostats%thermostat_baro%nhc%dt_fact = dt_fact
+            CASE (do_thermo_csvr)
+               thermostats%thermostat_baro%csvr%dt_fact = dt_fact
+            END SELECT
          END IF
       END IF
    END SUBROUTINE set_thermostats

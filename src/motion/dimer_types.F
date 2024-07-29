@@ -208,9 +208,8 @@ CONTAINS
 !> \author Luca Bellucci and Teodoro Laino - created [tlaino] - 01.2008
 ! **************************************************************************************************
    SUBROUTINE dimer_env_retain(dimer_env)
-      TYPE(dimer_env_type), POINTER                      :: dimer_env
+      TYPE(dimer_env_type), INTENT(INOUT)                :: dimer_env
 
-      CPASSERT(ASSOCIATED(dimer_env))
       CPASSERT(dimer_env%ref_count > 0)
       dimer_env%ref_count = dimer_env%ref_count + 1
    END SUBROUTINE dimer_env_retain
@@ -264,7 +263,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE dimer_fixed_atom_control(vec, subsys)
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: vec
-      TYPE(cp_subsys_type), POINTER                      :: subsys
+      TYPE(cp_subsys_type), INTENT(IN)                   :: subsys
 
       INTEGER                                            :: ii, ikind, ind, iparticle, nfixed_atoms, &
                                                             nkinds

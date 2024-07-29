@@ -399,7 +399,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spgr_find_equivalent_atoms(spgr, scoord)
 
-      TYPE(spgr_type), INTENT(INOUT), POINTER            :: spgr
+      TYPE(spgr_type), INTENT(INOUT)                     :: spgr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: scoord
 
@@ -492,7 +492,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spgr_reduce_symm(spgr)
 
-      TYPE(spgr_type), INTENT(INOUT), POINTER            :: spgr
+      TYPE(spgr_type), INTENT(INOUT)                     :: spgr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'spgr_reduce_symm'
 
@@ -560,7 +560,7 @@ CONTAINS
 
    SUBROUTINE spgr_rotations_subset(spgr)
 
-      TYPE(spgr_type), INTENT(INOUT), POINTER            :: spgr
+      TYPE(spgr_type), INTENT(INOUT)                     :: spgr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_rotations_subset'
 
@@ -616,7 +616,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spgr_apply_rotations_coord(spgr, coord)
 
-      TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
+      TYPE(spgr_type), INTENT(IN)                        :: spgr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: coord
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_apply_rotations_coord'
@@ -677,7 +677,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spgr_apply_rotations_force(spgr, force)
 
-      TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
+      TYPE(spgr_type), INTENT(IN)                        :: spgr
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: force
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_apply_rotations_force'
@@ -772,8 +772,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE spgr_apply_rotations_stress(spgr, cell, stress)
 
-      TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
-      TYPE(cell_type), INTENT(IN), POINTER               :: cell
+      TYPE(spgr_type), INTENT(IN)                        :: spgr
+      TYPE(cell_type), INTENT(IN)                        :: cell
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(INOUT)      :: stress
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'spgr_apply_rotations_stress'
@@ -828,7 +828,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE print_spgr(spgr)
 
-      TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
+      TYPE(spgr_type), INTENT(IN)                        :: spgr
 
       INTEGER                                            :: i, j
 
@@ -901,7 +901,7 @@ CONTAINS
    SUBROUTINE spgr_write_stress_tensor(stress, spgr)
 
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: stress
-      TYPE(spgr_type), INTENT(IN), POINTER               :: spgr
+      TYPE(spgr_type), INTENT(IN)                        :: spgr
 
       REAL(KIND=dp), DIMENSION(3)                        :: eigval
       REAL(KIND=dp), DIMENSION(3, 3)                     :: eigvec, stress_tensor

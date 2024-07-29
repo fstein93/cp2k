@@ -117,9 +117,8 @@ CONTAINS
 !> \author Teodoro Laino [tlaino] - 03.2008 - University of Zurich
 ! **************************************************************************************************
    SUBROUTINE retain_averages(averages)
-      TYPE(average_quantities_type), POINTER             :: averages
+      TYPE(average_quantities_type), INTENT(INOUT)       :: averages
 
-      CPASSERT(ASSOCIATED(averages))
       CPASSERT(averages%ref_count > 0)
       averages%ref_count = averages%ref_count + 1
    END SUBROUTINE retain_averages
@@ -179,7 +178,7 @@ CONTAINS
    SUBROUTINE compute_averages(averages, force_env, md_ener, cell, virial, &
                                pv_scalar, pv_xx, used_time, hugoniot, abc, cell_angle, nat, itimes, &
                                time, my_pos, my_act)
-      TYPE(average_quantities_type), POINTER             :: averages
+      TYPE(average_quantities_type), INTENT(INOUT)       :: averages
       TYPE(force_env_type), POINTER                      :: force_env
       TYPE(md_ener_type), POINTER                        :: md_ener
       TYPE(cell_type), POINTER                           :: cell

@@ -857,6 +857,8 @@ CONTAINS
       IF (loverlap_ins .OR. loverlap_rem) THEN
 ! deallocate some stuff
          CALL mc_molecule_info_destroy(mc_molecule_info_test)
+         DEALLOCATE (mc_molecule_info_test)
+         NULLIFY (mc_molecule_info_test)
          CALL force_env_release(test_env(insert_box)%force_env)
          CALL force_env_release(test_env(remove_box)%force_env)
          DEALLOCATE (insert_coords)
@@ -1046,6 +1048,8 @@ CONTAINS
 ! the new stuff to the mc_pars
 ! figure out the molecule information for the new environments
          CALL mc_molecule_info_destroy(mc_molecule_info)
+         DEALLOCATE (mc_molecule_info)
+         NULLIFY (mc_molecule_info)
          CALL set_mc_par(mc_par(insert_box)%mc_par, mc_molecule_info=mc_molecule_info_test)
          CALL set_mc_par(mc_par(remove_box)%mc_par, mc_molecule_info=mc_molecule_info_test)
 
@@ -1086,6 +1090,8 @@ CONTAINS
 
 ! reject the move
          CALL mc_molecule_info_destroy(mc_molecule_info_test)
+         DEALLOCATE (mc_molecule_info_test)
+         NULLIFY (mc_molecule_info_test)
          CALL force_env_release(test_env(insert_box)%force_env)
          CALL force_env_release(test_env(remove_box)%force_env)
          IF (lbias) THEN

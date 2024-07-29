@@ -70,36 +70,32 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE release_spgr_type(spgr)
 
-      TYPE(spgr_type), POINTER                           :: spgr
+      TYPE(spgr_type), INTENT(INOUT)                     :: spgr
 
-      IF (ASSOCIATED(spgr)) THEN
-
-         IF (ALLOCATED(spgr%rotations)) THEN
-            DEALLOCATE (spgr%rotations)
-         END IF
-         IF (ALLOCATED(spgr%rotations_subset)) THEN
-            DEALLOCATE (spgr%rotations_subset)
-         END IF
-         IF (ALLOCATED(spgr%translations)) THEN
-            DEALLOCATE (spgr%translations)
-         END IF
-         IF (ALLOCATED(spgr%atype)) THEN
-            DEALLOCATE (spgr%atype)
-         END IF
-         IF (ALLOCATED(spgr%eqatom)) THEN
-            DEALLOCATE (spgr%eqatom)
-         END IF
-         IF (ALLOCATED(spgr%lop)) THEN
-            DEALLOCATE (spgr%lop)
-         END IF
-         IF (ALLOCATED(spgr%lat)) THEN
-            DEALLOCATE (spgr%lat)
-         END IF
-
-         CALL cell_release(spgr%cell_ref)
-
-         DEALLOCATE (spgr)
+      IF (ALLOCATED(spgr%rotations)) THEN
+         DEALLOCATE (spgr%rotations)
       END IF
+      IF (ALLOCATED(spgr%rotations_subset)) THEN
+         DEALLOCATE (spgr%rotations_subset)
+      END IF
+      IF (ALLOCATED(spgr%translations)) THEN
+         DEALLOCATE (spgr%translations)
+      END IF
+      IF (ALLOCATED(spgr%atype)) THEN
+         DEALLOCATE (spgr%atype)
+      END IF
+      IF (ALLOCATED(spgr%eqatom)) THEN
+         DEALLOCATE (spgr%eqatom)
+      END IF
+      IF (ALLOCATED(spgr%lop)) THEN
+         DEALLOCATE (spgr%lop)
+      END IF
+      IF (ALLOCATED(spgr%lat)) THEN
+         DEALLOCATE (spgr%lat)
+      END IF
+
+      CALL cell_release(spgr%cell_ref)
+      NULLIFY (spgr%cell_ref)
 
    END SUBROUTINE release_spgr_type
 

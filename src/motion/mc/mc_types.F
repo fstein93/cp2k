@@ -277,7 +277,7 @@ CONTAINS
                                 mol_set_nmol_row, mol_set_nmol_column, in_use, text, atom_names_empty, &
                                 nunits_empty, coordinates_empty, motion_row_end, motion_row_start)
 
-      TYPE(mc_input_file_type), POINTER                  :: mc_input_file
+      TYPE(mc_input_file_type), INTENT(IN)               :: mc_input_file
       INTEGER, INTENT(OUT), OPTIONAL :: run_type_row, run_type_column, coord_row_start, &
          coord_row_end, cell_row, cell_column, force_eval_row_start, force_eval_row_end, &
          global_row_start, global_row_end
@@ -409,7 +409,7 @@ CONTAINS
 !>
 !>    Suitable for parallel.
 !> \author MJM
-      TYPE(mc_simpar_type), POINTER                      :: mc_par
+      TYPE(mc_simpar_type), INTENT(IN)                   :: mc_par
       INTEGER, INTENT(OUT), OPTIONAL                     :: nstep, nvirial, iuptrans, iupcltrans, &
                                                             iupvolume, nmoves, nswapmoves, rm, cl, &
                                                             diff, nstart, source
@@ -558,7 +558,7 @@ CONTAINS
 !>
 !>    Suitable for parallel.
 !> \author MJM
-      TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mc_molecule_info_type), INTENT(IN)            :: mc_molecule_info
       INTEGER, INTENT(OUT), OPTIONAL                     :: nmol_types, nchain_total, nboxes
       CHARACTER(LEN=default_string_length), &
          DIMENSION(:), OPTIONAL, POINTER                 :: names
@@ -665,7 +665,7 @@ CONTAINS
                          mc_input_file, mc_bias_file, exp_max_val, exp_min_val, min_val, max_val, &
                          pmhmc, pmhmc_box, lhmc, ionode, source, group, rand2skip)
 
-      TYPE(mc_simpar_type), POINTER                      :: mc_par
+      TYPE(mc_simpar_type), INTENT(INOUT)                :: mc_par
       INTEGER, INTENT(IN), OPTIONAL                      :: rm, cl, diff, nstart
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: rmvolume, rmcltrans
       REAL(KIND=dp), DIMENSION(:), OPTIONAL, POINTER     :: rmbond, rmangle, rmdihedral, rmrot, &
@@ -849,12 +849,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mc_sim_par_create(mc_par, nmol_types)
 
-      TYPE(mc_simpar_type), POINTER                      :: mc_par
+      TYPE(mc_simpar_type), INTENT(OUT)                  :: mc_par
       INTEGER, INTENT(IN)                                :: nmol_types
 
-      NULLIFY (mc_par)
-
-      ALLOCATE (mc_par)
       ALLOCATE (mc_par%pmtraion_mol(1:nmol_types))
       ALLOCATE (mc_par%pmtrans_mol(1:nmol_types))
       ALLOCATE (mc_par%pmrot_mol(1:nmol_types))
@@ -886,7 +883,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mc_sim_par_destroy(mc_par)
 
-      TYPE(mc_simpar_type), POINTER                      :: mc_par
+      TYPE(mc_simpar_type), INTENT(INOUT)                :: mc_par
 
       DEALLOCATE (mc_par%mc_input_file)
       DEALLOCATE (mc_par%mc_bias_file)
@@ -913,9 +910,6 @@ CONTAINS
          DEALLOCATE (mc_par%virial_temps)
       END IF
 
-      DEALLOCATE (mc_par)
-      NULLIFY (mc_par)
-
    END SUBROUTINE mc_sim_par_destroy
 
 ! **************************************************************************************************
@@ -930,7 +924,7 @@ CONTAINS
    SUBROUTINE mc_input_file_create(mc_input_file, input_file_name, &
                                    mc_molecule_info, empty_coords, lhmc)
 
-      TYPE(mc_input_file_type), POINTER                  :: mc_input_file
+      TYPE(mc_input_file_type), INTENT(INOUT)            :: mc_input_file
       CHARACTER(LEN=*), INTENT(IN)                       :: input_file_name
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
       REAL(dp), DIMENSION(:, :)                          :: empty_coords
@@ -1122,7 +1116,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mc_input_file_destroy(mc_input_file)
 
-      TYPE(mc_input_file_type), POINTER                  :: mc_input_file
+      TYPE(mc_input_file_type), INTENT(INOUT)            :: mc_input_file
 
       DEALLOCATE (mc_input_file%mol_set_nmol_row)
       DEALLOCATE (mc_input_file%mol_set_nmol_column)
@@ -1207,7 +1201,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE read_mc_section(mc_par, para_env, globenv, input_file_name, input_file, force_env_section)
 
-      TYPE(mc_simpar_type), POINTER                      :: mc_par
+      TYPE(mc_simpar_type), INTENT(INOUT)                :: mc_par
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(global_environment_type), POINTER             :: globenv
       CHARACTER(LEN=*), INTENT(IN)                       :: input_file_name
@@ -1727,7 +1721,7 @@ CONTAINS
    SUBROUTINE find_mc_rcut(mc_par, force_env, lterminate)
 
       TYPE(mc_simpar_type), INTENT(INOUT)                :: mc_par
-      TYPE(force_env_type), POINTER                      :: force_env
+      TYPE(force_env_type), INTENT(IN)                   :: force_env
       LOGICAL, INTENT(OUT)                               :: lterminate
 
       INTEGER                                            :: itype, jtype
@@ -1785,7 +1779,7 @@ CONTAINS
    SUBROUTINE mc_determine_molecule_info(force_env, mc_molecule_info, box_number, &
                                          coordinates_empty)
 
-      TYPE(force_env_p_type), DIMENSION(:), POINTER      :: force_env
+      TYPE(force_env_p_type), DIMENSION(:), INTENT(IN)   :: force_env
       TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
       INTEGER, INTENT(IN), OPTIONAL                      :: box_number
       REAL(dp), DIMENSION(:, :), OPTIONAL, POINTER       :: coordinates_empty
@@ -1999,7 +1993,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE mc_molecule_info_destroy(mc_molecule_info)
 
-      TYPE(mc_molecule_info_type), POINTER               :: mc_molecule_info
+      TYPE(mc_molecule_info_type), INTENT(INOUT)         :: mc_molecule_info
 
       DEALLOCATE (mc_molecule_info%nchains)
       DEALLOCATE (mc_molecule_info%nunits)
@@ -2010,9 +2004,6 @@ CONTAINS
       DEALLOCATE (mc_molecule_info%conf_prob)
       DEALLOCATE (mc_molecule_info%nunits_tot)
       DEALLOCATE (mc_molecule_info%mass)
-
-      DEALLOCATE (mc_molecule_info)
-      NULLIFY (mc_molecule_info)
 
    END SUBROUTINE mc_molecule_info_destroy
 
@@ -2029,7 +2020,7 @@ CONTAINS
 !>
 !>    Suitable for parallel.
 !> \author MJM
-      TYPE(mc_simpar_type), POINTER                      :: mc_par
+      TYPE(mc_simpar_type), INTENT(IN)                   :: mc_par
 
       INTEGER                                            :: imol_type, nboxes, nchain_total, &
                                                             nmol_types

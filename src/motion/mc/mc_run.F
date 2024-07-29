@@ -201,6 +201,7 @@ CONTAINS
 
 ! now read in the values of the mc_pars
 ! creating the mc_par
+         ALLOCATE (mc_par(ibox)%mc_par)
          CALL mc_sim_par_create(mc_par(ibox)%mc_par, nmol_types)
 
 ! attach molecule information to all mc_par structures, so we know what we have to read in
@@ -268,6 +269,8 @@ CONTAINS
 
 ! in case there was a restart, we need to do this again
       CALL mc_molecule_info_destroy(mc_molecule_info)
+      DEALLOCATE (mc_molecule_info)
+      NULLIFY (mc_molecule_info)
       CALL mc_determine_molecule_info(force_env, mc_molecule_info, box_number=box_number)
       CALL get_mc_molecule_info(mc_molecule_info, nmol_types=nmol_types, &
                                 nunits_tot=nunits_tot)
@@ -315,6 +318,8 @@ CONTAINS
       CALL get_mc_env(mc_env(1)%mc_env, mc_par=mc_par(1)%mc_par)
       CALL get_mc_par(mc_par(1)%mc_par, mc_molecule_info=mc_molecule_info)
       CALL mc_molecule_info_destroy(mc_molecule_info)
+      DEALLOCATE (mc_molecule_info)
+      NULLIFY (mc_molecule_info)
 
       DO ibox = 1, nboxes
          CALL get_mc_env(mc_env(ibox)%mc_env, &
@@ -328,6 +333,7 @@ CONTAINS
          END IF
 
          CALL mc_sim_par_destroy(mc_par(ibox)%mc_par)
+         DEALLOCATE (mc_par(ibox)%mc_par)
          CALL mc_env_release(mc_env(ibox)%mc_env)
          DEALLOCATE (mc_env(ibox)%mc_env)
          CALL force_env_release(force_env(ibox)%force_env)
