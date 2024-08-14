@@ -809,7 +809,10 @@ CONTAINS
          CALL dft_control_release(ks_env%dft_control)
          DEALLOCATE (ks_env%dft_control)
       END IF
-      CALL kpoint_release(ks_env%kpoints)
+      IF (ASSOCIATED(ks_env%kpoints)) THEN
+         CALL kpoint_release(ks_env%kpoints)
+         DEALLOCATE (ks_env%kpoints)
+      END IF
       IF (ASSOCIATED(ks_env%subsys)) THEN
          CALL qs_subsys_release(ks_env%subsys)
          DEALLOCATE (ks_env%subsys)
@@ -902,7 +905,10 @@ CONTAINS
       CALL release_neighbor_list_sets(ks_env%sab_almo)
       CALL release_neighbor_list_sets(ks_env%sab_kp)
       CALL release_neighbor_list_sets(ks_env%sab_kp_nosym)
-      CALL kpoint_release(ks_env%kpoints)
+      IF (ASSOCIATED(ks_env%kpoints)) THEN
+         CALL kpoint_release(ks_env%kpoints)
+         DEALLOCATE (ks_env%kpoints)
+      END IF
       CALL pw_env_release(ks_env%pw_env, ks_env%para_env)
    END SUBROUTINE qs_ks_part_release
 

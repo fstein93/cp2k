@@ -657,6 +657,7 @@ CONTAINS
          CALL dbcsr_deallocate_matrix_set(matrix_berry_re_mo_mo)
          CALL dbcsr_deallocate_matrix_set(matrix_berry_im_mo_mo)
          CALL kpoint_release(kpoints)
+         DEALLOCATE (kpoints)
       END IF
 
       CALL timestop(handle)
@@ -3612,6 +3613,7 @@ CONTAINS
 
          CALL get_cell(cell, h_inv=h_inv)
 
+         ALLOCATE (kpoints)
          CALL kpoint_create(kpoints)
 
          kpoints%kp_scheme = "GENERAL"
@@ -3750,7 +3752,7 @@ CONTAINS
          ! default: no symmetry settings
          ALLOCATE (kpoints%kp_sym(kpoints%nkp))
          DO i = 1, kpoints%nkp
-            NULLIFY (kpoints%kp_sym(i)%kpoint_sym)
+            ALLOCATE (kpoints%kp_sym(i)%kpoint_sym)
             CALL kpoint_sym_create(kpoints%kp_sym(i)%kpoint_sym)
          END DO
 
@@ -3762,6 +3764,7 @@ CONTAINS
 
             CALL get_qs_env(qs_env=qs_env, cell=cell, particle_set=particle_set)
 
+            ALLOCATE (kpoints)
             CALL calculate_kp_orbitals(qs_env_kp_Gamma_only, kpoints, "MONKHORST-PACK", nadd=nmo, mp_grid=kp_grid(1:3), &
                                        group_size_ext=para_env%num_pe)
 

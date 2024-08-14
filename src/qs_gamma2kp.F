@@ -84,7 +84,7 @@ CONTAINS
 
       NULLIFY (subsys_section)
 
-      NULLIFY (kpoint)
+      ALLOCATE (kpoint)
       CALL kpoint_create(kpoint)
       kpoint%kp_scheme = "GAMMA"
       kpoint%symmetry = .FALSE.

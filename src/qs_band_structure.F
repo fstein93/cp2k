@@ -211,7 +211,7 @@ CONTAINS
                                         (kspecial(1:3, ik) - kspecial(1:3, ik - 1))
                END DO
             END DO
-            NULLIFY (kpoint)
+            ALLOCATE (kpoint)
             CALL calculate_kp_orbitals(qs_env, kpoint, "GENERAL", nadd, kpgeneral=kpgeneral)
             DEALLOCATE (kpgeneral)
 
@@ -272,6 +272,7 @@ CONTAINS
             DEALLOCATE (kspecial, spname)
             DEALLOCATE (eigval, occnum)
             CALL kpoint_release(kpoint)
+            DEALLOCATE (kpoint)
             t2 = m_walltime()
             IF (unit_nr > 0) THEN
                WRITE (UNIT=unit_nr, FMT="(T2,A,T67,F14.3)") "KPOINTS| Time for k-point line ", t2 - t1
@@ -346,7 +347,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calculate_kpoints_for_bs(kpoint, scheme, group_size_ext, mp_grid, kpgeneral)
 
-      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
       CHARACTER(LEN=*), INTENT(IN)                       :: scheme
       INTEGER, INTENT(IN), OPTIONAL                      :: group_size_ext
       INTEGER, DIMENSION(3), INTENT(IN), OPTIONAL        :: mp_grid
@@ -354,8 +355,6 @@ CONTAINS
          OPTIONAL                                        :: kpgeneral
 
       INTEGER                                            :: i, ix, iy, iz, npoints
-
-      CPASSERT(.NOT. ASSOCIATED(kpoint))
 
       CALL kpoint_create(kpoint)
 
@@ -378,7 +377,7 @@ CONTAINS
          kpoint%wkp(1) = 1.0_dp
          kpoint%symmetry = .TRUE.
          ALLOCATE (kpoint%kp_sym(1))
-         NULLIFY (kpoint%kp_sym(1)%kpoint_sym)
+         ALLOCATE (kpoint%kp_sym(1)%kpoint_sym)
          CALL kpoint_sym_create(kpoint%kp_sym(1)%kpoint_sym)
       CASE ("MONKHORST-PACK")
          CPASSERT(PRESENT(mp_grid))
@@ -402,7 +401,7 @@ CONTAINS
          ! default: no symmetry settings
          ALLOCATE (kpoint%kp_sym(kpoint%nkp))
          DO i = 1, kpoint%nkp
-            NULLIFY (kpoint%kp_sym(i)%kpoint_sym)
+            ALLOCATE (kpoint%kp_sym(i)%kpoint_sym)
             CALL kpoint_sym_create(kpoint%kp_sym(i)%kpoint_sym)
          END DO
       CASE ("MACDONALD")
@@ -417,7 +416,7 @@ CONTAINS
          ! default: no symmetry settings
          ALLOCATE (kpoint%kp_sym(kpoint%nkp))
          DO i = 1, kpoint%nkp
-            NULLIFY (kpoint%kp_sym(i)%kpoint_sym)
+            ALLOCATE (kpoint%kp_sym(i)%kpoint_sym)
             CALL kpoint_sym_create(kpoint%kp_sym(i)%kpoint_sym)
          END DO
       CASE DEFAULT

@@ -1244,9 +1244,12 @@ CONTAINS
 
       IF (do_kpoints_from_Gamma) THEN
          CALL kpoint_release(qs_env%mp2_env%ri_rpa_im_time%kpoints_G)
+         DEALLOCATE (qs_env%mp2_env%ri_rpa_im_time%kpoints_G)
          IF (qs_env%mp2_env%ri_g0w0%do_kpoints_Sigma) THEN
             CALL kpoint_release(qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma)
+            DEALLOCATE (qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma)
             CALL kpoint_release(qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma_no_xc)
+            DEALLOCATE (qs_env%mp2_env%ri_rpa_im_time%kpoints_Sigma_no_xc)
          END IF
       END IF
 

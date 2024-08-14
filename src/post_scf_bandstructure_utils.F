@@ -295,7 +295,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! routine adapted from mp2_integrals.F
-      NULLIFY (kpoints)
+      ALLOCATE (kpoints)
       CALL kpoint_create(kpoints)
 
       kpoints%kp_scheme = "GENERAL"
@@ -410,7 +410,7 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      NULLIFY (kpoints)
+      ALLOCATE (kpoints)
       CALL kpoint_create(kpoints)
 
       CALL get_qs_env(qs_env=qs_env, kpoints=kpoints_scf)
@@ -493,7 +493,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! routine adapted from mp2_integrals.F
-      NULLIFY (kpoints)
+      ALLOCATE (kpoints)
       CALL kpoint_create(kpoints)
 
       n_special_kp = bs_env%input_kp_bs_n_sp_pts

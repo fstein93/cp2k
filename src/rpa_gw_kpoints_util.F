@@ -1622,6 +1622,7 @@ CONTAINS
                       cell=cell)
 
       ! get kpoints
+      ALLOCATE (kpoints)
       CALL calculate_kpoints_for_bs(kpoints, scheme, kpgeneral=kpgeneral, mp_grid=mp_grid, &
                                     group_size_ext=group_size_ext)
 

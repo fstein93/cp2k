@@ -202,11 +202,9 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE kpoint_create(kpoint)
-      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
 
-      CPASSERT(.NOT. ASSOCIATED(kpoint))
-
-      ALLOCATE (kpoint)
+      CALL kpoint_release(kpoint)
 
       kpoint%kp_scheme = ""
       kpoint%nkp_grid = 0
@@ -248,76 +246,73 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE kpoint_release(kpoint)
-      TYPE(kpoint_type), POINTER                         :: kpoint
+      TYPE(kpoint_type), INTENT(INOUT)                   :: kpoint
 
       INTEGER                                            :: i, ik, j
 
-      IF (ASSOCIATED(kpoint)) THEN
+      IF (ASSOCIATED(kpoint%xkp)) THEN
+         DEALLOCATE (kpoint%xkp)
+      END IF
+      IF (ASSOCIATED(kpoint%wkp)) THEN
+         DEALLOCATE (kpoint%wkp)
+      END IF
+      IF (ASSOCIATED(kpoint%kp_dist)) THEN
+         DEALLOCATE (kpoint%kp_dist)
+      END IF
 
-         IF (ASSOCIATED(kpoint%xkp)) THEN
-            DEALLOCATE (kpoint%xkp)
-         END IF
-         IF (ASSOCIATED(kpoint%wkp)) THEN
-            DEALLOCATE (kpoint%wkp)
-         END IF
-         IF (ASSOCIATED(kpoint%kp_dist)) THEN
-            DEALLOCATE (kpoint%kp_dist)
-         END IF
+      CALL mpools_release(kpoint%mpools)
+      CALL mpools_release(kpoint%mpools_aux_fit)
 
-         CALL mpools_release(kpoint%mpools)
-         CALL mpools_release(kpoint%mpools_aux_fit)
+      CALL cp_blacs_env_release(kpoint%blacs_env)
+      CALL cp_blacs_env_release(kpoint%blacs_env_all)
 
-         CALL cp_blacs_env_release(kpoint%blacs_env)
-         CALL cp_blacs_env_release(kpoint%blacs_env_all)
+      CALL mp_para_env_release(kpoint%para_env)
+      CALL mp_para_env_release(kpoint%para_env_kp)
+      CALL mp_para_env_release(kpoint%para_env_inter_kp)
 
-         CALL mp_para_env_release(kpoint%para_env)
-         CALL mp_para_env_release(kpoint%para_env_kp)
-         CALL mp_para_env_release(kpoint%para_env_inter_kp)
+      IF (ASSOCIATED(kpoint%cell_to_index)) DEALLOCATE (kpoint%cell_to_index)
+      IF (ASSOCIATED(kpoint%index_to_cell)) DEALLOCATE (kpoint%index_to_cell)
 
-         IF (ASSOCIATED(kpoint%cell_to_index)) DEALLOCATE (kpoint%cell_to_index)
-         IF (ASSOCIATED(kpoint%index_to_cell)) DEALLOCATE (kpoint%index_to_cell)
+      IF (ASSOCIATED(kpoint%kp_env)) THEN
+         DO ik = 1, SIZE(kpoint%kp_env)
+            CALL kpoint_env_release(kpoint%kp_env(ik)%kpoint_env)
+            DEALLOCATE (kpoint%kp_env(ik)%kpoint_env)
+         END DO
+         DEALLOCATE (kpoint%kp_env)
+      END IF
 
-         IF (ASSOCIATED(kpoint%kp_env)) THEN
-            DO ik = 1, SIZE(kpoint%kp_env)
-               CALL kpoint_env_release(kpoint%kp_env(ik)%kpoint_env)
+      IF (ASSOCIATED(kpoint%kp_aux_env)) THEN
+         DO ik = 1, SIZE(kpoint%kp_aux_env)
+            CALL kpoint_env_release(kpoint%kp_aux_env(ik)%kpoint_env)
+            DEALLOCATE (kpoint%kp_aux_env(ik)%kpoint_env)
+         END DO
+         DEALLOCATE (kpoint%kp_aux_env)
+      END IF
+
+      IF (ASSOCIATED(kpoint%kp_sym)) THEN
+         DO ik = 1, SIZE(kpoint%kp_sym)
+            CALL kpoint_sym_release(kpoint%kp_sym(ik)%kpoint_sym)
+            DEALLOCATE (kpoint%kp_sym(ik)%kpoint_sym)
+         END DO
+         DEALLOCATE (kpoint%kp_sym)
+      END IF
+
+      IF (ASSOCIATED(kpoint%atype)) DEALLOCATE (kpoint%atype)
+
+      IF (ASSOCIATED(kpoint%kind_rotmat)) THEN
+         DO i = 1, SIZE(kpoint%kind_rotmat, 1)
+            DO j = 1, SIZE(kpoint%kind_rotmat, 2)
+               IF (ASSOCIATED(kpoint%kind_rotmat(i, j)%rmat)) THEN
+                  DEALLOCATE (kpoint%kind_rotmat(i, j)%rmat)
+               END IF
             END DO
-            DEALLOCATE (kpoint%kp_env)
-         END IF
+         END DO
+         DEALLOCATE (kpoint%kind_rotmat)
+      END IF
 
-         IF (ASSOCIATED(kpoint%kp_aux_env)) THEN
-            DO ik = 1, SIZE(kpoint%kp_aux_env)
-               CALL kpoint_env_release(kpoint%kp_aux_env(ik)%kpoint_env)
-            END DO
-            DEALLOCATE (kpoint%kp_aux_env)
-         END IF
-
-         IF (ASSOCIATED(kpoint%kp_sym)) THEN
-            DO ik = 1, SIZE(kpoint%kp_sym)
-               CALL kpoint_sym_release(kpoint%kp_sym(ik)%kpoint_sym)
-            END DO
-            DEALLOCATE (kpoint%kp_sym)
-         END IF
-
-         IF (ASSOCIATED(kpoint%atype)) DEALLOCATE (kpoint%atype)
-
-         IF (ASSOCIATED(kpoint%kind_rotmat)) THEN
-            DO i = 1, SIZE(kpoint%kind_rotmat, 1)
-               DO j = 1, SIZE(kpoint%kind_rotmat, 2)
-                  IF (ASSOCIATED(kpoint%kind_rotmat(i, j)%rmat)) THEN
-                     DEALLOCATE (kpoint%kind_rotmat(i, j)%rmat)
-                  END IF
-               END DO
-            END DO
-            DEALLOCATE (kpoint%kind_rotmat)
-         END IF
-
-         IF (ASSOCIATED(kpoint%scf_diis_buffer)) THEN
-            CALL qs_diis_b_release_kp(kpoint%scf_diis_buffer)
-            DEALLOCATE (kpoint%scf_diis_buffer)
-         END IF
-
-         DEALLOCATE (kpoint)
-
+      IF (ASSOCIATED(kpoint%scf_diis_buffer)) THEN
+         CALL qs_diis_b_release_kp(kpoint%scf_diis_buffer)
+         DEALLOCATE (kpoint%scf_diis_buffer)
       END IF
 
    END SUBROUTINE kpoint_release
@@ -712,11 +707,9 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE kpoint_env_create(kp_env)
-      TYPE(kpoint_env_type), POINTER                     :: kp_env
+      TYPE(kpoint_env_type), INTENT(INOUT)               :: kp_env
 
-      CPASSERT(.NOT. ASSOCIATED(kp_env))
-
-      ALLOCATE (kp_env)
+      CALL kpoint_env_release(kp_env)
 
       kp_env%nkpoint = 0
       kp_env%wkp = 0.0_dp
@@ -737,29 +730,23 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE kpoint_env_release(kp_env)
-      TYPE(kpoint_env_type), POINTER                     :: kp_env
+      TYPE(kpoint_env_type), INTENT(INOUT)               :: kp_env
 
       INTEGER                                            :: ic, is
 
-      IF (ASSOCIATED(kp_env)) THEN
-
-         IF (ASSOCIATED(kp_env%mos)) THEN
-            DO is = 1, SIZE(kp_env%mos, 2)
-               DO ic = 1, SIZE(kp_env%mos, 1)
-                  CALL deallocate_mo_set(kp_env%mos(ic, is))
-               END DO
+      IF (ASSOCIATED(kp_env%mos)) THEN
+         DO is = 1, SIZE(kp_env%mos, 2)
+            DO ic = 1, SIZE(kp_env%mos, 1)
+               CALL deallocate_mo_set(kp_env%mos(ic, is))
             END DO
-            DEALLOCATE (kp_env%mos)
-         END IF
-
-         CALL cp_fm_release(kp_env%pmat)
-         CALL cp_fm_release(kp_env%wmat)
-         CALL cp_fm_release(kp_env%smat)
-         CALL cp_fm_release(kp_env%amat)
-
-         DEALLOCATE (kp_env)
-
+         END DO
+         DEALLOCATE (kp_env%mos)
       END IF
+
+      CALL cp_fm_release(kp_env%pmat)
+      CALL cp_fm_release(kp_env%wmat)
+      CALL cp_fm_release(kp_env%smat)
+      CALL cp_fm_release(kp_env%amat)
 
    END SUBROUTINE kpoint_env_release
 
@@ -796,11 +783,9 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE kpoint_sym_create(kp_sym)
-      TYPE(kpoint_sym_type), POINTER                     :: kp_sym
+      TYPE(kpoint_sym_type), INTENT(INOUT)               :: kp_sym
 
-      CPASSERT(.NOT. ASSOCIATED(kp_sym))
-
-      ALLOCATE (kp_sym)
+      CALL kpoint_sym_release(kp_sym)
 
       kp_sym%nwght = 0
       kp_sym%nwred = 0
@@ -819,25 +804,19 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE kpoint_sym_release(kp_sym)
-      TYPE(kpoint_sym_type), POINTER                     :: kp_sym
+      TYPE(kpoint_sym_type), INTENT(INOUT)               :: kp_sym
 
-      IF (ASSOCIATED(kp_sym)) THEN
-
-         IF (ASSOCIATED(kp_sym%rot)) THEN
-            DEALLOCATE (kp_sym%rot)
-         END IF
-         IF (ASSOCIATED(kp_sym%xkp)) THEN
-            DEALLOCATE (kp_sym%xkp)
-         END IF
-         IF (ASSOCIATED(kp_sym%f0)) THEN
-            DEALLOCATE (kp_sym%f0)
-         END IF
-         IF (ASSOCIATED(kp_sym%rotp)) THEN
-            DEALLOCATE (kp_sym%rotp)
-         END IF
-
-         DEALLOCATE (kp_sym)
-
+      IF (ASSOCIATED(kp_sym%rot)) THEN
+         DEALLOCATE (kp_sym%rot)
+      END IF
+      IF (ASSOCIATED(kp_sym%xkp)) THEN
+         DEALLOCATE (kp_sym%xkp)
+      END IF
+      IF (ASSOCIATED(kp_sym%f0)) THEN
+         DEALLOCATE (kp_sym%f0)
+      END IF
+      IF (ASSOCIATED(kp_sym%rotp)) THEN
+         DEALLOCATE (kp_sym%rotp)
       END IF
 
    END SUBROUTINE kpoint_sym_release

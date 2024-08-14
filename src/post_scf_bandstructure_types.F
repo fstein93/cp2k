@@ -417,7 +417,10 @@ CONTAINS
    SUBROUTINE safe_kpoints_release(kpoints)
       TYPE(kpoint_type), POINTER                         :: kpoints
 
-      IF (ASSOCIATED(kpoints)) CALL kpoint_release(kpoints)
+      IF (ASSOCIATED(kpoints)) THEN
+         CALL kpoint_release(kpoints)
+         DEALLOCATE (kpoints)
+      END IF
 
    END SUBROUTINE safe_kpoints_release
 

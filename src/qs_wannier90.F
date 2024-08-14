@@ -230,7 +230,7 @@ CONTAINS
       ! k-points
       ALLOCATE (kpt_latt(3, num_kpts))
       CALL get_qs_env(qs_env, particle_set=particle_set)
-      NULLIFY (kpoint)
+      ALLOCATE (kpoint)
       CALL kpoint_create(kpoint)
       kpoint%kp_scheme = "MONKHORST-PACK"
       kpoint%symmetry = .FALSE.
@@ -600,6 +600,7 @@ CONTAINS
       END IF
 
       CALL kpoint_release(kpoint)
+      DEALLOCATE (kpoint)
 
    END SUBROUTINE wannier90_files
 

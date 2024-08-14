@@ -354,7 +354,7 @@ CONTAINS
          CALL kpoint_initialize(kpoints, particle_set, my_cell)
       ELSE
          silent = .FALSE.
-         NULLIFY (kpoints)
+         ALLOCATE (kpoints)
          CALL kpoint_create(kpoints)
          CALL set_qs_env(qs_env=qs_env, kpoints=kpoints)
          kpoint_section => section_vals_get_subs_vals(qs_env%input, "DFT%KPOINTS")

@@ -131,7 +131,7 @@ CONTAINS
          kpoint%xkp(1:3, 1) = 0.0_dp
          kpoint%wkp(1) = 1.0_dp
          ALLOCATE (kpoint%kp_sym(1))
-         NULLIFY (kpoint%kp_sym(1)%kpoint_sym)
+         ALLOCATE (kpoint%kp_sym(1)%kpoint_sym)
          CALL kpoint_sym_create(kpoint%kp_sym(1)%kpoint_sym)
       CASE ("MONKHORST-PACK", "MACDONALD")
 
@@ -181,7 +181,7 @@ CONTAINS
          ! transfer symmetry information
          ALLOCATE (kpoint%kp_sym(kpoint%nkp))
          DO ik = 1, kpoint%nkp
-            NULLIFY (kpoint%kp_sym(ik)%kpoint_sym)
+            ALLOCATE (kpoint%kp_sym(ik)%kpoint_sym)
             CALL kpoint_sym_create(kpoint%kp_sym(ik)%kpoint_sym)
             kpsym => kpoint%kp_sym(ik)%kpoint_sym
             IF (crys_sym%symlib .AND. .NOT. crys_sym%fullgrid .AND. crys_sym%istriz == 1) THEN
@@ -240,7 +240,7 @@ CONTAINS
          ! default: no symmetry settings
          ALLOCATE (kpoint%kp_sym(kpoint%nkp))
          DO i = 1, kpoint%nkp
-            NULLIFY (kpoint%kp_sym(i)%kpoint_sym)
+            ALLOCATE (kpoint%kp_sym(i)%kpoint_sym)
             CALL kpoint_sym_create(kpoint%kp_sym(i)%kpoint_sym)
          END DO
       CASE DEFAULT
@@ -332,7 +332,7 @@ CONTAINS
          ! only one process available -> owns all kpoints
          ALLOCATE (kp_env(nkp))
          DO ik = 1, nkp
-            NULLIFY (kp_env(ik)%kpoint_env)
+            ALLOCATE (kp_env(ik)%kpoint_env)
             CALL kpoint_env_create(kp_env(ik)%kpoint_env)
             kp => kp_env(ik)%kpoint_env
             kp%nkpoint = ik
@@ -345,7 +345,7 @@ CONTAINS
          IF (aux_fit) THEN
             ALLOCATE (kp_aux_env(nkp))
             DO ik = 1, nkp
-               NULLIFY (kp_aux_env(ik)%kpoint_env)
+               ALLOCATE (kp_aux_env(ik)%kpoint_env)
                CALL kpoint_env_create(kp_aux_env(ik)%kpoint_env)
                kp => kp_aux_env(ik)%kpoint_env
                kp%nkpoint = ik
@@ -428,7 +428,7 @@ CONTAINS
 
          ALLOCATE (kp_env(nkp_loc))
          DO ik = 1, nkp_loc
-            NULLIFY (kp_env(ik)%kpoint_env)
+            ALLOCATE (kp_env(ik)%kpoint_env)
             ikk = kpoint%kp_range(1) + ik - 1
             CALL kpoint_env_create(kp_env(ik)%kpoint_env)
             kp => kp_env(ik)%kpoint_env
@@ -442,7 +442,7 @@ CONTAINS
          IF (aux_fit) THEN
             ALLOCATE (kp_aux_env(nkp_loc))
             DO ik = 1, nkp_loc
-               NULLIFY (kp_aux_env(ik)%kpoint_env)
+               ALLOCATE (kp_aux_env(ik)%kpoint_env)
                ikk = kpoint%kp_range(1) + ik - 1
                CALL kpoint_env_create(kp_aux_env(ik)%kpoint_env)
                kp => kp_aux_env(ik)%kpoint_env
