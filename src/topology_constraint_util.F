@@ -362,6 +362,7 @@ CONTAINS
                   cons_info%const_colv_molname(nhdist + n_start_colv) = "UNDEF"
                   cons_info%const_colv_target(nhdist + n_start_colv) = rmod
                   cons_info%const_colv_target_growth(nhdist + n_start_colv) = 0.0_dp
+                  ALLOCATE(cons_info%colvar_set(nhdist + n_start_colv)%colvar)
                   CALL colvar_create(cons_info%colvar_set(nhdist + n_start_colv)%colvar, &
                                      dist_colvar_id)
                   cons_info%colvar_set(nhdist + n_start_colv)%colvar%dist_param%i_at = bond_list(k)%a

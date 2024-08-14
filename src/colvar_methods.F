@@ -475,6 +475,7 @@ CONTAINS
             ifunc = 1
          ELSE IF (my_subsection(16)) THEN
             path_section => distance_from_path_section
+            ALLOCATE(colvar)
             CALL colvar_create(colvar, distance_from_path_colvar_id)
             fmid = "DIS"
             ifunc = 2
