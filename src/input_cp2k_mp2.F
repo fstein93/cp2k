@@ -623,6 +623,17 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
+         name="FTRPA", &
+         description="Turn on Finite-Temperature RPA calculations. Requires SMEAR subsection in SCF section. "// &
+         "No GW calculations available. No gradients available.", &
+         usage="FTRPA", &
+         default_l_val=.FALSE., &
+         lone_keyword_l_val=.TRUE.)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create( &
+         keyword, __LOCATION__, &
          name="ADMM", &
          description="Decide whether to perform ADMM in the exact exchange calc. for RPA and/or GW. "// &
          "The ADMM XC correction is governed by the AUXILIARY_DENSITY_MATRIX_METHOD section in &DFT. "// &

@@ -305,7 +305,7 @@ CONTAINS
       CALL get_qs_env(qs_env, scf_control=scf_control)
 
       IF (do_im_time .OR. do_ri_sos_laplace_mp2) mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_minimax
-      IF (scf_control%smear%electronic_temperature > 0.0_dp) THEN
+      IF (mp2_env%ri_rpa%do_ftrpa .AND. scf_control%smear%electronic_temperature > 0.0_dp) THEN
          IF (mp2_env%ri_rpa%rpa_quadrature /= rpa_quadrature_matsubara .AND. &
              mp2_env%ri_rpa%rpa_quadrature /= rpa_quadrature_cc) mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_cc
       ELSE IF (mp2_env%ri_rpa%rpa_quadrature == rpa_quadrature_matsubara) THEN
@@ -1519,10 +1519,10 @@ CONTAINS
                IF (iter_sc_GW0 > 1) THEN
                   DO ispin = 1, nspins
                      CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
-                                    Eigenval_scf(:, 1, ispin), occupation_numbers(:, ispin), homo(ispin), &
-                                    omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
-                                    fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
-                                    num_integ_points, count_ev_sc_GW)
+                                     Eigenval_scf(:, 1, ispin), occupation_numbers(:, ispin), homo(ispin), &
+                                     omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
+                                     fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                                     num_integ_points, count_ev_sc_GW)
                   END DO
 
                   ! For SOS-MP2 we need both matrices separately
@@ -1534,18 +1534,18 @@ CONTAINS
                ELSE
                   DO ispin = 1, nspins
                      CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
-                                    Eigenval(:, 1, ispin), occupation_numbers(:, ispin), homo(ispin), &
-                                    omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
-                                    fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
-                                    num_integ_points, count_ev_sc_GW)
+                                     Eigenval(:, 1, ispin), occupation_numbers(:, ispin), homo(ispin), &
+                                     omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
+                                     fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
+                                     num_integ_points, count_ev_sc_GW)
                   END DO
 
-               ! For SOS-MP2 we need both matrices separately
-               IF (.NOT. do_ri_sos_laplace_mp2) THEN
-               DO ispin = 2, nspins
-                  CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(ispin))
-               END DO
-               END IF
+                  ! For SOS-MP2 we need both matrices separately
+                  IF (.NOT. do_ri_sos_laplace_mp2) THEN
+                  DO ispin = 2, nspins
+                     CALL cp_fm_scale_and_add(alpha=1.0_dp, matrix_a=fm_mat_Q(1), beta=1.0_dp, matrix_b=fm_mat_Q(ispin))
+                  END DO
+                  END IF
 
                END IF
 
