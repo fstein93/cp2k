@@ -129,6 +129,7 @@ MODULE mp2_types
                                                             minimax_quad = .FALSE., &
                                                             do_ri_g0w0 = .FALSE., &
                                                             do_admm = .FALSE., &
+                                                            do_ftrpa = .FALSE., &
                                                             do_rse = .FALSE., &
                                                             print_dgemm_info = .FALSE.
 

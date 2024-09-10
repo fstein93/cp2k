@@ -115,6 +115,7 @@ CONTAINS
       CALL section_vals_val_get(mp2_section, "RI_RPA%MM_STYLE", i_val=mp2_env%ri_rpa%mm_style)
       CALL section_vals_val_get(mp2_section, "RI_RPA%MINIMAX_QUADRATURE", l_val=mp2_env%ri_rpa%minimax_quad)
       CALL section_vals_val_get(mp2_section, "RI_RPA%ADMM", l_val=mp2_env%ri_rpa%do_admm)
+      CALL section_vals_val_get(mp2_section, "RI_RPA%FTRPA", l_val=mp2_env%ri_rpa%do_ftrpa)
       CALL section_vals_val_get(mp2_section, "RI_RPA%SCALE_RPA", r_val=mp2_env%ri_rpa%scale_rpa)
       mp2_env%ri_rpa%reuse_hfx = .FALSE.
 
