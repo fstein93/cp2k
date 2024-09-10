@@ -130,6 +130,7 @@ MODULE mp2_types
       LOGICAL                                            :: reuse_hfx = .FALSE., &
                                                             do_ri_g0w0 = .FALSE., &
                                                             do_admm = .FALSE., &
+                                                            do_ftrpa = .FALSE., &
                                                             do_rse = .FALSE., &
                                                             print_dgemm_info = .FALSE.
       ! GCC 8 has an issue with this being an ALLOCATABLE
