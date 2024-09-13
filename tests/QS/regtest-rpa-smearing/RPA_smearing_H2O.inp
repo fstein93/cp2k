@@ -52,6 +52,7 @@
         &END INTEGRALS
         &RI_RPA
           EXTRAPOLATION_ORDER 1
+          FTRPA
           QUADRATURE_RULE MATSUBARA
           RPA_NUM_QUAD_POINTS 10
           &HF
