@@ -1617,7 +1617,6 @@ CONTAINS
          END DO ! jquad
 
          CALL para_env%sum(erpa_jquad)
-         IF (unit_nr > 0) WRITE (*, *) erpa_jquad
          CALL para_env%sum(Erpa)
 
          IF (scf_control%smear%electronic_temperature <= 0.0_dp) THEN
