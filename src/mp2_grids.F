@@ -98,7 +98,7 @@ CONTAINS
       INTEGER, PARAMETER                                 :: num_points_per_magnitude = 200
 
       INTEGER                                            :: dimen, handle, ierr, ispin, jquad, &
-                                                            nspins, orb1, orb2
+                                                            nspins
       LOGICAL                                            :: my_do_kpoints, my_open_shell
       REAL(KIND=dp)                                      :: Emax, Emin, max_error_min, my_E_Range, &
                                                             my_regularization, scaling
@@ -133,17 +133,8 @@ CONTAINS
             Emax = 0.0_dp
             DO ispin = 1, nspins
                IF (homo(ispin) > 0 .AND. virtual(ispin) > 0) THEN
-                  ! First guess for minimal energy difference is highest fully occupied and the lowest fully unoccpied orbital
-                  Emin = MIN(Emin, Eigenval(homo(ispin) + 1, 1, ispin) - Eigenval(dimen - virtual(ispin), 1, ispin))
-                  ! Then, consider all pairs of partially occupied orbitals
-                  ! Ignore excitations to the same orbital because of weight factors f_i-f_j
-                  ! Keep only unique pairs because of factors (f_i-f_j)*(e_i-e_j)
-                  DO orb1 = dimen - virtual(ispin) + 1, homo(ispin)
-                     DO orb2 = orb1 + 1, homo(ispin)
-                        Emin = MIN(Emin, Eigenval(orb2, 1, ispin) - Eigenval(orb1, 1, ispin))
-                     END DO
-                  END DO
-                  Emax = MAX(Emax, MAXVAL(Eigenval(:, :, ispin)) - MINVAL(Eigenval(:, :, ispin)))
+                  Emin = MIN(Emin, Eigenval(homo(ispin) + 1, 1, ispin) - Eigenval(homo(ispin), 1, ispin))
+                  Emax = MAX(Emax, MAXVAL(Eigenval(:, 1, ispin)) - MINVAL(Eigenval(:, 1, ispin)))
                END IF
             END DO
             my_E_Range = Emax/Emin
