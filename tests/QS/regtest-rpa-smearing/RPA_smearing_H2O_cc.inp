@@ -52,7 +52,6 @@
         &END INTEGRALS
         &RI_RPA
           EXTRAPOLATION_ORDER 1
-          CLENSHAW-CURTIS
           RPA_NUM_QUAD_POINTS 10
           &HF
             FRACTION 1.0000000

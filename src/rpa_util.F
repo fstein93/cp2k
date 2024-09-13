@@ -801,6 +801,7 @@ CONTAINS
                occ_diff = 1.0_dp
             END IF
 
+            ! Necessary for FTRPA where omega may be zero and in presence of degenerate orbitals
             IF (Eigenval(avirt + dimen - virtual) > Eigenval(iocc)) THEN
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                              SQRT(eigen_diff*occ_diff/(eigen_diff**2 + omega**2))
