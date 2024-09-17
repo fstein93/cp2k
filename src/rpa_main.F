@@ -301,10 +301,15 @@ CONTAINS
 
       IF (do_im_time .OR. do_ri_sos_laplace_mp2) mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_minimax
       IF (mp2_env%ri_rpa%do_ftrpa .AND. scf_control%smear%electronic_temperature > 0.0_dp) THEN
-         IF (mp2_env%ri_rpa%rpa_quadrature /= rpa_quadrature_matsubara .AND. &
-             mp2_env%ri_rpa%rpa_quadrature /= rpa_quadrature_cc) mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_cc
+         IF (mp2_env%ri_rpa%rpa_quadrature /= rpa_quadrature_matsubara) THEN
+            mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_matsubara
+            CALL cp_warn(__LOCATION__, "Only Matsubara summation is available for Finite Temperature calculations. "// &
+                         "CP2K continues with Matsubara summation instead.")
+         END IF
       ELSE IF (mp2_env%ri_rpa%rpa_quadrature == rpa_quadrature_matsubara) THEN
          ! Matsubara summation is not available at T=0 (divergencies)
+         CALL cp_warn(__LOCATION__, "Matsubara summation not available if T=0. CP2K continues with Clenshaw-Curtis "// &
+                      "quadrature instead.")
          mp2_env%ri_rpa%rpa_quadrature = rpa_quadrature_cc
       END IF
       rpa_quadrature = mp2_env%ri_rpa%rpa_quadrature
@@ -1497,12 +1502,12 @@ CONTAINS
                   IF (iter_sc_gw0 == 1) THEN
                      DO ispin = 1, nspins
                         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
-                                                       Eigenval_last(:, 1, ispin), homo(ispin), omega_old)
+                                                       Eigenval_last(:, 1, ispin), omega_old)
                      END DO
                   ELSE
                      DO ispin = 1, nspins
                         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
-                                                       Eigenval_scf(:, 1, ispin), homo(ispin), omega_old)
+                                                       Eigenval_scf(:, 1, ispin), omega_old)
                      END DO
                   END IF
                END IF
@@ -1617,6 +1622,7 @@ CONTAINS
          END DO ! jquad
 
          CALL para_env%sum(erpa_jquad)
+         WRITE (*, *) "erpa_jquad", erpa_jquad
          CALL para_env%sum(Erpa)
 
          IF (scf_control%smear%electronic_temperature <= 0.0_dp) THEN
@@ -1777,10 +1783,10 @@ CONTAINS
          ! Remove energy/frequency factor from 3c-Integral for BSE
          IF (iter_sc_gw0 == 1) THEN
             CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
-                                           Eigenval_last(:, 1, 1), homo(1), omega)
+                                           Eigenval_last(:, 1, 1), omega)
          ELSE
             CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
-                                           Eigenval_scf(:, 1, 1), homo(1), omega)
+                                           Eigenval_scf(:, 1, 1), omega)
          END IF
          ! Main routine for all BSE postprocessing
          CALL start_bse_calculation(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &

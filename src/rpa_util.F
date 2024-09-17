@@ -11,7 +11,6 @@
 !>      06.2019 Moved from rpa_ri_gpw.F [Frederick Stein]
 ! **************************************************************************************************
 MODULE rpa_util
-
    USE cell_types,                      ONLY: cell_type,&
                                               get_cell
    USE cp_blacs_env,                    ONLY: cp_blacs_env_create,&
@@ -45,6 +44,7 @@ MODULE rpa_util
    USE hfx_types,                       ONLY: block_ind_type,&
                                               dealloc_containers,&
                                               hfx_compression_type
+   USE ieee_arithmetic,                 ONLY: ieee_is_normal
    USE input_constants,                 ONLY: wfc_mm_style_gemm,&
                                               wfc_mm_style_syrk
    USE kinds,                           ONLY: dp
@@ -697,6 +697,8 @@ CONTAINS
       IF (do_bse .AND. jquad == num_integ_points .AND. count_ev_sc_GW == 1) THEN
          CALL cp_fm_to_fm(fm_mat_Q_gemm, fm_mat_Q_static_bse_gemm)
       END IF
+
+      CPASSERT(ALL(ieee_is_normal(fm_mat_Q%local_data)))
       CALL timestop(handle)
 
    END SUBROUTINE calc_mat_Q
@@ -706,20 +708,19 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param virtual ...
 !> \param Eigenval_last ...
-!> \param homo ...
 !> \param omega_old ...
 ! **************************************************************************************************
-   SUBROUTINE remove_scaling_factor_rpa(fm_mat_S, virtual, Eigenval_last, homo, omega_old)
+   SUBROUTINE remove_scaling_factor_rpa(fm_mat_S, virtual, Eigenval_last, omega_old)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_last
-      INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), INTENT(IN)                          :: omega_old
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_scaling_factor_rpa'
+      REAL(KIND=dp), PARAMETER                           :: eps_diff = 1e-5
 
-      INTEGER                                            :: avirt, handle, i_global, iiB, iocc, &
-                                                            ncol_local
+      INTEGER                                            :: avirt, dimen, handle, i_global, iiB, &
+                                                            iocc, ncol_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
       REAL(KIND=dp)                                      :: eigen_diff
 
@@ -730,19 +731,29 @@ CONTAINS
                           ncol_local=ncol_local, &
                           col_indices=col_indices)
 
+      dimen = SIZE(Eigenval_last)
+
+      CPASSERT(ALL(ieee_is_normal(fm_mat_S%local_data)))
+
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
-!$OMP             SHARED(ncol_local,col_indices,Eigenval_last,fm_mat_S,virtual,homo,omega_old)
+!$OMP             SHARED(ncol_local,col_indices,Eigenval_last,fm_mat_S,virtual,dimen,omega_old)
       DO iiB = 1, ncol_local
          i_global = col_indices(iiB)
 
          iocc = MAX(1, i_global - 1)/virtual + 1
          avirt = i_global - (iocc - 1)*virtual
-         eigen_diff = Eigenval_last(avirt + homo) - Eigenval_last(iocc)
+         eigen_diff = Eigenval_last(avirt + dimen - virtual) - Eigenval_last(iocc)
 
-         fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
-                                       SQRT(eigen_diff/(eigen_diff**2 + omega_old**2))
+         IF (eigen_diff > eps_diff) THEN
+            fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
+                                          SQRT(eigen_diff/(eigen_diff**2 + omega_old**2))
+         ELSE
+            fm_mat_S%local_data(:, iiB) = 0.0_dp
+         END IF
 
       END DO
+
+      CPASSERT(ALL(ieee_is_normal(fm_mat_S%local_data)))
 
       CALL timestop(handle)
 
@@ -768,6 +779,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: occupation_numbers
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_fm_mat_S_rpa'
+      REAL(KIND=dp), PARAMETER                           :: eps_diff = 1e-5
 
       INTEGER                                            :: avirt, dimen, handle, i_global, iiB, &
                                                             iocc, ncol_local
@@ -782,6 +794,8 @@ CONTAINS
                           col_indices=col_indices)
 
       dimen = SIZE(Eigenval)
+
+      CPASSERT(ALL(ieee_is_normal(fm_mat_S%local_data)))
 
       ! update G matrix with the new value of omega
       IF (first_cycle) THEN
@@ -802,7 +816,7 @@ CONTAINS
             END IF
 
             ! Necessary for FTRPA where omega may be zero and in presence of degenerate orbitals
-            IF (Eigenval(avirt + dimen - virtual) > Eigenval(iocc)) THEN
+            IF (Eigenval(avirt + dimen - virtual) - Eigenval(iocc) > eps_diff) THEN
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                              SQRT(eigen_diff*occ_diff/(eigen_diff**2 + omega**2))
             ELSE
@@ -822,13 +836,15 @@ CONTAINS
             avirt = i_global - (iocc - 1)*virtual
             eigen_diff = Eigenval(avirt + dimen - virtual) - Eigenval(iocc)
 
-            IF (avirt + dimen - virtual > iocc .AND. eigen_diff > 0.0_dp) THEN
+            IF (avirt + dimen - virtual > iocc .AND. eigen_diff > eps_diff) THEN
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                              SQRT((eigen_diff**2 + omega_old**2)/(eigen_diff**2 + omega**2))
             END IF
 
          END DO
       END IF
+
+      CPASSERT(ALL(ieee_is_normal(fm_mat_S%local_data)))
 
       CALL timestop(handle)
 
@@ -927,6 +943,8 @@ CONTAINS
          END DO
       END DO
       CALL para_env%sum(trace_Qomega)
+
+      CPASSERT(ALL(ieee_is_normal(trace_Qomega)))
 
       CALL timestop(handle)
 

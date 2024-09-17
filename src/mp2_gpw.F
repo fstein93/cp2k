@@ -615,7 +615,7 @@ CONTAINS
 
          CALL calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, cell, &
                                  particle_set, atomic_kind_set, qs_kind_set, &
-                                 mo_coeff, nmo, homo, dimen_RI, Eigenval, &
+                                 mo_coeff, nmo, homo, virtual, dimen_RI, Eigenval, &
                                  my_group_L_start, my_group_L_end, my_group_L_size, &
                                  sab_orb_sub, mat_munu, blacs_env_sub)
 

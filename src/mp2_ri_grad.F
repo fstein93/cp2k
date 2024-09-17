@@ -99,6 +99,7 @@ CONTAINS
 !> \param mo_coeff ...
 !> \param nmo ...
 !> \param homo ...
+!> \param virtual ...
 !> \param dimen_RI ...
 !> \param Eigenval ...
 !> \param my_group_L_start ...
@@ -110,7 +111,7 @@ CONTAINS
 !> \author Mauro Del Ben
 ! **************************************************************************************************
    SUBROUTINE calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, cell, particle_set, &
-                                 atomic_kind_set, qs_kind_set, mo_coeff, nmo, homo, dimen_RI, Eigenval, &
+                                 atomic_kind_set, qs_kind_set, mo_coeff, nmo, homo, virtual, dimen_RI, Eigenval, &
                                  my_group_L_start, my_group_L_end, my_group_L_size, sab_orb_sub, mat_munu, &
                                  blacs_env_sub)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -122,7 +123,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER, INTENT(IN)                                :: nmo
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
@@ -137,8 +138,7 @@ CONTAINS
       INTEGER                                            :: dimen, eri_method, handle, handle2, i, &
                                                             ikind, ispin, itmp(2), L_counter, LLL, &
                                                             my_P_end, my_P_size, my_P_start, nspins
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind, &
-                                                            virtual
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, kind_of, natom_of_kind
       LOGICAL                                            :: alpha_beta, use_virial
       REAL(KIND=dp)                                      :: cutoff_old, eps_filter, factor, &
                                                             factor_2c, relative_cutoff_old
@@ -178,8 +178,6 @@ CONTAINS
       alpha_beta = (nspins == 2)
 
       dimen = nmo
-      ALLOCATE (virtual(nspins))
-      virtual(:) = dimen - homo(:)
       eps_filter = mp2_env%mp2_gpw%eps_filter
       ALLOCATE (mo_coeff_o(nspins), mo_coeff_v(nspins), G_P_ia(nspins, my_group_L_size))
       DO ispin = 1, nspins
@@ -805,7 +803,7 @@ CONTAINS
       END DO
       ! col
       DO jjB = 1, ncol_local_2a
-         j_global = col_indices_2a(jjB) + homo
+         j_global = col_indices_2a(jjB) + dimen - virtual
          send_pcol = L_mu_q%matrix_struct%g2p_col(j_global)
          j_local = L_mu_q%matrix_struct%g2l_col(j_global)
          my_col_indeces_info_2a(1, jjB) = send_pcol
@@ -1177,20 +1175,20 @@ CONTAINS
       IF (mp2_env%method == ri_mp2_laplace) THEN
          CALL parallel_gemm('T', 'N', virtual, virtual, dimen, 1.0_dp, &
                             mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%P_mo(kspin), &
-                            a_first_col=homo + 1, &
+                            a_first_col=dimen - virtual + 1, &
                             a_first_row=1, &
-                            b_first_col=homo + 1, &
+                            b_first_col=dimen - virtual + 1, &
                             b_first_row=1, &
-                            c_first_col=homo + 1, &
-                            c_first_row=homo + 1)
+                            c_first_col=dimen - virtual + 1, &
+                            c_first_row=dimen - virtual + 1)
          CALL parallel_gemm('T', 'N', virtual, virtual, dimen, -2.0_dp, &
                             L_mu_q, mo_coeff, 2.0_dp, mp2_env%ri_grad%P_mo(kspin), &
-                            a_first_col=homo + 1, &
+                            a_first_col=dimen - virtual + 1, &
                             a_first_row=1, &
-                            b_first_col=homo + 1, &
+                            b_first_col=dimen - virtual + 1, &
                             b_first_row=1, &
-                            c_first_col=homo + 1, &
-                            c_first_row=homo + 1)
+                            c_first_col=dimen - virtual + 1, &
+                            c_first_row=dimen - virtual + 1)
       END IF
 
       IF (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_method_gpw) THEN
@@ -1200,9 +1198,9 @@ CONTAINS
             IF (j_global <= homo) CYCLE
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               IF (my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) THEN
+               IF (my_B_virtual_start <= i_global - (dimen - virtual) .AND. i_global - (dimen - virtual) <= my_B_virtual_end) THEN
                   mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB) = &
-                     mp2_env%ri_grad%P_ab(kspin)%array(i_global - homo - my_B_virtual_start + 1, j_global - homo)
+              mp2_env%ri_grad%P_ab(kspin)%array(i_global - (dimen - virtual) - my_B_virtual_start + 1, j_global - (dimen - virtual))
                END IF
             END DO
          END DO
@@ -1214,9 +1212,9 @@ CONTAINS
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
                IF (ABS(Eigenval(i_global) - Eigenval(j_global)) < mp2_env%ri_grad%eps_canonical) THEN
-                  IF (my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) THEN
+                 IF (my_B_virtual_start <= i_global - (dimen - virtual) .AND. i_global - (dimen - virtual) <= my_B_virtual_end) THEN
                      mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB) = &
-                        mp2_env%ri_grad%P_ab(kspin)%array(i_global - homo - my_B_virtual_start + 1, j_global - homo)
+              mp2_env%ri_grad%P_ab(kspin)%array(i_global - (dimen - virtual) - my_B_virtual_start + 1, j_global - (dimen - virtual))
                   ELSE
                      mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB) = 0.0_dp
                   END IF
@@ -1257,12 +1255,12 @@ CONTAINS
          DO iiB = 1, send_row_size
             i_global = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%l2g_row(iiB, send_prow)
             IF (i_global <= homo) CYCLE
-            i_global = i_global - homo
+            i_global = i_global - (dimen - virtual)
             IF (.NOT. (my_B_virtual_start <= i_global .AND. i_global <= my_B_virtual_end)) CYCLE
             DO jjB = 1, send_col_size
                j_global = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%l2g_col(jjB, send_pcol)
                IF (j_global <= homo) CYCLE
-               j_global = j_global - homo
+               j_global = j_global - (dimen - virtual)
                ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(kspin)%array(i_global - my_B_virtual_start + 1, j_global)
             END DO
          END DO
@@ -1318,9 +1316,9 @@ CONTAINS
                          mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%W_mo(kspin), &
                          a_first_col=1, &
                          a_first_row=1, &
-                         b_first_col=homo + 1, &
+                         b_first_col=dimen - virtual + 1, &
                          b_first_row=1, &
-                         c_first_col=homo + 1, &
+                         c_first_col=dimen - virtual + 1, &
                          c_first_row=1)
       CALL timestop(handle2)
 
@@ -1340,7 +1338,7 @@ CONTAINS
                          L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%L_jb(kspin), &
                          a_first_col=1, &
                          a_first_row=1, &
-                         b_first_col=homo + 1, &
+                         b_first_col=dimen - virtual + 1, &
                          b_first_row=1, &
                          c_first_col=1, &
                          c_first_row=1)
@@ -1349,7 +1347,7 @@ CONTAINS
                          mo_coeff, L_mu_q, 1.0_dp, mp2_env%ri_grad%L_jb(kspin), &
                          a_first_col=1, &
                          a_first_row=1, &
-                         b_first_col=homo + 1, &
+                         b_first_col=dimen - virtual + 1, &
                          b_first_row=1, &
                          c_first_col=1, &
                          c_first_row=1)

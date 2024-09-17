@@ -583,13 +583,13 @@ CONTAINS
          CALL create_group_dist(virt_dist, exchange_work%para_env_sub%num_pe, virt)
 
          ! Remove extra factor from S after the multiplication (to return to the original matrix)
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), omega)
 
          CALL exchange_work%redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, ispin, virt_dist)
          CALL cp_fm_release(fm_mat_Gamma_3)
 
          ! We need only the pure matrix
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), omega)
 
          ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
          CALL exchange_work%redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, ispin, virt_dist)
@@ -730,7 +730,7 @@ CONTAINS
                             matrix_c=fm_mat_Gamma_3)
 
          ! Remove extra factor from S after the multiplication (to return to the original matrix)
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), hom, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), omega)
 
          ! Copy Gamma_ia_P^3 to dbcsr matrix set
          CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3(ispin)%matrix_set, &
