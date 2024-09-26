@@ -768,6 +768,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: occupation_numbers
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_fm_mat_S_rpa'
+      REAL(KIND=dp), PARAMETER                           :: eps_diff = 1e-5
 
       INTEGER                                            :: avirt, dimen, handle, i_global, iiB, &
                                                             iocc, ncol_local
@@ -794,7 +795,7 @@ CONTAINS
 
             iocc = MAX(1, i_global - 1)/virtual + 1
             avirt = i_global - (iocc - 1)*virtual
-            eigen_diff = ABS(Eigenval(avirt + dimen - virtual) - Eigenval(iocc))
+            eigen_diff = Eigenval(avirt + dimen - virtual) - Eigenval(iocc)
             IF (PRESENT(occupation_numbers)) THEN
                occ_diff = ABS(occupation_numbers(avirt + dimen - virtual) - occupation_numbers(iocc))
             ELSE
@@ -802,9 +803,9 @@ CONTAINS
             END IF
 
             ! Necessary for FTRPA where omega may be zero and in presence of degenerate orbitals
-            IF (Eigenval(avirt + dimen - virtual) > Eigenval(iocc)) THEN
+            IF (eigen_diff > eps_diff) THEN
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
-                                             SQRT(eigen_diff*occ_diff/(eigen_diff**2 + omega**2))
+                                             SQRT(ABS(eigen_diff)*occ_diff/(eigen_diff**2 + omega**2))
             ELSE
                fm_mat_S%local_data(:, iiB) = 0.0_dp
             END IF
@@ -822,7 +823,7 @@ CONTAINS
             avirt = i_global - (iocc - 1)*virtual
             eigen_diff = Eigenval(avirt + dimen - virtual) - Eigenval(iocc)
 
-            IF (avirt + dimen - virtual > iocc .AND. eigen_diff > 0.0_dp) THEN
+            IF (eigen_diff > eps_diff) THEN
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                              SQRT((eigen_diff**2 + omega_old**2)/(eigen_diff**2 + omega**2))
             END IF
