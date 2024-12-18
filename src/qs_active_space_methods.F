@@ -1260,7 +1260,7 @@ CONTAINS
          ! do nothing
       END SELECT
 
-      ! Check the inpuz group
+      ! Check the input group
       CALL get_qs_env(qs_env, para_env=para_env, blacs_env=blacs_env)
       IF (eri_env%eri_gpw%group_size <= 1) eri_env%eri_gpw%group_size = para_env%num_pe
       IF (MOD(para_env%num_pe, eri_env%eri_gpw%group_size) /= 0) &
@@ -1403,7 +1403,7 @@ CONTAINS
             CALL dbcsr_get_info(matrix_pq_rnu(ispin), nfullrows_total=nrow_global, nfullcols_total=ncol_global)
 
             NULLIFY (fm_struct)
-            CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env_sub, &
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env_sub, para_env=para_env_sub, &
                                      nrow_global=nrow_global, ncol_global=ncol_global)
             CALL cp_fm_create(fm_matrix_pq_rnu(ispin), fm_struct)
             CALL cp_fm_create(fm_mo_coeff_as(ispin), fm_struct)
@@ -1412,7 +1412,7 @@ CONTAINS
             CALL copy_dbcsr_to_fm(mo_coeff_as(ispin), fm_mo_coeff_as(ispin))
 
             NULLIFY (fm_struct)
-            CALL cp_fm_struct_create(fm_struct, context=blacs_env, para_env=para_env_sub, &
+            CALL cp_fm_struct_create(fm_struct, context=blacs_env_sub, para_env=para_env_sub, &
                                      nrow_global=ncol_global, ncol_global=ncol_global)
             CALL cp_fm_create(fm_matrix_pq_rs(ispin), fm_struct)
             CALL cp_fm_struct_release(fm_struct)
