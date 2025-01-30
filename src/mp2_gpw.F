@@ -245,7 +245,7 @@ CONTAINS
          virtual(ispin) = COUNT(mo_occupation_numbers < 1.0_dp)
          IF (.NOT. mp2_env%ri_rpa%do_ftrpa) THEN
             homo(ispin) = NINT(SUM(occupation_numbers(:, ispin)))
-            virtual(ispin) = dimen - homo(ispin)
+            virtual(ispin) = nmo - homo(ispin)
             occupation_numbers(:homo(ispin), ispin) = 1.0_dp
             occupation_numbers(homo(ispin) + 1:, ispin) = 0.0_dp
          END IF

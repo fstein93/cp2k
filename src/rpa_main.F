@@ -1186,6 +1186,7 @@ CONTAINS
       TYPE(rpa_exchange_work_type)                       :: exchange_work
       TYPE(rpa_grad_type)                                :: rpa_grad
       TYPE(rpa_sigma_type)                               :: rpa_sigma
+      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(two_dim_int_array), ALLOCATABLE, DIMENSION(:) :: t_3c_O_mo_ind
 
       CALL timeset(routineN, handle)
@@ -1204,6 +1205,8 @@ CONTAINS
       extrapolation_order = mp2_env%ri_rpa%extrapolation_order
       ! We enforce the correct quadrature rule in case of SOS-MP2
       quadrature_rule = mp2_env%ri_rpa%rpa_quadrature
+
+CALL get_qs_env(qs_env, scf_control=scf_control)
 
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
@@ -1632,8 +1635,7 @@ CONTAINS
          END DO ! jquad
 
          IF (mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
-            CALL finalize_rpa_sigma(rpa_sigma, unit_nr, mp2_env%ri_rpa%e_sigma_corr, para_env, do_minimax_quad)
-            IF (do_minimax_quad) mp2_env%ri_rpa%e_sigma_corr = mp2_env%ri_rpa%e_sigma_corr/2.0_dp
+            CALL finalize_rpa_sigma(rpa_sigma, unit_nr, mp2_env%ri_rpa%e_sigma_corr, para_env)
             CALL para_env%sum(mp2_env%ri_rpa%e_sigma_corr)
          END IF
 
