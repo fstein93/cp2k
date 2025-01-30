@@ -1187,6 +1187,8 @@ CONTAINS
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
       extrapolation_order = mp2_env%ri_rpa%extrapolation_order
 
+CALL get_qs_env(qs_env, scf_control=scf_control)
+
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
       IF (.NOT. do_ri_sos_laplace_mp2) mm_style = mp2_env%ri_rpa%mm_style
