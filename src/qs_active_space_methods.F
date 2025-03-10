@@ -1306,11 +1306,11 @@ CONTAINS
       END DO
       qs_control%relative_cutoff = eri_env%eri_gpw%rel_cutoff*0.5_dp
 
-         ! For now, we will distribute neighbor lists etc. within the global communicator
-         CALL get_qs_env(qs_env, ks_env=ks_env)
-         CALL create_mat_munu(mat_munu, qs_env, eri_env%eri_gpw%eps_grid, blacs_env_sub, sab_orb_sub=sab_orb_sub, &
-                              do_alloc_blocks_from_nbl=.TRUE., dbcsr_sym_type=dbcsr_type_symmetric)
-         CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
+      ! For now, we will distribute neighbor lists etc. within the global communicator
+      CALL get_qs_env(qs_env, ks_env=ks_env)
+      CALL create_mat_munu(mat_munu, qs_env, eri_env%eri_gpw%eps_grid, blacs_env_sub, sab_orb_sub=sab_orb_sub, &
+                           do_alloc_blocks_from_nbl=.TRUE., dbcsr_sym_type=dbcsr_type_symmetric)
+      CALL dbcsr_set(mat_munu%matrix, 0.0_dp)
 
       ! Generate the appropriate  pw_env
       NULLIFY (pw_env_sub)
@@ -1365,31 +1365,31 @@ CONTAINS
          END IF
       END IF
 
-         ALLOCATE (mo_coeff_as(nspins), fm_mo_coeff_as(nspins))
-         DO ispin = 1, nspins
-            BLOCK
-               REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: C
-               TYPE(group_dist_d1_type) :: gd_array
-               TYPE(cp_fm_type), POINTER :: mo_coeff
-               CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
-               CALL grep_rows_in_subgroups(para_env, para_env_sub, mo_coeff, gd_array, C)
+      ALLOCATE (mo_coeff_as(nspins), fm_mo_coeff_as(nspins))
+      DO ispin = 1, nspins
+         BLOCK
+            REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: C
+            TYPE(group_dist_d1_type) :: gd_array
+            TYPE(cp_fm_type), POINTER :: mo_coeff
+            CALL get_mo_set(mos(ispin), mo_coeff=mo_coeff)
+            CALL grep_rows_in_subgroups(para_env, para_env_sub, mo_coeff, gd_array, C)
 
-               CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_as(ispin), &
-                                          C, mat_munu%matrix, gd_array, eri_env%eri_gpw%eps_filter)
-               CALL release_group_dist(gd_array)
-               DEALLOCATE (C)
-            END BLOCK
+            CALL build_dbcsr_from_rows(para_env_sub, mo_coeff_as(ispin), &
+                                       C, mat_munu%matrix, gd_array, eri_env%eri_gpw%eps_filter)
+            CALL release_group_dist(gd_array)
+            DEALLOCATE (C)
+         END BLOCK
 
-            CALL dbcsr_get_info(mo_coeff_as(ispin), nfullrows_total=nrow_global, nfullcols_total=ncol_global)
+         CALL dbcsr_get_info(mo_coeff_as(ispin), nfullrows_total=nrow_global, nfullcols_total=ncol_global)
 
-            NULLIFY (fm_struct)
-            CALL cp_fm_struct_create(fm_struct, context=blacs_env_sub, para_env=para_env_sub, &
-                                     nrow_global=nrow_global, ncol_global=ncol_global)
-            CALL cp_fm_create(fm_mo_coeff_as(ispin), fm_struct)
-            CALL cp_fm_struct_release(fm_struct)
+         NULLIFY (fm_struct)
+         CALL cp_fm_struct_create(fm_struct, context=blacs_env_sub, para_env=para_env_sub, &
+                                  nrow_global=nrow_global, ncol_global=ncol_global)
+         CALL cp_fm_create(fm_mo_coeff_as(ispin), fm_struct)
+         CALL cp_fm_struct_release(fm_struct)
 
-            CALL copy_dbcsr_to_fm(mo_coeff_as(ispin), fm_mo_coeff_as(ispin))
-         END DO
+         CALL copy_dbcsr_to_fm(mo_coeff_as(ispin), fm_mo_coeff_as(ispin))
+      END DO
 
       IF (eri_env%method == eri_method_gpw_ht) THEN
          ! We need a task list
@@ -1690,13 +1690,13 @@ CONTAINS
          CALL release_neighbor_list_sets(sab_orb_sub)
          CALL cp_blacs_env_release(blacs_env_sub)
       END IF
-         CALL dbcsr_release(mat_munu%matrix)
-         DEALLOCATE (mat_munu%matrix)
-         DO ispin = 1, nspins
-            CALL dbcsr_release(mo_coeff_as(ispin))
-            CALL cp_fm_release(fm_mo_coeff_as(ispin))
-         END DO
-         DEALLOCATE (mo_coeff_as, fm_mo_coeff_as)
+      CALL dbcsr_release(mat_munu%matrix)
+      DEALLOCATE (mat_munu%matrix)
+      DO ispin = 1, nspins
+         CALL dbcsr_release(mo_coeff_as(ispin))
+         CALL cp_fm_release(fm_mo_coeff_as(ispin))
+      END DO
+      DEALLOCATE (mo_coeff_as, fm_mo_coeff_as)
       CALL pw_env_release(pw_env_sub)
       ! Return to the old qs_control
       dft_control%qs_control => qs_control_old
