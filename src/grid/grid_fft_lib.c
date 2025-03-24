@@ -90,11 +90,17 @@ void fft_free_complex(double complex *buffer) {
 }
 
 /*******************************************************************************
- * \brief Naive implementation of FFT from transposed format (for easier
- *transposition). \author Frederick Stein
+ * \brief Naive implementation of FFT from transposed format.
+ * \note this routine overwrites the input array
+ * \author Frederick Stein
  ******************************************************************************/
-void fft_1d_fw_local(const double complex *grid_rs, double complex *grid_gs,
+void fft_1d_fw_local(double complex *grid_rs, double complex *grid_gs,
                      const int fft_size, const int number_of_ffts) {
+  if (fft_size < 1)
+    return;
+  if (number_of_ffts < 1)
+    return;
+
   const double pi = acos(-1.0);
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
@@ -111,11 +117,17 @@ void fft_1d_fw_local(const double complex *grid_rs, double complex *grid_gs,
 }
 
 /*******************************************************************************
- * \brief Naive implementation of backwards FFT to transposed format (for easier
- *transposition). \author Frederick Stein
+ * \brief Naive implementation of backwards FFT to transposed format.
+ * \note this routine overwrites the input array
+ * \author Frederick Stein
  ******************************************************************************/
-void fft_1d_bw_local(const double complex *grid_gs, double complex *grid_rs,
+void fft_1d_bw_local(double complex *grid_gs, double complex *grid_rs,
                      const int fft_size, const int number_of_ffts) {
+  if (fft_size < 1)
+    return;
+  if (number_of_ffts < 1)
+    return;
+
   const double pi = acos(-1.0);
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
@@ -133,15 +145,21 @@ void fft_1d_bw_local(const double complex *grid_gs, double complex *grid_rs,
 
 /*******************************************************************************
  * \brief Naive implementation of 1D R2C FFT from transposed format
+ * \note this routine overwrites the input array
  * \author Frederick Stein
  ******************************************************************************/
-void fft_1d_r2c_fw_local(const double *grid_rs, double complex *grid_gs,
+void fft_1d_r2c_fw_local(double *grid_rs, double complex *grid_gs,
                          const int fft_size, const int number_of_ffts) {
+  if (fft_size < 1)
+    return;
+  if (number_of_ffts < 1)
+    return;
+
   const double pi = acos(-1.0);
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
   for (int fft = 0; fft < number_of_ffts; fft++) {
-    for (int index_out = 0; index_out < (fft_size + 1) / 2; index_out++) {
+    for (int index_out = 0; index_out < (fft_size / 2 + 1); index_out++) {
       double complex tmp = grid_rs[fft];
       for (int index_in = 1; index_in < (fft_size + 1) / 2; index_in++) {
         const double complex factor =
@@ -160,11 +178,17 @@ void fft_1d_r2c_fw_local(const double *grid_rs, double complex *grid_gs,
 }
 
 /*******************************************************************************
- * \brief Naive implementation of backwards FFT to transposed format (for easier
- *transposition). \author Frederick Stein
+ * \brief Naive implementation of backwards FFT to transposed format.
+ * \note this routine overwrites the input array
+ * \author Frederick Stein
  ******************************************************************************/
-void fft_1d_c2r_bw_local(const double complex *grid_gs, double *grid_rs,
+void fft_1d_c2r_bw_local(double complex *grid_gs, double *grid_rs,
                          const int fft_size, const int number_of_ffts) {
+  if (fft_size < 1)
+    return;
+  if (number_of_ffts < 1)
+    return;
+
   const double pi = acos(-1.0);
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
@@ -187,6 +211,7 @@ void fft_1d_c2r_bw_local(const double complex *grid_gs, double *grid_rs,
 
 /*******************************************************************************
  * \brief Local transposition.
+ * \note this routine overwrites the input array
  * \author Frederick Stein
  ******************************************************************************/
 void transpose_local(double complex *grid, double complex *grid_transposed,
@@ -205,11 +230,18 @@ void transpose_local(double complex *grid, double complex *grid_transposed,
 
 /*******************************************************************************
  * \brief Naive implementation of 2D FFT (transposed format, no normalization).
+ * \note this routine overwrites the input array
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_fw_local(double complex *grid_rs, double complex *grid_gs,
                      const int size_of_first_fft, const int size_of_second_fft,
                      const int number_of_ffts) {
+  if (size_of_first_fft < 1)
+    return;
+  if (size_of_second_fft < 1)
+    return;
+  if (number_of_ffts < 1)
+    return;
 
   // Perform the first FFT along z
   fft_1d_fw_local(grid_rs, grid_gs, size_of_first_fft,
@@ -228,11 +260,18 @@ void fft_2d_fw_local(double complex *grid_rs, double complex *grid_gs,
  * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
  * \note fft_2d_bw_local(grid_gs, grid_rs, n1, n2, m) is the reverse to
  * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
+ * \note this routine overwrites the input array
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_bw_local(double complex *grid_gs, double complex *grid_rs,
                      const int size_of_first_fft, const int size_of_second_fft,
                      const int number_of_ffts) {
+  if (size_of_first_fft < 1)
+    return;
+  if (size_of_second_fft < 1)
+    return;
+  if (number_of_ffts < 1)
+    return;
 
   // Perform the second FFT along y
   fft_1d_bw_local(grid_gs, grid_rs, size_of_second_fft,
@@ -248,13 +287,84 @@ void fft_2d_bw_local(double complex *grid_gs, double complex *grid_rs,
 }
 
 /*******************************************************************************
+ * \brief Naive implementation of R2C-2D FFT (transposed format, no
+ *normalization). \note this routine overwrites the input array \author
+ *Frederick Stein
+ ******************************************************************************/
+void fft_2d_r2c_fw_local(double *grid_rs, double complex *grid_gs,
+                         const int size_of_first_fft,
+                         const int size_of_second_fft,
+                         const int number_of_ffts) {
+  if (size_of_first_fft < 1)
+    return;
+  if (size_of_second_fft < 1)
+    return;
+  if (number_of_ffts < 1)
+    return;
+
+  double complex *grid_ms =
+      calloc((size_of_first_fft / 2 + 1) * size_of_second_fft * number_of_ffts,
+             sizeof(double complex));
+
+  // Perform the first FFT along z
+  fft_1d_r2c_fw_local(grid_rs, grid_ms, size_of_first_fft,
+                      size_of_second_fft * number_of_ffts);
+
+  // Perform the second FFT along y
+  fft_1d_fw_local(grid_ms, grid_gs, size_of_second_fft,
+                  (size_of_first_fft / 2 + 1) * number_of_ffts);
+
+  free(grid_ms);
+}
+
+/*******************************************************************************
+ * \brief Performs local C2R-2D FFT (reverse to fw routine, no normalization).
+ * \note fft_2d_bw_local(grid_gs, grid_rs, n1, n2, m) is the reverse to
+ * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
+ * \note this routine overwrites the input array
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_2d_c2r_bw_local(double complex *grid_gs, double *grid_rs,
+                         const int size_of_first_fft,
+                         const int size_of_second_fft,
+                         const int number_of_ffts) {
+  if (size_of_first_fft < 1)
+    return;
+  if (size_of_second_fft < 1)
+    return;
+  if (number_of_ffts < 1)
+    return;
+
+  double complex *grid_ms =
+      calloc((size_of_first_fft / 2 + 1) * size_of_second_fft * number_of_ffts,
+             sizeof(double complex));
+
+  // Perform the second FFT along y
+  fft_1d_bw_local(grid_gs, grid_ms, size_of_second_fft,
+                  (size_of_first_fft / 2 + 1) * number_of_ffts);
+
+  // Perform the third FFT along z
+  fft_1d_c2r_bw_local(grid_ms, grid_rs, size_of_first_fft,
+                      size_of_second_fft * number_of_ffts);
+
+  free(grid_ms);
+}
+
+/*******************************************************************************
  * \brief Performs local 3D FFT (no normalization).
  * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \note this routine overwrites the input array
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_fw_local(double complex *grid_rs, double complex *grid_gs,
                      const int fft_size[3]) {
+  if (fft_size[0] < 1)
+    return;
+  if (fft_size[1] < 1)
+    return;
+  if (fft_size[2] < 1)
+    return;
 
   // Perform the first FFT along z
   fft_1d_fw_local(grid_rs, grid_gs, fft_size[2], fft_size[0] * fft_size[1]);
@@ -270,10 +380,17 @@ void fft_3d_fw_local(double complex *grid_rs, double complex *grid_gs,
  * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
  * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \note this routine overwrites the input array
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_local(double complex *grid_gs, double complex *grid_rs,
                      const int fft_size[3]) {
+  if (fft_size[0] < 1)
+    return;
+  if (fft_size[1] < 1)
+    return;
+  if (fft_size[2] < 1)
+    return;
 
   // Perform the first FFT along x
   fft_1d_bw_local(grid_gs, grid_rs, fft_size[0], fft_size[1] * fft_size[2]);
@@ -283,6 +400,74 @@ void fft_3d_bw_local(double complex *grid_gs, double complex *grid_rs,
 
   // Perform the third FFT along z
   fft_1d_bw_local(grid_gs, grid_rs, fft_size[2], fft_size[0] * fft_size[1]);
+}
+
+/*******************************************************************************
+ * \brief Performs local 3D FFT (no normalization).
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \note this routine overwrites the input array
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_r2c_fw_local(double *grid_rs, double complex *grid_gs,
+                         const int fft_size[3]) {
+  if (fft_size[0] < 1)
+    return;
+  if (fft_size[1] < 1)
+    return;
+  if (fft_size[2] < 1)
+    return;
+
+  double complex *grid_ms =
+      calloc(fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1),
+             sizeof(double complex));
+
+  // Perform the first FFT along z
+  fft_1d_r2c_fw_local(grid_rs, grid_gs, fft_size[2], fft_size[0] * fft_size[1]);
+
+  // Perform the second FFT along y
+  fft_1d_fw_local(grid_gs, grid_ms, fft_size[1],
+                  fft_size[0] * (fft_size[2] / 2 + 1));
+
+  // Perform the third FFT along x
+  fft_1d_fw_local(grid_ms, grid_gs, fft_size[0],
+                  fft_size[1] * (fft_size[2] / 2 + 1));
+
+  free(grid_ms);
+}
+
+/*******************************************************************************
+ * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \note this routine overwrites the input array
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_c2r_bw_local(double complex *grid_gs, double *grid_rs,
+                         const int fft_size[3]) {
+  if (fft_size[0] < 1)
+    return;
+  if (fft_size[1] < 1)
+    return;
+  if (fft_size[2] < 1)
+    return;
+
+  double complex *grid_ms =
+      calloc(fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1),
+             sizeof(double complex));
+
+  // Perform the first FFT along x
+  fft_1d_bw_local(grid_gs, grid_ms, fft_size[0],
+                  fft_size[1] * (fft_size[2] / 2 + 1));
+
+  // Perform the second FFT along y
+  fft_1d_bw_local(grid_ms, grid_gs, fft_size[1],
+                  fft_size[0] * (fft_size[2] / 2 + 1));
+
+  // Perform the third FFT along z
+  fft_1d_c2r_bw_local(grid_gs, grid_rs, fft_size[2], fft_size[0] * fft_size[1]);
+
+  free(grid_ms);
 }
 
 // EOF

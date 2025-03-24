@@ -700,8 +700,8 @@ void fft_3d_bw_blocked(double complex *grid_gs, double *grid_rs,
 
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     // Perform the first FFT and one transposition (z,y,x)->(x,z,y)
-    fft_1d_bw_local((const double complex *)grid_gs, grid_buffer_1,
-                    fft_sizes_gs[0], fft_sizes_gs[1] * fft_sizes_gs[2]);
+    fft_1d_bw_local(grid_gs, grid_buffer_1, fft_sizes_gs[0],
+                    fft_sizes_gs[1] * fft_sizes_gs[2]);
 
     // Collect data in y-direction and distribute x-direction
     collect_y_and_distribute_x_blocked(grid_buffer_1, grid_buffer_2,
@@ -709,8 +709,8 @@ void fft_3d_bw_blocked(double complex *grid_gs, double *grid_rs,
                                        proc2local_ms, comm);
 
     // Perform the second FFT and one transposition (x,z,y)->(y,x,z)
-    fft_1d_bw_local((const double complex *)grid_buffer_2, grid_buffer_1,
-                    fft_sizes_ms[1], fft_sizes_ms[0] * fft_sizes_ms[2]);
+    fft_1d_bw_local(grid_buffer_2, grid_buffer_1, fft_sizes_ms[1],
+                    fft_sizes_ms[0] * fft_sizes_ms[2]);
 
     // Collect data in z-direction and distribute y-direction
     collect_z_and_distribute_y_blocked(grid_buffer_1, grid_buffer_2,
@@ -718,12 +718,12 @@ void fft_3d_bw_blocked(double complex *grid_gs, double *grid_rs,
                                        proc2local_rs, comm);
 
     // Perform the third FFT and one transposition (y,x,z)->(z,y,x)
-    fft_1d_bw_local((const double complex *)grid_buffer_2, grid_buffer_1,
-                    fft_sizes_rs[2], fft_sizes_rs[0] * fft_sizes_rs[1]);
+    fft_1d_bw_local(grid_buffer_2, grid_buffer_1, fft_sizes_rs[2],
+                    fft_sizes_rs[0] * fft_sizes_rs[1]);
   } else if (proc_grid[0] > 1) {
     // Perform the first FFT and one transposition (z,y,x)->(x,z,y)
-    fft_1d_bw_local((const double complex *)grid_gs, grid_buffer_2,
-                    fft_sizes_gs[0], fft_sizes_gs[1] * fft_sizes_gs[2]);
+    fft_1d_bw_local(grid_gs, grid_buffer_2, fft_sizes_gs[0],
+                    fft_sizes_gs[1] * fft_sizes_gs[2]);
 
     // Collect data in y-direction and distribute x-direction
     collect_y_and_distribute_x_blocked(grid_buffer_2, grid_buffer_1,
@@ -892,8 +892,8 @@ void fft_3d_bw_ray(double complex *grid_gs, double *grid_rs,
 
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     // Perform the first FFT
-    fft_1d_bw_local((const double complex *)grid_gs, grid_buffer_1,
-                    npts_global[0], number_of_local_yz_rays);
+    fft_1d_bw_local(grid_gs, grid_buffer_1, npts_global[0],
+                    number_of_local_yz_rays);
 
     // Perform transpose
     collect_y_and_distribute_x_ray(grid_buffer_1, grid_buffer_2, npts_global,
@@ -901,8 +901,8 @@ void fft_3d_bw_ray(double complex *grid_gs, double *grid_rs,
                                    rays_per_process, ray_to_yz, comm);
 
     // Perform the second FFT
-    fft_1d_bw_local((const double complex *)grid_buffer_2, grid_buffer_1,
-                    npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2]);
+    fft_1d_bw_local(grid_buffer_2, grid_buffer_1, npts_global[1],
+                    fft_sizes_ms[0] * fft_sizes_ms[2]);
 
     // Perform second transpose
     collect_z_and_distribute_y_blocked(grid_buffer_1, grid_buffer_2,
@@ -910,12 +910,12 @@ void fft_3d_bw_ray(double complex *grid_gs, double *grid_rs,
                                        proc2local_rs, comm);
 
     // Perform the third FFT
-    fft_1d_bw_local((const double complex *)grid_buffer_2, grid_buffer_1,
-                    npts_global[2], fft_sizes_rs[0] * fft_sizes_rs[1]);
+    fft_1d_bw_local(grid_buffer_2, grid_buffer_1, npts_global[2],
+                    fft_sizes_rs[0] * fft_sizes_rs[1]);
   } else if (proc_grid[0] > 1) {
     // Perform the first FFT
-    fft_1d_bw_local((const double complex *)grid_gs, grid_buffer_2,
-                    npts_global[0], number_of_local_yz_rays);
+    fft_1d_bw_local(grid_gs, grid_buffer_2, npts_global[0],
+                    number_of_local_yz_rays);
 
     // Perform transpose
     collect_y_and_distribute_x_ray(grid_buffer_2, grid_buffer_1, npts_global,
