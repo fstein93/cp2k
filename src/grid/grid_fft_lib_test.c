@@ -84,13 +84,103 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
 
   if (max_error > 1e-12) {
     if (my_process == 0)
-      printf("The low-level FFTs do not work properly (%i %i): %f!\n", fft_size,
+      printf("The 1D-FFT does not work properly (%i %i): %f!\n", fft_size,
              number_of_ffts, max_error);
     errors++;
   }
 
   if (errors == 0 && my_process == 0)
     printf("The 1D FFT does work properly (%i %i)!\n", fft_size,
+           number_of_ffts);
+  return errors;
+}
+
+/*******************************************************************************
+ * \brief Function to test the local FFT backend.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_1d_c2r_local_low(const int fft_size, const int number_of_ffts) {
+  const int my_process = grid_mpi_comm_rank(grid_mpi_comm_world);
+
+  int errors = 0;
+
+  const double pi = acos(-1);
+
+  double *input_array = calloc(fft_size * number_of_ffts, sizeof(double));
+  double complex *output_array =
+      calloc((fft_size / 2 + 1) * number_of_ffts, sizeof(double complex));
+
+  double max_error = 0.0;
+  // Check the forward FFT
+  for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+    input_array[(number_of_fft % fft_size) * number_of_ffts + number_of_fft] =
+        1.0;
+  }
+
+  fft_1d_r2c_fw_local(input_array, output_array, fft_size, number_of_ffts);
+
+  for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+    for (int index = 0; index < (fft_size / 2 + 1); index++) {
+      max_error =
+          fmax(max_error,
+               cabs(output_array[number_of_fft * (fft_size / 2 + 1) + index] -
+                    cexp(-2.0 * I * pi * (number_of_fft % (fft_size / 2 + 1)) *
+                         index / fft_size)));
+    }
+  }
+
+  if (max_error > 1.0e-12) {
+    if (my_process == 0)
+      printf("The R2C-1D-FFT does not work properly (%i %i): %f!\n", fft_size,
+             number_of_ffts, max_error);
+    errors++;
+  }
+
+  // Check the backward FFT
+  memset(output_array, 0,
+         (fft_size / 2 + 1) * number_of_ffts * sizeof(double complex));
+
+  for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+    output_array[number_of_fft * (fft_size / 2 + 1) +
+                 number_of_fft % (fft_size / 2 + 1)] = 1.0;
+  }
+
+  fft_1d_c2r_bw_local(output_array, input_array, fft_size, number_of_ffts);
+
+  max_error = 0.0;
+  for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+    for (int index = 0; index < fft_size; index++) {
+      if (number_of_fft % (fft_size / 2 + 1) == 0 ||
+          number_of_fft % (fft_size / 2 + 1) == fft_size / 2) {
+        // Only a single element is set
+        max_error = fmax(
+            max_error,
+            fabs(input_array[index * number_of_ffts + number_of_fft] -
+                 2.0 * cos(2.0 * pi * (number_of_fft % (fft_size / 2 + 1)) *
+                           index / fft_size)));
+      } else {
+        // Due to symmetry, there is implicitly a second element set
+        max_error = fmax(
+            max_error,
+            fabs(input_array[index * number_of_ffts + number_of_fft] -
+                 2.0 * cos(2.0 * pi * (number_of_fft % (fft_size / 2 + 1)) *
+                           index / fft_size)));
+      }
+    }
+  }
+
+  free(input_array);
+  free(output_array);
+
+  if (max_error > 1e-12) {
+    if (my_process == 0)
+      printf("The C2R-1D-FFT does not work properly (%i %i): %f!\n", fft_size,
+             number_of_ffts, max_error);
+    errors++;
+  }
+
+  if (errors == 0 && my_process == 0)
+    printf("The 1D-R/C FFT does work properly (%i %i)!\n", fft_size,
            number_of_ffts);
   return errors;
 }

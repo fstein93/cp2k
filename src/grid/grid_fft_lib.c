@@ -132,6 +132,60 @@ void fft_1d_bw_local(const double complex *grid_gs, double complex *grid_rs,
 }
 
 /*******************************************************************************
+ * \brief Naive implementation of 1D R2C FFT from transposed format
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_1d_r2c_fw_local(const double *grid_rs, double complex *grid_gs,
+                         const int fft_size, const int number_of_ffts) {
+  const double pi = acos(-1.0);
+#pragma omp parallel for default(none) collapse(2)                             \
+    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
+  for (int fft = 0; fft < number_of_ffts; fft++) {
+    for (int index_out = 0; index_out < (fft_size + 1) / 2; index_out++) {
+      double complex tmp = grid_rs[fft];
+      for (int index_in = 1; index_in < (fft_size + 1) / 2; index_in++) {
+        const double complex factor =
+            cexp(-2.0 * I * pi * index_out * index_in / fft_size);
+        tmp += grid_rs[index_in * number_of_ffts + fft] * factor;
+        tmp += grid_rs[(fft_size - index_in) * number_of_ffts + fft] *
+               conj(factor);
+      }
+      if (fft_size % 2 == 0) {
+        tmp += grid_rs[fft_size / 2 * number_of_ffts + fft] *
+               (index_out % 2 == 0 ? 1.0 : -1.0);
+      }
+      grid_gs[fft * (fft_size / 2 + 1) + index_out] = tmp;
+    }
+  }
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of backwards FFT to transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_1d_c2r_bw_local(const double complex *grid_gs, double *grid_rs,
+                         const int fft_size, const int number_of_ffts) {
+  const double pi = acos(-1.0);
+#pragma omp parallel for default(none) collapse(2)                             \
+    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
+  for (int fft = 0; fft < number_of_ffts; fft++) {
+    for (int index_out = 0; index_out < fft_size; index_out++) {
+      double tmp = creal(grid_gs[fft * (fft_size / 2 + 1)]);
+      for (int index_in = 1; index_in < (fft_size + 1) / 2; index_in++) {
+        tmp +=
+            2.0 * creal(grid_gs[fft * (fft_size / 2 + 1) + index_in] *
+                        cexp(2.0 * I * pi * index_out * index_in / fft_size));
+      }
+      if (fft_size % 2 == 0) {
+        tmp += creal(grid_gs[fft * (fft_size / 2 + 1) + (fft_size / 2)]) *
+               (index_out % 2 == 0 ? 1.0 : -1.0);
+      }
+      grid_rs[index_out * number_of_ffts + fft] = tmp;
+    }
+  }
+}
+
+/*******************************************************************************
  * \brief Local transposition.
  * \author Frederick Stein
  ******************************************************************************/

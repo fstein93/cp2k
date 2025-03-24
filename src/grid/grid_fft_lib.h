@@ -60,6 +60,20 @@ void fft_1d_bw_local(const double complex *grid_gs, double complex *grid_rs,
                      const int fft_size, const int number_of_ffts);
 
 /*******************************************************************************
+ * \brief 1D Forward FFT from transposed format.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_1d_r2c_fw_local(const double *grid_rs, double complex *grid_gs,
+                         const int fft_size, const int number_of_ffts);
+
+/*******************************************************************************
+ * \brief 1D Backward FFT to transposed format.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_1d_c2r_bw_local(const double complex *grid_gs, double *grid_rs,
+                         const int fft_size, const int number_of_ffts);
+
+/*******************************************************************************
  * \brief Local transposition.
  * \author Frederick Stein
  ******************************************************************************/
