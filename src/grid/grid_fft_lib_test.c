@@ -365,10 +365,6 @@ int fft_test_2d_c2r_local_low(const int fft_size[2], const int number_of_ffts) {
                   (((double)set_index_1) * index_1 / fft_size[0] +
                    ((double)set_index_2) * index_2 / fft_size[1]));
           double current_error = fabs(my_value - ref_value);
-          if (my_process == 0 && current_error > 1e-12)
-            printf("Error: %i %i %i/%i %i %i: %f %f\n", number_of_fft, index_1,
-                   index_2, number_of_ffts, fft_size[0], fft_size[1], my_value,
-                   ref_value);
           max_error = fmax(max_error, current_error);
         } else {
           // Due to symmetry, there is implicitly a second element set
@@ -380,10 +376,6 @@ int fft_test_2d_c2r_local_low(const int fft_size[2], const int number_of_ffts) {
                         (((double)set_index_1) * index_1 / fft_size[0] +
                          ((double)set_index_2) * index_2 / fft_size[1]));
           double current_error = fabs(my_value - ref_value);
-          if (my_process == 0 && current_error > 1e-12)
-            printf("Error: %i %i %i/%i %i %i: %f %f\n", number_of_fft, index_1,
-                   index_2, number_of_ffts, fft_size[0], fft_size[1], my_value,
-                   ref_value);
           max_error = fmax(max_error, current_error);
         }
       }
@@ -506,6 +498,123 @@ int fft_test_3d_local_low(const int fft_size[3]) {
 }
 
 /*******************************************************************************
+ * \brief Function to test the local FFT backend.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_3d_c2r_local_low(const int fft_size[3]) {
+  const int my_process = grid_mpi_comm_rank(grid_mpi_comm_world);
+
+  int errors = 0;
+
+  const double pi = acos(-1);
+
+  double *input_array =
+      calloc(fft_size[0] * fft_size[1] * fft_size[2], sizeof(double));
+  double complex *output_array =
+      calloc((fft_size[0] / 2 + 1) * fft_size[1] * fft_size[2],
+             sizeof(double complex));
+
+  double max_error = 0.0;
+  for (int mx = 0; mx < fft_size[0]; mx++) {
+    for (int my = 0; my < fft_size[1]; my++) {
+      for (int mz = 0; mz < fft_size[2]; mz++) {
+        memset(input_array, 0,
+               fft_size[0] * fft_size[1] * fft_size[2] * sizeof(double));
+        input_array[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
+            1.0;
+        fft_3d_r2c_fw_local(input_array, output_array, fft_size);
+        for (int nx = 0; nx < fft_size[0]; nx++) {
+          for (int ny = 0; ny < fft_size[1]; ny++) {
+            for (int nz = 0; nz < (fft_size[2] / 2 + 1); nz++) {
+              const double complex my_value =
+                  output_array[nz * fft_size[0] * fft_size[1] +
+                               ny * fft_size[0] + nx];
+              const double complex ref_value =
+                  cexp(-2.0 * I * pi *
+                       (((double)mx) * nx / fft_size[0] +
+                        ((double)my) * ny / fft_size[1] +
+                        ((double)mz) * nz / fft_size[2]));
+              double current_error = cabs(my_value - ref_value);
+              max_error = fmax(max_error, current_error);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (max_error > 1.0e-12) {
+    if (my_process == 0)
+      printf("The fw R2C-3D-FFT does not work properly (%i %i %i): %f!\n",
+             fft_size[0], fft_size[1], fft_size[2], max_error);
+    errors++;
+  }
+
+  max_error = 0.0;
+  for (int mx = 0; mx < fft_size[0]; mx++) {
+    for (int my = 0; my < fft_size[1]; my++) {
+      for (int mz = 0; mz < (fft_size[2] / 2 + 1); mz++) {
+        memset(output_array, 0,
+               fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1) *
+                   sizeof(double complex));
+        output_array[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
+            1.0;
+        fft_3d_c2r_bw_local(output_array, input_array, fft_size);
+        if (mz == 0 || (fft_size[2] % 2 == 0 && mz == fft_size[2] / 2)) {
+          for (int nx = 0; nx < fft_size[0]; nx++) {
+            for (int ny = 0; ny < fft_size[1]; ny++) {
+              for (int nz = 0; nz < fft_size[2]; nz++) {
+                const double my_value =
+                    input_array[nz * fft_size[0] * fft_size[1] +
+                                ny * fft_size[0] + nx];
+                const double ref_value = cos(2.0 * pi *
+                                             (((double)mx) * nx / fft_size[0] +
+                                              ((double)my) * ny / fft_size[1] +
+                                              ((double)mz) * nz / fft_size[2]));
+                double current_error = fabs(my_value - ref_value);
+                max_error = fmax(max_error, current_error);
+              }
+            }
+          }
+        } else {
+          for (int nx = 0; nx < fft_size[0]; nx++) {
+            for (int ny = 0; ny < fft_size[1]; ny++) {
+              for (int nz = 0; nz < fft_size[2]; nz++) {
+                const double my_value =
+                    input_array[nz * fft_size[0] * fft_size[1] +
+                                ny * fft_size[0] + nx];
+                const double ref_value =
+                    2.0 * cos(2.0 * pi *
+                              (((double)mx) * nx / fft_size[0] +
+                               ((double)my) * ny / fft_size[1] +
+                               ((double)mz) * nz / fft_size[2]));
+                double current_error = fabs(my_value - ref_value);
+                max_error = fmax(max_error, current_error);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  free(input_array);
+  free(output_array);
+
+  if (max_error > 1e-12) {
+    if (my_process == 0)
+      printf("The bw C2R-3D-FFT does not work properly (%i %i %i): %f!\n",
+             fft_size[0], fft_size[1], fft_size[2], max_error);
+    errors++;
+  }
+
+  if (errors == 0 && my_process == 0)
+    printf("The R2C-3D FFT does work properly (%i %i %i)!\n", fft_size[0],
+           fft_size[1], fft_size[2]);
+  return errors;
+}
+
+/*******************************************************************************
  * \brief Function to test the local FFT backend (1-3D).
  * \author Frederick Stein
  ******************************************************************************/
@@ -586,6 +695,17 @@ int fft_test_local() {
   errors += fft_test_3d_local_low((const int[3]){3, 4, 5});
   errors += fft_test_3d_local_low((const int[3]){4, 8, 2});
   errors += fft_test_3d_local_low((const int[3]){7, 5, 3});
+
+  errors += fft_test_3d_c2r_local_low((const int[3]){1, 1, 1});
+  errors += fft_test_3d_c2r_local_low((const int[3]){2, 2, 2});
+  errors += fft_test_3d_c2r_local_low((const int[3]){3, 3, 3});
+  errors += fft_test_3d_c2r_local_low((const int[3]){4, 4, 4});
+  errors += fft_test_3d_c2r_local_low((const int[3]){5, 5, 5});
+  errors += fft_test_3d_c2r_local_low((const int[3]){6, 6, 6});
+  errors += fft_test_3d_c2r_local_low((const int[3]){8, 8, 8});
+  errors += fft_test_3d_c2r_local_low((const int[3]){3, 4, 5});
+  errors += fft_test_3d_c2r_local_low((const int[3]){4, 8, 2});
+  errors += fft_test_3d_c2r_local_low((const int[3]){7, 5, 3});
 
   return errors;
 }
