@@ -1383,6 +1383,7 @@ set(CP2K_DBM_SRCS_C
 set(CP2K_GRID_SRCS_C
     grid/common/grid_basis_set.c
     grid/common/grid_library.c
+    grid/common/grid_mpi.c
     grid/common/grid_sphere_cache.c
     grid/dgemm/grid_dgemm_coefficients.c
     grid/dgemm/grid_dgemm_collocation_integration.c
@@ -1402,6 +1403,19 @@ set(CP2K_GRID_SRCS_C
     grid/cpu/grid_cpu_integrate.c
     grid/cpu/grid_cpu_prepare_pab.c
     grid/cpu/grid_cpu_task_list.c
+    grid/cpu/grid_cpu_multigrid.c
+    grid/ref/grid_ref_multigrid.c
+    grid/grid_collocate.c
+    grid/grid_fft_grid_layout.c
+    grid/grid_fft_grid.c
+    grid/grid_fft_grid_test.c
+    grid/grid_fft_lib.c
+    grid/grid_fft_lib_test.c
+    grid/grid_fft_reorder.c
+    grid/grid_fft_reorder_test.c
+    grid/grid_integrate.c
+    grid/grid_multigrid.c
+    grid/grid_multigrid_test.c
     grid/grid_replay.c)
 
 set(CP2K_FPGA_SRC_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
