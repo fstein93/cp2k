@@ -2394,7 +2394,7 @@ void grid_create_multigrid(
             pgrid_dims[level][2] == 1));
   }
 
-  if (multigrid_out != NULL)
+  if (*multigrid_out != NULL)
     grid_free_multigrid(*multigrid_out);
   multigrid = calloc(1, sizeof(grid_multigrid));
   grid_multigrid_allocate_buffers(multigrid, nlevels, comm);
