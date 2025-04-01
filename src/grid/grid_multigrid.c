@@ -155,11 +155,14 @@ void grid_copy_to_multigrid_single(const grid_multigrid *multigrid,
            index++)
         multigrid->fft_rs_grids[level].data[index] *= factor;
       // Redistribute to the realspace grid
-      grid_copy_to_multigrid_general_single(
+      // BUG: leak/OOB access??
+      printf("DEBUG: %i %i %i\n", multigrid->pgrid_dims[level][0],
+             multigrid->pgrid_dims[level][1], multigrid->pgrid_dims[level][2]);
+      /*grid_copy_to_multigrid_general_single(
           multigrid, level, (double *)multigrid->fft_rs_grids[level].data,
           multigrid->fft_rs_grids[level].fft_grid_layout->comm,
           (const int *)multigrid->fft_rs_grids[level]
-              .fft_grid_layout->proc2local_rs);
+              .fft_grid_layout->proc2local_rs);*/
     }
   } else {
     // Copy the data directly to the realspace grid
