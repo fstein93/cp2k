@@ -323,7 +323,7 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
   }
 
   // Check the MS/GS direction
-  collect_y_and_distribute_x_blocked(
+  collect_x_and_distribute_y_blocked(
       fft_grid_layout->buffer_1, fft_grid_layout->buffer_2, npts_global,
       fft_grid_layout->proc2local_ms, fft_grid_layout->proc2local_gs,
       fft_grid_layout->comm);

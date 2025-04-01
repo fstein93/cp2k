@@ -5,11 +5,11 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include "grid_multigrid_test.h"
 #include "common/grid_common.h"
 #include "common/grid_mpi.h"
 #include "grid_fft_grid.h"
 #include "grid_multigrid.h"
-#include "grid_multigrid_test.h"
 
 #include <assert.h>
 #include <math.h>
@@ -36,17 +36,28 @@ int multigrid_test() {
   grid_multigrid *multigrid = NULL;
   grid_create_multigrid(true, 2, npts_global, npts_local, shift_local,
                         border_width, dh, dh_inv, pgrid_dims,
-                        grid_mpi_comm_self, &multigrid);
+                        grid_mpi_comm_world, &multigrid);
   for (int level = 0; level < multigrid->nlevels; level++) {
     assert(multigrid->fft_grid_layouts[level]->grid_id > 0);
   }
 
-  double grid[64];
-  memset(grid, 0, 64 * sizeof(double));
+  grid_fft_grid_layout *fft_grid_layout = NULL;
+  grid_create_fft_grid_layout(&fft_grid_layout, grid_mpi_comm_world,
+                              npts_global[0], dh_inv[0]);
 
-  // grid_copy_to_multigrid_single(multigrid, grid);
-  // grid_copy_from_multigrid_single(multigrid, grid);
+  grid_fft_real_rs_grid rs_grid;
+  // memset(&rs_grid, 0, sizeof(grid_fft_real_rs_grid));
+  grid_create_real_rs_grid(&rs_grid, fft_grid_layout);
 
+  /*grid_copy_to_multigrid_single(multigrid, rs_grid.data,
+                                rs_grid.fft_grid_layout->comm,
+                                rs_grid.fft_grid_layout->proc2local_rs);*/
+  grid_copy_from_multigrid_single(multigrid, rs_grid.data,
+                                  rs_grid.fft_grid_layout->comm,
+                                  rs_grid.fft_grid_layout->proc2local_rs);
+
+  grid_free_real_rs_grid(&rs_grid);
+  grid_free_fft_grid_layout(fft_grid_layout);
   grid_free_multigrid(multigrid);
 
   return 0;

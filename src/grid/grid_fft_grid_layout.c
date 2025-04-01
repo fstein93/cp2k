@@ -629,7 +629,7 @@ void fft_3d_fw_blocked(double *grid_rs, double complex *grid_gs,
                     fft_sizes_ms[0] * fft_sizes_ms[2]);
 
     // Perform second transpose
-    collect_y_and_distribute_x_blocked(grid_buffer_2, grid_buffer_1,
+    collect_x_and_distribute_y_blocked(grid_buffer_2, grid_buffer_1,
                                        npts_global, proc2local_ms,
                                        proc2local_gs, comm);
 
@@ -642,7 +642,7 @@ void fft_3d_fw_blocked(double *grid_rs, double complex *grid_gs,
                     fft_sizes_rs[1], fft_sizes_rs[0]);
 
     // Perform second transpose
-    collect_y_and_distribute_x_blocked(grid_buffer_1, grid_buffer_2,
+    collect_x_and_distribute_y_blocked(grid_buffer_1, grid_buffer_2,
                                        npts_global, proc2local_ms,
                                        proc2local_gs, comm);
 

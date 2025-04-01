@@ -26,7 +26,7 @@ void collect_y_and_distribute_x_blocked(
     const int npts_global[3], const int (*proc2local)[3][2],
     const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm);
 
-void collect_y_and_distribute_x_blocked(
+void collect_x_and_distribute_y_blocked(
     const double complex *grid, double complex *transposed,
     const int npts_global[3], const int (*proc2local)[3][2],
     const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm);
