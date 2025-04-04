@@ -140,17 +140,23 @@ void grid_copy_to_multigrid_single(const grid_multigrid *multigrid,
                                    const int (*proc2local)[3][2]);
 
 void grid_copy_from_multigrid_single(const grid_multigrid *multigrid,
-                                     double *grid, const grid_mpi_comm comm,
-                                     const int (*proc2local)[3][2]);
+                                     double *grid_rs, const grid_mpi_comm comm,
+                                     const int (*proc2local_rs)[3][2],
+                                     double complex *grid_gs,
+                                     const int (*proc2local_gs)[3][2],
+                                     const int npts_local_gs,
+                                     const int (*index_to_g)[3]);
 
 void grid_copy_to_multigrid_single_f(const grid_multigrid *multigrid,
                                      const double *grid,
                                      const grid_mpi_fint comm,
                                      const int (*proc2local)[3][2]);
 
-void grid_copy_from_multigrid_single_f(const grid_multigrid *multigrid,
-                                       double *grid, const grid_mpi_fint comm,
-                                       const int (*proc2local)[3][2]);
+void grid_copy_from_multigrid_single_f(
+    const grid_multigrid *multigrid, double *grid_rs, const grid_mpi_fint comm,
+    const int (*proc2local_rs)[3][2], double complex *grid_gs,
+    const int (*proc2local_gs)[3][2], const int npts_local_gs,
+    const int (*index_to_g)[3]);
 
 void grid_copy_to_multigrid_local_single_f(const grid_multigrid *multigrid,
                                            const double *grid, const int level);

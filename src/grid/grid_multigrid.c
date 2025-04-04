@@ -168,9 +168,200 @@ void grid_copy_to_multigrid_single(const grid_multigrid *multigrid,
   }
 }
 
+void redistribute_gs_grids(
+    const double complex *grid_gs, double complex *grid_gs_out,
+    const grid_mpi_comm comm_gs, const grid_mpi_comm comm_out,
+    const int (*proc2local_gs)[3][2], const int (*proc2local_gs_out)[3][2],
+    const int npts_local, const int npts_local_out, const int (*index_to_g)[3],
+    const int (*index_to_g_out)[3]) {
+  assert(grid_gs != NULL);
+  assert(grid_gs_out != NULL);
+  assert(!grid_mpi_comm_is_unequal(comm_gs, comm_out));
+  assert(proc2local_gs != NULL);
+  assert(proc2local_gs_out != NULL);
+  assert(index_to_g != NULL);
+  assert(index_to_g_out != NULL);
+  const int my_process = grid_mpi_comm_rank(comm_gs);
+  const int my_process_out = grid_mpi_comm_rank(comm_out);
+  const int number_of_processes = grid_mpi_comm_size(comm_gs);
+  const int my_bounds[3][2] = {
+      {proc2local_gs[my_process][0][0], proc2local_gs[my_process][0][1]},
+      {proc2local_gs[my_process][1][0], proc2local_gs[my_process][1][1]},
+      {proc2local_gs[my_process][2][0], proc2local_gs[my_process][2][1]}};
+  const int my_bounds_out[3][2] = {{proc2local_gs_out[my_process_out][0][0],
+                                    proc2local_gs_out[my_process_out][0][1]},
+                                   {proc2local_gs_out[my_process_out][1][0],
+                                    proc2local_gs_out[my_process_out][1][1]},
+                                   {proc2local_gs_out[my_process_out][2][0],
+                                    proc2local_gs_out[my_process_out][2][1]}};
+
+  memset(grid_gs_out, 0, npts_local_out * sizeof(double complex));
+
+  // If both communicators have the same order of the processes and the
+  // distributions are equal, we can just copy the data
+  if ((grid_mpi_comm_is_ident(comm_gs, comm_out) ||
+       grid_mpi_comm_is_congruent(comm_gs, comm_out)) &&
+      memcmp(proc2local_gs, proc2local_gs_out,
+             number_of_processes * sizeof(int[3][2])) == 0) {
+    if (npts_local == npts_local_out &&
+        memcmp(index_to_g, index_to_g_out, npts_local * sizeof(int[3])) == 0) {
+      memcpy(grid_gs_out, grid_gs, npts_local * sizeof(double complex));
+    } else {
+      // We already have the correct data but in the wrong order
+      for (int index = 0; index < npts_local; index++) {
+        for (int index_out = 0; index_out < npts_local; index_out++) {
+          if (index_to_g[index][0] == index_to_g_out[index_out][0] &&
+              index_to_g[index][1] == index_to_g_out[index_out][1] &&
+              index_to_g[index][2] == index_to_g_out[index_out][2]) {
+            grid_gs_out[index_out] = grid_gs[index];
+            break;
+          }
+        }
+      }
+    }
+  } else {
+    // We need to redistribute the data
+    // First, get the mapping between the communicators
+    int *proc_in2out = malloc(number_of_processes * sizeof(int));
+    if (grid_mpi_comm_is_similar(comm_gs, comm_out)) {
+      grid_mpi_allgather_int(&my_process_out, 1, proc_in2out, comm_gs);
+    } else {
+      for (int process = 0; process < number_of_processes; process++) {
+        proc_in2out[process] = process;
+      }
+    }
+
+    // Now, we can redistribute the data
+    double complex *send_buffer = malloc(sizeof(double complex));
+    double complex *recv_buffer = malloc(sizeof(double complex));
+    int size_of_send_buffer = 1;
+    int size_of_recv_buffer = 1;
+    for (int process_shift = 0; process_shift < number_of_processes;
+         process_shift++) {
+      const int send_process =
+          modulo(my_process + process_shift, number_of_processes);
+      const int recv_process =
+          modulo(my_process_out - process_shift, number_of_processes);
+
+      // Get the number of elements to send
+      const int(*send_bounds)[2] = proc2local_gs_out[proc_in2out[send_process]];
+      const int(*recv_bounds)[2] = proc2local_gs[recv_process];
+
+      int bounds_to_be_sent[3][2] = {
+          {imax(my_bounds[0][0], send_bounds[0][0]),
+           imin(my_bounds[0][1], send_bounds[0][1])},
+          {imax(my_bounds[1][0], send_bounds[1][0]),
+           imin(my_bounds[1][1], send_bounds[1][1])},
+          {imax(my_bounds[2][0], send_bounds[2][0]),
+           imin(my_bounds[2][1], send_bounds[2][1])}};
+      int number_of_elements_to_send = 1;
+      for (int dir = 0; dir < 3; dir++) {
+        number_of_elements_to_send *=
+            imax(0, bounds_to_be_sent[dir][1] - bounds_to_be_sent[dir][0] + 1);
+      }
+      int bounds_to_be_recv[3][2] = {
+          {imax(my_bounds_out[0][0], recv_bounds[0][0]),
+           imin(my_bounds_out[0][1], recv_bounds[0][1])},
+          {imax(my_bounds_out[1][0], recv_bounds[1][0]),
+           imin(my_bounds_out[1][1], recv_bounds[1][1])},
+          {imax(my_bounds_out[2][0], recv_bounds[2][0]),
+           imin(my_bounds_out[2][1], recv_bounds[2][1])}};
+      int number_of_elements_to_recv = 1;
+      for (int dir = 0; dir < 3; dir++) {
+        number_of_elements_to_recv *=
+            imax(0, bounds_to_be_recv[dir][1] - bounds_to_be_recv[dir][0] + 1);
+      }
+
+      const int actual_send_process =
+          (number_of_elements_to_send > 0) ? send_process : grid_mpi_proc_null;
+      const int actual_recv_process =
+          (number_of_elements_to_recv > 0) ? recv_process : grid_mpi_proc_null;
+
+      if (actual_send_process != grid_mpi_proc_null) {
+        if (size_of_send_buffer < number_of_elements_to_send) {
+          size_of_send_buffer = number_of_elements_to_send;
+          send_buffer = realloc(send_buffer,
+                                size_of_send_buffer * sizeof(double complex));
+        }
+        memset(send_buffer, 0, size_of_send_buffer * sizeof(double complex));
+
+        int bounds_to_be_sent[3][2] = {
+            {imax(my_bounds[0][0], send_bounds[0][0]),
+             imin(my_bounds[0][1], send_bounds[0][1])},
+            {imax(my_bounds[1][0], send_bounds[1][0]),
+             imin(my_bounds[1][1], send_bounds[1][1])},
+            {imax(my_bounds[2][0], send_bounds[2][0]),
+             imin(my_bounds[2][1], send_bounds[2][1])}};
+        // Pack the buffer
+        for (int index = 0; index < npts_local; index++) {
+          const int index_x = index_to_g[index][0];
+          const int index_y = index_to_g[index][1];
+          const int index_z = index_to_g[index][2];
+          if (index_to_g[index][0] >= bounds_to_be_sent[0][0] &&
+              index_to_g[index][0] <= bounds_to_be_sent[0][1] &&
+              index_to_g[index][1] >= bounds_to_be_sent[1][0] &&
+              index_to_g[index][1] <= bounds_to_be_sent[1][1] &&
+              index_to_g[index][2] >= bounds_to_be_sent[2][0] &&
+              index_to_g[index][2] <= bounds_to_be_sent[2][1]) {
+            send_buffer
+                [(index_z - bounds_to_be_sent[2][0]) *
+                     (bounds_to_be_sent[0][1] - bounds_to_be_sent[0][0] + 1) *
+                     (bounds_to_be_sent[1][1] - bounds_to_be_sent[1][0] + 1) +
+                 (index_y - bounds_to_be_sent[1][0]) *
+                     (bounds_to_be_sent[0][1] - bounds_to_be_sent[0][0] + 1) +
+                 (index_x - bounds_to_be_sent[0][0])] = grid_gs[index];
+          }
+        }
+      }
+
+      if (actual_recv_process != grid_mpi_proc_null) {
+        if (size_of_recv_buffer < number_of_elements_to_recv) {
+          size_of_recv_buffer = number_of_elements_to_recv;
+          recv_buffer = realloc(recv_buffer,
+                                size_of_recv_buffer * sizeof(double complex));
+        }
+      }
+
+      // Send the data
+      grid_mpi_sendrecv_double_complex(
+          send_buffer, number_of_elements_to_send, actual_send_process, 1,
+          recv_buffer, number_of_elements_to_recv, recv_process, 1, comm_gs);
+
+      // Unpack the recv buffer
+      for (int index = 0; index < npts_local_out; index++) {
+        const int index_x = index_to_g_out[index][0];
+        const int index_y = index_to_g_out[index][1];
+        const int index_z = index_to_g_out[index][2];
+        if (index_x >= bounds_to_be_recv[0][0] &&
+            index_x <= bounds_to_be_recv[0][1] &&
+            index_y >= bounds_to_be_recv[1][0] &&
+            index_y <= bounds_to_be_recv[1][1] &&
+            index_z >= bounds_to_be_recv[2][0] &&
+            index_z <= bounds_to_be_recv[2][1]) {
+          grid_gs_out[index] += recv_buffer
+              [(index_z - bounds_to_be_recv[2][0]) *
+                   (bounds_to_be_recv[0][1] - bounds_to_be_recv[0][0] + 1) *
+                   (bounds_to_be_recv[1][1] - bounds_to_be_recv[1][0] + 1) +
+               (index_y - bounds_to_be_recv[1][0]) *
+                   (bounds_to_be_recv[0][1] - bounds_to_be_recv[0][0] + 1) +
+               (index_x - bounds_to_be_recv[0][0])];
+        }
+      }
+    }
+
+    free(send_buffer);
+    free(recv_buffer);
+    free(proc_in2out);
+  }
+}
+
 void grid_copy_from_multigrid_single(const grid_multigrid *multigrid,
-                                     double *grid, const grid_mpi_comm comm,
-                                     const int (*proc2local)[3][2]) {
+                                     double *grid_rs, const grid_mpi_comm comm,
+                                     const int (*proc2local_rs)[3][2],
+                                     double complex *grid_gs,
+                                     const int (*proc2local_gs)[3][2],
+                                     const int npts_local_gs,
+                                     const int (*index_to_g)[3]) {
   if (multigrid->nlevels > 1) {
     // Redistribute the data on the realspace grid to an FFT-optimal layout
     grid_copy_from_multigrid_general_single(
@@ -193,19 +384,57 @@ void grid_copy_from_multigrid_single(const grid_multigrid *multigrid,
       grid_add_to_fine_grid(&multigrid->fft_gs_grids[level],
                             &multigrid->fft_gs_grids[0]);
     }
+    if (grid_gs != NULL) {
+      // We already have the result in GS, so we only need to redistribute the
+      // data
+      redistribute_gs_grids(
+          (double complex *)multigrid->fft_gs_grids[0].data,
+          (double complex *)grid_gs,
+          multigrid->fft_gs_grids[0].fft_grid_layout->comm, comm,
+          (const int(*)[3][2])multigrid->fft_gs_grids[0]
+              .fft_grid_layout->proc2local_gs,
+          (const int(*)[3][2])proc2local_gs,
+          multigrid->fft_gs_grids[0].fft_grid_layout->npts_gs_local,
+          npts_local_gs, multigrid->fft_gs_grids[0].fft_grid_layout->index_to_g,
+          index_to_g);
+    }
     // FFT back to realspace
     fft_3d_bw(&multigrid->fft_gs_grids[0], &multigrid->fft_rs_grids[0]);
     // Copy the data back to the original grid
-    redistribute_grids((double *)multigrid->fft_rs_grids[0].data, grid,
+    redistribute_grids((double *)multigrid->fft_rs_grids[0].data, grid_rs,
                        multigrid->fft_rs_grids[0].fft_grid_layout->comm, comm,
                        multigrid->npts_global[0],
                        (const int(*)[3][2])multigrid->fft_rs_grids[0]
                            .fft_grid_layout->proc2local_rs,
-                       proc2local);
+                       proc2local_rs);
   } else {
     // Copy the data directly to the realspace grid
-    grid_copy_from_multigrid_general_single(multigrid, 0, grid, multigrid->comm,
-                                            (const int *)proc2local);
+    grid_copy_from_multigrid_general_single(
+        multigrid, 0, grid_rs, multigrid->comm, (const int *)proc2local_rs);
+    if (grid_gs != NULL) {
+      // It is asked to copy the data also to the GS grid
+      // With a single multigrid, we need to redistribute to a FFT grid first
+      // Redistribute the RS grid first
+      redistribute_grids(grid_rs, multigrid->fft_rs_grids[0].data, comm,
+                         multigrid->fft_rs_grids[0].fft_grid_layout->comm,
+                         multigrid->npts_global[0],
+                         (const int(*)[3][2])proc2local_rs,
+                         (const int(*)[3][2])multigrid->fft_rs_grids[0]
+                             .fft_grid_layout->proc2local_rs);
+      // Perform the FFT
+      fft_3d_fw(&multigrid->fft_rs_grids[0], &multigrid->fft_gs_grids[0]);
+      // Redistribute the GS grid
+      redistribute_gs_grids(
+          (double complex *)multigrid->fft_gs_grids[0].data,
+          (double complex *)grid_gs,
+          multigrid->fft_gs_grids[0].fft_grid_layout->comm, comm,
+          (const int(*)[3][2])multigrid->fft_gs_grids[0]
+              .fft_grid_layout->proc2local_gs,
+          (const int(*)[3][2])proc2local_gs,
+          multigrid->fft_gs_grids[0].fft_grid_layout->npts_gs_local,
+          npts_local_gs, multigrid->fft_gs_grids[0].fft_grid_layout->index_to_g,
+          index_to_g);
+    }
   }
 }
 
@@ -219,9 +448,14 @@ void grid_copy_to_multigrid_single_f(const grid_multigrid *multigrid,
 
 void grid_copy_from_multigrid_single_f(const grid_multigrid *multigrid,
                                        double *grid, const grid_mpi_fint comm,
-                                       const int (*proc2local)[3][2]) {
+                                       const int (*proc2local)[3][2],
+                                       double complex *grid_gs,
+                                       const int (*proc2local_gs)[3][2],
+                                       const int npts_local_gs,
+                                       const int (*index_to_g)[3]) {
   grid_copy_from_multigrid_single(multigrid, grid, grid_mpi_comm_f2c(comm),
-                                  proc2local);
+                                  proc2local, grid_gs, proc2local_gs,
+                                  npts_local_gs, index_to_g);
 }
 
 void grid_copy_to_multigrid_local_single_f(const grid_multigrid *multigrid,

@@ -16,7 +16,8 @@ MODULE grid_api
    USE kinds,                           ONLY: dp
    USE message_passing,                 ONLY: mp_comm_type
    USE offload_api,                     ONLY: offload_buffer_type
-   USE pw_types,                        ONLY: pw_r3d_rs_type
+   USE pw_types,                        ONLY: pw_c1d_gs_type,&
+                                              pw_r3d_rs_type
    USE realspace_grid_types,            ONLY: realspace_grid_type
    USE string_utilities,                ONLY: strlcpy_c2f
 #include "../base/base_uses.f90"
@@ -1499,24 +1500,32 @@ CONTAINS
 !> \brief Returns the respective info on the multigrid.
 !> \param multigrid ...
 !> \param grid ...
+!> \param grid_gs ...
 !> \return ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE grid_copy_from_multigrid_single(multigrid, grid)
+   SUBROUTINE grid_copy_from_multigrid_single(multigrid, grid, grid_gs)
 
       TYPE(grid_multigrid_type), INTENT(IN)              :: multigrid
-      TYPE(pw_r3d_rs_type), INTENT(IN)                   :: grid
+      TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: grid
+      TYPE(pw_c1d_gs_type), INTENT(INOUT), OPTIONAL      :: grid_gs
 
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), TARGET   :: proc2local
+      INTEGER                                            :: i, idir
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), TARGET      :: index_to_g
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), TARGET   :: proc2local, proc2local_gs
       INTEGER, CONTIGUOUS, DIMENSION(:, :), POINTER      :: npts_global
       INTERFACE
-         SUBROUTINE grid_copy_from_multigrid_single_c(multigrid, grid, comm, proc2local) &
+SUBROUTINE grid_copy_from_multigrid_single_c(multigrid, grid, comm, proc2local, grid_gs, proc2local_gs, npts_local_gs, index_to_g) &
             BIND(C, name="grid_copy_from_multigrid_single_f")
             IMPORT :: C_PTR, C_INT
             TYPE(C_PTR), VALUE                        :: multigrid
             TYPE(C_PTR), VALUE                        :: grid
             INTEGER(C_INT), VALUE                     :: comm
             TYPE(C_PTR), VALUE                        :: proc2local
+            TYPE(C_PTR), VALUE :: grid_gs
+            TYPE(C_PTR), VALUE                        :: proc2local_gs
+            INTEGER(C_INT), VALUE :: npts_local_gs
+            TYPE(C_PTR), VALUE                        :: index_to_g
          END SUBROUTINE grid_copy_from_multigrid_single_c
       END INTERFACE
 
@@ -1528,9 +1537,29 @@ CONTAINS
       ALLOCATE (proc2local(2, 3, grid%pw_grid%para%group%num_pe))
       proc2local(:, :, :) = grid%pw_grid%para%bo(:, :, :, 1) - 1
 
-      CALL grid_copy_from_multigrid_single_c(multigrid%c_ptr, C_LOC(grid%array), &
-                                             grid%pw_grid%para%group%get_handle(), &
-                                             C_LOC(proc2local))
+      IF (PRESENT(grid_gs)) THEN
+         ALLOCATE (proc2local_gs(2, 3, grid_gs%pw_grid%para%group%num_pe))
+         proc2local_gs(:, :, :) = grid_gs%pw_grid%para%bo(:, :, :, 3) - 1
+
+         ALLOCATE (index_to_g(3, grid_gs%pw_grid%ngpts_cut_local))
+         DO i = 1, grid_gs%pw_grid%ngpts_cut_local
+         DO idir = 1, 3
+         IF (grid_gs%pw_grid%g_hat(idir, i) < 0) THEN
+            index_to_g(idir, i) = grid_gs%pw_grid%g_hat(idir, i) + grid_gs%pw_grid%npts(idir)
+         ELSE
+            index_to_g(idir, i) = grid_gs%pw_grid%g_hat(idir, i)
+         END IF
+         END DO
+         END DO
+
+         CALL grid_copy_from_multigrid_single_c(multigrid%c_ptr, C_LOC(grid%array), &
+                                                grid%pw_grid%para%group%get_handle(), &
+                  C_LOC(proc2local), C_LOC(grid_gs%array), C_LOC(proc2local_gs), grid_gs%pw_grid%ngpts_cut_local, C_LOC(index_to_g))
+      ELSE
+         CALL grid_copy_from_multigrid_single_c(multigrid%c_ptr, C_LOC(grid%array), &
+                                                grid%pw_grid%para%group%get_handle(), &
+                                                C_LOC(proc2local), C_NULL_PTR, C_NULL_PTR, 0_C_INT, C_NULL_PTR)
+      END IF
 
    END SUBROUTINE grid_copy_from_multigrid_single
 
