@@ -1543,13 +1543,15 @@ SUBROUTINE grid_copy_from_multigrid_single_c(multigrid, grid, comm, proc2local, 
 
          ALLOCATE (index_to_g(3, grid_gs%pw_grid%ngpts_cut_local))
          DO i = 1, grid_gs%pw_grid%ngpts_cut_local
-         DO idir = 1, 3
-         IF (grid_gs%pw_grid%g_hat(idir, i) < 0) THEN
-            index_to_g(idir, i) = grid_gs%pw_grid%g_hat(idir, i) + grid_gs%pw_grid%npts(idir)
-         ELSE
-            index_to_g(idir, i) = grid_gs%pw_grid%g_hat(idir, i)
-         END IF
-         END DO
+            ! Make the indices positive as required by the library
+            DO idir = 1, 3
+               IF (grid_gs%pw_grid%g_hat(idir, i) < 0) THEN
+                  index_to_g(idir, i) = grid_gs%pw_grid%g_hat(idir, i) + grid_gs%pw_grid%npts(idir)
+               ELSE
+                  index_to_g(idir, i) = grid_gs%pw_grid%g_hat(idir, i)
+               END IF
+            END DO
+       WRITE (*, *) grid_gs%pw_grid%para%group%mepos, "g_hat", grid_gs%pw_grid%g_hat(:, i), index_to_g(:, i), grid_gs%pw_grid%gsq(i)
          END DO
 
          CALL grid_copy_from_multigrid_single_c(multigrid%c_ptr, C_LOC(grid%array), &

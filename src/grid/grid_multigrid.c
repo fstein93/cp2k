@@ -203,13 +203,16 @@ void redistribute_gs_grids(
        grid_mpi_comm_is_congruent(comm_gs, comm_out)) &&
       memcmp(proc2local_gs, proc2local_gs_out,
              number_of_processes * sizeof(int[3][2])) == 0) {
+    printf("%i Same blocked distribution\n", my_process);
     if (npts_local == npts_local_out &&
         memcmp(index_to_g, index_to_g_out, npts_local * sizeof(int[3])) == 0) {
+      printf("%i Same local distribution\n", my_process);
       memcpy(grid_gs_out, grid_gs, npts_local * sizeof(double complex));
     } else {
+      printf("%i Different local distribution\n", my_process);
       // We already have the correct data but in the wrong order
       for (int index = 0; index < npts_local; index++) {
-        for (int index_out = 0; index_out < npts_local; index_out++) {
+        for (int index_out = 0; index_out < npts_local_out; index_out++) {
           if (index_to_g[index][0] == index_to_g_out[index_out][0] &&
               index_to_g[index][1] == index_to_g_out[index_out][1] &&
               index_to_g[index][2] == index_to_g_out[index_out][2]) {
@@ -220,6 +223,7 @@ void redistribute_gs_grids(
       }
     }
   } else {
+    printf("%i Different blocked distribution\n", my_process);
     // We need to redistribute the data
     // First, get the mapping between the communicators
     int *proc_in2out = malloc(number_of_processes * sizeof(int));

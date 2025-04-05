@@ -63,12 +63,11 @@ CONTAINS
       CALL pw_env_get(pw_env, multigrid=multigrid)
 
       IF (PRESENT(multigrid_ext)) THEN
-         CALL grid_copy_from_multigrid_single(multigrid_ext, rho)
+         CALL grid_copy_from_multigrid_single(multigrid_ext, rho, rho_gspace)
       ELSE
-         CALL grid_copy_from_multigrid_single(multigrid, rho)
+         CALL grid_copy_from_multigrid_single(multigrid, rho, rho_gspace)
       END IF
 
-      CALL pw_transfer(rho, rho_gspace)
       IF (rho_gspace%pw_grid%spherical) CALL pw_transfer(rho_gspace, rho)
 
       CALL timestop(handle)

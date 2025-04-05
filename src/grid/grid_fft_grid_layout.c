@@ -31,7 +31,8 @@ typedef struct {
   int index;
 } double_index_pair;
 
-double squared_length_of_g_vector(const int g[3], const double h_inv[3][3]) {
+double squared_length_of_g_vector(const int g[3], const int npts_global[3],
+                                  const double h_inv[3][3]) {
   if (g[0] == 0 && g[1] == 0 && g[2] == 0) {
     return 0.0;
   }
@@ -40,7 +41,9 @@ double squared_length_of_g_vector(const int g[3], const double h_inv[3][3]) {
   for (int dir = 0; dir < 3; dir++) {
     double length_g_dir = 0.0;
     for (int dir2 = 0; dir2 < 3; dir2++) {
-      length_g_dir += g[dir] * h_inv[dir2][dir];
+      length_g_dir +=
+          convert_c_index_to_shifted_index(g[dir], npts_global[dir2]) *
+          h_inv[dir2][dir];
     }
     length_g_dir *= two_pi;
     length_g_squared += length_g_dir * length_g_dir;
@@ -78,7 +81,8 @@ void sort_g_vectors(grid_fft_grid_layout *my_fft_grid) {
   int *local_index2g_squared = calloc(my_fft_grid->npts_gs_local, sizeof(int));
   for (int index = 0; index < my_fft_grid->npts_gs_local; index++) {
     local_index2g_squared[index] = squared_length_of_g_vector(
-        my_fft_grid->index_to_g[index], my_fft_grid->h_inv);
+        my_fft_grid->index_to_g[index], my_fft_grid->npts_global,
+        my_fft_grid->h_inv);
   }
 
   // Sort the indices according to the length of the vectors
