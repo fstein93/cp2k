@@ -35,6 +35,16 @@ void fft_init_lib(const grid_fft_lib lib) {
   grid_fft_lib_choice = lib;
   fft_ref_init_lib();
   fft_fftw_init_lib();
+  switch (grid_fft_lib_choice) {
+  case GRID_FFT_LIB_REF:
+    printf("Using reference FFT library.\n");
+    break;
+  case GRID_FFT_LIB_FFTW:
+    printf("Using FFTW library.\n");
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
 }
 
 /*******************************************************************************

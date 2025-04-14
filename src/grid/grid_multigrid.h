@@ -176,10 +176,10 @@ void grid_copy_from_multigrid_general_f(
     const grid_mpi_fint fortran_comm[multigrid->nlevels],
     const int *proc2local);
 
-void grid_copy_to_multigrid_general_single(
-    const grid_multigrid *multigrid, const int level,
-    const double *grids,
-    const grid_mpi_comm comm, const int *proc2local);
+void grid_copy_to_multigrid_general_single(const grid_multigrid *multigrid,
+                                           const int level, const double *grids,
+                                           const grid_mpi_comm comm,
+                                           const int *proc2local);
 
 void grid_copy_to_multigrid_general_single_f(const grid_multigrid *multigrid,
                                              const int level,

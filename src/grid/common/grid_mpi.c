@@ -34,6 +34,23 @@ static inline void error_check(int error) {
 #endif
 }
 
+void grid_mpi_init(int *argc, char ***argv) {
+  #if defined(__parallel)
+  error_check(MPI_Init(argc, argv));
+  #else
+  (void)argc;
+  (void)argv;
+  #endif
+}
+
+void grid_mpi_finalize(void) {
+#if defined(__parallel)
+  error_check(MPI_Finalize());
+#else
+  // Nothing to do in the serial case
+#endif
+}
+
 int grid_mpi_comm_size(const grid_mpi_comm comm) {
 #if defined(__parallel)
   int comm_size;

@@ -38,6 +38,10 @@ static const int grid_mpi_proc_null = -13;
 static const int grid_mpi_any_tag = -17;
 #endif
 
+void grid_mpi_init(int *argc, char ***argv);
+
+void grid_mpi_finalize(void);
+
 int grid_mpi_comm_size(const grid_mpi_comm comm);
 
 int grid_mpi_comm_rank(const grid_mpi_comm comm);

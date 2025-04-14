@@ -11,6 +11,7 @@
 
 #include "../offload/offload_library.h"
 #include "common/grid_library.h"
+#include "common/grid_mpi.h"
 #include "grid_fft_grid_test.h"
 #include "grid_fft_lib.h"
 #include "grid_fft_lib_test.h"
@@ -76,9 +77,7 @@ static int run_test(const char cp2k_root_dir[], const char task_file[]) {
 }
 
 int main(int argc, char *argv[]) {
-#if defined(__parallel)
-  MPI_Init(&argc, &argv);
-#endif
+grid_mpi_init(&argc, &argv);
 
   if (argc != 2) {
     printf("Usage: grid_unittest.x <cp2k-root-dir>\n");
@@ -122,9 +121,7 @@ int main(int argc, char *argv[]) {
     printf("\nFound %i errors :-(\n", errors);
   }
 
-#if defined(__parallel)
-  MPI_Finalize();
-#endif
+grid_mpi_finalize();
 
   return errors;
 }
