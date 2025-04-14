@@ -117,9 +117,8 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts) {
       fft_size[0] * fft_size[1] * number_of_ffts, sizeof(double complex));
 
   grid_fft_plan plan;
-  fft_create_2d_plan(input_array, output_array,
-                     (const int[2]){fft_size[1], fft_size[0]}, number_of_ffts,
-                     &plan);
+  fft_create_2d_plan((const int[2]){fft_size[1], fft_size[0]},
+                     number_of_ffts, &plan);
 
   double max_error = 0.0;
   // Check the forward FFT

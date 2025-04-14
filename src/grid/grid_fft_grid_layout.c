@@ -351,8 +351,7 @@ void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
         my_fft_grid->proc2local_ms[my_process][2][1] -
             my_fft_grid->proc2local_ms[my_process][2][0] + 1};
     // First set of FFTs along y,z
-    fft_create_2d_plan(my_fft_grid->buffer_1, my_fft_grid->buffer_2,
-                       (const int[2]){npts_global[1], npts_global[2]},
+    fft_create_2d_plan((const int[2]){npts_global[1], npts_global[2]},
                        my_sizes_ms[0], &my_fft_grid->fft_plans[0]);
 
     const int my_sizes_gs[3] = {
@@ -619,8 +618,7 @@ void grid_create_fft_grid_layout_from_reference(
         my_fft_grid->proc2local_ms[my_process][2][1] -
             my_fft_grid->proc2local_ms[my_process][2][0] + 1};
     // First set of FFTs along y,z
-    fft_create_2d_plan(my_fft_grid->buffer_1, my_fft_grid->buffer_2,
-                       (const int[2]){npts_global[1], npts_global[2]},
+    fft_create_2d_plan((const int[2]){npts_global[1], npts_global[2]},
                        my_sizes_ms[0], &my_fft_grid->fft_plans[0]);
 
     // Final FFT along x

@@ -74,8 +74,7 @@ void fft_create_1d_plan(double complex *grid_rs, double complex *grid_gs,
  * \brief Create a plan for a 1D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_create_2d_plan(double complex *grid_rs, double complex *grid_gs,
-                        const int fft_size[2], const int number_of_ffts,
+void fft_create_2d_plan(const int fft_size[2], const int number_of_ffts,
                         grid_fft_plan *plan);
 
 /*******************************************************************************

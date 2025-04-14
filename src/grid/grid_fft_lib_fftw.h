@@ -62,15 +62,6 @@ void fft_fftw_create_1d_plan(double complex *grid_rs, double complex *grid_gs,
                              grid_fft_fftw_plan *plan_bw);
 
 /*******************************************************************************
- * \brief Creates a plan of a 1D FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_fftw_create_2d_plan(double complex *grid_rs, double complex *grid_gs,
-                             const int fft_size[2], const int number_of_ffts,
-                             grid_fft_fftw_plan *plan_fw,
-                             grid_fft_fftw_plan *plan_bw);
-
-/*******************************************************************************
  * \brief Frees FFT plans.
  * \author Frederick Stein
  ******************************************************************************/
@@ -104,7 +95,7 @@ void fft_fftw_transpose_local(double complex *grid,
  * \brief Naive implementation of 2D FFT (transposed format, no normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_2d_fw_local(const grid_fft_fftw_plan plan_fw,
+void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
                           double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
@@ -113,7 +104,7 @@ void fft_fftw_2d_fw_local(const grid_fft_fftw_plan plan_fw,
  * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_2d_bw_local(const grid_fft_fftw_plan plan_bw,
+void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
                           double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
