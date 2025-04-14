@@ -34,6 +34,10 @@ static inline void error_check(int error) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Initialize the MPI library (for unittesting).
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_init(int *argc, char ***argv) {
   #if defined(__parallel)
   error_check(MPI_Init(argc, argv));
@@ -43,6 +47,10 @@ void grid_mpi_init(int *argc, char ***argv) {
   #endif
 }
 
+/*******************************************************************************
+ * \brief Finalize the MPI library (for unittesting).
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_finalize(void) {
 #if defined(__parallel)
   error_check(MPI_Finalize());
@@ -51,6 +59,10 @@ void grid_mpi_finalize(void) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Return the number of ranks of a communicator.
+ * \author Frederick Stein
+ ******************************************************************************/
 int grid_mpi_comm_size(const grid_mpi_comm comm) {
 #if defined(__parallel)
   int comm_size;
@@ -62,6 +74,10 @@ int grid_mpi_comm_size(const grid_mpi_comm comm) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Return the own rank of a communicator.
+ * \author Frederick Stein
+ ******************************************************************************/
 int grid_mpi_comm_rank(const grid_mpi_comm comm) {
 #if defined(__parallel)
   int comm_rank;
@@ -73,6 +89,10 @@ int grid_mpi_comm_rank(const grid_mpi_comm comm) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Return info on Cartesian communicators.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_cart_get(const grid_mpi_comm comm, int maxdims, int *dims,
                        int *periods, int *coords) {
 #if defined(__parallel)
@@ -87,6 +107,10 @@ void grid_mpi_cart_get(const grid_mpi_comm comm, int maxdims, int *dims,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Return the rank of a process at a given coordinate.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_cart_rank(const grid_mpi_comm comm, const int *coords,
                         int *rank) {
 #if defined(__parallel)
@@ -98,6 +122,10 @@ void grid_mpi_cart_rank(const grid_mpi_comm comm, const int *coords,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Convert a Fortran communicator handle to a C communicator.
+ * \author Frederick Stein
+ ******************************************************************************/
 grid_mpi_comm grid_mpi_comm_f2c(const grid_mpi_fint fortran_comm) {
 #if defined(__parallel)
   return MPI_Comm_f2c(fortran_comm);
@@ -106,6 +134,10 @@ grid_mpi_comm grid_mpi_comm_f2c(const grid_mpi_fint fortran_comm) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Convert a C communicator to a Fortran handle.
+ * \author Frederick Stein
+ ******************************************************************************/
 grid_mpi_fint grid_mpi_comm_c2f(const grid_mpi_comm comm) {
 #if defined(__parallel)
   return MPI_Comm_c2f(comm);
@@ -114,6 +146,10 @@ grid_mpi_fint grid_mpi_comm_c2f(const grid_mpi_comm comm) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Duplicate a communicator.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_comm_dup(const grid_mpi_comm old_comm, grid_mpi_comm *new_comm) {
 #if defined(__parallel)
   error_check(MPI_Comm_dup(old_comm, new_comm));
@@ -122,6 +158,10 @@ void grid_mpi_comm_dup(const grid_mpi_comm old_comm, grid_mpi_comm *new_comm) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Free a communicator.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_comm_free(grid_mpi_comm *comm) {
 #if defined(__parallel)
   error_check(MPI_Comm_free(comm));
@@ -130,6 +170,10 @@ void grid_mpi_comm_free(grid_mpi_comm *comm) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Wait until all ranks of a communicator reach this barrier.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_barrier(const grid_mpi_comm comm) {
 #if defined(__parallel)
   error_check(MPI_Barrier(comm));
@@ -139,6 +183,10 @@ void grid_mpi_barrier(const grid_mpi_comm comm) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Check whether two communicators are unequal.
+ * \author Frederick Stein
+ ******************************************************************************/
 bool grid_mpi_comm_is_unequal(const grid_mpi_comm comm1,
                               const grid_mpi_comm comm2) {
 #if defined(__parallel)
@@ -151,6 +199,10 @@ bool grid_mpi_comm_is_unequal(const grid_mpi_comm comm1,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Check whether two communicators are similar.
+ * \author Frederick Stein
+ ******************************************************************************/
 bool grid_mpi_comm_is_similar(const grid_mpi_comm comm1,
                               const grid_mpi_comm comm2) {
 #if defined(__parallel)
@@ -164,6 +216,10 @@ bool grid_mpi_comm_is_similar(const grid_mpi_comm comm1,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Check whether two communicators are congruent.
+ * \author Frederick Stein
+ ******************************************************************************/
 bool grid_mpi_comm_is_congruent(const grid_mpi_comm comm1,
                                 const grid_mpi_comm comm2) {
 #if defined(__parallel)
@@ -176,6 +232,10 @@ bool grid_mpi_comm_is_congruent(const grid_mpi_comm comm1,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Check whether two communicators are identical.
+ * \author Frederick Stein
+ ******************************************************************************/
 bool grid_mpi_comm_is_ident(const grid_mpi_comm comm1,
                             const grid_mpi_comm comm2) {
 #if defined(__parallel)
@@ -188,6 +248,10 @@ bool grid_mpi_comm_is_ident(const grid_mpi_comm comm1,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Perform a blocking sendrecv of integers.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_sendrecv_int(const int *sendbuffer, const int sendcount,
                            const int dest, const int sendtag, int *recvbuffer,
                            const int recvcount, const int source,
@@ -222,6 +286,10 @@ void grid_mpi_sendrecv_int(const int *sendbuffer, const int sendcount,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Perform a blocking sendrecv of doubles.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_sendrecv_double(const double *sendbuffer, const int sendcount,
                               const int dest, const int sendtag,
                               double *recvbuffer, const int recvcount,
@@ -257,6 +325,10 @@ void grid_mpi_sendrecv_double(const double *sendbuffer, const int sendcount,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Perform a non-blocing send of doubles.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_isend_double(const double *sendbuffer, const int sendcount,
                            const int dest, const int sendtag,
                            const grid_mpi_comm comm,
@@ -281,6 +353,10 @@ void grid_mpi_isend_double(const double *sendbuffer, const int sendcount,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Perform a non-blocking recv of doubles.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_irecv_double(double *recvbuffer, const int recvcount,
                            const int source, const int recvtag,
                            const grid_mpi_comm comm,
@@ -305,6 +381,10 @@ void grid_mpi_irecv_double(double *recvbuffer, const int recvcount,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Perform a non-blocking send of double complex.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_isend_double_complex(const double complex *sendbuffer,
                                    const int sendcount, const int dest,
                                    const int sendtag, const grid_mpi_comm comm,
@@ -329,6 +409,10 @@ void grid_mpi_isend_double_complex(const double complex *sendbuffer,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Perform a non-blocking recv of double complex.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_irecv_double_complex(double complex *recvbuffer,
                                    const int recvcount, const int source,
                                    const int recvtag, const grid_mpi_comm comm,
@@ -353,6 +437,10 @@ void grid_mpi_irecv_double_complex(double complex *recvbuffer,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Wait for a request to finish.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_wait(grid_mpi_request *request) {
   assert(request != NULL);
 #if defined(__parallel)
@@ -362,6 +450,10 @@ void grid_mpi_wait(grid_mpi_request *request) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Wait for any/one of a set of requests to finish.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_waitany(const int number_of_requests,
                       grid_mpi_request request[number_of_requests], int *idx) {
   assert(idx != NULL);
@@ -378,6 +470,10 @@ void grid_mpi_waitany(const int number_of_requests,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Wait for all requests to finish.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_waitall(const int number_of_requests,
                       grid_mpi_request request[number_of_requests]) {
 #if defined(__parallel)
@@ -389,6 +485,10 @@ void grid_mpi_waitall(const int number_of_requests,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Gather integers from all processes.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_allgather_int(const int *sendbuffer, int sendcount,
                             int *recvbuffer, grid_mpi_comm comm) {
 #if defined(__parallel)
@@ -403,6 +503,10 @@ void grid_mpi_allgather_int(const int *sendbuffer, int sendcount,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Sum doubles over all ranks of a communicator.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_sum_double(double *buffer, const int count,
                          const grid_mpi_comm comm) {
 #if defined(__parallel)
@@ -418,6 +522,10 @@ void grid_mpi_sum_double(double *buffer, const int count,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Sum integers over all ranks of a communicator.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_sum_int(int *buffer, const int count, const grid_mpi_comm comm) {
 #if defined(__parallel)
   assert(buffer != NULL);
@@ -432,6 +540,10 @@ void grid_mpi_sum_int(int *buffer, const int count, const grid_mpi_comm comm) {
 #endif
 }
 
+/*******************************************************************************
+ * \brief Determine the maximum of doubles over ranks of a communicator.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_max_double(double *buffer, const int count,
                          const grid_mpi_comm comm) {
 #if defined(__parallel)
@@ -447,6 +559,10 @@ void grid_mpi_max_double(double *buffer, const int count,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Perform an Alltoall of double complex.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_alltoallv_double_complex(const double complex *send_buffer,
                                        const int *send_counts,
                                        const int *send_displacements,
@@ -474,6 +590,10 @@ void grid_mpi_alltoallv_double_complex(const double complex *send_buffer,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Determine good dimensions (wrapper to MPI_Dims_create).
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_dims_create(int number_of_processes, int number_of_dimensions,
                           int *dimensions) {
 #if defined(__parallel)
@@ -490,6 +610,10 @@ void grid_mpi_dims_create(int number_of_processes, int number_of_dimensions,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Create a Cartesian communicator.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_cart_create(grid_mpi_comm comm_old, int ndims, const int dims[],
                           const int periods[], int reorder,
                           grid_mpi_comm *comm_cart) {
@@ -506,6 +630,10 @@ void grid_mpi_cart_create(grid_mpi_comm comm_old, int ndims, const int dims[],
 #endif
 }
 
+/*******************************************************************************
+ * \brief Create sub communicators to a Cartesian communicator.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_cart_sub(const grid_mpi_comm comm_old, const int *remain_dims,
                        grid_mpi_comm *sub_comm) {
 #if defined(__parallel)
@@ -519,6 +647,10 @@ void grid_mpi_cart_sub(const grid_mpi_comm comm_old, const int *remain_dims,
 #endif
 }
 
+/*******************************************************************************
+ * \brief Determine the process coordinates of a rank in a Cartesian topology.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_cart_coords(const grid_mpi_comm comm, const int rank, int maxdims,
                           int coords[]) {
 #if defined(__parallel)
