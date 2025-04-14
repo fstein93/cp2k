@@ -9,30 +9,99 @@
 
 #include <assert.h>
 #include <math.h>
+#include <omp.h>
+#include <stdbool.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
 
 #if defined(__FFTW3)
 #include <fftw3.h>
+
+/*******************************************************************************
+ * \brief Static variables for retaining objects that are expensive to create.
+ * \author Ole Schuett
+ ******************************************************************************/
+typedef struct {
+  int key[4];
+  fftw_plan *plan;
+} cache_entry;
+
+#define FFTW_CACHE_SIZE 32
+static cache_entry cache[FFTW_CACHE_SIZE];
+static int cache_oldest_entry = 0; // used for LRU eviction
+
+static bool is_initialized = false;
+
+/*******************************************************************************
+ * \brief Fetches an fft plan from the cache. Returns NULL if not found.
+ * \author Ole Schuett
+ ******************************************************************************/
+static fftw_plan *lookup_plan_from_cache(const int key[4]) {
+  assert(is_initialized);
+  for (int i = 0; i < FFTW_CACHE_SIZE; i++) {
+    const int *x = cache[i].key;
+    if (x[0] == key[0] && x[1] == key[1] && x[2] == key[2] && x[3] == key[3]) {
+      return cache[i].plan;
+    }
+  }
+  return NULL;
+}
+
+/*******************************************************************************
+ * \brief Adds an fft plan to the cache. Assumes ownership of plan's memory.
+ * \author Ole Schuett
+ ******************************************************************************/
+static void add_plan_to_cache(const int key[4], fftw_plan *plan) {
+  const int i = cache_oldest_entry;
+  cache_oldest_entry = (cache_oldest_entry + 1) % FFTW_CACHE_SIZE;
+  if (cache[i].plan != NULL) {
+    fftw_destroy_plan(*cache[i].plan);
+    free(cache[i].plan);
+  }
+  cache[i].key[0] = key[0];
+  cache[i].key[1] = key[1];
+  cache[i].key[2] = key[2];
+  cache[i].key[3] = key[3];
+  cache[i].plan = plan;
+}
 #endif
 
 /*******************************************************************************
  * \brief Initialize the FFT library (if not done externally).
- * \author Frederick Stein
+ * \author Frederick Stein, Ole Schuett
  ******************************************************************************/
 void fft_fftw_init_lib() {
 #if defined(__FFTW3)
+  assert(omp_get_num_threads() == 1);
+  if (is_initialized) {
+    return;
+  }
+  memset(cache, 0, sizeof(cache_entry) * FFTW_CACHE_SIZE);
+  cache_oldest_entry = 0;
+
+  is_initialized = true;
   fftw_init_threads();
 #endif
 }
 
 /*******************************************************************************
  * \brief Finalize the FFT library (if not done externally).
- * \author Frederick Stein
+ * \author Frederick Stein, Ole Schuett
  ******************************************************************************/
 void fft_fftw_finalize_lib() {
 #if defined(__FFTW3)
+  assert(omp_get_num_threads() == 1);
+  if (!is_initialized) {
+    return;
+  }
+  for (int i = 0; i < FFTW_CACHE_SIZE; i++) {
+    if (cache[i].plan != NULL) {
+      fftw_destroy_plan(*cache[i].plan);
+      free(cache[i].plan);
+    }
+  }
+  is_initialized = false;
   fftw_cleanup();
 #endif
 }
@@ -104,6 +173,8 @@ void fft_fftw_create_1d_plan(double complex *grid_rs, double complex *grid_gs,
                              grid_fft_fftw_plan *plan_fw,
                              grid_fft_fftw_plan *plan_bw) {
 #if defined(__FFTW3)
+if (false) plan_fw = lookup_plan_from_cache(
+    (const int[4]){fft_size, number_of_ffts, 0, 0});
   const int rank = 1;
   const int n[] = {fft_size};
   const int howmany = number_of_ffts;
@@ -119,6 +190,9 @@ void fft_fftw_create_1d_plan(double complex *grid_rs, double complex *grid_gs,
   *plan_bw = fftw_plan_many_dft(rank, n, howmany, grid_gs, onembed, ostride,
                                 odist, grid_rs, inembed, istride, idist,
                                 FFTW_BACKWARD, FFTW_ESTIMATE);
+                                if (false) add_plan_to_cache(
+                                    (const int[4]){fft_size, number_of_ffts, 0, 0},
+                                    plan_fw);
 #else
   (void)grid_rs;
   (void)grid_gs;
