@@ -23,7 +23,7 @@
  * \author Ole Schuett
  ******************************************************************************/
 typedef struct {
-  int key[4];
+  int key[5];
   fftw_plan *plan;
 } cache_entry;
 
@@ -37,11 +37,11 @@ static bool is_initialized = false;
  * \brief Fetches an fft plan from the cache. Returns NULL if not found.
  * \author Ole Schuett
  ******************************************************************************/
-static fftw_plan *lookup_plan_from_cache(const int key[4]) {
+static fftw_plan *lookup_plan_from_cache(const int key[5]) {
   assert(is_initialized);
   for (int i = 0; i < FFTW_CACHE_SIZE; i++) {
     const int *x = cache[i].key;
-    if (x[0] == key[0] && x[1] == key[1] && x[2] == key[2] && x[3] == key[3]) {
+    if (x[0] == key[0] && x[1] == key[1] && x[2] == key[2] && x[3] == key[3] && x[4] == key[4]) {
       return cache[i].plan;
     }
   }
@@ -52,7 +52,7 @@ static fftw_plan *lookup_plan_from_cache(const int key[4]) {
  * \brief Adds an fft plan to the cache. Assumes ownership of plan's memory.
  * \author Ole Schuett
  ******************************************************************************/
-static void add_plan_to_cache(const int key[4], fftw_plan *plan) {
+static void add_plan_to_cache(const int key[5], fftw_plan *plan) {
   const int i = cache_oldest_entry;
   cache_oldest_entry = (cache_oldest_entry + 1) % FFTW_CACHE_SIZE;
   if (cache[i].plan != NULL) {
@@ -63,6 +63,7 @@ static void add_plan_to_cache(const int key[4], fftw_plan *plan) {
   cache[i].key[1] = key[1];
   cache[i].key[2] = key[2];
   cache[i].key[3] = key[3];
+  cache[i].key[4] = key[4];
   cache[i].plan = plan;
 }
 #endif
@@ -243,14 +244,20 @@ void fft_fftw_create_2d_plan(double complex *grid_rs, double complex *grid_gs,
  * \brief Create plan of a 1D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_create_3d_plan(double complex *grid_rs, double complex *grid_gs,
-                             const int fft_size[3], grid_fft_fftw_plan *plan_fw,
-                             grid_fft_fftw_plan *plan_bw) {
+fftw_plan *fft_fftw_create_3d_plan(double complex *buffer_1,
+                             const int direction, const int fft_size[3]) {
 #if defined(__FFTW3)
-  *plan_fw = fftw_plan_dft_3d(fft_size[2], fft_size[1], fft_size[0], grid_rs,
-                              grid_gs, FFTW_FORWARD, FFTW_ESTIMATE);
-  *plan_bw = fftw_plan_dft_3d(fft_size[2], fft_size[1], fft_size[0], grid_gs,
-                              grid_rs, FFTW_BACKWARD, FFTW_ESTIMATE);
+  const int key[5] = {3, direction, fft_size[2], fft_size[1], fft_size[0]};
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    double complex *buffer_2 = fftw_alloc_complex(fft_size[0] * fft_size[1] *
+                                          fft_size[2]);
+    plan = malloc(sizeof(fftw_plan));
+    *plan = fftw_plan_dft_3d(fft_size[2], fft_size[1], fft_size[0], buffer_1, buffer_2, direction, FFTW_ESTIMATE);
+    add_plan_to_cache(key, plan);
+    fftw_free(buffer_2);
+  }
+  return plan;
 #else
   (void)grid_rs;
   (void)grid_gs;
@@ -362,12 +369,15 @@ void fft_fftw_2d_bw_local(const grid_fft_fftw_plan plan_bw,
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_3d_fw_local(const grid_fft_fftw_plan plan_fw,
+void fft_fftw_3d_fw_local(const int fft_size[3],
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-  fftw_execute_dft(plan_fw, grid_in, grid_out);
+  fftw_plan *plan = fft_fftw_create_3d_plan(grid_out, FFTW_FORWARD, fft_size);
+  fftw_execute_dft(*plan, grid_in, grid_out);
 #else
-  (void)plan_fw;
+  (void)fft_size;
+  (void)grid_in;
+  (void)grid_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -378,12 +388,15 @@ void fft_fftw_3d_fw_local(const grid_fft_fftw_plan plan_fw,
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_3d_bw_local(const grid_fft_fftw_plan plan_bw,
+void fft_fftw_3d_bw_local(const int fft_size[3],
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-  fftw_execute_dft(plan_bw, grid_in, grid_out);
+fftw_plan *plan = fft_fftw_create_3d_plan(grid_out, FFTW_BACKWARD, fft_size);
+fftw_execute_dft(*plan, grid_in, grid_out);
 #else
-  (void)plan_bw;
+  (void)fft_size;
+  (void)grid_in;
+  (void)grid_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }

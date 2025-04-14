@@ -340,8 +340,7 @@ void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
   }
   if (my_fft_grid->proc_grid[0] == 1 && my_fft_grid->proc_grid[1] == 1) {
     // Local 3D FFT
-    fft_create_3d_plan(my_fft_grid->buffer_1, my_fft_grid->buffer_2,
-                       npts_global, &my_fft_grid->fft_plans[0]);
+    fft_create_3d_plan(npts_global, &my_fft_grid->fft_plans[0]);
   } else if (my_fft_grid->proc_grid[0] == number_of_processes &&
              my_fft_grid->proc_grid[1] == 1) {
     const int my_sizes_ms[3] = {
@@ -609,8 +608,7 @@ void grid_create_fft_grid_layout_from_reference(
   }
   if (my_fft_grid->proc_grid[0] == 1 && my_fft_grid->proc_grid[1] == 1) {
     // Local 3D FFT
-    fft_create_3d_plan(my_fft_grid->buffer_1, my_fft_grid->buffer_2,
-                       npts_global, &my_fft_grid->fft_plans[0]);
+    fft_create_3d_plan(npts_global, &my_fft_grid->fft_plans[0]);
   } else if (my_fft_grid->proc_grid[0] == number_of_processes &&
              my_fft_grid->proc_grid[1] == 1) {
     const int my_sizes_ms[3] = {

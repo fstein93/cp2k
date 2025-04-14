@@ -216,7 +216,7 @@ int fft_test_3d_local_low(const int fft_size[3]) {
       calloc(fft_size[0] * fft_size[1] * fft_size[2], sizeof(double complex));
 
   grid_fft_plan plan;
-  fft_create_3d_plan(input_array, output_array, fft_size, &plan);
+  fft_create_3d_plan(fft_size, &plan);
 
   double max_error = 0.0;
   for (int mx = 0; mx < fft_size[0]; mx++) {
@@ -251,7 +251,7 @@ int fft_test_3d_local_low(const int fft_size[3]) {
 
   if (max_error > 1.0e-12) {
     if (my_process == 0)
-      printf("The fw 2D-FFT does not work correctly (%i %i %i): %f!\n",
+      printf("The fw 3D-FFT does not work correctly (%i %i %i): %f!\n",
              fft_size[0], fft_size[1], fft_size[2], max_error);
     errors++;
   }
@@ -293,7 +293,7 @@ int fft_test_3d_local_low(const int fft_size[3]) {
 
   if (max_error > 1e-12) {
     if (my_process == 0)
-      printf("The bw 2D-FFT does not work correctly (%i %i %i): %f!\n",
+      printf("The bw 3D-FFT does not work correctly (%i %i %i): %f!\n",
              fft_size[0], fft_size[1], fft_size[2], max_error);
     errors++;
   }
