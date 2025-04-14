@@ -274,14 +274,14 @@ void fft_2d_bw_local(const grid_fft_plan *plan, double complex *grid_in,
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_local(const grid_fft_plan *plan, double complex *grid_in,
+void fft_3d_fw_local(const int fft_size[3], double complex *grid_in,
                      double complex *grid_out) {
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_REF:
-    fft_ref_3d_fw_local(grid_in, grid_out, plan->fft_size);
+    fft_ref_3d_fw_local(grid_in, grid_out, fft_size);
     break;
   case GRID_FFT_LIB_FFTW:
-    fft_fftw_3d_fw_local(plan->fft_size, grid_in, grid_out);
+    fft_fftw_3d_fw_local(fft_size, grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -294,14 +294,14 @@ void fft_3d_fw_local(const grid_fft_plan *plan, double complex *grid_in,
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_local(const grid_fft_plan *plan, double complex *grid_in,
+void fft_3d_bw_local(const int fft_size[3], double complex *grid_in,
                      double complex *grid_out) {
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_REF:
-    fft_ref_3d_bw_local(grid_in, grid_out, plan->fft_size);
+    fft_ref_3d_bw_local(grid_in, grid_out, fft_size);
     break;
   case GRID_FFT_LIB_FFTW:
-    fft_fftw_3d_bw_local(plan->fft_size, grid_in, grid_out);
+    fft_fftw_3d_bw_local(fft_size, grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");

@@ -748,7 +748,7 @@ void fft_3d_fw_blocked(double *grid_rs, double complex *grid_gs,
     // Perform the third FFT
     fft_1d_fw_local(&fft_plans[1], grid_buffer_1, grid_gs);
   } else {
-    fft_3d_fw_local(&fft_plans[0], grid_buffer_1, grid_gs);
+    fft_3d_fw_local(fft_plans[0].fft_size, grid_buffer_1, grid_gs);
   }
 
   free(grid_buffer_1);
@@ -828,7 +828,7 @@ void fft_3d_bw_blocked(double complex *grid_gs, double *grid_rs,
     // Perform the second FFT and one transposition (x,z,y)->(y,x,z)
     fft_2d_bw_local(&fft_plans[0], grid_buffer_2, grid_buffer_1);
   } else {
-    fft_3d_bw_local(&fft_plans[0], grid_gs, grid_buffer_1);
+    fft_3d_bw_local(fft_plans[0].fft_size, grid_gs, grid_buffer_1);
   }
 
   // Copy real array to complex buffer
@@ -918,7 +918,7 @@ void fft_3d_fw_ray(double *grid_rs, double complex *grid_gs,
     // Perform the third FFT
     fft_1d_fw_local(&fft_plans[1], grid_buffer_1, grid_gs);
   } else {
-    fft_3d_fw_local(&fft_plans[0], grid_buffer_1, grid_buffer_2);
+    fft_3d_fw_local(fft_plans[0].fft_size, grid_buffer_1, grid_buffer_2);
     // Copy to the new format
     // Maybe, a 2D FFT, redistribution to rays and final FFT is faster
     int ray_index = 0;
@@ -1027,7 +1027,7 @@ void fft_3d_bw_ray(double complex *grid_gs, double *grid_rs,
              &grid_gs[yz_ray * npts_global[0]],
              npts_global[0] * sizeof(double complex));
     }
-    fft_3d_bw_local(&fft_plans[0], grid_buffer_2, grid_buffer_1);
+    fft_3d_bw_local(fft_plans[0].fft_size, grid_buffer_2, grid_buffer_1);
   }
 
   // Copy real array to complex buffer

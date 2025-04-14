@@ -227,7 +227,7 @@ int fft_test_3d_local_low(const int fft_size[3]) {
                    sizeof(double complex));
         input_array[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
             1.0;
-        fft_3d_fw_local((const grid_fft_plan *)&plan, input_array,
+        fft_3d_fw_local(fft_size, input_array,
                         output_array);
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
@@ -265,7 +265,7 @@ int fft_test_3d_local_low(const int fft_size[3]) {
                    sizeof(double complex));
         output_array[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
             1.0;
-        fft_3d_bw_local((const grid_fft_plan *)&plan, output_array,
+        fft_3d_bw_local(fft_size, output_array,
                         input_array);
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
