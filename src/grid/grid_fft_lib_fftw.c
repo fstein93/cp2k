@@ -17,6 +17,9 @@
 
 #if defined(__FFTW3)
 #include <fftw3.h>
+#if defined(__parallel)
+#include <fftw3-mpi.h>
+#endif
 
 /*******************************************************************************
  * \brief Static variables for retaining objects that are expensive to create.
@@ -86,6 +89,9 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag) {
 
   is_initialized = true;
   fftw_init_threads();
+#if defined(__parallel)
+  fftw_mpi_init();
+#endif
   fftw_planning_mode = fftw_planning_flag;
   switch (fftw_planning_flag) {
   case FFT_ESTIMATE:
@@ -130,7 +136,11 @@ void fft_fftw_finalize_lib() {
   }
   is_initialized = false;
   fftw_planning_mode = -1;
+#if defined(__parallel)
+  fftw_mpi_cleanup();
+#else
   fftw_cleanup();
+#endif
 #endif
 }
 

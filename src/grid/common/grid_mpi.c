@@ -40,7 +40,11 @@ static inline void error_check(int error) {
  ******************************************************************************/
 void grid_mpi_init(int *argc, char ***argv) {
 #if defined(__parallel)
-  error_check(MPI_Init(argc, argv));
+  int provided_thread_level;
+  error_check(
+      MPI_Init_thread(argc, argv, MPI_THREAD_FUNNELED, &provided_thread_level));
+  assert(provided_thread_level >= MPI_THREAD_FUNNELED &&
+         "Required thread level not supported by the MPI implementation.");
 #else
   (void)argc;
   (void)argv;
