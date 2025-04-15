@@ -28,14 +28,14 @@ bool grid_fft_lib_initialized = false;
  * \brief Initialize the FFT library (if not done externally).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_init_lib(const grid_fft_lib lib) {
+void fft_init_lib(const grid_fft_lib lib, const int fftw_planning_flag) {
   if (grid_fft_lib_initialized) {
     return;
   }
   grid_fft_lib_initialized = true;
   grid_fft_lib_choice = lib;
   fft_ref_init_lib();
-  fft_fftw_init_lib();
+  fft_fftw_init_lib(fftw_planning_flag);
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_REF:
     printf("Using reference FFT library.\n");

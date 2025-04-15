@@ -13,11 +13,18 @@
 #include <fftw3.h>
 #endif
 
+typedef enum {
+  FFT_ESTIMATE,
+  FFT_MEASURE,
+  FFT_PATIENT,
+  FFT_EXHAUSTIVE
+} fftw_plan_type;
+
 /*******************************************************************************
  * \brief Initialize the FFT library (if not done externally).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_init_lib();
+void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag);
 
 /*******************************************************************************
  * \brief Finalize the FFT library (if not done externally).

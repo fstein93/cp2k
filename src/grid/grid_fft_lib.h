@@ -23,7 +23,7 @@ static const grid_fft_lib GRID_FFT_LIB_DEFAULT = GRID_FFT_LIB_REF;
  * \brief Initialize the FFT library (if not done externally).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_init_lib(const grid_fft_lib lib);
+void fft_init_lib(const grid_fft_lib lib, const int fftw_planning_flag);
 
 /*******************************************************************************
  * \brief Finalize the FFT library (if not done externally).

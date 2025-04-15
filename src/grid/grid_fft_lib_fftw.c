@@ -33,6 +33,8 @@ static int cache_oldest_entry = 0; // used for LRU eviction
 
 static bool is_initialized = false;
 
+static int fftw_planning_mode = -1;
+
 /*******************************************************************************
  * \brief Fetches an fft plan from the cache. Returns NULL if not found.
  * \author Ole Schuett, Frederick Stein
@@ -73,7 +75,7 @@ static void add_plan_to_cache(const int key[5], fftw_plan *plan) {
  * \brief Initialize the FFT library (if not done externally).
  * \author Frederick Stein, Ole Schuett
  ******************************************************************************/
-void fft_fftw_init_lib() {
+void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   if (is_initialized) {
@@ -84,6 +86,29 @@ void fft_fftw_init_lib() {
 
   is_initialized = true;
   fftw_init_threads();
+  fftw_planning_mode = fftw_planning_flag;
+  switch (fftw_planning_flag) {
+  case FFT_ESTIMATE:
+    fftw_planning_mode = FFTW_ESTIMATE;
+    break;
+  case FFT_MEASURE:
+    fftw_planning_mode = FFTW_MEASURE;
+    break;
+  case FFT_PATIENT:
+    fftw_planning_mode = FFTW_PATIENT;
+    break;
+  case FFT_EXHAUSTIVE:
+    fftw_planning_mode = FFTW_EXHAUSTIVE;
+    break;
+  default:
+    assert(0 && "Unknown FFTW planning flag.");
+  }
+
+#if defined(__FFTW3_UNALIGNED)
+  fftw_planning_mode += FFTW_UNALIGNED
+#endif
+#else
+  (void)fftw_planning_flag;
 #endif
 }
 
@@ -104,6 +129,7 @@ void fft_fftw_finalize_lib() {
     }
   }
   is_initialized = false;
+  fftw_planning_mode = -1;
   fftw_cleanup();
 #endif
 }
@@ -193,11 +219,11 @@ fftw_plan *fft_fftw_create_1d_plan(const int direction, const int fft_size,
     if (direction == FFTW_FORWARD) {
       *plan = fftw_plan_many_dft(rank, n, howmany, buffer_1, inembed, istride,
                                  idist, buffer_2, onembed, ostride, odist,
-                                 FFTW_FORWARD, FFTW_ESTIMATE);
+                                 FFTW_FORWARD, fftw_planning_mode);
     } else {
       *plan = fftw_plan_many_dft(rank, n, howmany, buffer_1, onembed, ostride,
                                  odist, buffer_2, inembed, istride, idist,
-                                 FFTW_BACKWARD, FFTW_ESTIMATE);
+                                 FFTW_BACKWARD, fftw_planning_mode);
     }
     add_plan_to_cache(key, plan);
     fftw_free(buffer_1);
@@ -234,11 +260,11 @@ fftw_plan *fft_fftw_create_2d_plan(const int direction, const int fft_size[2],
     if (direction == FFTW_FORWARD) {
       *plan = fftw_plan_many_dft(rank, n, howmany, buffer_1, inembed, istride,
                                  idist, buffer_2, onembed, ostride, odist,
-                                 FFTW_FORWARD, FFTW_ESTIMATE);
+                                 FFTW_FORWARD, fftw_planning_mode);
     } else {
       *plan = fftw_plan_many_dft(rank, n, howmany, buffer_1, onembed, ostride,
                                  odist, buffer_2, inembed, istride, idist,
-                                 FFTW_BACKWARD, FFTW_ESTIMATE);
+                                 FFTW_BACKWARD, fftw_planning_mode);
     }
     add_plan_to_cache(key, plan);
     fftw_free(buffer_1);
@@ -263,7 +289,7 @@ fftw_plan *fft_fftw_create_3d_plan(const int direction, const int fft_size[3]) {
         fftw_alloc_complex(fft_size[0] * fft_size[1] * fft_size[2]);
     plan = malloc(sizeof(fftw_plan));
     *plan = fftw_plan_dft_3d(fft_size[2], fft_size[1], fft_size[0], buffer_1,
-                             buffer_2, direction, FFTW_ESTIMATE);
+                             buffer_2, direction, fftw_planning_mode);
     add_plan_to_cache(key, plan);
     fftw_free(buffer_1);
     fftw_free(buffer_2);
