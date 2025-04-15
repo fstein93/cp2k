@@ -10,6 +10,7 @@
 #include "grid_fft_lib_fftw.h"
 
 #include <complex.h>
+#include <stdbool.h>
 
 typedef enum { GRID_FFT_LIB_REF, GRID_FFT_LIB_FFTW } grid_fft_lib;
 
@@ -23,13 +24,20 @@ static const grid_fft_lib GRID_FFT_LIB_DEFAULT = GRID_FFT_LIB_REF;
  * \brief Initialize the FFT library (if not done externally).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_init_lib(const grid_fft_lib lib, const int fftw_planning_flag);
+void fft_init_lib(const grid_fft_lib lib, const int fftw_planning_flag,
+                  const bool use_fft_mpi);
 
 /*******************************************************************************
  * \brief Finalize the FFT library (if not done externally).
  * \author Frederick Stein
  ******************************************************************************/
 void fft_finalize_lib();
+
+/*******************************************************************************
+ * \brief Whether compound MPI implementations are available.
+ * \author Frederick Stein
+ ******************************************************************************/
+bool fft_lib_use_mpi();
 
 /*******************************************************************************
  * \brief Allocate buffer of type double.

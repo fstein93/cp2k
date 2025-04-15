@@ -28,14 +28,15 @@ bool grid_fft_lib_initialized = false;
  * \brief Initialize the FFT library (if not done externally).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_init_lib(const grid_fft_lib lib, const int fftw_planning_flag) {
+void fft_init_lib(const grid_fft_lib lib, const int fftw_planning_flag,
+                  const bool use_fft_mpi) {
   if (grid_fft_lib_initialized) {
     return;
   }
   grid_fft_lib_initialized = true;
   grid_fft_lib_choice = lib;
   fft_ref_init_lib();
-  fft_fftw_init_lib(fftw_planning_flag);
+  fft_fftw_init_lib(fftw_planning_flag, use_fft_mpi);
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_REF:
     printf("Using reference FFT library.\n");
@@ -56,6 +57,22 @@ void fft_finalize_lib() {
   fft_ref_finalize_lib();
   fft_fftw_finalize_lib();
   grid_fft_lib_initialized = false;
+}
+
+/*******************************************************************************
+ * \brief Whether a compound MPI implementation is available.
+ * \author Frederick Stein
+ ******************************************************************************/
+bool fft_lib_use_mpi() {
+  switch (grid_fft_lib_choice) {
+  case GRID_FFT_LIB_REF:
+    return fft_ref_lib_use_mpi();
+  case GRID_FFT_LIB_FFTW:
+    return fft_fftw_lib_use_mpi();
+  default:
+    assert(0 && "Unknown FFT library.");
+    return false;
+  }
 }
 
 /*******************************************************************************

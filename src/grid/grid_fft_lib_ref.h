@@ -8,6 +8,7 @@
 #define GRID_FFT_LIB_REF_H
 
 #include <complex.h>
+#include <stdbool.h>
 
 /*******************************************************************************
  * \brief Initialize the FFT library (if not done externally).
@@ -20,6 +21,12 @@ void fft_ref_init_lib();
  * \author Frederick Stein
  ******************************************************************************/
 void fft_ref_finalize_lib();
+
+/*******************************************************************************
+ * \brief Whether a compound MPI implementation of FFT is available.
+ * \author Frederick Stein
+ ******************************************************************************/
+bool fft_ref_lib_use_mpi();
 
 /*******************************************************************************
  * \brief Allocate buffer of type double.

@@ -34,6 +34,12 @@ void fft_ref_finalize_lib() {
 }
 
 /*******************************************************************************
+ * \brief Whether a compound MPI implementation of FFT is available.
+ * \author Frederick Stein
+ ******************************************************************************/
+bool fft_ref_lib_use_mpi() { return false; }
+
+/*******************************************************************************
  * \brief Allocate buffer of type double.
  * \author Frederick Stein
  ******************************************************************************/

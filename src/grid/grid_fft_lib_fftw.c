@@ -37,6 +37,7 @@ static int cache_oldest_entry = 0; // used for LRU eviction
 static bool is_initialized = false;
 
 static int fftw_planning_mode = -1;
+static bool use_fftw_mpi = false;
 
 /*******************************************************************************
  * \brief Fetches an fft plan from the cache. Returns NULL if not found.
@@ -78,7 +79,8 @@ static void add_plan_to_cache(const int key[5], fftw_plan *plan) {
  * \brief Initialize the FFT library (if not done externally).
  * \author Frederick Stein, Ole Schuett
  ******************************************************************************/
-void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag) {
+void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
+                       const bool use_fft_mpi) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   if (is_initialized) {
@@ -89,9 +91,7 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag) {
 
   is_initialized = true;
   fftw_init_threads();
-#if defined(__parallel)
-  fftw_mpi_init();
-#endif
+
   fftw_planning_mode = fftw_planning_flag;
   switch (fftw_planning_flag) {
   case FFT_ESTIMATE:
@@ -113,8 +113,17 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag) {
 #if defined(__FFTW3_UNALIGNED)
   fftw_planning_mode += FFTW_UNALIGNED
 #endif
+
+#if defined(__parallel)
+      use_fftw_mpi = use_fft_mpi;
+  fftw_mpi_init();
+#else
+  (void)use_fft_mpi;
+  use_fftw_mpi = false;
+#endif
 #else
   (void)fftw_planning_flag;
+  (void)use_fft_mpi;
 #endif
 }
 
@@ -143,6 +152,12 @@ void fft_fftw_finalize_lib() {
 #endif
 #endif
 }
+
+/*******************************************************************************
+ * \brief Whether a compound MPI implementation of FFT is available.
+ * \author Frederick Stein
+ ******************************************************************************/
+bool fft_fftw_lib_use_mpi() { return use_fftw_mpi; }
 
 /*******************************************************************************
  * \brief Allocate buffer of type double.

@@ -7,11 +7,13 @@
 #ifndef GRID_FFT_LIB_FFTW_H
 #define GRID_FFT_LIB_FFTW_H
 
+// We include this first to require FFTW to use C complex numbers
 #include <complex.h>
 
 #if defined(__FFTW3)
 #include <fftw3.h>
 #endif
+#include <stdbool.h>
 
 typedef enum {
   FFT_ESTIMATE,
@@ -24,13 +26,20 @@ typedef enum {
  * \brief Initialize the FFT library (if not done externally).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag);
+void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
+                       const bool use_fft_mpi);
 
 /*******************************************************************************
  * \brief Finalize the FFT library (if not done externally).
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_finalize_lib();
+
+/*******************************************************************************
+ * \brief Whether a compound MPI implementation of FFT is available.
+ * \author Frederick Stein
+ ******************************************************************************/
+bool fft_fftw_lib_use_mpi();
 
 /*******************************************************************************
  * \brief Allocate buffer of type double.
