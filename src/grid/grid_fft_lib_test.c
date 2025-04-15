@@ -36,7 +36,9 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
       calloc(fft_size * number_of_ffts, sizeof(double complex));
 
   double max_error = 0.0;
-  // Check the forward FFT
+// Check the forward FFT
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, number_of_ffts)
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     input_array[(number_of_fft % fft_size) * number_of_ffts + number_of_fft] =
         1.0;
@@ -44,6 +46,9 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
 
   fft_1d_fw_local(fft_size, number_of_ffts, input_array, output_array);
 
+#pragma omp parallel for default(none)                                         \
+    shared(output_array, fft_size, number_of_ffts, pi)                         \
+    reduction(max : max_error) collapse(2)
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     for (int index = 0; index < fft_size; index++) {
       max_error =
@@ -63,6 +68,8 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
   // Check the backward FFT
   memset(output_array, 0, fft_size * number_of_ffts * sizeof(double complex));
 
+#pragma omp parallel for default(none)                                         \
+    shared(output_array, fft_size, number_of_ffts)
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     output_array[number_of_fft * fft_size + number_of_fft % fft_size] = 1.0;
   }
@@ -70,6 +77,9 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
   fft_1d_bw_local(fft_size, number_of_ffts, output_array, input_array);
 
   max_error = 0.0;
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, number_of_ffts, pi)                          \
+    reduction(max : max_error) collapse(2)
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     for (int index = 0; index < fft_size; index++) {
       max_error = fmax(
@@ -112,7 +122,9 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts) {
       fft_size[0] * fft_size[1] * number_of_ffts, sizeof(double complex));
 
   double max_error = 0.0;
-  // Check the forward FFT
+// Check the forward FFT
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, number_of_ffts)
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     input_array[number_of_fft % (fft_size[0] * fft_size[1]) * number_of_ffts +
                 number_of_fft] = 1.0;
@@ -120,6 +132,9 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts) {
 
   fft_2d_fw_local(fft_size, number_of_ffts, input_array, output_array);
 
+#pragma omp parallel for default(none)                                         \
+    shared(output_array, fft_size, number_of_ffts, pi)                         \
+    reduction(max : max_error) collapse(3)
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     for (int index_1 = 0; index_1 < fft_size[0]; index_1++) {
       for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
@@ -147,6 +162,8 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts) {
   memset(output_array, 0,
          fft_size[0] * fft_size[1] * number_of_ffts * sizeof(double complex));
 
+#pragma omp parallel for default(none)                                         \
+    shared(output_array, fft_size, number_of_ffts)
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     output_array[number_of_fft * fft_size[0] * fft_size[1] +
                  (number_of_fft / fft_size[1] % fft_size[0] * fft_size[1]) +
@@ -156,6 +173,9 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts) {
   fft_2d_bw_local(fft_size, number_of_ffts, output_array, input_array);
 
   max_error = 0.0;
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, number_of_ffts, pi)                          \
+    reduction(max : max_error) collapse(3)
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     for (int index_1 = 0; index_1 < fft_size[0]; index_1++) {
       for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
@@ -214,6 +234,10 @@ int fft_test_3d_local_low(const int fft_size[3]) {
         input_array[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
             1.0;
         fft_3d_fw_local(fft_size, input_array, output_array);
+
+#pragma omp parallel for default(none)                                         \
+    shared(output_array, fft_size, pi, mx, my, mz) reduction(max : max_error)  \
+    collapse(3)
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
@@ -251,6 +275,10 @@ int fft_test_3d_local_low(const int fft_size[3]) {
         output_array[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
             1.0;
         fft_3d_bw_local(fft_size, output_array, input_array);
+
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, pi, mx, my, mz) reduction(max : max_error)   \
+    collapse(3)
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
@@ -354,6 +382,8 @@ int fft_test_transpose() {
   double complex *input_array = calloc(max_size, sizeof(double complex));
   double complex *output_array = calloc(max_size, sizeof(double complex));
 
+#pragma omp parallel for default(none) shared(input_array, fft_sizes)          \
+    collapse(2)
   for (int index_1 = 0; index_1 < fft_sizes[0]; index_1++) {
     for (int index_2 = 0; index_2 < fft_sizes[1]; index_2++) {
       input_array[index_1 * fft_sizes[1] + index_2] =
@@ -365,6 +395,8 @@ int fft_test_transpose() {
 
   double error = 0.0;
 
+#pragma omp parallel for default(none) shared(output_array, fft_sizes)         \
+    reduction(max : error) collapse(2)
   for (int index_1 = 0; index_1 < fft_sizes[0]; index_1++) {
     for (int index_2 = 0; index_2 < fft_sizes[1]; index_2++) {
       error = fmax(error, cabs(output_array[index_2 * fft_sizes[0] + index_1] -

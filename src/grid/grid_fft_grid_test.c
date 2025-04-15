@@ -78,6 +78,9 @@ int fft_test_3d_blocked(const int npts_global[3]) {
             fft_grid_layout->proc2local_ms, fft_grid_layout->proc2local_gs,
             fft_grid_layout->comm, fft_grid_layout->sub_comm);
 
+#pragma omp parallel for default(none)                                         \
+    shared(grid_gs, my_bounds_gs, my_sizes_gs, fft_grid_layout, nx, ny, nz,    \
+               npts_global) collapse(3) reduction(max : max_error)
         for (int mx = 0; mx < my_sizes_gs[0]; mx++) {
           for (int my = 0; my < my_sizes_gs[1]; my++) {
             for (int mz = 0; mz < my_sizes_gs[2]; mz++) {
@@ -127,6 +130,10 @@ int fft_test_3d_blocked(const int npts_global[3]) {
 
         fft_3d_fw(&grid_rs, &grid_gs);
 
+#pragma omp parallel for default(none)                                         \
+    shared(fft_grid_layout, my_bounds_gs, my_sizes_gs, grid_gs,                \
+               my_number_of_elements_gs, nx, ny, nz, scale, my_process,        \
+               npts_global) reduction(max : max_error)
         for (int index = 0; index < my_number_of_elements_gs; index++) {
           const int mx = fft_grid_layout->index_to_g[index][0];
           const int my = fft_grid_layout->index_to_g[index][1];
@@ -182,6 +189,9 @@ int fft_test_3d_blocked(const int npts_global[3]) {
             fft_grid_layout->proc2local_ms, fft_grid_layout->proc2local_gs,
             fft_grid_layout->comm, fft_grid_layout->sub_comm);
 
+#pragma omp parallel for default(none)                                         \
+    shared(fft_grid_layout, my_bounds_rs, my_sizes_rs, buffer_1_real, nx, ny,  \
+               nz, npts_global) collapse(3) reduction(max : max_error)
         for (int mx = 0; mx < my_sizes_rs[0]; mx++) {
           for (int my = 0; my < my_sizes_rs[1]; my++) {
             for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
@@ -230,6 +240,9 @@ int fft_test_3d_blocked(const int npts_global[3]) {
 
         fft_3d_bw(&grid_gs, &grid_rs);
 
+#pragma omp parallel for default(none)                                         \
+    shared(grid_rs, my_bounds_rs, my_sizes_rs, nx, ny, nz, npts_global)        \
+    collapse(3) reduction(max : max_error)
         for (int mx = 0; mx < my_sizes_rs[0]; mx++) {
           for (int my = 0; my < my_sizes_rs[1]; my++) {
             for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
@@ -329,6 +342,9 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3]) {
             fft_grid_layout->rays_per_process, fft_grid_layout->ray_to_yz,
             fft_grid_layout->comm, fft_grid_layout->sub_comm);
 
+#pragma omp parallel for default(none)                                         \
+    shared(fft_grid_layout, my_ray_offset, npts_global, my_sizes_rs,           \
+               my_process, nx, ny, nz) reduction(max : max_error) collapse(2)
         for (int index_x = 0; index_x < npts_global[0]; index_x++) {
           for (int yz_ray = 0;
                yz_ray < fft_grid_layout->rays_per_process[my_process];
@@ -388,6 +404,9 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3]) {
           fft_grid_layout->rays_per_process, fft_grid_layout->ray_to_yz,
           fft_grid_layout->comm, fft_grid_layout->sub_comm);
 
+#pragma omp parallel for default(none)                                         \
+    shared(fft_grid_layout, buffer_1_real, my_sizes_rs, my_bounds_rs,          \
+               npts_global, nx, ny, nz) reduction(max : max_error) collapse(3)
       for (int mx = 0; mx < my_sizes_rs[0]; mx++) {
         for (int my = 0; my < my_sizes_rs[1]; my++) {
           for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
