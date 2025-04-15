@@ -171,8 +171,10 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
   my_fft_grid->proc2local_rs = malloc(number_of_processes * sizeof(int[3][2]));
   my_fft_grid->proc2local_ms = malloc(number_of_processes * sizeof(int[3][2]));
   my_fft_grid->proc2local_gs = malloc(number_of_processes * sizeof(int[3][2]));
-  // OMP parallelization requires a multi-threaded MPI
-  // #pragma omp parallel for default(none) shared(my_fft_grid, npts_global)
+// OMP parallelization requires a multi-threaded MPI
+#pragma omp parallel for default(none)                                         \
+    shared(my_fft_grid, number_of_processes,                                   \
+               npts_global) if (grid_mpi_query() >= grid_mpi_thread_multiple)
   for (int proc = 0; proc < number_of_processes; proc++) {
     int proc_coords[2];
     grid_mpi_cart_coords(my_fft_grid->comm, proc, 2, proc_coords);

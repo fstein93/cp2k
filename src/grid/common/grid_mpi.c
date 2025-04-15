@@ -60,6 +60,20 @@ void grid_mpi_finalize(void) {
 }
 
 /*******************************************************************************
+ * \brief Returns the available level of thread support.
+ * \author Frederick Stein
+ ******************************************************************************/
+int grid_mpi_query(void) {
+#if defined(__parallel)
+  int provided;
+  error_check(MPI_Query_thread(&provided));
+  return provided;
+#else
+  return grid_mpi_thread_single;
+#endif
+}
+
+/*******************************************************************************
  * \brief Return the number of ranks of a communicator.
  * \author Frederick Stein
  ******************************************************************************/

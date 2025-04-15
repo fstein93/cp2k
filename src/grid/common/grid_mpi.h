@@ -24,6 +24,10 @@ static const grid_mpi_request grid_mpi_request_null = MPI_REQUEST_NULL;
 static const int grid_mpi_any_source = MPI_ANY_SOURCE;
 static const int grid_mpi_proc_null = MPI_PROC_NULL;
 static const int grid_mpi_any_tag = MPI_ANY_TAG;
+static const int grid_mpi_thread_single = MPI_THREAD_SINGLE;
+static const int grid_mpi_thread_funneled = MPI_THREAD_FUNNELED;
+static const int grid_mpi_thread_serialized = MPI_THREAD_SERIALIZED;
+static const int grid_mpi_thread_multiple = MPI_THREAD_MULTIPLE;
 #else
 typedef int grid_mpi_comm;
 typedef int grid_mpi_request;
@@ -36,6 +40,10 @@ static const grid_mpi_request grid_mpi_request_null = -7;
 static const int grid_mpi_any_source = -11;
 static const int grid_mpi_proc_null = -13;
 static const int grid_mpi_any_tag = -17;
+static const int grid_mpi_thread_single = -7;
+static const int grid_mpi_thread_funneled = -5;
+static const int grid_mpi_thread_serialized = -3;
+static const int grid_mpi_thread_multiple = -2;
 #endif
 
 /*******************************************************************************
@@ -49,6 +57,12 @@ void grid_mpi_init(int *argc, char ***argv);
  * \author Frederick Stein
  ******************************************************************************/
 void grid_mpi_finalize(void);
+
+/*******************************************************************************
+ * \brief Returns the available level of thread support.
+ * \author Frederick Stein
+ ******************************************************************************/
+int grid_mpi_query(void);
 
 /*******************************************************************************
  * \brief Return the number of ranks of a communicator.
