@@ -204,9 +204,6 @@ int fft_test_3d_local_low(const int fft_size[3]) {
   double complex *output_array =
       calloc(fft_size[0] * fft_size[1] * fft_size[2], sizeof(double complex));
 
-  grid_fft_plan plan;
-  fft_create_3d_plan(fft_size, &plan);
-
   double max_error = 0.0;
   for (int mx = 0; mx < fft_size[0]; mx++) {
     for (int my = 0; my < fft_size[1]; my++) {
@@ -274,7 +271,6 @@ int fft_test_3d_local_low(const int fft_size[3]) {
     }
   }
 
-  fft_free_plan(&plan);
   free(input_array);
   free(output_array);
 

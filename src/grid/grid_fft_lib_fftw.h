@@ -11,9 +11,6 @@
 
 #if defined(__FFTW3)
 #include <fftw3.h>
-typedef fftw_plan grid_fft_fftw_plan;
-#else
-typedef void *grid_fft_fftw_plan;
 #endif
 
 /*******************************************************************************

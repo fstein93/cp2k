@@ -152,9 +152,6 @@ void grid_free_fft_grid_layout(grid_fft_grid_layout *fft_grid) {
       free(fft_grid->rays_per_process);
       free(fft_grid->index_to_g);
       free(fft_grid->local_index_to_ref_grid);
-      for (int index = 0; index < 3; index++) {
-        fft_free_plan(&fft_grid->fft_plans[index]);
-      }
       free(fft_grid);
     }
   }
@@ -333,73 +330,6 @@ void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
   }
 
   sort_g_vectors(my_fft_grid);
-
-  for (int dir = 0; dir < 3; dir++) {
-    my_fft_grid->fft_plans[dir].fftw_plan_fw = NULL;
-    my_fft_grid->fft_plans[dir].fftw_plan_bw = NULL;
-  }
-  if (my_fft_grid->proc_grid[0] == 1 && my_fft_grid->proc_grid[1] == 1) {
-    // Local 3D FFT
-    fft_create_3d_plan(npts_global, &my_fft_grid->fft_plans[0]);
-  } else if (my_fft_grid->proc_grid[0] == number_of_processes &&
-             my_fft_grid->proc_grid[1] == 1) {
-    const int my_sizes_ms[3] = {
-        my_fft_grid->proc2local_ms[my_process][0][1] -
-            my_fft_grid->proc2local_ms[my_process][0][0] + 1,
-        my_fft_grid->proc2local_ms[my_process][1][1] -
-            my_fft_grid->proc2local_ms[my_process][1][0] + 1,
-        my_fft_grid->proc2local_ms[my_process][2][1] -
-            my_fft_grid->proc2local_ms[my_process][2][0] + 1};
-    // First set of FFTs along y,z
-    fft_create_2d_plan((const int[2]){npts_global[1], npts_global[2]},
-                       my_sizes_ms[0], &my_fft_grid->fft_plans[0]);
-
-    const int my_sizes_gs[3] = {
-        my_fft_grid->proc2local_gs[my_process][0][1] -
-            my_fft_grid->proc2local_gs[my_process][0][0] + 1,
-        my_fft_grid->proc2local_gs[my_process][1][1] -
-            my_fft_grid->proc2local_gs[my_process][1][0] + 1,
-        my_fft_grid->proc2local_gs[my_process][2][1] -
-            my_fft_grid->proc2local_gs[my_process][2][0] + 1};
-    // Final FFT along x
-    fft_create_1d_plan(my_fft_grid->buffer_1, my_fft_grid->buffer_2,
-                       npts_global[0], my_sizes_gs[1] * my_sizes_gs[2],
-                       &my_fft_grid->fft_plans[1]);
-  } else {
-    const int my_sizes_rs[3] = {
-        my_fft_grid->proc2local_rs[my_process][0][1] -
-            my_fft_grid->proc2local_rs[my_process][0][0] + 1,
-        my_fft_grid->proc2local_rs[my_process][1][1] -
-            my_fft_grid->proc2local_rs[my_process][1][0] + 1,
-        my_fft_grid->proc2local_rs[my_process][2][1] -
-            my_fft_grid->proc2local_rs[my_process][2][0] + 1};
-    // First FFT along z
-    fft_create_1d_plan(my_fft_grid->buffer_1, my_fft_grid->buffer_2,
-                       npts_global[2], my_sizes_rs[0] * my_sizes_rs[1],
-                       &my_fft_grid->fft_plans[0]);
-    const int my_sizes_ms[3] = {
-        my_fft_grid->proc2local_ms[my_process][0][1] -
-            my_fft_grid->proc2local_ms[my_process][0][0] + 1,
-        my_fft_grid->proc2local_ms[my_process][1][1] -
-            my_fft_grid->proc2local_ms[my_process][1][0] + 1,
-        my_fft_grid->proc2local_ms[my_process][2][1] -
-            my_fft_grid->proc2local_ms[my_process][2][0] + 1};
-    // Second FFT along y
-    fft_create_1d_plan(my_fft_grid->buffer_1, my_fft_grid->buffer_2,
-                       npts_global[1], my_sizes_ms[0] * my_sizes_ms[2],
-                       &my_fft_grid->fft_plans[1]);
-    const int my_sizes_gs[3] = {
-        my_fft_grid->proc2local_gs[my_process][0][1] -
-            my_fft_grid->proc2local_gs[my_process][0][0] + 1,
-        my_fft_grid->proc2local_gs[my_process][1][1] -
-            my_fft_grid->proc2local_gs[my_process][1][0] + 1,
-        my_fft_grid->proc2local_gs[my_process][2][1] -
-            my_fft_grid->proc2local_gs[my_process][2][0] + 1};
-    // Final FFT along x
-    fft_create_1d_plan(my_fft_grid->buffer_1, my_fft_grid->buffer_2,
-                       npts_global[0], my_sizes_gs[1] * my_sizes_gs[2],
-                       &my_fft_grid->fft_plans[2]);
-  }
 
   *fft_grid = my_fft_grid;
 }
@@ -600,60 +530,6 @@ void grid_create_fft_grid_layout_from_reference(
     }
   }
   assert(own_index == my_fft_grid->npts_gs_local);
-
-  for (int dir = 0; dir < 3; dir++) {
-    my_fft_grid->fft_plans[dir].fftw_plan_fw = NULL;
-    my_fft_grid->fft_plans[dir].fftw_plan_bw = NULL;
-  }
-  if (my_fft_grid->proc_grid[0] == 1 && my_fft_grid->proc_grid[1] == 1) {
-    // Local 3D FFT
-    fft_create_3d_plan(npts_global, &my_fft_grid->fft_plans[0]);
-  } else if (my_fft_grid->proc_grid[0] == number_of_processes &&
-             my_fft_grid->proc_grid[1] == 1) {
-    const int my_sizes_ms[3] = {
-        my_fft_grid->proc2local_ms[my_process][0][1] -
-            my_fft_grid->proc2local_ms[my_process][0][0] + 1,
-        my_fft_grid->proc2local_ms[my_process][1][1] -
-            my_fft_grid->proc2local_ms[my_process][1][0] + 1,
-        my_fft_grid->proc2local_ms[my_process][2][1] -
-            my_fft_grid->proc2local_ms[my_process][2][0] + 1};
-    // First set of FFTs along y,z
-    fft_create_2d_plan((const int[2]){npts_global[1], npts_global[2]},
-                       my_sizes_ms[0], &my_fft_grid->fft_plans[0]);
-
-    // Final FFT along x
-    fft_create_1d_plan(
-        my_fft_grid->buffer_1, my_fft_grid->buffer_2, npts_global[0],
-        my_fft_grid->rays_per_process[my_process], &my_fft_grid->fft_plans[1]);
-  } else {
-    const int my_sizes_rs[3] = {
-        my_fft_grid->proc2local_rs[my_process][0][1] -
-            my_fft_grid->proc2local_rs[my_process][0][0] + 1,
-        my_fft_grid->proc2local_rs[my_process][1][1] -
-            my_fft_grid->proc2local_rs[my_process][1][0] + 1,
-        my_fft_grid->proc2local_rs[my_process][2][1] -
-            my_fft_grid->proc2local_rs[my_process][2][0] + 1};
-    // First FFT along z
-    fft_create_1d_plan(my_fft_grid->buffer_1, my_fft_grid->buffer_2,
-                       npts_global[2], my_sizes_rs[0] * my_sizes_rs[1],
-                       &my_fft_grid->fft_plans[0]);
-    const int my_sizes_ms[3] = {
-        my_fft_grid->proc2local_ms[my_process][0][1] -
-            my_fft_grid->proc2local_ms[my_process][0][0] + 1,
-        my_fft_grid->proc2local_ms[my_process][1][1] -
-            my_fft_grid->proc2local_ms[my_process][1][0] + 1,
-        my_fft_grid->proc2local_ms[my_process][2][1] -
-            my_fft_grid->proc2local_ms[my_process][2][0] + 1};
-    // Second FFT along y
-    fft_create_1d_plan(my_fft_grid->buffer_1, my_fft_grid->buffer_2,
-                       npts_global[1], my_sizes_ms[0] * my_sizes_ms[2],
-                       &my_fft_grid->fft_plans[1]);
-
-    // Final FFT along x
-    fft_create_1d_plan(
-        my_fft_grid->buffer_1, my_fft_grid->buffer_2, npts_global[0],
-        my_fft_grid->rays_per_process[my_process], &my_fft_grid->fft_plans[2]);
-  }
 
   *fft_grid = my_fft_grid;
 }

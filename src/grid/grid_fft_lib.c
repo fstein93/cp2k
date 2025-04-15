@@ -115,55 +115,6 @@ void fft_free_complex(double complex *buffer) {
 }
 
 /*******************************************************************************
- * \brief Create a plan for a 1D FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_create_1d_plan(double complex *grid_rs, double complex *grid_gs,
-                        const int fft_size, const int number_of_ffts,
-                        grid_fft_plan *plan) {
-  assert(plan != NULL);
-  plan->fft_size[0] = fft_size;
-  plan->number_of_ffts = number_of_ffts;
-  plan->fftw_plan_fw = NULL;
-  plan->fftw_plan_bw = NULL;
-  (void)grid_rs;
-  (void)grid_gs;
-}
-
-/*******************************************************************************
- * \brief Create a plan for a 1D FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_create_2d_plan(const int fft_size[2], const int number_of_ffts,
-                        grid_fft_plan *plan) {
-  assert(plan != NULL);
-  plan->fft_size[0] = fft_size[0];
-  plan->fft_size[1] = fft_size[1];
-  plan->number_of_ffts = number_of_ffts;
-  plan->fftw_plan_fw = NULL;
-  plan->fftw_plan_bw = NULL;
-}
-
-/*******************************************************************************
- * \brief Create a plan for a 1D FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_create_3d_plan(const int fft_size[3], grid_fft_plan *plan) {
-  assert(plan != NULL);
-  plan->fft_size[0] = fft_size[0];
-  plan->fft_size[1] = fft_size[1];
-  plan->fft_size[2] = fft_size[2];
-  plan->fftw_plan_fw = NULL;
-  plan->fftw_plan_bw = NULL;
-}
-
-/*******************************************************************************
- * \brief Frees FFT plans.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_free_plan(grid_fft_plan *plan) { (void)plan; }
-
-/*******************************************************************************
  * \brief Naive implementation of FFT from transposed format (for easier
  *transposition). \author Frederick Stein
  ******************************************************************************/

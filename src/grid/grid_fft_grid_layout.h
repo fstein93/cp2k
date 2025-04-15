@@ -56,8 +56,6 @@ typedef struct {
   // Buffers for FFTs
   double complex *buffer_1;
   double complex *buffer_2;
-  // Plans for FFTs
-  grid_fft_plan fft_plans[3];
   // buffers for different purposes
 } grid_fft_grid_layout;
 

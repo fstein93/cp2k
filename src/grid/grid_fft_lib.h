@@ -13,13 +13,6 @@
 
 typedef enum { GRID_FFT_LIB_REF, GRID_FFT_LIB_FFTW } grid_fft_lib;
 
-typedef struct {
-  int fft_size[3];
-  int number_of_ffts;
-  grid_fft_fftw_plan fftw_plan_fw;
-  grid_fft_fftw_plan fftw_plan_bw;
-} grid_fft_plan;
-
 #if defined(__FFTW3)
 static const grid_fft_lib GRID_FFT_LIB_DEFAULT = GRID_FFT_LIB_FFTW;
 #else
@@ -61,33 +54,6 @@ void fft_free_double(double *buffer);
  * \author Frederick Stein
  ******************************************************************************/
 void fft_free_complex(double complex *buffer);
-
-/*******************************************************************************
- * \brief Create a plan for a 1D FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_create_1d_plan(double complex *grid_rs, double complex *grid_gs,
-                        const int fft_size, const int number_of_ffts,
-                        grid_fft_plan *plan);
-
-/*******************************************************************************
- * \brief Create a plan for a 1D FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_create_2d_plan(const int fft_size[2], const int number_of_ffts,
-                        grid_fft_plan *plan);
-
-/*******************************************************************************
- * \brief Create a plan for a 1D FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_create_3d_plan(const int fft_size[3], grid_fft_plan *plan);
-
-/*******************************************************************************
- * \brief Frees FFT plans.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_free_plan(grid_fft_plan *plan);
 
 /*******************************************************************************
  * \brief 1D Forward FFT from transposed format.
