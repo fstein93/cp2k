@@ -171,9 +171,8 @@ void fft_fftw_free_complex(double complex *buffer) {
  * \brief Create plan of a 1D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-fftw_plan *fft_fftw_create_1d_plan(const int direction,
-                                            const int fft_size,
-                                            const int number_of_ffts) {
+fftw_plan *fft_fftw_create_1d_plan(const int direction, const int fft_size,
+                                   const int number_of_ffts) {
   const int key[5] = {1, direction, fft_size, number_of_ffts, 0};
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -211,9 +210,8 @@ fftw_plan *fft_fftw_create_1d_plan(const int direction,
  * \brief Create plan of a 1D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-fftw_plan *fft_fftw_create_2d_plan(const int direction,
-                                            const int fft_size[2],
-                                            const int number_of_ffts) {
+fftw_plan *fft_fftw_create_2d_plan(const int direction, const int fft_size[2],
+                                   const int number_of_ffts) {
   const int key[5] = {2, direction, fft_size[1], fft_size[0], number_of_ffts};
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -253,8 +251,7 @@ fftw_plan *fft_fftw_create_2d_plan(const int direction,
  * \brief Create plan of a 1D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-fftw_plan *fft_fftw_create_3d_plan(const int direction,
-                                            const int fft_size[3]) {
+fftw_plan *fft_fftw_create_3d_plan(const int direction, const int fft_size[3]) {
   const int key[5] = {3, direction, fft_size[2], fft_size[1], fft_size[0]};
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -282,7 +279,7 @@ fftw_plan *fft_fftw_create_3d_plan(const int direction,
 void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-assert(omp_get_num_threads() == 1);
+  assert(omp_get_num_threads() == 1);
   fftw_plan *plan =
       fft_fftw_create_1d_plan(FFTW_FORWARD, fft_size, number_of_ffts);
   fftw_execute_dft(*plan, grid_in, grid_out);
@@ -302,7 +299,7 @@ assert(omp_get_num_threads() == 1);
 void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-assert(omp_get_num_threads() == 1);
+  assert(omp_get_num_threads() == 1);
   fftw_plan *plan =
       fft_fftw_create_1d_plan(FFTW_BACKWARD, fft_size, number_of_ffts);
   fftw_execute_dft(*plan, grid_in, grid_out);
@@ -341,7 +338,7 @@ void fft_fftw_transpose_local(double complex *grid,
 void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-assert(omp_get_num_threads() == 1);
+  assert(omp_get_num_threads() == 1);
   fftw_plan *plan =
       fft_fftw_create_2d_plan(FFTW_FORWARD, fft_size, number_of_ffts);
   fftw_execute_dft(*plan, grid_in, grid_out);
@@ -363,7 +360,7 @@ assert(omp_get_num_threads() == 1);
 void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-assert(omp_get_num_threads() == 1);
+  assert(omp_get_num_threads() == 1);
   fftw_plan *plan =
       fft_fftw_create_2d_plan(FFTW_BACKWARD, fft_size, number_of_ffts);
   fftw_execute_dft(*plan, grid_in, grid_out);
@@ -385,7 +382,7 @@ assert(omp_get_num_threads() == 1);
 void fft_fftw_3d_fw_local(const int fft_size[3], double complex *grid_in,
                           double complex *grid_out) {
 #if defined(__FFTW3)
-assert(omp_get_num_threads() == 1);
+  assert(omp_get_num_threads() == 1);
   fftw_plan *plan = fft_fftw_create_3d_plan(FFTW_FORWARD, fft_size);
   fftw_execute_dft(*plan, grid_in, grid_out);
 #else
@@ -405,7 +402,7 @@ assert(omp_get_num_threads() == 1);
 void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
                           double complex *grid_out) {
 #if defined(__FFTW3)
-assert(omp_get_num_threads() == 1);
+  assert(omp_get_num_threads() == 1);
   fftw_plan *plan = fft_fftw_create_3d_plan(FFTW_BACKWARD, fft_size);
   fftw_execute_dft(*plan, grid_in, grid_out);
 #else
