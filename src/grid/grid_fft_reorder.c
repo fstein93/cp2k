@@ -26,7 +26,6 @@ void collect_y_and_distribute_z_blocked(
     const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm,
     const grid_mpi_comm sub_comm[2]) {
   const int my_process = grid_mpi_comm_rank(comm);
-  (void)grid;
 
   int proc_coord[2];
   int dims[2];
@@ -415,7 +414,10 @@ void collect_x_and_distribute_y_ray(const double complex *grid,
   memset(transposed, 0,
          my_number_of_rays * npts_global[0] * sizeof(double complex));
 
-  // Copy and transpose the local data
+// Copy and transpose the local data
+#pragma omp parallel for default(none)                                         \
+    shared(my_sizes, my_bounds, my_number_of_rays, grid, ray_to_yz,            \
+               transposed, my_ray_offset, npts_global) collapse(2)
   for (int index_x = my_bounds[0][0]; index_x <= my_bounds[0][1]; index_x++) {
     for (int yz_ray = 0; yz_ray < my_number_of_rays; yz_ray++) {
       const int index_y = ray_to_yz[my_ray_offset + yz_ray][0];
@@ -439,6 +441,9 @@ void collect_x_and_distribute_y_ray(const double complex *grid,
         modulo(my_process - process_shift, number_of_processes);
 
     int number_of_rays_to_recv = 0;
+#pragma omp parallel for default(none)                                         \
+    shared(my_number_of_rays, my_ray_offset, number_of_rays, ray_to_yz,        \
+               proc2local, recv_process) reduction(+ : number_of_rays_to_recv)
     for (int ray = my_ray_offset; ray < my_ray_offset + my_number_of_rays;
          ray++) {
       const int index_z = ray_to_yz[ray][1];
@@ -469,6 +474,10 @@ void collect_x_and_distribute_y_ray(const double complex *grid,
     }
     const int number_of_elements_to_send = number_of_rays_to_send * my_sizes[0];
     memset(send_buffer, 0, number_of_elements_to_send * sizeof(double complex));
+#pragma omp parallel for default(none)                                         \
+    shared(my_sizes, my_bounds, number_of_rays_to_send, send_buffer, grid,     \
+               ray_to_yz, send_ray_offset, npts_global, number_of_rays,        \
+               send_process)
     for (int index_x = 0; index_x < my_sizes[0]; index_x++) {
       int ray_position = 0;
       for (int ray = send_ray_offset;
@@ -492,6 +501,9 @@ void collect_x_and_distribute_y_ray(const double complex *grid,
     // Wait for the receive process and copy the data
     grid_mpi_wait(&recv_request);
 
+#pragma omp parallel for default(none)                                         \
+    shared(my_sizes, my_number_of_rays, number_of_rays_to_recv, recv_buffer,   \
+               transposed, proc2local, recv_process, ray_to_yz, my_ray_offset)
     for (int index_x = 0; index_x < proc2local[recv_process][0][1] -
                                         proc2local[recv_process][0][0] + 1;
          index_x++) {
@@ -561,6 +573,10 @@ void collect_y_and_distribute_x_ray(const double complex *grid,
   int my_ray_offset = 0;
   for (int process = 0; process < my_process; process++)
     my_ray_offset += number_of_rays[process];
+#pragma omp parallel for default(none)                                         \
+    shared(my_transposed_sizes, my_bounds, my_number_of_rays, grid, ray_to_yz, \
+               transposed, my_ray_offset, npts_global)                         \
+    reduction(+ : number_of_received_rays)
   for (int yz_ray = 0; yz_ray < my_number_of_rays; yz_ray++) {
     const int index_y = ray_to_yz[my_ray_offset + yz_ray][0];
     const int index_z = ray_to_yz[my_ray_offset + yz_ray][1];
@@ -590,6 +606,10 @@ void collect_y_and_distribute_x_ray(const double complex *grid,
     int recv_ray_offset = 0;
     for (int process = 0; process < recv_process; process++)
       recv_ray_offset += number_of_rays[process];
+#pragma omp parallel for default(none)                                         \
+    shared(my_number_of_rays, recv_ray_offset, number_of_rays, ray_to_yz,      \
+               proc2local_transposed, recv_process, my_bounds)                 \
+    reduction(+ : number_of_rays_to_recv)
     for (int ray = recv_ray_offset;
          ray < recv_ray_offset + number_of_rays[recv_process]; ray++) {
       const int index_z = ray_to_yz[ray][1];
@@ -606,6 +626,10 @@ void collect_y_and_distribute_x_ray(const double complex *grid,
 
     memset(send_buffer, 0, max_number_of_elements * sizeof(double complex));
     int number_of_rays_to_send = 0;
+#pragma omp parallel for default(none)                                         \
+    shared(my_number_of_rays, my_ray_offset, number_of_rays, ray_to_yz,        \
+               proc2local_transposed, send_process)                            \
+    reduction(+ : number_of_rays_to_send)
     for (int ray = my_ray_offset; ray < my_ray_offset + my_number_of_rays;
          ray++) {
       const int index_z = ray_to_yz[ray][1];
@@ -614,6 +638,10 @@ void collect_y_and_distribute_x_ray(const double complex *grid,
         number_of_rays_to_send++;
       }
     }
+#pragma omp parallel for default(none)                                         \
+    shared(my_transposed_sizes, my_bounds, number_of_rays_to_send,             \
+               send_buffer, grid, ray_to_yz, my_ray_offset,                    \
+               proc2local_transposed, send_process, my_number_of_rays)
     for (int index_x = proc2local_transposed[send_process][0][0];
          index_x <= proc2local_transposed[send_process][0][1]; index_x++) {
       int ray_position = 0;
@@ -643,6 +671,10 @@ void collect_y_and_distribute_x_ray(const double complex *grid,
     // Wait for the receive process and copy the data
     grid_mpi_wait(&recv_request);
 
+#pragma omp parallel for default(none)                                         \
+    shared(my_transposed_sizes, my_bounds, number_of_rays_to_recv,             \
+               recv_buffer, transposed, proc2local_transposed, recv_process,   \
+               ray_to_yz, recv_ray_offset, npts_global, number_of_rays)
     for (int index_x = 0; index_x < my_transposed_sizes[0]; index_x++) {
       int ray_position = 0;
       for (int ray = recv_ray_offset;
