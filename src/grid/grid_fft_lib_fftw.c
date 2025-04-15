@@ -35,13 +35,14 @@ static bool is_initialized = false;
 
 /*******************************************************************************
  * \brief Fetches an fft plan from the cache. Returns NULL if not found.
- * \author Ole Schuett
+ * \author Ole Schuett, Frederick Stein
  ******************************************************************************/
 static fftw_plan *lookup_plan_from_cache(const int key[5]) {
   assert(is_initialized);
   for (int i = 0; i < FFTW_CACHE_SIZE; i++) {
     const int *x = cache[i].key;
-    if (x[0] == key[0] && x[1] == key[1] && x[2] == key[2] && x[3] == key[3] && x[4] == key[4]) {
+    if (x[0] == key[0] && x[1] == key[1] && x[2] == key[2] && x[3] == key[3] &&
+        x[4] == key[4]) {
       return cache[i].plan;
     }
   }
@@ -50,7 +51,7 @@ static fftw_plan *lookup_plan_from_cache(const int key[5]) {
 
 /*******************************************************************************
  * \brief Adds an fft plan to the cache. Assumes ownership of plan's memory.
- * \author Ole Schuett
+ * \author Ole Schuett, Frederick Stein
  ******************************************************************************/
 static void add_plan_to_cache(const int key[5], fftw_plan *plan) {
   const int i = cache_oldest_entry;
@@ -169,39 +170,45 @@ void fft_fftw_free_complex(double complex *buffer) {
  * \brief Create plan of a 1D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_create_1d_plan(double complex *grid_rs, double complex *grid_gs,
-                             const int fft_size, const int number_of_ffts,
-                             grid_fft_fftw_plan *plan_fw,
-                             grid_fft_fftw_plan *plan_bw) {
+grid_fft_fftw_plan *fft_fftw_create_1d_plan(const int direction,
+                                            const int fft_size,
+                                            const int number_of_ffts) {
 #if defined(__FFTW3)
-if (false) plan_fw = lookup_plan_from_cache(
-    (const int[4]){fft_size, number_of_ffts, 0, 0});
-  const int rank = 1;
-  const int n[] = {fft_size};
-  const int howmany = number_of_ffts;
-  const int idist = 1;
-  const int odist = fft_size;
-  const int istride = number_of_ffts;
-  const int ostride = 1;
-  const int *inembed = n;
-  const int *onembed = n;
-  *plan_fw = fftw_plan_many_dft(rank, n, howmany, grid_rs, inembed, istride,
-                                idist, grid_gs, onembed, ostride, odist,
-                                FFTW_FORWARD, FFTW_ESTIMATE);
-  *plan_bw = fftw_plan_many_dft(rank, n, howmany, grid_gs, onembed, ostride,
-                                odist, grid_rs, inembed, istride, idist,
-                                FFTW_BACKWARD, FFTW_ESTIMATE);
-                                if (false) add_plan_to_cache(
-                                    (const int[4]){fft_size, number_of_ffts, 0, 0},
-                                    plan_fw);
+  const int key[5] = {1, direction, fft_size, number_of_ffts, 0};
+  grid_fft_fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    const int rank = 1;
+    const int n[] = {fft_size};
+    const int howmany = number_of_ffts;
+    const int idist = 1;
+    const int odist = fft_size;
+    const int istride = number_of_ffts;
+    const int ostride = 1;
+    const int *inembed = n;
+    const int *onembed = n;
+    double complex *buffer_1 = fftw_alloc_complex(fft_size * number_of_ffts);
+    double complex *buffer_2 = fftw_alloc_complex(fft_size * number_of_ffts);
+    plan = malloc(sizeof(grid_fft_fftw_plan));
+    if (direction == FFTW_FORWARD) {
+      *plan = fftw_plan_many_dft(rank, n, howmany, buffer_1, inembed, istride,
+                                 idist, buffer_2, onembed, ostride, odist,
+                                 FFTW_FORWARD, FFTW_ESTIMATE);
+    } else {
+      *plan = fftw_plan_many_dft(rank, n, howmany, buffer_1, onembed, ostride,
+                                 odist, buffer_2, inembed, istride, idist,
+                                 FFTW_BACKWARD, FFTW_ESTIMATE);
+    }
+    add_plan_to_cache(key, plan);
+    fftw_free(buffer_1);
+    fftw_free(buffer_2);
+  }
+  return plan;
 #else
-  (void)grid_rs;
-  (void)grid_gs;
+  (void)direction;
   (void)fft_size;
   (void)number_of_ffts;
-  (void)plan_fw;
-  (void)plan_bw;
   assert(0 && "The grid library was not compiled with FFTW support.");
+  return NULL;
 #endif
 }
 
@@ -209,7 +216,9 @@ if (false) plan_fw = lookup_plan_from_cache(
  * \brief Create plan of a 1D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-fftw_plan *fft_fftw_create_2d_plan(double complex *buffer_1, const int direction, const int fft_size[2], const int number_of_ffts) {
+grid_fft_fftw_plan *fft_fftw_create_2d_plan(const int direction,
+                                            const int fft_size[2],
+                                            const int number_of_ffts) {
 #if defined(__FFTW3)
   const int key[5] = {2, direction, fft_size[1], fft_size[0], number_of_ffts};
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -223,30 +232,31 @@ fftw_plan *fft_fftw_create_2d_plan(double complex *buffer_1, const int direction
     const int odist = fft_size[0] * fft_size[1];
     const int istride = number_of_ffts;
     const int ostride = 1;
-    double complex *buffer_2 = fftw_alloc_complex(fft_size[0] * fft_size[1] *
-                                          number_of_ffts);
+    double complex *buffer_1 =
+        fftw_alloc_complex(fft_size[0] * fft_size[1] * number_of_ffts);
+    double complex *buffer_2 =
+        fftw_alloc_complex(fft_size[0] * fft_size[1] * number_of_ffts);
     plan = malloc(sizeof(fftw_plan));
     if (direction == FFTW_FORWARD) {
-    *plan = fftw_plan_many_dft(rank, n, howmany, buffer_1, inembed, istride,
-                                  idist, buffer_2, onembed, ostride, odist,
-                                  FFTW_FORWARD, FFTW_ESTIMATE);
+      *plan = fftw_plan_many_dft(rank, n, howmany, buffer_1, inembed, istride,
+                                 idist, buffer_2, onembed, ostride, odist,
+                                 FFTW_FORWARD, FFTW_ESTIMATE);
     } else {
-    *plan = fftw_plan_many_dft(rank, n, howmany, buffer_1, onembed, ostride,
-                                  odist, buffer_2, inembed, istride, idist,
-                                  FFTW_BACKWARD, FFTW_ESTIMATE);
+      *plan = fftw_plan_many_dft(rank, n, howmany, buffer_1, onembed, ostride,
+                                 odist, buffer_2, inembed, istride, idist,
+                                 FFTW_BACKWARD, FFTW_ESTIMATE);
     }
     add_plan_to_cache(key, plan);
+    fftw_free(buffer_1);
     fftw_free(buffer_2);
   }
   return plan;
 #else
-  (void)grid_rs;
-  (void)grid_gs;
+  (void)direction;
   (void)fft_size;
   (void)number_of_ffts;
-  (void)plan_fw;
-  (void)plan_bw;
   assert(0 && "The grid library was not compiled with FFTW support.");
+  return NULL;
 #endif
 }
 
@@ -254,45 +264,29 @@ fftw_plan *fft_fftw_create_2d_plan(double complex *buffer_1, const int direction
  * \brief Create plan of a 1D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-fftw_plan *fft_fftw_create_3d_plan(double complex *buffer_1,
-                             const int direction, const int fft_size[3]) {
+grid_fft_fftw_plan *fft_fftw_create_3d_plan(const int direction,
+                                            const int fft_size[3]) {
 #if defined(__FFTW3)
   const int key[5] = {3, direction, fft_size[2], fft_size[1], fft_size[0]};
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
-    double complex *buffer_2 = fftw_alloc_complex(fft_size[0] * fft_size[1] *
-                                          fft_size[2]);
+    double complex *buffer_1 =
+        fftw_alloc_complex(fft_size[0] * fft_size[1] * fft_size[2]);
+    double complex *buffer_2 =
+        fftw_alloc_complex(fft_size[0] * fft_size[1] * fft_size[2]);
     plan = malloc(sizeof(fftw_plan));
-    *plan = fftw_plan_dft_3d(fft_size[2], fft_size[1], fft_size[0], buffer_1, buffer_2, direction, FFTW_ESTIMATE);
+    *plan = fftw_plan_dft_3d(fft_size[2], fft_size[1], fft_size[0], buffer_1,
+                             buffer_2, direction, FFTW_ESTIMATE);
     add_plan_to_cache(key, plan);
+    fftw_free(buffer_1);
     fftw_free(buffer_2);
   }
   return plan;
 #else
-  (void)grid_rs;
-  (void)grid_gs;
+  (void)direction;
   (void)fft_size;
-  (void)plan_fw;
-  (void)plan_bw;
   assert(0 && "The grid library was not compiled with FFTW support.");
-#endif
-}
-
-/*******************************************************************************
- * \brief Create plan of a 1D FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_fftw_free_plan(grid_fft_fftw_plan *plan_fw,
-                        grid_fft_fftw_plan *plan_bw) {
-#if defined(__FFTW3)
-  if (plan_fw != NULL)
-    fftw_destroy_plan(*plan_fw);
-  if (plan_bw != NULL)
-    fftw_destroy_plan(*plan_bw);
-#else
-  (void)plan_fw;
-  (void)plan_bw;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  return NULL;
 #endif
 }
 
@@ -300,12 +294,17 @@ void fft_fftw_free_plan(grid_fft_fftw_plan *plan_fw,
  * \brief Naive implementation of FFT from transposed format (for easier
  *transposition). \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_1d_fw_local(const grid_fft_fftw_plan plan_fw,
+void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-  fftw_execute_dft(plan_fw, grid_in, grid_out);
+  fftw_plan *plan =
+      fft_fftw_create_1d_plan(FFTW_FORWARD, fft_size, number_of_ffts);
+  fftw_execute_dft(*plan, grid_in, grid_out);
 #else
-  (void)plan_fw;
+  (void)fft_size;
+  (void)number_of_ffts;
+  (void)grid_in;
+  (void)grid_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -314,12 +313,17 @@ void fft_fftw_1d_fw_local(const grid_fft_fftw_plan plan_fw,
  * \brief Naive implementation of backwards FFT to transposed format (for easier
  *transposition). \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_1d_bw_local(const grid_fft_fftw_plan plan_bw,
+void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-  fftw_execute_dft(plan_bw, grid_in, grid_out);
+  fftw_plan *plan =
+      fft_fftw_create_1d_plan(FFTW_BACKWARD, fft_size, number_of_ffts);
+  fftw_execute_dft(*plan, grid_in, grid_out);
 #else
-  (void)plan_bw;
+  (void)fft_size;
+  (void)number_of_ffts;
+  (void)grid_in;
+  (void)grid_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -350,7 +354,8 @@ void fft_fftw_transpose_local(double complex *grid,
 void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-fftw_plan *plan = fft_fftw_create_2d_plan(grid_out, FFTW_FORWARD, fft_size, number_of_ffts);
+  fftw_plan *plan =
+      fft_fftw_create_2d_plan(FFTW_FORWARD, fft_size, number_of_ffts);
   fftw_execute_dft(*plan, grid_in, grid_out);
 #else
   (void)fft_size;
@@ -370,7 +375,8 @@ fftw_plan *plan = fft_fftw_create_2d_plan(grid_out, FFTW_FORWARD, fft_size, numb
 void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-fftw_plan *plan = fft_fftw_create_2d_plan(grid_out, FFTW_BACKWARD, fft_size, number_of_ffts);
+  fftw_plan *plan =
+      fft_fftw_create_2d_plan(FFTW_BACKWARD, fft_size, number_of_ffts);
   fftw_execute_dft(*plan, grid_in, grid_out);
 #else
   (void)fft_size;
@@ -387,10 +393,10 @@ fftw_plan *plan = fft_fftw_create_2d_plan(grid_out, FFTW_BACKWARD, fft_size, num
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_3d_fw_local(const int fft_size[3],
-                          double complex *grid_in, double complex *grid_out) {
+void fft_fftw_3d_fw_local(const int fft_size[3], double complex *grid_in,
+                          double complex *grid_out) {
 #if defined(__FFTW3)
-  fftw_plan *plan = fft_fftw_create_3d_plan(grid_out, FFTW_FORWARD, fft_size);
+  fftw_plan *plan = fft_fftw_create_3d_plan(FFTW_FORWARD, fft_size);
   fftw_execute_dft(*plan, grid_in, grid_out);
 #else
   (void)fft_size;
@@ -406,11 +412,11 @@ void fft_fftw_3d_fw_local(const int fft_size[3],
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_3d_bw_local(const int fft_size[3],
-                          double complex *grid_in, double complex *grid_out) {
+void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
+                          double complex *grid_out) {
 #if defined(__FFTW3)
-fftw_plan *plan = fft_fftw_create_3d_plan(grid_out, FFTW_BACKWARD, fft_size);
-fftw_execute_dft(*plan, grid_in, grid_out);
+  fftw_plan *plan = fft_fftw_create_3d_plan(FFTW_BACKWARD, fft_size);
+  fftw_execute_dft(*plan, grid_in, grid_out);
 #else
   (void)fft_size;
   (void)grid_in;

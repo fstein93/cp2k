@@ -39,12 +39,12 @@ static inline void error_check(int error) {
  * \author Frederick Stein
  ******************************************************************************/
 void grid_mpi_init(int *argc, char ***argv) {
-  #if defined(__parallel)
+#if defined(__parallel)
   error_check(MPI_Init(argc, argv));
-  #else
+#else
   (void)argc;
   (void)argv;
-  #endif
+#endif
 }
 
 /*******************************************************************************

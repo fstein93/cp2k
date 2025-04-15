@@ -737,7 +737,7 @@ void fft_3d_fw_blocked(double *grid_rs, double complex *grid_gs,
   } else if (proc_grid[0] > 1) {
     // Perform the first FFT
     fft_2d_fw_local((const int[2]){npts_global[1], npts_global[2]},
-    fft_sizes_ms[0], grid_buffer_1, grid_buffer_2);
+                    fft_sizes_ms[0], grid_buffer_1, grid_buffer_2);
 
     // Perform second transpose
     collect_x_and_distribute_y_blocked(grid_buffer_2, grid_buffer_1,
@@ -826,7 +826,7 @@ void fft_3d_bw_blocked(double complex *grid_gs, double *grid_rs,
 
     // Perform the second FFT and one transposition (x,z,y)->(y,x,z)
     fft_2d_bw_local((const int[2]){npts_global[1], npts_global[2]},
-    fft_sizes_ms[0], grid_buffer_2, grid_buffer_1);
+                    fft_sizes_ms[0], grid_buffer_2, grid_buffer_1);
   } else {
     fft_3d_bw_local(fft_plans[0].fft_size, grid_gs, grid_buffer_1);
   }
@@ -909,7 +909,7 @@ void fft_3d_fw_ray(double *grid_rs, double complex *grid_gs,
   } else if (proc_grid[0] > 1) {
     // Perform the first FFT
     fft_2d_fw_local((const int[2]){npts_global[1], npts_global[2]},
-    fft_sizes_ms[0], grid_buffer_1, grid_buffer_2);
+                    fft_sizes_ms[0], grid_buffer_1, grid_buffer_2);
 
     // Perform second transpose
     collect_x_and_distribute_y_ray(grid_buffer_2, grid_buffer_1, npts_global,
@@ -1012,7 +1012,7 @@ void fft_3d_bw_ray(double complex *grid_gs, double *grid_rs,
 
     // Perform the second FFT
     fft_2d_bw_local((const int[2]){npts_global[1], npts_global[2]},
-    fft_sizes_ms[0], grid_buffer_2, grid_buffer_1);
+                    fft_sizes_ms[0], grid_buffer_2, grid_buffer_1);
   } else {
     // Copy to the new format
     // Maybe, the order 1D FFT, redistribution to blocks and 2D FFT is faster

@@ -123,8 +123,8 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts) {
                 number_of_fft] = 1.0;
   }
 
-  fft_2d_fw_local((const int[2]){fft_size[1], fft_size[0]},
-  number_of_ffts, input_array, output_array);
+  fft_2d_fw_local((const int[2]){fft_size[1], fft_size[0]}, number_of_ffts,
+                  input_array, output_array);
 
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     for (int index_1 = 0; index_1 < fft_size[0]; index_1++) {
@@ -159,8 +159,8 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts) {
                  number_of_fft % fft_size[1]] = 1.0;
   }
 
-  fft_2d_bw_local((const int[2]){fft_size[1], fft_size[0]},
-  number_of_ffts, output_array, input_array);
+  fft_2d_bw_local((const int[2]){fft_size[1], fft_size[0]}, number_of_ffts,
+                  output_array, input_array);
 
   max_error = 0.0;
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
@@ -223,8 +223,7 @@ int fft_test_3d_local_low(const int fft_size[3]) {
                    sizeof(double complex));
         input_array[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
             1.0;
-        fft_3d_fw_local(fft_size, input_array,
-                        output_array);
+        fft_3d_fw_local(fft_size, input_array, output_array);
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
@@ -261,8 +260,7 @@ int fft_test_3d_local_low(const int fft_size[3]) {
                    sizeof(double complex));
         output_array[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
             1.0;
-        fft_3d_bw_local(fft_size, output_array,
-                        input_array);
+        fft_3d_bw_local(fft_size, output_array, input_array);
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {

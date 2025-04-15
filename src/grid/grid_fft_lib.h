@@ -115,8 +115,8 @@ void transpose_local(double complex *grid, double complex *grid_transposed,
  * \brief Naive implementation of 2D FFT (transposed format, no normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts, double complex *grid_in,
-                     double complex *grid_out);
+void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
+                     double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
  * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
@@ -124,8 +124,8 @@ void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts, double com
  * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts, double complex *grid_in,
-                     double complex *grid_out);
+void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts,
+                     double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
  * \brief Performs local 3D FFT (no normalization).

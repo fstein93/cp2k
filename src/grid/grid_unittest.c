@@ -77,7 +77,7 @@ static int run_test(const char cp2k_root_dir[], const char task_file[]) {
 }
 
 int main(int argc, char *argv[]) {
-grid_mpi_init(&argc, &argv);
+  grid_mpi_init(&argc, &argv);
 
   if (argc != 2) {
     printf("Usage: grid_unittest.x <cp2k-root-dir>\n");
@@ -121,7 +121,7 @@ grid_mpi_init(&argc, &argv);
     printf("\nFound %i errors :-(\n", errors);
   }
 
-grid_mpi_finalize();
+  grid_mpi_finalize();
 
   return errors;
 }
