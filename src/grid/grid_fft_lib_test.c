@@ -123,8 +123,7 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts) {
                 number_of_fft] = 1.0;
   }
 
-  fft_2d_fw_local((const int[2]){fft_size[1], fft_size[0]}, number_of_ffts,
-                  input_array, output_array);
+  fft_2d_fw_local(fft_size, number_of_ffts, input_array, output_array);
 
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     for (int index_1 = 0; index_1 < fft_size[0]; index_1++) {
@@ -159,8 +158,7 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts) {
                  number_of_fft % fft_size[1]] = 1.0;
   }
 
-  fft_2d_bw_local((const int[2]){fft_size[1], fft_size[0]}, number_of_ffts,
-                  output_array, input_array);
+  fft_2d_bw_local(fft_size, number_of_ffts, output_array, input_array);
 
   max_error = 0.0;
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
