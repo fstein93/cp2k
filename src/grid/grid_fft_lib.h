@@ -93,14 +93,14 @@ void fft_free_plan(grid_fft_plan *plan);
  * \brief 1D Forward FFT from transposed format.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_1d_fw_local(const grid_fft_plan *plan, double complex *grid_in,
+void fft_1d_fw_local(const int fft_size, const int number_of_ffts, double complex *grid_in,
                      double complex *grid_out);
 
 /*******************************************************************************
  * \brief 1D Backward FFT to transposed format.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_1d_bw_local(const grid_fft_plan *plan, double complex *grid_in,
+void fft_1d_bw_local(const int fft_size, const int number_of_ffts, double complex *grid_in,
                      double complex *grid_out);
 
 /*******************************************************************************

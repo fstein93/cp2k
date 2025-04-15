@@ -148,8 +148,7 @@ void fft_3d_fw(const grid_fft_real_rs_grid *grid_rs,
                   grid_layout->npts_global, grid_layout->proc2local_rs,
                   grid_layout->proc2local_ms, grid_layout->yz_to_process,
                   grid_layout->rays_per_process, grid_layout->ray_to_yz,
-                  grid_layout->fft_plans, grid_layout->comm,
-                  grid_layout->sub_comm);
+                  grid_layout->comm, grid_layout->sub_comm);
     int(*my_ray_to_yz)[2] = grid_layout->ray_to_yz;
     for (int process = 0; process < my_process; process++) {
       my_ray_to_yz += grid_layout->rays_per_process[process];
@@ -171,8 +170,7 @@ void fft_3d_fw(const grid_fft_real_rs_grid *grid_rs,
     fft_3d_fw_blocked(buffer_1_real, grid_layout->buffer_2,
                       grid_layout->npts_global, grid_layout->proc2local_rs,
                       grid_layout->proc2local_ms, grid_layout->proc2local_gs,
-                      grid_layout->fft_plans, grid_layout->comm,
-                      grid_layout->sub_comm);
+                      grid_layout->comm, grid_layout->sub_comm);
     int local_sizes_gs[3];
     for (int dir = 0; dir < 3; dir++) {
       local_sizes_gs[dir] = grid_layout->proc2local_gs[my_process][dir][1] -
@@ -238,8 +236,7 @@ void fft_3d_bw(const grid_fft_complex_gs_grid *grid_gs,
                   grid_layout->npts_global, grid_layout->proc2local_rs,
                   grid_layout->proc2local_ms, grid_layout->yz_to_process,
                   grid_layout->rays_per_process, grid_layout->ray_to_yz,
-                  grid_layout->fft_plans, grid_layout->comm,
-                  grid_layout->sub_comm);
+                  grid_layout->comm, grid_layout->sub_comm);
   } else {
     int local_sizes_gs[3];
     for (int dir = 0; dir < 3; dir++) {
@@ -259,8 +256,7 @@ void fft_3d_bw(const grid_fft_complex_gs_grid *grid_gs,
     fft_3d_bw_blocked(grid_layout->buffer_2, buffer_1_real,
                       grid_layout->npts_global, grid_layout->proc2local_rs,
                       grid_layout->proc2local_ms, grid_layout->proc2local_gs,
-                      grid_layout->fft_plans, grid_layout->comm,
-                      grid_layout->sub_comm);
+                      grid_layout->comm, grid_layout->sub_comm);
   }
   memcpy(grid_rs->data, buffer_1_real,
          local_sizes_rs[0] * local_sizes_rs[1] * local_sizes_rs[2] *

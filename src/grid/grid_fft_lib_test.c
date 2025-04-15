@@ -35,10 +35,6 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
   double complex *output_array =
       calloc(fft_size * number_of_ffts, sizeof(double complex));
 
-  grid_fft_plan plan;
-  fft_create_1d_plan(input_array, output_array, fft_size, number_of_ffts,
-                     &plan);
-
   double max_error = 0.0;
   // Check the forward FFT
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
@@ -46,7 +42,7 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
         1.0;
   }
 
-  fft_1d_fw_local((const grid_fft_plan *)&plan, input_array, output_array);
+  fft_1d_fw_local(fft_size, number_of_ffts, input_array, output_array);
 
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     for (int index = 0; index < fft_size; index++) {
@@ -71,7 +67,7 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
     output_array[number_of_fft * fft_size + number_of_fft % fft_size] = 1.0;
   }
 
-  fft_1d_bw_local((const grid_fft_plan *)&plan, output_array, input_array);
+  fft_1d_bw_local(fft_size, number_of_ffts, output_array, input_array);
 
   max_error = 0.0;
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
@@ -83,7 +79,6 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
     }
   }
 
-  fft_free_plan(&plan);
   free(input_array);
   free(output_array);
 
