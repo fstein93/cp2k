@@ -157,7 +157,13 @@ void fft_fftw_finalize_lib() {
  * \brief Whether a compound MPI implementation of FFT is available.
  * \author Frederick Stein
  ******************************************************************************/
-bool fft_fftw_lib_use_mpi() { return use_fftw_mpi; }
+bool fft_fftw_lib_use_mpi() {
+#if defined(__FFTW3)
+  return use_fftw_mpi;
+#else
+  return false;
+#endif
+}
 
 /*******************************************************************************
  * \brief Allocate buffer of type double.

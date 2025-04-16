@@ -114,48 +114,42 @@ inline bool is_on_grid(const int shifted_index, const int npts) {
 }
 
 /*******************************************************************************
- * \brief Performs a forward 3D-FFT using a blocked distribution.
+ * \brief Performs a forward 3D-FFT to the blocked format.
+ * \param grid_rs real-valued data in real space.
+ * \param grid_gs complex data in reciprocal space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_blocked(double *grid_rs, double complex *grid_gs,
-                       const int npts_global[3],
-                       const int (*proc2local_rs)[3][2],
-                       const int (*proc2local_ms)[3][2],
-                       const int (*proc2local_gs)[3][2],
-                       const grid_mpi_comm comm,
-                       const grid_mpi_comm sub_comm[2]);
+void fft_3d_fw_blocked(const double *grid_rs, double complex *grid_gs,
+                       const grid_fft_grid_layout *grid_layout);
 
 /*******************************************************************************
- * \brief Performs a backward 3D-FFT using a blocked distribution.
+ * \brief Performs a forward 3D-FFT and sorts the data in g-space.
+ * \param grid_rs real-valued data in real space.
+ * \param grid_gs complex data in reciprocal space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_blocked(double complex *grid_gs, double *grid_rs,
-                       const int npts_global[3],
-                       const int (*proc2local_rs)[3][2],
-                       const int (*proc2local_ms)[3][2],
-                       const int (*proc2local_gs)[3][2],
-                       const grid_mpi_comm comm,
-                       const grid_mpi_comm sub_comm[2]);
+void fft_3d_fw_sorted(const double *grid_rs, double complex *grid_gs,
+                      const grid_fft_grid_layout *grid_layout);
 
 /*******************************************************************************
- * \brief Performs a forward 3D-FFT using a ray distribution.
+ * \brief Performs a backward 3D-FFT from blocked data in g-space.
+ * \param fft_grid FFT grid object.
+ * \param grid_gs complex data in reciprocal space.
+ * \param grid_rs real-valued data in real space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_ray(double *grid_rs, double complex *grid_gs,
-                   const int npts_global[3], const int (*proc2local_rs)[3][2],
-                   const int (*proc2local_ms)[3][2], const int *yz_to_process,
-                   const int *rays_per_process, const int (*ray_to_yz)[2],
-                   const grid_mpi_comm comm, const grid_mpi_comm sub_comm[2]);
+void fft_3d_bw_blocked(const double complex *grid_gs, double *grid_rs,
+                       const grid_fft_grid_layout *fft_grid);
 
 /*******************************************************************************
- * \brief Performs a backward 3D-FFT using a ray distribution.
+ * \brief Performs a backward 3D-FFT from data sorted in g-space.
+ * \param fft_grid FFT grid object.
+ * \param grid_gs complex data in reciprocal space.
+ * \param grid_rs real-valued data in real space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_ray(double complex *grid_gs, double *grid_rs,
-                   const int npts_global[3], const int (*proc2local_rs)[3][2],
-                   const int (*proc2local_ms)[3][2], const int *yz_to_process,
-                   const int *rays_per_process, const int (*ray_to_yz)[2],
-                   const grid_mpi_comm comm, const grid_mpi_comm sub_comm[2]);
+void fft_3d_bw_sorted(const double complex *grid_gs, double *grid_rs,
+                      const grid_fft_grid_layout *fft_grid);
 
 #endif
 

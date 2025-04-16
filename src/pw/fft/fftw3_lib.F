@@ -196,10 +196,6 @@ CONTAINS
       INTEGER(KIND=C_INT)                      :: isuccess
       LOGICAL :: file_exists
 
-#if defined(__MKL)
-!$    LOGICAL                                  :: mkl_is_safe
-#endif
-
 ! If using the Intel compiler then we need to declare
 ! a C interface to a global variable in MKL that sets
 ! the number of threads which can concurrently execute
@@ -263,43 +259,13 @@ CONTAINS
          CPABORT("fftw3_do_init: set plan type")
       END SELECT
 
-#if defined (__MKL)
-      ! Now check if we have a real FFTW3 library, or are using MKL wrappers
-
-!$    IF (fftw3_is_mkl_wrapper() .and. omp_get_max_threads() .gt. 1) THEN
-! If we are not using the Intel compiler, there is no way to tell which
-! MKL version is in use, so fail safe...
-!$       mkl_is_safe = .FALSE.
-#if defined(INTEL_MKL_VERSION) && (110100 < INTEL_MKL_VERSION)
-!$       mkl_is_safe = .TRUE.
-#elif defined (__INTEL_COMPILER)
-! If we have an Intel compiler (__INTEL_COMPILER is defined) then check the
-! MKL version and make the appropriate action
-!DEC$ IF DEFINED (INTEL_MKL_VERSION)
-!DEC$ IF INTEL_MKL_VERSION .EQ. 110100
-!$       mkl_dft_number_of_user_threads = omp_get_max_threads()
-!DEC$ ENDIF
-!DEC$ IF INTEL_MKL_VERSION .GE. 110100
-!$       mkl_is_safe = .TRUE.
-!DEC$ ENDIF
-!DEC$ ENDIF
-#endif
-!$       IF (.NOT. mkl_is_safe) THEN
-!$          CALL cp_abort(__LOCATION__, "Intel's FFTW3 interface to MKL is not "// &
-!$                        "thread-safe prior to MKL 11.1.0!  Please "// &
-!$                        "rebuild CP2K, linking against FFTW 3 from "// &
-!$                        "www.fftw.org or a newer version of MKL. "// &
-!$                        "Now exiting...")
-!$       END IF
-!$    END IF
-#endif
-
 #if defined (__FFTW3_UNALIGNED)
       fftw_plan_type = fftw_plan_type + FFTW_UNALIGNED
 #endif
 
 #else
       MARK_USED(wisdom_file)
+      MARK_USED(plan_style)
 #endif
 
    END SUBROUTINE
@@ -1096,6 +1062,7 @@ CONTAINS
       MARK_USED(scale)
       MARK_USED(zin)
       MARK_USED(zout)
+      MARK_USED(fsign)
       stat = 0
 
 #endif
