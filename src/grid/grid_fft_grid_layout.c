@@ -591,7 +591,7 @@ void fft_3d_fw_blocked_low(
 
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     // Perform the first FFT
-    fft_1d_fw_local(npts_global[2], fft_sizes_rs[0] * fft_sizes_rs[1],
+    fft_1d_fw_local(npts_global[2], fft_sizes_rs[0] * fft_sizes_rs[1], true, false,
                     grid_buffer_1, grid_buffer_2);
 
     // Perform transpose
@@ -600,7 +600,7 @@ void fft_3d_fw_blocked_low(
                                        proc2local_ms, comm, sub_comm);
 
     // Perform the second FFT
-    fft_1d_fw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
+    fft_1d_fw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2], true, false,
                     grid_buffer_1, grid_buffer_2);
 
     // Perform second transpose
@@ -609,7 +609,7 @@ void fft_3d_fw_blocked_low(
                                        proc2local_gs, comm, sub_comm);
 
     // Perform the third FFT
-    fft_1d_fw_local(npts_global[0], fft_sizes_gs[1] * fft_sizes_gs[2],
+    fft_1d_fw_local(npts_global[0], fft_sizes_gs[1] * fft_sizes_gs[2], true, false,
                     grid_buffer_1, grid_buffer_2);
   } else if (proc_grid[0] > 1) {
     // Perform the first FFT
@@ -622,7 +622,7 @@ void fft_3d_fw_blocked_low(
                                        proc2local_gs, comm, sub_comm);
 
     // Perform the third FFT
-    fft_1d_fw_local(npts_global[0], fft_sizes_gs[1] * fft_sizes_gs[2],
+    fft_1d_fw_local(npts_global[0], fft_sizes_gs[1] * fft_sizes_gs[2], true, false,
                     grid_buffer_1, grid_buffer_2);
   } else {
     fft_3d_fw_local(npts_global, grid_buffer_1, grid_buffer_2);
@@ -661,7 +661,7 @@ void fft_3d_bw_blocked_low(
 
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     // Perform the first FFT and one transposition (z,y,x)->(x,z,y)
-    fft_1d_bw_local(npts_global[0], fft_sizes_gs[1] * fft_sizes_gs[2],
+    fft_1d_bw_local(npts_global[0], fft_sizes_gs[1] * fft_sizes_gs[2], false, true,
                     grid_buffer_1, grid_buffer_2);
 
     // Collect data in y-direction and distribute x-direction
@@ -670,7 +670,7 @@ void fft_3d_bw_blocked_low(
                                        proc2local_ms, comm, sub_comm);
 
     // Perform the second FFT and one transposition (x,z,y)->(y,x,z)
-    fft_1d_bw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
+    fft_1d_bw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2], false, true,
                     grid_buffer_1, grid_buffer_2);
 
     // Collect data in z-direction and distribute y-direction
@@ -679,11 +679,11 @@ void fft_3d_bw_blocked_low(
                                        proc2local_rs, comm, sub_comm);
 
     // Perform the third FFT and one transposition (y,x,z)->(z,y,x)
-    fft_1d_bw_local(npts_global[2], fft_sizes_rs[0] * fft_sizes_rs[1],
+    fft_1d_bw_local(npts_global[2], fft_sizes_rs[0] * fft_sizes_rs[1], false, true,
                     grid_buffer_1, grid_buffer_2);
   } else if (proc_grid[0] > 1) {
     // Perform the first FFT and one transposition (z,y,x)->(x,z,y)
-    fft_1d_bw_local(npts_global[0], fft_sizes_gs[1] * fft_sizes_gs[2],
+    fft_1d_bw_local(npts_global[0], fft_sizes_gs[1] * fft_sizes_gs[2], false, true,
                     grid_buffer_1, grid_buffer_2);
 
     // Collect data in y-direction and distribute x-direction
@@ -730,7 +730,7 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
 
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     // Perform the first FFT
-    fft_1d_fw_local(npts_global[2], fft_sizes_rs[0] * fft_sizes_rs[1],
+    fft_1d_fw_local(npts_global[2], fft_sizes_rs[0] * fft_sizes_rs[1], true, false,
                     grid_buffer_1, grid_buffer_2);
 
     // Perform transpose
@@ -739,7 +739,7 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
                                        proc2local_ms, comm, sub_comm);
 
     // Perform the second FFT
-    fft_1d_fw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
+    fft_1d_fw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2], true, false,
                     grid_buffer_1, grid_buffer_2);
 
     // Perform second transpose
@@ -748,7 +748,7 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
                                    comm);
 
     // Perform the third FFT
-    fft_1d_fw_local(npts_global[0], number_of_local_yz_rays, grid_buffer_1,
+    fft_1d_fw_local(npts_global[0], number_of_local_yz_rays, grid_buffer_1, true, false,
                     grid_buffer_2);
   } else if (proc_grid[0] > 1) {
     // Perform the first FFT
@@ -761,7 +761,7 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
                                    comm);
 
     // Perform the third FFT
-    fft_1d_fw_local(npts_global[0], number_of_local_yz_rays, grid_buffer_1,
+    fft_1d_fw_local(npts_global[0], number_of_local_yz_rays, grid_buffer_1, true, false,
                     grid_buffer_2);
   } else {
     fft_3d_fw_local(npts_global, grid_buffer_1, grid_buffer_2);
@@ -811,7 +811,7 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
 
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     // Perform the first FFT
-    fft_1d_bw_local(npts_global[0], number_of_local_yz_rays, grid_buffer_1,
+    fft_1d_bw_local(npts_global[0], number_of_local_yz_rays, false, true, grid_buffer_1,
                     grid_buffer_2);
 
     // Perform transpose
@@ -820,7 +820,7 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
                                    comm);
 
     // Perform the second FFT
-    fft_1d_bw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
+    fft_1d_bw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2], false, true,
                     grid_buffer_1, grid_buffer_2);
 
     // Perform second transpose
@@ -829,11 +829,11 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
                                        proc2local_rs, comm, sub_comm);
 
     // Perform the third FFT
-    fft_1d_bw_local(npts_global[2], fft_sizes_rs[0] * fft_sizes_rs[1],
+    fft_1d_bw_local(npts_global[2], fft_sizes_rs[0] * fft_sizes_rs[1], false, true,
                     grid_buffer_1, grid_buffer_2);
   } else if (proc_grid[0] > 1) {
     // Perform the first FFT
-    fft_1d_bw_local(npts_global[0], number_of_local_yz_rays, grid_buffer_1,
+    fft_1d_bw_local(npts_global[0], number_of_local_yz_rays, false, true, grid_buffer_1,
                     grid_buffer_2);
 
     // Perform transpose

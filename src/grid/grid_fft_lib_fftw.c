@@ -229,8 +229,8 @@ void fft_fftw_free_complex(double complex *buffer) {
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *fft_fftw_create_1d_plan(const int direction, const int fft_size,
-                                   const int number_of_ffts) {
-  const int key[5] = {1, direction, fft_size, number_of_ffts, 0};
+                                   const int number_of_ffts, const bool transpose_rs, const bool transpose_gs) {
+  const int key[5] = {1+transpose_rs*4+transpose_gs*8, direction, fft_size, number_of_ffts, 0};
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     const int nthreads = omp_get_max_threads();
@@ -238,10 +238,18 @@ fftw_plan *fft_fftw_create_1d_plan(const int direction, const int fft_size,
     const int rank = 1;
     const int n[] = {fft_size};
     const int howmany = number_of_ffts;
-    const int idist = 1;
-    const int odist = fft_size;
-    const int istride = number_of_ffts;
-    const int ostride = 1;
+    int idist = fft_size;
+    int odist = fft_size;
+    int istride = 1;
+    int ostride = 1;
+    if (transpose_rs) {
+      idist = 1;
+      istride = number_of_ffts;
+    }
+    if (transpose_gs) {
+      odist = 1;
+      ostride = number_of_ffts;
+    }
     const int *inembed = n;
     const int *onembed = n;
     double complex *buffer_1 = fftw_alloc_complex(fft_size * number_of_ffts);
@@ -333,18 +341,20 @@ fftw_plan *fft_fftw_create_3d_plan(const int direction, const int fft_size[3]) {
  * \brief Naive implementation of FFT from transposed format (for easier
  *transposition). \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
+void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts, const bool transpose_rs, const bool transpose_gs,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   fftw_plan *plan =
-      fft_fftw_create_1d_plan(FFTW_FORWARD, fft_size, number_of_ffts);
+      fft_fftw_create_1d_plan(FFTW_FORWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs);
   fftw_execute_dft(*plan, grid_in, grid_out);
 #else
   (void)fft_size;
   (void)number_of_ffts;
   (void)grid_in;
   (void)grid_out;
+  (void)transpose_rs;
+  (void)transpose_gs;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -353,18 +363,20 @@ void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
  * \brief Naive implementation of backwards FFT to transposed format (for easier
  *transposition). \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts,
+void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts, const bool transpose_rs, const bool transpose_gs,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   fftw_plan *plan =
-      fft_fftw_create_1d_plan(FFTW_BACKWARD, fft_size, number_of_ffts);
+      fft_fftw_create_1d_plan(FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs);
   fftw_execute_dft(*plan, grid_in, grid_out);
 #else
   (void)fft_size;
   (void)number_of_ffts;
   (void)grid_in;
   (void)grid_out;
+  (void)transpose_rs;
+  (void)transpose_gs;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }

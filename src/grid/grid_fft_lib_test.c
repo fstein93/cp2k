@@ -23,7 +23,7 @@
  * \brief Function to test the local FFT backend.
  * \author Frederick Stein
  ******************************************************************************/
-int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
+int fft_test_1d_local_low(const int fft_size, const int number_of_ffts, const bool transpose_rs, const bool transpose_gs) {
   const int my_process = grid_mpi_comm_rank(grid_mpi_comm_world);
 
   int errors = 0;
@@ -37,30 +37,53 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
 
   double max_error = 0.0;
 // Check the forward FFT
+if (transpose_rs) {
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, number_of_ffts)
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     input_array[(number_of_fft % fft_size) * number_of_ffts + number_of_fft] =
         1.0;
   }
+} else {
+  #pragma omp parallel for default(none)                                         \
+      shared(input_array, fft_size, number_of_ffts)
+    for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+      input_array[(number_of_fft % fft_size) + number_of_fft * fft_size] =
+          1.0;
+    }
+}
 
-  fft_1d_fw_local(fft_size, number_of_ffts, input_array, output_array);
+  fft_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs, input_array, output_array);
 
-#pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, number_of_ffts, pi)                         \
-    reduction(max : max_error) collapse(2)
-  for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
-    for (int index = 0; index < fft_size; index++) {
-      max_error =
-          fmax(max_error, cabs(output_array[number_of_fft * fft_size + index] -
-                               cexp(-2.0 * I * pi * (number_of_fft % fft_size) *
-                                    index / fft_size)));
+  if (transpose_gs) {
+    #pragma omp parallel for default(none)                                         \
+        shared(output_array, fft_size, number_of_ffts, pi)                         \
+        reduction(max : max_error) collapse(2)
+      for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+        for (int index = 0; index < fft_size; index++) {
+          max_error =
+              fmax(max_error, cabs(output_array[number_of_fft + index * number_of_ffts] -
+                                   cexp(-2.0 * I * pi * (number_of_fft % fft_size) *
+                                        index / fft_size)));
+        }
+      }
+} else {
+  #pragma omp parallel for default(none)                                         \
+      shared(output_array, fft_size, number_of_ffts, pi)                         \
+      reduction(max : max_error) collapse(2)
+    for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+      for (int index = 0; index < fft_size; index++) {
+        max_error =
+            fmax(max_error, cabs(output_array[number_of_fft * fft_size + index] -
+                                 cexp(-2.0 * I * pi * (number_of_fft % fft_size) *
+                                      index / fft_size)));
+      }
     }
   }
 
   if (max_error > 1.0e-12) {
     if (my_process == 0)
-      printf("The 1D-FFT does not work correctly (%i %i): %f!\n", fft_size,
+      printf("The fw 1D-FFT does not work correctly (%i %i): %f!\n", fft_size,
              number_of_ffts, max_error);
     errors++;
   }
@@ -68,15 +91,24 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
   // Check the backward FFT
   memset(output_array, 0, fft_size * number_of_ffts * sizeof(double complex));
 
-#pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, number_of_ffts)
-  for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
-    output_array[number_of_fft * fft_size + number_of_fft % fft_size] = 1.0;
-  }
+  if (transpose_gs) {
+  #pragma omp parallel for default(none)                                         \
+      shared(output_array, fft_size, number_of_ffts)
+    for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+      output_array[number_of_fft + number_of_fft % fft_size * number_of_ffts] = 1.0;
+    }
+  } else {
+    #pragma omp parallel for default(none)                                         \
+        shared(output_array, fft_size, number_of_ffts)
+      for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+        output_array[number_of_fft * fft_size + number_of_fft % fft_size] = 1.0;
+      }
+    }
 
-  fft_1d_bw_local(fft_size, number_of_ffts, output_array, input_array);
+  fft_1d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs, output_array, input_array);
 
   max_error = 0.0;
+  if (transpose_rs) {
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, number_of_ffts, pi)                          \
     reduction(max : max_error) collapse(2)
@@ -88,13 +120,26 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts) {
                                index / fft_size)));
     }
   }
+} else {
+  #pragma omp parallel for default(none)                                         \
+      shared(input_array, fft_size, number_of_ffts, pi)                          \
+      reduction(max : max_error) collapse(2)
+    for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+      for (int index = 0; index < fft_size; index++) {
+        max_error = fmax(
+            max_error, cabs(input_array[index + number_of_fft * fft_size] -
+                            cexp(2.0 * I * pi * (number_of_fft % fft_size) *
+                                 index / fft_size)));
+      }
+    }
+  }
 
   free(input_array);
   free(output_array);
 
   if (max_error > 1e-12) {
     if (my_process == 0)
-      printf("The low-level FFTs do not work correctly (%i %i): %f!\n",
+      printf("The bw 1D FFT does not work correctly (%i %i): %f!\n",
              fft_size, number_of_ffts, max_error);
     errors++;
   }
@@ -322,9 +367,10 @@ int fft_test_3d_local_low(const int fft_size[3]) {
 int fft_test_local() {
   int errors = 0;
 
-  errors += fft_test_1d_local_low(16, 360);
-  errors += fft_test_1d_local_low(18, 320);
-  errors += fft_test_1d_local_low(20, 288);
+  errors += fft_test_1d_local_low(16, 36, true, true);
+  errors += fft_test_1d_local_low(18, 32, true, false);
+  errors += fft_test_1d_local_low(20, 28, false, true);
+  errors += fft_test_1d_local_low(21, 22, false, false);
 
   errors += fft_test_2d_local_low((const int[2]){10, 10}, 20);
   errors += fft_test_2d_local_low((const int[2]){16, 9}, 150);
