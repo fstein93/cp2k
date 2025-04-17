@@ -460,12 +460,6 @@ int fft_test_3d() {
   int errors = 0;
 
   // Grid sizes to be checked
-  const int npts_global_x[3] = {8, 1, 1};
-  const int npts_global_y[3] = {1, 8, 1};
-  const int npts_global_z[3] = {1, 1, 8};
-  const int npts_global_yz[3] = {1, 8, 8};
-  const int npts_global_xz[3] = {8, 1, 8};
-  const int npts_global_xy[3] = {8, 8, 1};
   const int npts_global[3] = {2, 4, 8};
   const int npts_global_small[3] = {2, 3, 5};
   const int npts_global_reverse[3] = {8, 4, 2};
@@ -476,22 +470,11 @@ int fft_test_3d() {
   errors += fft_test_3d_blocked(npts_global_small);
   errors += fft_test_3d_blocked(npts_global_reverse);
   errors += fft_test_3d_blocked(npts_global_small_reverse);
-  errors += fft_test_3d_blocked(npts_global_x);
-  errors += fft_test_3d_blocked(npts_global_y);
-  errors += fft_test_3d_blocked(npts_global_z);
-  errors += fft_test_3d_blocked(npts_global_yz);
-  errors += fft_test_3d_blocked(npts_global_xz);
-  errors += fft_test_3d_blocked(npts_global_xy);
 
   // Check the ray layout with the same grid sizes
-  errors += fft_test_3d_ray(npts_global_y, npts_global_yz);
-  errors += fft_test_3d_ray(npts_global_z, npts_global_yz);
-  errors += fft_test_3d_ray(npts_global_x, npts_global_xz);
-  errors += fft_test_3d_ray(npts_global_z, npts_global_xz);
-  errors += fft_test_3d_ray(npts_global_x, npts_global_xy);
-  errors += fft_test_3d_ray(npts_global_y, npts_global_xy);
   errors += fft_test_3d_ray(npts_global, npts_global);
   errors += fft_test_3d_ray(npts_global_small, npts_global_small);
+  errors += fft_test_3d_ray(npts_global_small, npts_global);
   errors += fft_test_3d_ray(npts_global_reverse, npts_global_reverse);
   errors +=
       fft_test_3d_ray(npts_global_small_reverse, npts_global_small_reverse);

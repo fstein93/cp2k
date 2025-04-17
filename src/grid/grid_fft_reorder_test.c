@@ -470,7 +470,8 @@ int fft_test_transpose_parallel() {
 
   // Check the ray layout with the same grid sizes
   errors += fft_test_transpose_ray(npts_global, npts_global);
-  errors += fft_test_transpose_ray(npts_global_small, npts_global_small);
+  errors += fft_test_transpose_ray(npts_global_small,
+                                   npts_global_small);
   errors += fft_test_transpose_ray(npts_global_reverse, npts_global_reverse);
   errors += fft_test_transpose_ray(npts_global_small_reverse,
                                    npts_global_small_reverse);
