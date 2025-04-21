@@ -136,15 +136,16 @@ void fft_free_complex(double complex *buffer) {
  *transposition). \author Frederick Stein
  ******************************************************************************/
 void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
+                     const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out) {
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_REF:
-    fft_ref_1d_fw_local(grid_in, grid_out, fft_size, number_of_ffts, true,
-                        false);
+    fft_ref_1d_fw_local(grid_in, grid_out, fft_size, number_of_ffts,
+                        transpose_rs, transpose_gs);
     break;
   case GRID_FFT_LIB_FFTW:
-    fft_fftw_1d_fw_local(fft_size, number_of_ffts, true, false, grid_in,
-                         grid_out);
+    fft_fftw_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                         grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -156,15 +157,16 @@ void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
  *transposition). \author Frederick Stein
  ******************************************************************************/
 void fft_1d_bw_local(const int fft_size, const int number_of_ffts,
+                     const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out) {
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_REF:
-    fft_ref_1d_bw_local(grid_in, grid_out, fft_size, number_of_ffts, true,
-                        false);
+    fft_ref_1d_bw_local(grid_in, grid_out, fft_size, number_of_ffts,
+                        transpose_rs, transpose_gs);
     break;
   case GRID_FFT_LIB_FFTW:
-    fft_fftw_1d_bw_local(fft_size, number_of_ffts, true, false, grid_in,
-                         grid_out);
+    fft_fftw_1d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                         grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -197,15 +199,16 @@ void transpose_local(double complex *grid, double complex *grid_transposed,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
+                     const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out) {
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_REF:
-    fft_ref_2d_fw_local(grid_in, grid_out, fft_size, number_of_ffts, true,
-                        false);
+    fft_ref_2d_fw_local(grid_in, grid_out, fft_size, number_of_ffts,
+                        transpose_rs, transpose_gs);
     break;
   case GRID_FFT_LIB_FFTW:
-    fft_fftw_2d_fw_local(fft_size, number_of_ffts, true, false, grid_in,
-                         grid_out);
+    fft_fftw_2d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                         grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -219,15 +222,16 @@ void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts,
+                     const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out) {
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_REF:
-    fft_ref_2d_bw_local(grid_in, grid_out, fft_size, number_of_ffts, true,
-                        false);
+    fft_ref_2d_bw_local(grid_in, grid_out, fft_size, number_of_ffts,
+                        transpose_rs, transpose_gs);
     break;
   case GRID_FFT_LIB_FFTW:
-    fft_fftw_2d_bw_local(fft_size, number_of_ffts, true, false, grid_in,
-                         grid_out);
+    fft_fftw_2d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                         grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");

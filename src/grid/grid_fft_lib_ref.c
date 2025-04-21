@@ -131,7 +131,7 @@ void fft_ref_1d_fw_local(const double complex *grid_rs, double complex *grid_gs,
             tmp += grid_rs[index_in + fft * fft_size] *
                    cexp(-2.0 * I * pi * index_out * index_in / fft_size);
           }
-          grid_gs[fft + index_out * fft_size] = tmp;
+          grid_gs[fft * fft_size + index_out] = tmp;
         }
       }
     }
@@ -283,11 +283,12 @@ void fft_ref_2d_bw_local(double complex *grid_gs, double complex *grid_rs,
                         fft_size[0] * number_of_ffts, false, true);
 
     if (transpose_rs) {
-      fft_ref_transpose_local(grid_rs, grid_gs, fft_size[0] * fft_size[1],
+      fft_ref_transpose_local(grid_gs, grid_rs, fft_size[0] * fft_size[1],
                               number_of_ffts);
     } else {
-      fft_ref_transpose_local(grid_rs, grid_gs, fft_size[0] * fft_size[1],
-                              number_of_ffts);
+      memcpy(grid_rs, grid_gs,
+             fft_size[0] * fft_size[1] * number_of_ffts *
+                 sizeof(double complex));
     }
   } else {
     fft_ref_1d_bw_local(grid_gs, grid_rs, fft_size[1],
@@ -301,9 +302,8 @@ void fft_ref_2d_bw_local(double complex *grid_gs, double complex *grid_rs,
              fft_size[0] * fft_size[1] * number_of_ffts *
                  sizeof(double complex));
     } else {
-      memcpy(grid_rs, grid_gs,
-             fft_size[0] * fft_size[1] * number_of_ffts *
-                 sizeof(double complex));
+      fft_ref_transpose_local(grid_gs, grid_rs, number_of_ffts,
+                              fft_size[0] * fft_size[1]);
     }
   }
 }

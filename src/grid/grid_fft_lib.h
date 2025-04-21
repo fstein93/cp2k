@@ -68,6 +68,7 @@ void fft_free_complex(double complex *buffer);
  * \author Frederick Stein
  ******************************************************************************/
 void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
+                     const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
@@ -75,6 +76,7 @@ void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_1d_bw_local(const int fft_size, const int number_of_ffts,
+                     const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
@@ -90,6 +92,7 @@ void transpose_local(double complex *grid, double complex *grid_transposed,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
+                     const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
@@ -99,6 +102,7 @@ void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts,
+                     const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
