@@ -198,8 +198,7 @@ void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
                      double complex *grid_in, double complex *grid_out) {
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_REF:
-    fft_ref_2d_fw_local(grid_in, grid_out, fft_size[0], fft_size[1],
-                        number_of_ffts);
+    fft_ref_2d_fw_local(grid_in, grid_out, fft_size, number_of_ffts);
     break;
   case GRID_FFT_LIB_FFTW:
     fft_fftw_2d_fw_local(fft_size, number_of_ffts, grid_in, grid_out);
@@ -219,8 +218,7 @@ void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts,
                      double complex *grid_in, double complex *grid_out) {
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_REF:
-    fft_ref_2d_bw_local(grid_in, grid_out, fft_size[0], fft_size[1],
-                        number_of_ffts);
+    fft_ref_2d_bw_local(grid_in, grid_out, fft_size, number_of_ffts);
     break;
   case GRID_FFT_LIB_FFTW:
     fft_fftw_2d_bw_local(fft_size, number_of_ffts, grid_in, grid_out);

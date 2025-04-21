@@ -82,9 +82,7 @@ void fft_ref_transpose_local(double complex *grid,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_ref_2d_fw_local(double complex *grid_rs, double complex *grid_gs,
-                         const int size_of_first_fft,
-                         const int size_of_second_fft,
-                         const int number_of_ffts);
+                         const int fft_size[2], const int number_of_ffts);
 
 /*******************************************************************************
  * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
@@ -93,9 +91,7 @@ void fft_ref_2d_fw_local(double complex *grid_rs, double complex *grid_gs,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_ref_2d_bw_local(double complex *grid_gs, double complex *grid_rs,
-                         const int size_of_first_fft,
-                         const int size_of_second_fft,
-                         const int number_of_ffts);
+                         const int fft_size[2], const int number_of_ffts);
 
 /*******************************************************************************
  * \brief Performs local 3D FFT (no normalization).

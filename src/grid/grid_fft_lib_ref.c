@@ -229,21 +229,18 @@ void fft_ref_transpose_local(double complex *grid,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_ref_2d_fw_local(double complex *grid_rs, double complex *grid_gs,
-                         const int size_of_first_fft,
-                         const int size_of_second_fft,
-                         const int number_of_ffts) {
+                         const int fft_size[2], const int number_of_ffts) {
 
   // Perform the first FFT along z
-  fft_ref_1d_fw_local(grid_rs, grid_gs, size_of_first_fft,
-                      size_of_second_fft * number_of_ffts, true, false);
+  fft_ref_1d_fw_local(grid_rs, grid_gs, fft_size[0],
+                      fft_size[1] * number_of_ffts, true, false);
 
   // Perform the second FFT along y
-  fft_ref_1d_fw_local(grid_gs, grid_rs, size_of_second_fft,
-                      size_of_first_fft * number_of_ffts, true, false);
+  fft_ref_1d_fw_local(grid_gs, grid_rs, fft_size[1],
+                      fft_size[0] * number_of_ffts, true, false);
 
   memcpy(grid_gs, grid_rs,
-         size_of_first_fft * size_of_second_fft * number_of_ffts *
-             sizeof(double complex));
+         fft_size[0] * fft_size[1] * number_of_ffts * sizeof(double complex));
 }
 
 /*******************************************************************************
@@ -253,21 +250,18 @@ void fft_ref_2d_fw_local(double complex *grid_rs, double complex *grid_gs,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_ref_2d_bw_local(double complex *grid_gs, double complex *grid_rs,
-                         const int size_of_first_fft,
-                         const int size_of_second_fft,
-                         const int number_of_ffts) {
+                         const int fft_size[2], const int number_of_ffts) {
 
   // Perform the second FFT along y
-  fft_ref_1d_bw_local(grid_gs, grid_rs, size_of_second_fft,
-                      size_of_first_fft * number_of_ffts, true, false);
+  fft_ref_1d_bw_local(grid_gs, grid_rs, fft_size[1],
+                      fft_size[0] * number_of_ffts, true, false);
 
   // Perform the third FFT along z
-  fft_ref_1d_bw_local(grid_rs, grid_gs, size_of_first_fft,
-                      size_of_second_fft * number_of_ffts, true, false);
+  fft_ref_1d_bw_local(grid_rs, grid_gs, fft_size[0],
+                      fft_size[1] * number_of_ffts, true, false);
 
   memcpy(grid_rs, grid_gs,
-         size_of_first_fft * size_of_second_fft * number_of_ffts *
-             sizeof(double complex));
+         fft_size[0] * fft_size[1] * number_of_ffts * sizeof(double complex));
 }
 
 /*******************************************************************************
