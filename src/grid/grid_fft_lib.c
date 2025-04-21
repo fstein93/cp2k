@@ -143,7 +143,8 @@ void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
                         false);
     break;
   case GRID_FFT_LIB_FFTW:
-    fft_fftw_1d_fw_local(fft_size, number_of_ffts, grid_in, grid_out);
+    fft_fftw_1d_fw_local(fft_size, number_of_ffts, true, false, grid_in,
+                         grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -162,7 +163,8 @@ void fft_1d_bw_local(const int fft_size, const int number_of_ffts,
                         false);
     break;
   case GRID_FFT_LIB_FFTW:
-    fft_fftw_1d_bw_local(fft_size, number_of_ffts, grid_in, grid_out);
+    fft_fftw_1d_bw_local(fft_size, number_of_ffts, true, false, grid_in,
+                         grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -202,7 +204,8 @@ void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
                         false);
     break;
   case GRID_FFT_LIB_FFTW:
-    fft_fftw_2d_fw_local(fft_size, number_of_ffts, grid_in, grid_out);
+    fft_fftw_2d_fw_local(fft_size, number_of_ffts, true, false, grid_in,
+                         grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -223,7 +226,8 @@ void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts,
                         false);
     break;
   case GRID_FFT_LIB_FFTW:
-    fft_fftw_2d_bw_local(fft_size, number_of_ffts, grid_in, grid_out);
+    fft_fftw_2d_bw_local(fft_size, number_of_ffts, true, false, grid_in,
+                         grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
