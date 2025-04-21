@@ -939,7 +939,8 @@ void fft_3d_fw_sorted(const double *grid_rs, double complex *grid_gs,
     for (int process = 0; process < my_process; process++) {
       my_ray_to_yz += grid_layout->rays_per_process[process];
     }
-    #pragma omp parallel for default(none) shared(grid_layout, my_ray_to_yz, grid_gs, my_process)
+#pragma omp parallel for default(none)                                         \
+    shared(grid_layout, my_ray_to_yz, grid_gs, my_process)
     for (int index = 0; index < grid_layout->npts_gs_local; index++) {
       const int *index_g = grid_layout->index_to_g[index];
       for (int yz_ray = 0; yz_ray < grid_layout->rays_per_process[my_process];
@@ -1002,11 +1003,11 @@ void fft_3d_bw_blocked(const double complex *grid_gs, double *grid_rs,
                         grid_layout->npts_global, grid_layout->proc2local_rs,
                         grid_layout->proc2local_ms, grid_layout->proc2local_gs,
                         grid_layout->comm, grid_layout->sub_comm);
-                        int local_sizes_rs[3];
-                        for (int dir = 0; dir < 3; dir++) {
-                          local_sizes_rs[dir] = grid_layout->proc2local_rs[my_process][dir][1] -
-                                                grid_layout->proc2local_rs[my_process][dir][0] + 1;
-                        }
+  int local_sizes_rs[3];
+  for (int dir = 0; dir < 3; dir++) {
+    local_sizes_rs[dir] = grid_layout->proc2local_rs[my_process][dir][1] -
+                          grid_layout->proc2local_rs[my_process][dir][0] + 1;
+  }
 #pragma omp parallel for default(none)                                         \
     shared(grid_layout, local_sizes_rs, grid_rs)
   for (int i = 0; i < local_sizes_rs[0] * local_sizes_rs[1] * local_sizes_rs[2];
@@ -1041,8 +1042,8 @@ void fft_3d_bw_sorted(const double complex *grid_gs, double *grid_rs,
       my_ray_to_yz += grid_layout->rays_per_process[process];
     }
     const int my_number_of_rays = grid_layout->rays_per_process[my_process];
-#pragma omp parallel for default(none) shared(                                 \
-        grid_layout, grid_gs, my_ray_to_yz, my_number_of_rays)
+#pragma omp parallel for default(none)                                         \
+    shared(grid_layout, grid_gs, my_ray_to_yz, my_number_of_rays)
     for (int index = 0; index < grid_layout->npts_gs_local; index++) {
       int *index_g = grid_layout->index_to_g[index];
       for (int yz_ray = 0; yz_ray < my_number_of_rays; yz_ray++) {

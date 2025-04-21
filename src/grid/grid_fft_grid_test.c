@@ -79,19 +79,19 @@ int fft_test_3d_blocked(const int npts_global[3]) {
                npts_global) reduction(max : max_error)
         for (int index = 0; index < fft_grid_layout->npts_gs_local; index++) {
           const int *index_g = fft_grid_layout->index_to_g[index];
-              const double complex my_value =
-                  grid_gs.data[index];
-              const double complex ref_value = cexp(
-                  -2.0 * I * pi *
-                  (((double)index_g[0]) * nx / npts_global[0] +
-                   ((double)index_g[1]) * ny / npts_global[1] +
-                   ((double)index_g[2]) * nz / npts_global[2]));
-              double current_error = cabs(my_value - ref_value);
-              if (current_error > 1e-12)
-                printf("ERROR %i %i %i/%i %i %i (%i): (%f %f) (%f %f)\n", nx, ny, nz,
-                  index_g[0], index_g[1], index_g[2], index, creal(my_value), cimag(my_value),
-                       creal(ref_value), cimag(ref_value));
-              max_error = fmax(max_error, current_error);
+          const double complex my_value = grid_gs.data[index];
+          const double complex ref_value =
+              cexp(-2.0 * I * pi *
+                   (((double)index_g[0]) * nx / npts_global[0] +
+                    ((double)index_g[1]) * ny / npts_global[1] +
+                    ((double)index_g[2]) * nz / npts_global[2]));
+          double current_error = cabs(my_value - ref_value);
+          if (current_error > 1e-12)
+            printf("ERROR %i %i %i/%i %i %i (%i): (%f %f) (%f %f)\n", nx, ny,
+                   nz, index_g[0], index_g[1], index_g[2], index,
+                   creal(my_value), cimag(my_value), creal(ref_value),
+                   cimag(ref_value));
+          max_error = fmax(max_error, current_error);
         }
       }
     }
@@ -299,7 +299,7 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3]) {
   const double pi = acos(-1);
   const double scale = 1.0 / ((double)npts_global[0]) /
                        ((double)npts_global[1]) / ((double)npts_global[2]);
-                       (void)scale;
+  (void)scale;
   const double dh_inv[3][3] = {
       {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
@@ -354,9 +354,9 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3]) {
           const double complex my_value = buffer_2[index];
           const double complex ref_value =
               cexp(-2.0 * I * pi *
-                           (((double)index_x) * nx / npts_global[0] +
-                            ((double)index_y) * ny / npts_global[1] +
-                            ((double)index_z) * nz / npts_global[2]));
+                   (((double)index_x) * nx / npts_global[0] +
+                    ((double)index_y) * ny / npts_global[1] +
+                    ((double)index_z) * nz / npts_global[2]));
           double current_error = cabs(my_value - ref_value);
           if (current_error > 1e-12)
             printf("ERROR %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny, nz,
@@ -382,14 +382,15 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3]) {
   // Check backwards 3D FFTs
   int total_number_of_rays = 0;
   for (int process = 0; process < grid_mpi_comm_size(comm); process++)
-  total_number_of_rays += fft_grid_layout->rays_per_process[process];
+    total_number_of_rays += fft_grid_layout->rays_per_process[process];
   max_error = 0.0;
   for (int nx = 0; nx < npts_global[0]; nx++) {
     for (int nyz = 0; nyz < total_number_of_rays; nyz++) {
       const int ny = fft_grid_layout->ray_to_yz[nyz][0];
       const int nz = fft_grid_layout->ray_to_yz[nyz][1];
 
-      memset(buffer_2, 0, fft_grid_layout->npts_gs_local*sizeof(double complex));
+      memset(buffer_2, 0,
+             fft_grid_layout->npts_gs_local * sizeof(double complex));
 
       if (nyz >= my_ray_offset &&
           nyz < my_ray_offset + fft_grid_layout->rays_per_process[my_process]) {

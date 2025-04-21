@@ -76,18 +76,64 @@ void fft_ref_free_complex(double complex *buffer) { free(buffer); }
  *transposition). \author Frederick Stein
  ******************************************************************************/
 void fft_ref_1d_fw_local(const double complex *grid_rs, double complex *grid_gs,
-                         const int fft_size, const int number_of_ffts) {
+                         const int fft_size, const int number_of_ffts,
+                         const bool transpose_rs, const bool transpose_gs) {
   const double pi = acos(-1.0);
+  if (transpose_rs) {
+    if (transpose_gs) {
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
-  for (int fft = 0; fft < number_of_ffts; fft++) {
-    for (int index_out = 0; index_out < fft_size; index_out++) {
-      double complex tmp = 0.0;
-      for (int index_in = 0; index_in < fft_size; index_in++) {
-        tmp += grid_rs[index_in * number_of_ffts + fft] *
-               cexp(-2.0 * I * pi * index_out * index_in / fft_size);
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        for (int index_out = 0; index_out < fft_size; index_out++) {
+          double complex tmp = 0.0;
+          for (int index_in = 0; index_in < fft_size; index_in++) {
+            tmp += grid_rs[index_in * number_of_ffts + fft] *
+                   cexp(-2.0 * I * pi * index_out * index_in / fft_size);
+          }
+          grid_gs[fft + index_out * number_of_ffts] = tmp;
+        }
       }
-      grid_gs[fft * fft_size + index_out] = tmp;
+    } else {
+#pragma omp parallel for default(none) collapse(2)                             \
+    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        for (int index_out = 0; index_out < fft_size; index_out++) {
+          double complex tmp = 0.0;
+          for (int index_in = 0; index_in < fft_size; index_in++) {
+            tmp += grid_rs[index_in * number_of_ffts + fft] *
+                   cexp(-2.0 * I * pi * index_out * index_in / fft_size);
+          }
+          grid_gs[fft * fft_size + index_out] = tmp;
+        }
+      }
+    }
+  } else {
+    if (transpose_gs) {
+#pragma omp parallel for default(none) collapse(2)                             \
+    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        for (int index_out = 0; index_out < fft_size; index_out++) {
+          double complex tmp = 0.0;
+          for (int index_in = 0; index_in < fft_size; index_in++) {
+            tmp += grid_rs[index_in + fft * fft_size] *
+                   cexp(-2.0 * I * pi * index_out * index_in / fft_size);
+          }
+          grid_gs[fft + index_out * number_of_ffts] = tmp;
+        }
+      }
+    } else {
+#pragma omp parallel for default(none) collapse(2)                             \
+    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        for (int index_out = 0; index_out < fft_size; index_out++) {
+          double complex tmp = 0.0;
+          for (int index_in = 0; index_in < fft_size; index_in++) {
+            tmp += grid_rs[index_in + fft * fft_size] *
+                   cexp(-2.0 * I * pi * index_out * index_in / fft_size);
+          }
+          grid_gs[fft + index_out * fft_size] = tmp;
+        }
+      }
     }
   }
 }
@@ -97,18 +143,64 @@ void fft_ref_1d_fw_local(const double complex *grid_rs, double complex *grid_gs,
  *transposition). \author Frederick Stein
  ******************************************************************************/
 void fft_ref_1d_bw_local(const double complex *grid_gs, double complex *grid_rs,
-                         const int fft_size, const int number_of_ffts) {
+                         const int fft_size, const int number_of_ffts,
+                         const bool transpose_rs, const bool transpose_gs) {
   const double pi = acos(-1.0);
+  if (transpose_rs) {
+    if (transpose_gs) {
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
-  for (int fft = 0; fft < number_of_ffts; fft++) {
-    for (int index_out = 0; index_out < fft_size; index_out++) {
-      double complex tmp = 0.0;
-      for (int index_in = 0; index_in < fft_size; index_in++) {
-        tmp += grid_gs[fft * fft_size + index_in] *
-               cexp(2.0 * I * pi * index_out * index_in / fft_size);
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        for (int index_out = 0; index_out < fft_size; index_out++) {
+          double complex tmp = 0.0;
+          for (int index_in = 0; index_in < fft_size; index_in++) {
+            tmp += grid_gs[fft + index_in * number_of_ffts] *
+                   cexp(2.0 * I * pi * index_out * index_in / fft_size);
+          }
+          grid_rs[index_out * number_of_ffts + fft] = tmp;
+        }
       }
-      grid_rs[index_out * number_of_ffts + fft] = tmp;
+    } else {
+#pragma omp parallel for default(none) collapse(2)                             \
+    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        for (int index_out = 0; index_out < fft_size; index_out++) {
+          double complex tmp = 0.0;
+          for (int index_in = 0; index_in < fft_size; index_in++) {
+            tmp += grid_gs[fft * fft_size + index_in] *
+                   cexp(2.0 * I * pi * index_out * index_in / fft_size);
+          }
+          grid_rs[index_out * number_of_ffts + fft] = tmp;
+        }
+      }
+    }
+  } else {
+    if (transpose_gs) {
+#pragma omp parallel for default(none) collapse(2)                             \
+    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        for (int index_out = 0; index_out < fft_size; index_out++) {
+          double complex tmp = 0.0;
+          for (int index_in = 0; index_in < fft_size; index_in++) {
+            tmp += grid_gs[fft + index_in * number_of_ffts] *
+                   cexp(2.0 * I * pi * index_out * index_in / fft_size);
+          }
+          grid_rs[index_out + fft * fft_size] = tmp;
+        }
+      }
+    } else {
+#pragma omp parallel for default(none) collapse(2)                             \
+    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        for (int index_out = 0; index_out < fft_size; index_out++) {
+          double complex tmp = 0.0;
+          for (int index_in = 0; index_in < fft_size; index_in++) {
+            tmp += grid_gs[fft * fft_size + index_in] *
+                   cexp(2.0 * I * pi * index_out * index_in / fft_size);
+          }
+          grid_rs[index_out + fft * fft_size] = tmp;
+        }
+      }
     }
   }
 }
@@ -143,11 +235,11 @@ void fft_ref_2d_fw_local(double complex *grid_rs, double complex *grid_gs,
 
   // Perform the first FFT along z
   fft_ref_1d_fw_local(grid_rs, grid_gs, size_of_first_fft,
-                      size_of_second_fft * number_of_ffts);
+                      size_of_second_fft * number_of_ffts, true, false);
 
   // Perform the second FFT along y
   fft_ref_1d_fw_local(grid_gs, grid_rs, size_of_second_fft,
-                      size_of_first_fft * number_of_ffts);
+                      size_of_first_fft * number_of_ffts, true, false);
 
   memcpy(grid_gs, grid_rs,
          size_of_first_fft * size_of_second_fft * number_of_ffts *
@@ -167,11 +259,11 @@ void fft_ref_2d_bw_local(double complex *grid_gs, double complex *grid_rs,
 
   // Perform the second FFT along y
   fft_ref_1d_bw_local(grid_gs, grid_rs, size_of_second_fft,
-                      size_of_first_fft * number_of_ffts);
+                      size_of_first_fft * number_of_ffts, true, false);
 
   // Perform the third FFT along z
   fft_ref_1d_bw_local(grid_rs, grid_gs, size_of_first_fft,
-                      size_of_second_fft * number_of_ffts);
+                      size_of_second_fft * number_of_ffts, true, false);
 
   memcpy(grid_rs, grid_gs,
          size_of_first_fft * size_of_second_fft * number_of_ffts *
@@ -188,13 +280,16 @@ void fft_ref_3d_fw_local(double complex *grid_rs, double complex *grid_gs,
                          const int fft_size[3]) {
 
   // Perform the first FFT along z
-  fft_ref_1d_fw_local(grid_rs, grid_gs, fft_size[2], fft_size[0] * fft_size[1]);
+  fft_ref_1d_fw_local(grid_rs, grid_gs, fft_size[2], fft_size[0] * fft_size[1],
+                      true, false);
 
   // Perform the second FFT along y
-  fft_ref_1d_fw_local(grid_gs, grid_rs, fft_size[1], fft_size[0] * fft_size[2]);
+  fft_ref_1d_fw_local(grid_gs, grid_rs, fft_size[1], fft_size[0] * fft_size[2],
+                      true, false);
 
   // Perform the third FFT along x
-  fft_ref_1d_fw_local(grid_rs, grid_gs, fft_size[0], fft_size[1] * fft_size[2]);
+  fft_ref_1d_fw_local(grid_rs, grid_gs, fft_size[0], fft_size[1] * fft_size[2],
+                      true, false);
 }
 
 /*******************************************************************************
@@ -207,13 +302,16 @@ void fft_ref_3d_bw_local(double complex *grid_gs, double complex *grid_rs,
                          const int fft_size[3]) {
 
   // Perform the first FFT along x
-  fft_ref_1d_bw_local(grid_gs, grid_rs, fft_size[0], fft_size[1] * fft_size[2]);
+  fft_ref_1d_bw_local(grid_gs, grid_rs, fft_size[0], fft_size[1] * fft_size[2],
+                      true, false);
 
   // Perform the second FFT along y
-  fft_ref_1d_bw_local(grid_rs, grid_gs, fft_size[1], fft_size[0] * fft_size[2]);
+  fft_ref_1d_bw_local(grid_rs, grid_gs, fft_size[1], fft_size[0] * fft_size[2],
+                      true, false);
 
   // Perform the third FFT along z
-  fft_ref_1d_bw_local(grid_gs, grid_rs, fft_size[2], fft_size[0] * fft_size[1]);
+  fft_ref_1d_bw_local(grid_gs, grid_rs, fft_size[2], fft_size[0] * fft_size[1],
+                      true, false);
 }
 
 // EOF
