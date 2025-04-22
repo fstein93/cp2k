@@ -35,20 +35,20 @@ void collect_y_and_distribute_x_blocked(
     const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm,
     const grid_mpi_comm sub_comm[2]);
 
-void collect_x_and_distribute_y_ray(const double complex *grid,
+void collect_z_and_distribute_y_ray(const double complex *grid,
                                     double complex *transposed,
                                     const int npts_global[3],
                                     const int (*proc2local)[3][2],
                                     const int *number_of_rays,
-                                    const int (*ray_to_yz)[2],
+                                    const int (*ray_to_xy)[2],
                                     const grid_mpi_comm comm);
 
-void collect_y_and_distribute_x_ray(const double complex *grid,
+void collect_y_and_distribute_z_ray(const double complex *grid,
                                     double complex *transposed,
                                     const int npts_global[3],
                                     const int (*proc2local_transposed)[3][2],
                                     const int *number_of_rays,
-                                    const int (*ray_to_yz)[2],
+                                    const int (*ray_to_xy)[2],
                                     const grid_mpi_comm comm);
 
 #endif /* GRID_FFT_REORDER_H */

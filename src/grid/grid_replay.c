@@ -336,6 +336,8 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
     abort();
   }
 
+  fclose(fp);
+
   offload_buffer *grid_test = NULL;
   offload_create_buffer(npts_local_total, &grid_test);
   double hab_test[n2][n1];
