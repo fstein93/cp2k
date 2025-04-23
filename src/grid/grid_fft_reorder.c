@@ -35,30 +35,33 @@ void collect_y_and_distribute_z_blocked(
   const int my_sizes[3] = {
       proc2local[my_process][0][1] - proc2local[my_process][0][0] + 1,
       proc2local[my_process][1][1] - proc2local[my_process][1][0] + 1,
-      npts_global[2]};
+      proc2local[my_process][2][1] - proc2local[my_process][2][0] + 1};
+  assert(my_sizes[2] == npts_global[2]);
   const int my_sizes_transposed[3] = {
       proc2local_transposed[my_process][0][1] -
           proc2local_transposed[my_process][0][0] + 1,
-      npts_global[1],
+      proc2local_transposed[my_process][1][1] -
+          proc2local_transposed[my_process][1][0] + 1,
       proc2local_transposed[my_process][2][1] -
           proc2local_transposed[my_process][2][0] + 1};
+  assert(my_sizes_transposed[1] == npts_global[1]);
   assert(my_sizes[0] == my_sizes_transposed[0]);
 
-  int *send_displacements = calloc(dims[1], sizeof(int));
-  int *recv_displacements = calloc(dims[1], sizeof(int));
-  int *send_counts = calloc(dims[1], sizeof(int));
-  int *recv_counts = calloc(dims[1], sizeof(int));
+  int *send_displacements = calloc(dims[0], sizeof(int));
+  int *recv_displacements = calloc(dims[0], sizeof(int));
+  int *send_counts = calloc(dims[0], sizeof(int));
+  int *recv_counts = calloc(dims[0], sizeof(int));
   double complex *send_buffer =
       calloc(product3(my_sizes), sizeof(double complex));
 
   int send_offset = 0;
   int recv_offset = 0;
-  for (int process = 0; process < dims[1]; process++) {
+  for (int process = 0; process < dims[0]; process++) {
     // Setup arrays
     send_displacements[process] = send_offset;
     recv_displacements[process] = recv_offset;
     int rank;
-    grid_mpi_cart_rank(comm, (const int[2]){proc_coord[0], process}, &rank);
+    grid_mpi_cart_rank(comm, (const int[2]){process, proc_coord[1]}, &rank);
     const int current_send_count = my_sizes[0] * my_sizes[1] *
                                    (proc2local_transposed[rank][2][1] -
                                     proc2local_transposed[rank][2][0] + 1);
@@ -94,7 +97,7 @@ void collect_y_and_distribute_z_blocked(
   // Use collective MPI communication
   grid_mpi_alltoallv_double_complex(send_buffer, send_counts,
                                     send_displacements, transposed, recv_counts,
-                                    recv_displacements, sub_comm[1]);
+                                    recv_displacements, sub_comm[0]);
 
   free(send_buffer);
   free(send_counts);
@@ -134,21 +137,21 @@ void collect_z_and_distribute_y_blocked(
   assert(my_sizes_transposed[2] == npts_global[2]);
   assert(my_sizes[0] == my_sizes_transposed[0]);
 
-  int *send_displacements = calloc(dims[1], sizeof(int));
-  int *recv_displacements = calloc(dims[1], sizeof(int));
-  int *send_counts = calloc(dims[1], sizeof(int));
-  int *recv_counts = calloc(dims[1], sizeof(int));
+  int *send_displacements = calloc(dims[0], sizeof(int));
+  int *recv_displacements = calloc(dims[0], sizeof(int));
+  int *send_counts = calloc(dims[0], sizeof(int));
+  int *recv_counts = calloc(dims[0], sizeof(int));
   double complex *recv_buffer =
       calloc(product3(my_sizes_transposed), sizeof(double complex));
 
   int send_offset = 0;
   int recv_offset = 0;
-  for (int process = 0; process < dims[1]; process++) {
+  for (int process = 0; process < dims[0]; process++) {
     // Setup arrays
     send_displacements[process] = send_offset;
     recv_displacements[process] = recv_offset;
     int rank;
-    grid_mpi_cart_rank(comm, (const int[2]){proc_coord[0], process}, &rank);
+    grid_mpi_cart_rank(comm, (const int[2]){process, proc_coord[1]}, &rank);
     const int current_send_count = my_sizes[0] *
                                    (proc2local_transposed[rank][1][1] -
                                     proc2local_transposed[rank][1][0] + 1) *
@@ -167,11 +170,11 @@ void collect_z_and_distribute_y_blocked(
   // Use collective MPI communication
   grid_mpi_alltoallv_double_complex(grid, send_counts, send_displacements,
                                     recv_buffer, recv_counts,
-                                    recv_displacements, sub_comm[1]);
+                                    recv_displacements, sub_comm[0]);
 
-  for (int process = 0; process < dims[1]; process++) {
+  for (int process = 0; process < dims[0]; process++) {
     int rank;
-    grid_mpi_cart_rank(comm, (const int[2]){proc_coord[0], process}, &rank);
+    grid_mpi_cart_rank(comm, (const int[2]){process, proc_coord[1]}, &rank);
 // Copy the data to the output array
 #pragma omp parallel for collapse(2) default(none)                             \
     shared(my_sizes, my_sizes_transposed, proc2local, proc2local_transposed,   \
@@ -226,21 +229,21 @@ void collect_x_and_distribute_y_blocked(
           proc2local_transposed[my_process][2][0] + 1};
   assert(my_sizes[2] == my_sizes_transposed[2]);
 
-  int *send_displacements = calloc(dims[0], sizeof(int));
-  int *recv_displacements = calloc(dims[0], sizeof(int));
-  int *send_counts = calloc(dims[0], sizeof(int));
-  int *recv_counts = calloc(dims[0], sizeof(int));
+  int *send_displacements = calloc(dims[1], sizeof(int));
+  int *recv_displacements = calloc(dims[1], sizeof(int));
+  int *send_counts = calloc(dims[1], sizeof(int));
+  int *recv_counts = calloc(dims[1], sizeof(int));
   double complex *send_buffer =
       calloc(product3(my_sizes), sizeof(double complex));
 
   int send_offset = 0;
   int recv_offset = 0;
-  for (int process = 0; process < dims[0]; process++) {
+  for (int process = 0; process < dims[1]; process++) {
     // Setup arrays
     send_displacements[process] = send_offset;
     recv_displacements[process] = recv_offset;
     int rank;
-    grid_mpi_cart_rank(comm, (const int[2]){process, proc_coord[1]}, &rank);
+    grid_mpi_cart_rank(comm, (const int[2]){proc_coord[0], process}, &rank);
     const int current_send_count = my_sizes[0] *
                                    (proc2local_transposed[rank][1][1] -
                                     proc2local_transposed[rank][1][0] + 1) *
@@ -276,7 +279,7 @@ void collect_x_and_distribute_y_blocked(
   // Use collective MPI communication
   grid_mpi_alltoallv_double_complex(send_buffer, send_counts,
                                     send_displacements, transposed, recv_counts,
-                                    recv_displacements, sub_comm[0]);
+                                    recv_displacements, sub_comm[1]);
 
   free(send_buffer);
   free(send_counts);
@@ -316,21 +319,21 @@ void collect_y_and_distribute_x_blocked(
   assert(my_sizes_transposed[1] == npts_global[1]);
   assert(my_sizes[2] == my_sizes_transposed[2]);
 
-  int *send_displacements = calloc(dims[0], sizeof(int));
-  int *recv_displacements = calloc(dims[0], sizeof(int));
-  int *send_counts = calloc(dims[0], sizeof(int));
-  int *recv_counts = calloc(dims[0], sizeof(int));
+  int *send_displacements = calloc(dims[1], sizeof(int));
+  int *recv_displacements = calloc(dims[1], sizeof(int));
+  int *send_counts = calloc(dims[1], sizeof(int));
+  int *recv_counts = calloc(dims[1], sizeof(int));
   double complex *recv_buffer =
       calloc(product3(my_sizes_transposed), sizeof(double complex));
 
   int send_offset = 0;
   int recv_offset = 0;
-  for (int process = 0; process < dims[0]; process++) {
+  for (int process = 0; process < dims[1]; process++) {
     // Setup arrays
     send_displacements[process] = send_offset;
     recv_displacements[process] = recv_offset;
     int rank;
-    grid_mpi_cart_rank(comm, (const int[2]){process, proc_coord[1]}, &rank);
+    grid_mpi_cart_rank(comm, (const int[2]){proc_coord[0], process}, &rank);
     const int current_send_count = (proc2local_transposed[rank][0][1] -
                                     proc2local_transposed[rank][0][0] + 1) *
                                    my_sizes[1] * my_sizes[2];
@@ -349,11 +352,11 @@ void collect_y_and_distribute_x_blocked(
   // Use collective MPI communication
   grid_mpi_alltoallv_double_complex(grid, send_counts, send_displacements,
                                     recv_buffer, recv_counts,
-                                    recv_displacements, sub_comm[0]);
+                                    recv_displacements, sub_comm[1]);
 
-  for (int process = 0; process < dims[0]; process++) {
+  for (int process = 0; process < dims[1]; process++) {
     int rank;
-    grid_mpi_cart_rank(comm, (const int[2]){process, proc_coord[1]}, &rank);
+    grid_mpi_cart_rank(comm, (const int[2]){proc_coord[0], process}, &rank);
 // Copy the data to the output array
 #pragma omp parallel for collapse(2) default(none)                             \
     shared(my_sizes, my_sizes_transposed, proc2local, proc2local_transposed,   \
@@ -489,8 +492,8 @@ void collect_z_and_distribute_y_ray(const double complex *grid,
         const int index_y = ray_to_xy[ray][1];
         if (index_x >= my_bounds[0][0] && index_x <= my_bounds[0][1]) {
           send_buffer[index_z + ray_position * my_sizes[2]] =
-              grid[index_z + (index_x - my_bounds[0][0]) * npts_global[2] +
-                   index_y * npts_global[2] * my_sizes[0]];
+              grid[index_z + (index_x - my_bounds[0][0]) * my_sizes[2] +
+                   index_y * my_sizes[2] * my_sizes[0]];
           ray_position++;
         }
       }
@@ -593,7 +596,8 @@ void collect_y_and_distribute_z_ray(const double complex *grid,
       transposed[(index_y - my_bounds[1][0]) * my_transposed_sizes[0] *
                      my_transposed_sizes[2] +
                  (index_x - my_bounds[0][0]) * my_transposed_sizes[2] +
-                 index_z] = grid[index_z + xy_ray * npts_global[2]];
+                 (index_z - my_bounds[2][0])] =
+          grid[index_z + xy_ray * npts_global[2]];
     }
     number_of_received_rays++;
   }
@@ -688,7 +692,7 @@ void collect_y_and_distribute_z_ray(const double complex *grid,
         if (index_x >= my_bounds[0][0] && index_x <= my_bounds[0][1]) {
           transposed[(index_y - my_bounds[1][0]) * my_transposed_sizes[0] *
                          my_transposed_sizes[2] +
-                     (index_x - my_bounds[0][0]) * my_transposed_sizes[1] +
+                     (index_x - my_bounds[0][0]) * my_transposed_sizes[2] +
                      index_z] =
               recv_buffer[index_z + ray_position * my_transposed_sizes[2]];
           ray_position++;
