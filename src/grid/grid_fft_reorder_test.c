@@ -112,7 +112,7 @@ double fft_test_transpose_ray(const int npts_global[3],
   }
 
   memset(fft_grid_ray_layout->buffer_1, 0,
-         fft_grid_ray_layout->npts_global[0] *
+         fft_grid_ray_layout->npts_global[2] *
              fft_grid_ray_layout->rays_per_process[my_process] *
              sizeof(double complex));
   memset(fft_grid_ray_layout->buffer_2, 0,
