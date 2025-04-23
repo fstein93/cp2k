@@ -635,18 +635,18 @@ void fft_3d_fw_blocked_low(
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     // Perform the first FFT
     fft_1d_fw_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false,
-                    false, grid_buffer_1, grid_buffer_2);
+                    true, grid_buffer_1, grid_buffer_2);
 
-    // Perform transpose
+    // Perform redistribution
     collect_y_and_distribute_x_blocked(grid_buffer_2, grid_buffer_1,
                                        npts_global, proc2local_rs,
                                        proc2local_ms, comm, sub_comm);
 
     // Perform the second FFT
-    fft_1d_fw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2], true,
+    fft_1d_fw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2], false,
                     true, grid_buffer_1, grid_buffer_2);
 
-    // Perform second transpose
+    // Perform second redistribution
     collect_z_and_distribute_y_blocked(grid_buffer_2, grid_buffer_1,
                                        npts_global, proc2local_ms,
                                        proc2local_gs, comm, sub_comm);
@@ -658,8 +658,7 @@ void fft_3d_fw_blocked_low(
     assert(fft_sizes_rs[1] == npts_global[1]);
     // Perform the first FFT
     fft_2d_fw_local((const int[2]){npts_global[1], npts_global[0]},
-                    fft_sizes_rs[2], false, false, grid_buffer_1,
-                    grid_buffer_2);
+                    fft_sizes_rs[2], false, true, grid_buffer_1, grid_buffer_2);
 
     // Perform second transpose
     collect_z_and_distribute_y_blocked(grid_buffer_2, grid_buffer_1,
@@ -667,7 +666,7 @@ void fft_3d_fw_blocked_low(
                                        proc2local_gs, comm, sub_comm);
 
     // Perform the third FFT
-    fft_1d_fw_local(npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1], true,
+    fft_1d_fw_local(npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1], false,
                     true, grid_buffer_1, grid_buffer_2);
   } else {
     fft_3d_fw_local(npts_global, grid_buffer_1, grid_buffer_2);
@@ -706,7 +705,7 @@ void fft_3d_bw_blocked_low(
 
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     // Perform the first FFT and one transposition (z,y,x)->(x,z,y)
-    fft_1d_bw_local(npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1], true,
+    fft_1d_bw_local(npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1], false,
                     true, grid_buffer_1, grid_buffer_2);
 
     // Collect data in y-direction and distribute x-direction
@@ -728,7 +727,7 @@ void fft_3d_bw_blocked_low(
                     true, grid_buffer_1, grid_buffer_2);
   } else if (proc_grid[0] > 1) {
     // Perform the first FFT and one transposition (z,y,x)->(x,z,y)
-    fft_1d_bw_local(npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1], true,
+    fft_1d_bw_local(npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1], false,
                     true, grid_buffer_1, grid_buffer_2);
 
     // Collect data in y-direction and distribute x-direction
@@ -738,8 +737,7 @@ void fft_3d_bw_blocked_low(
 
     // Perform the second FFT and one transposition (x,z,y)->(y,x,z)
     fft_2d_bw_local((const int[2]){npts_global[1], npts_global[0]},
-                    fft_sizes_ms[2], false, false, grid_buffer_1,
-                    grid_buffer_2);
+                    fft_sizes_ms[2], false, true, grid_buffer_1, grid_buffer_2);
   } else {
     fft_3d_bw_local(npts_global, grid_buffer_1, grid_buffer_2);
   }
