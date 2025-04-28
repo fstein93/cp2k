@@ -278,4 +278,76 @@ void fft_3d_bw_local(const int fft_size[3], double complex *grid_in,
   }
 }
 
+/*******************************************************************************
+ * \brief Return buffer size and local sizes and start for distributed 2D FFTs.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_2d_distributed_sizes(const int npts_global[2], const int number_of_ffts,
+                             const grid_mpi_comm comm, int *local_n0,
+                             int *local_n0_start) {
+  if (grid_fft_lib_choice == GRID_FFT_LIB_REF) {
+    assert(0 && "Distributed 2D FFT not available.");
+    return -1;
+  } else if (grid_fft_lib_choice == GRID_FFT_LIB_FFTW) {
+    return fft_fftw_2d_distributed_sizes(npts_global, number_of_ffts, comm,
+                                         local_n0, local_n0_start);
+  } else {
+    assert(0 && "Unknown FFT library.");
+    return -1;
+  }
+}
+
+/*******************************************************************************
+ * \brief Return buffer size and local sizes and start for distributed 3D FFTs.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_3d_distributed_sizes(const int npts_global[3], const grid_mpi_comm comm,
+                             int *local_n2, int *local_n2_start, int *local_n1,
+                             int *local_n1_start) {
+  if (grid_fft_lib_choice == GRID_FFT_LIB_REF) {
+    assert(0 && "Distributed 3D FFT not available.");
+    return -1;
+  } else if (grid_fft_lib_choice == GRID_FFT_LIB_FFTW) {
+    return fft_fftw_3d_distributed_sizes(
+        npts_global, comm, local_n2, local_n2_start, local_n1, local_n1_start);
+  } else {
+    assert(0 && "Unknown FFT library.");
+    return -1;
+  }
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
+                           const grid_mpi_comm comm, double complex *grid_in,
+                           double complex *grid_out) {
+  assert(fft_lib_use_mpi());
+  switch (grid_fft_lib_choice) {
+  case GRID_FFT_LIB_FFTW:
+    fft_fftw_2d_fw_distributed(npts_global, number_of_ffts, comm, grid_in,
+                               grid_out);
+    break;
+  default:
+    assert(0 && "Distributed 2D FFT not available.");
+  }
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_fw_distributed(const int npts_global[3], const grid_mpi_comm comm,
+                           double complex *grid_in, double complex *grid_out) {
+  assert(fft_lib_use_mpi());
+  switch (grid_fft_lib_choice) {
+  case GRID_FFT_LIB_FFTW:
+    fft_fftw_3d_fw_distributed(npts_global, comm, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Distributed 3D FFT not available.");
+  }
+}
+
 // EOF

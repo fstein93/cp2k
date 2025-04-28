@@ -7,6 +7,7 @@
 #ifndef GRID_FFT_LIB_H
 #define GRID_FFT_LIB_H
 
+#include "common/grid_mpi.h"
 #include "grid_fft_lib_fftw.h"
 
 #include <complex.h>
@@ -122,6 +123,37 @@ void fft_3d_fw_local(const int fft_size[3], double complex *grid_in,
  ******************************************************************************/
 void fft_3d_bw_local(const int fft_size[3], double complex *grid_in,
                      double complex *grid_out);
+
+/*******************************************************************************
+ * \brief Return buffer size and local sizes and start for distributed 2D FFTs.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_2d_distributed_sizes(const int npts_global[2], const int number_of_ffts,
+                             const grid_mpi_comm comm, int *local_n0,
+                             int *local_n0_start);
+
+/*******************************************************************************
+ * \brief Return buffer size and local sizes and start for distributed 3D FFTs.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_3d_distributed_sizes(const int npts_global[3], const grid_mpi_comm comm,
+                             int *local_n2, int *local_n2_start, int *local_n1,
+                             int *local_n1_start);
+
+/*******************************************************************************
+ * \brief Performs a distributed 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
+                           const grid_mpi_comm comm, double complex *grid_in,
+                           double complex *grid_out);
+
+/*******************************************************************************
+ * \brief Performs a distributed 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_fw_distributed(const int npts_global[3], const grid_mpi_comm comm,
+                           double complex *grid_in, double complex *grid_out);
 
 #endif /* GRID_FFT_LIB_H */
 
