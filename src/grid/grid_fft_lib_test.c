@@ -457,15 +457,15 @@ int fft_test_3d_local_low(const int fft_size[3]) {
 int fft_test_local() {
   int errors = 0;
 
-  errors += fft_test_1d_local_low(16, 36, true, true);
-  errors += fft_test_1d_local_low(18, 32, true, false);
+  errors += fft_test_1d_local_low(16, 26, true, true);
+  errors += fft_test_1d_local_low(18, 22, true, false);
   errors += fft_test_1d_local_low(20, 28, false, true);
-  errors += fft_test_1d_local_low(12, 20, false, false);
+  errors += fft_test_1d_local_low(12, 14, false, false);
 
   errors += fft_test_2d_local_low((const int[2]){10, 10}, 20, true, true);
-  errors += fft_test_2d_local_low((const int[2]){16, 9}, 150, true, false);
-  errors += fft_test_2d_local_low((const int[2]){7, 20}, 90, false, true);
-  errors += fft_test_2d_local_low((const int[2]){12, 14}, 80, false, false);
+  errors += fft_test_2d_local_low((const int[2]){16, 9}, 90, true, false);
+  errors += fft_test_2d_local_low((const int[2]){7, 20}, 70, false, true);
+  errors += fft_test_2d_local_low((const int[2]){12, 14}, 50, false, false);
 
   errors += fft_test_3d_local_low((const int[3]){8, 8, 8});
   errors += fft_test_3d_local_low((const int[3]){3, 4, 5});

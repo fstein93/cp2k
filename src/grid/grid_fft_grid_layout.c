@@ -172,9 +172,6 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
   my_fft_grid->proc2local_rs = malloc(number_of_processes * sizeof(int[3][2]));
   my_fft_grid->proc2local_ms = malloc(number_of_processes * sizeof(int[3][2]));
   my_fft_grid->proc2local_gs = malloc(number_of_processes * sizeof(int[3][2]));
-  if (my_process == 0) printf("DEBUG %i/%i (%i): %i %i\n", my_process,
-                              number_of_processes, fft_lib_use_mpi(), my_fft_grid->proc_grid[0],
-                              my_fft_grid->proc_grid[1]);
   if (fft_lib_use_mpi() && grid_mpi_comm_size(my_fft_grid->comm) > 1 &&
       my_fft_grid->proc_grid[1] == 1) {
     if (my_fft_grid->proc_grid[1] > 1) {
@@ -208,8 +205,18 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
                              (int *)my_fft_grid->proc2local_gs,
                              my_fft_grid->comm);
       // For tests
-      memcpy(my_fft_grid->proc2local_ms, my_fft_grid->proc2local_gs,
-             number_of_processes * sizeof(int[3][2]));
+      for (int process = 0; process < number_of_processes; process++) {
+        int proc_coords[2];
+        grid_mpi_cart_coords(my_fft_grid->comm, process, 2, proc_coords);
+        my_fft_grid->proc2local_ms[process][0][0] =
+            my_fft_grid->proc2local_rs[process][0][0];
+        my_fft_grid->proc2local_ms[process][0][1] =
+            my_fft_grid->proc2local_rs[process][0][1];
+        my_fft_grid->proc2local_ms[process][1][0] = 0;
+        my_fft_grid->proc2local_ms[process][1][1] = npts_global[1] - 1;
+        my_fft_grid->proc2local_ms[process][2][0] = my_fft_grid->proc2local_rs[process][2][0];
+        my_fft_grid->proc2local_ms[process][2][1] = my_fft_grid->proc2local_rs[process][2][1];
+      }
     }
   } else {
     // The base case of manually written redistribution routines
@@ -702,6 +709,19 @@ void fft_3d_fw_blocked_low(
     assert(fft_sizes_rs[1] == npts_global[1]);
     if (fft_lib_use_mpi()) {
       fft_3d_fw_distributed(npts_global, comm, grid_buffer_1, grid_buffer_2);
+
+      // Exchange the first two dimensions
+      for (int index_y = 0; index_y < fft_sizes_gs[1]; index_y++) {
+        for (int index_z = 0; index_z < fft_sizes_gs[2]; index_z++) {
+          int transposed_index = index_y * fft_sizes_gs[2] + index_z;
+          int nontransposed_index = index_z * fft_sizes_gs[1] + index_y;
+          memcpy(&grid_buffer_1[nontransposed_index*fft_sizes_gs[0]], &grid_buffer_2[transposed_index*fft_sizes_gs[0]],
+            fft_sizes_gs[0] * sizeof(double complex));
+        }
+      }
+      memcpy(grid_buffer_2, grid_buffer_1,
+        fft_sizes_gs[0] * fft_sizes_gs[1] * fft_sizes_gs[2] *
+                 sizeof(double complex));
     } else {
       // Perform the first FFT
       fft_2d_fw_local((const int[2]){npts_global[1], npts_global[0]},

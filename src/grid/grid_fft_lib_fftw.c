@@ -17,7 +17,7 @@
 
 #if defined(__FFTW3)
 #include <fftw3.h>
-#if defined(__parallel)
+#if defined(__parallel) && defined(__FFTW3_MPI)
 #include <fftw3-mpi.h>
 #endif
 
@@ -128,7 +128,7 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   fftw_planning_mode += FFTW_UNALIGNED
 #endif
 
-#if defined(__parallel)
+#if defined(__parallel) && defined(__FFTW3_MPI)
       use_fftw_mpi = use_fft_mpi;
   fftw_mpi_init();
 #else
@@ -159,7 +159,7 @@ void fft_fftw_finalize_lib() {
   }
   is_initialized = false;
   fftw_planning_mode = -1;
-#if defined(__parallel)
+#if defined(__parallel) && defined(__FFTW3_MPI)
   fftw_mpi_cleanup();
 #else
   fftw_cleanup();
@@ -172,7 +172,7 @@ void fft_fftw_finalize_lib() {
  * \author Frederick Stein
  ******************************************************************************/
 bool fft_fftw_lib_use_mpi() {
-#if defined(__FFTW3) && defined(__parallel)
+#if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
   return use_fftw_mpi;
 #else
   return false;
@@ -377,7 +377,7 @@ fftw_plan *fft_fftw_create_3d_plan(const int direction, const int fft_size[3]) {
   return plan;
 }
 
-#if defined(__parallel)
+#if defined(__parallel) && defined(__FFTW3_MPI)
 /*******************************************************************************
  * \brief Create plan of a 1D FFT.
  * \author Frederick Stein
@@ -411,7 +411,6 @@ fftw_plan *fft_fftw_create_distributed_3d_plan(const int direction,
     add_plan_to_cache(key, plan);
     fftw_free(buffer_1);
     fftw_free(buffer_2);
-    printf("Plan created for distributed 3D FFT\n");
   }
   return plan;
 }
@@ -579,7 +578,7 @@ int fft_fftw_2d_distributed_sizes(const int npts_global[2],
                                   const int number_of_ffts,
                                   const grid_mpi_comm comm, int *local_n0,
                                   int *local_n0_start) {
-#if defined(__FFTW3) && defined(__parallel)
+#if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
   assert(npts_global[0] > 0);
@@ -614,13 +613,13 @@ int fft_fftw_3d_distributed_sizes(const int npts_global[3],
                                   const grid_mpi_comm comm, int *local_n2,
                                   int *local_n2_start, int *local_n1,
                                   int *local_n1_start) {
-#if defined(__FFTW3) && defined(__parallel)
+#if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
   assert(npts_global[0] > 0);
   assert(npts_global[1] > 0);
   assert(npts_global[2] > 0);
-  const ptrdiff_t n[3] = {npts_global[0], npts_global[1], npts_global[2]};
+  const ptrdiff_t n[3] = {npts_global[2], npts_global[1], npts_global[0]};
   ptrdiff_t my_local_n2, my_local_n2_start;
   ptrdiff_t my_local_n1, my_local_n1_start;
   const ptrdiff_t block_size_2 =
@@ -629,10 +628,6 @@ int fft_fftw_3d_distributed_sizes(const int npts_global[3],
   const ptrdiff_t block_size_1 =
       (npts_global[1] + grid_mpi_comm_size(comm) - 1) /
       grid_mpi_comm_size(comm);
-  int number_of_ranks;
-  MPI_Comm_size(comm, &number_of_ranks);
-  printf("DEBUG %i: %i\n", grid_mpi_comm_rank(comm), number_of_ranks);
-  fflush(stdout);
   const ptrdiff_t my_buffer_size = fftw_mpi_local_size_many_transposed(
       3, n, 1, block_size_2, block_size_1, comm, &my_local_n2,
       &my_local_n2_start, &my_local_n1, &my_local_n1_start);
@@ -689,14 +684,12 @@ void fft_fftw_3d_fw_distributed(const int npts_global[3],
                                 const grid_mpi_comm comm,
                                 double complex *grid_in,
                                 double complex *grid_out) {
-#if defined(__FFTW3) && defined(__parallel)
-  assert(0 && "This function is not implemented yet.");
+#if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
   fftw_plan *plan =
       fft_fftw_create_distributed_3d_plan(FFTW_FORWARD, npts_global, comm);
   fftw_mpi_execute_dft(*plan, grid_in, grid_out);
-  printf("Done distributed 3D FFT with FFTW\n");
 #else
   (void)npts_global;
   (void)comm;
