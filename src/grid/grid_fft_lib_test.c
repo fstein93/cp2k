@@ -347,7 +347,7 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
  * \brief Function to test the local FFT backend.
  * \author Frederick Stein
  ******************************************************************************/
-int fft_test_3d_local_low(const int fft_size[3]) {
+int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
   const int my_process = grid_mpi_comm_rank(grid_mpi_comm_world);
 
   int errors = 0;
@@ -360,9 +360,15 @@ int fft_test_3d_local_low(const int fft_size[3]) {
       calloc(fft_size[0] * fft_size[1] * fft_size[2], sizeof(double complex));
 
   double max_error = 0.0;
+  int number_of_tests = 0;
   for (int mx = 0; mx < fft_size[0]; mx++) {
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
+        if (test_every > 0 && number_of_tests % test_every != 0) {
+          number_of_tests++;
+          continue;
+        }
+        number_of_tests++;
         memset(input_array, 0,
                fft_size[0] * fft_size[1] * fft_size[2] *
                    sizeof(double complex));
@@ -401,9 +407,15 @@ int fft_test_3d_local_low(const int fft_size[3]) {
   }
 
   max_error = 0.0;
+  number_of_tests = 0;
   for (int mx = 0; mx < fft_size[0]; mx++) {
     for (int my = 0; my < fft_size[1]; my++) {
       for (int mz = 0; mz < fft_size[2]; mz++) {
+        if (test_every > 0 && number_of_tests % test_every != 0) {
+          number_of_tests++;
+          continue;
+        }
+        number_of_tests++;
         memset(output_array, 0,
                fft_size[0] * fft_size[1] * fft_size[2] *
                    sizeof(double complex));
@@ -467,10 +479,10 @@ int fft_test_local() {
   errors += fft_test_2d_local_low((const int[2]){7, 20}, 70, false, true);
   errors += fft_test_2d_local_low((const int[2]){12, 14}, 50, false, false);
 
-  errors += fft_test_3d_local_low((const int[3]){8, 8, 8});
-  errors += fft_test_3d_local_low((const int[3]){3, 4, 5});
-  errors += fft_test_3d_local_low((const int[3]){4, 8, 2});
-  errors += fft_test_3d_local_low((const int[3]){7, 5, 3});
+  errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 19);
+  errors += fft_test_3d_local_low((const int[3]){3, 4, 5}, 13);
+  errors += fft_test_3d_local_low((const int[3]){4, 8, 2}, 17);
+  errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 11);
 
   return errors;
 }

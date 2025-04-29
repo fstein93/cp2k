@@ -135,6 +135,8 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   (void)use_fft_mpi;
   use_fftw_mpi = false;
 #endif
+  if (use_fftw_mpi)
+    printf("Using FFTW MPI\n");
 #else
   (void)fftw_planning_flag;
   (void)use_fft_mpi;
@@ -685,6 +687,7 @@ void fft_fftw_3d_fw_distributed(const int npts_global[3],
                                 double complex *grid_in,
                                 double complex *grid_out) {
 #if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
+  printf("Using distributed 3D FFT\n");
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
   fftw_plan *plan =

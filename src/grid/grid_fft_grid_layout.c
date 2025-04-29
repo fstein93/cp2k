@@ -214,8 +214,10 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
             my_fft_grid->proc2local_rs[process][0][1];
         my_fft_grid->proc2local_ms[process][1][0] = 0;
         my_fft_grid->proc2local_ms[process][1][1] = npts_global[1] - 1;
-        my_fft_grid->proc2local_ms[process][2][0] = my_fft_grid->proc2local_rs[process][2][0];
-        my_fft_grid->proc2local_ms[process][2][1] = my_fft_grid->proc2local_rs[process][2][1];
+        my_fft_grid->proc2local_ms[process][2][0] =
+            my_fft_grid->proc2local_rs[process][2][0];
+        my_fft_grid->proc2local_ms[process][2][1] =
+            my_fft_grid->proc2local_rs[process][2][1];
       }
     }
   } else {
@@ -715,12 +717,13 @@ void fft_3d_fw_blocked_low(
         for (int index_z = 0; index_z < fft_sizes_gs[2]; index_z++) {
           int transposed_index = index_y * fft_sizes_gs[2] + index_z;
           int nontransposed_index = index_z * fft_sizes_gs[1] + index_y;
-          memcpy(&grid_buffer_1[nontransposed_index*fft_sizes_gs[0]], &grid_buffer_2[transposed_index*fft_sizes_gs[0]],
-            fft_sizes_gs[0] * sizeof(double complex));
+          memcpy(&grid_buffer_1[nontransposed_index * fft_sizes_gs[0]],
+                 &grid_buffer_2[transposed_index * fft_sizes_gs[0]],
+                 fft_sizes_gs[0] * sizeof(double complex));
         }
       }
       memcpy(grid_buffer_2, grid_buffer_1,
-        fft_sizes_gs[0] * fft_sizes_gs[1] * fft_sizes_gs[2] *
+             fft_sizes_gs[0] * fft_sizes_gs[1] * fft_sizes_gs[2] *
                  sizeof(double complex));
     } else {
       // Perform the first FFT

@@ -141,7 +141,9 @@ use of the mpi_f08 module. If its use is requested, set the flag `-D__MPI_F08`.
 
 FFTW can be used to improve FFT speed on a wide range of architectures. It is strongly recommended
 to install and use FFTW3. The current version of CP2K works with FFTW 3.X (use `-D__FFTW3`). It can
-be downloaded from <http://www.fftw.org>
+be downloaded from <http://www.fftw.org>.
+
+FFTW also provides distributed FFTs. Use `-D__FFTW3_MPI` to use this feature in CP2K.
 
 FFTW is also provided by MKL. Use `-D__FFTW3_MKL` to use the correct import path.
 
