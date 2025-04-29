@@ -202,6 +202,99 @@ void collect_z_and_distribute_y_blocked(
 }
 
 /*******************************************************************************
+ * \brief Performs a transposition of (z_D,x_D,y_D)->(z,y_D,x_D).
+ * \author Frederick Stein
+ ******************************************************************************/
+void collect_z_and_distribute_y_blocked_transpose(
+    const double complex *grid, double complex *transposed,
+    const int npts_global[3], const int (*proc2local)[3][2],
+    const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm,
+    const grid_mpi_comm sub_comm[2]) {
+  const int my_process = grid_mpi_comm_rank(comm);
+
+  int proc_coord[2];
+  int dims[2];
+  int periods[2];
+  grid_mpi_cart_get(comm, 2, dims, periods, proc_coord);
+
+  const int my_sizes[3] = {
+      proc2local[my_process][0][1] - proc2local[my_process][0][0] + 1,
+      proc2local[my_process][1][1] - proc2local[my_process][1][0] + 1,
+      proc2local[my_process][2][1] - proc2local[my_process][2][0] + 1};
+  assert(my_sizes[1] == npts_global[1]);
+  const int my_sizes_transposed[3] = {
+      proc2local_transposed[my_process][0][1] -
+          proc2local_transposed[my_process][0][0] + 1,
+      proc2local_transposed[my_process][1][1] -
+          proc2local_transposed[my_process][1][0] + 1,
+      proc2local_transposed[my_process][2][1] -
+          proc2local_transposed[my_process][2][0] + 1};
+  assert(my_sizes_transposed[2] == npts_global[2]);
+  assert(my_sizes[0] == my_sizes_transposed[0]);
+
+  int *send_displacements = calloc(dims[0], sizeof(int));
+  int *recv_displacements = calloc(dims[0], sizeof(int));
+  int *send_counts = calloc(dims[0], sizeof(int));
+  int *recv_counts = calloc(dims[0], sizeof(int));
+  double complex *send_buffer =
+      calloc(product3(my_sizes), sizeof(double complex));
+
+  int send_offset = 0;
+  int recv_offset = 0;
+  for (int process = 0; process < dims[0]; process++) {
+    // Setup arrays
+    send_displacements[process] = send_offset;
+    recv_displacements[process] = recv_offset;
+    int rank;
+    grid_mpi_cart_rank(comm, (const int[2]){process, proc_coord[1]}, &rank);
+    const int current_send_count = my_sizes[0] *
+                                   (proc2local_transposed[rank][1][1] -
+                                    proc2local_transposed[rank][1][0] + 1) *
+                                   my_sizes[2];
+    send_counts[process] = current_send_count;
+    const int current_recv_count =
+        my_sizes_transposed[0] * my_sizes_transposed[1] *
+        (proc2local[rank][2][1] - proc2local[rank][2][0] + 1);
+    recv_counts[process] = current_recv_count;
+    send_offset += current_send_count;
+    recv_offset += current_recv_count;
+// Copy the data to the send buffer and exchange the last two indices
+#pragma omp parallel for collapse(2) default(none)                             \
+    shared(my_sizes, my_sizes_transposed, proc2local, proc2local_transposed,   \
+               send_buffer, grid, send_displacements, process, rank)
+    for (int index_z = 0; index_z < my_sizes[2]; index_z++) {
+      for (int index_y = 0; index_y < (proc2local_transposed[rank][1][1] -
+                                       proc2local_transposed[rank][1][0] + 1);
+           index_y++) {
+        for (int index_x = 0; index_x < my_sizes[0]; index_x++) {
+          send_buffer[send_displacements[process] +
+                      (index_z * (proc2local_transposed[rank][1][1] -
+                                  proc2local_transposed[rank][1][0] + 1) +
+                       index_y) *
+                          my_sizes[0] +
+                      index_x] =
+              grid[(index_z * my_sizes[0] + index_x) * my_sizes[1] +
+                   proc2local_transposed[rank][1][0] + index_y];
+        }
+      }
+    }
+  }
+  assert(send_offset == product3(my_sizes));
+  assert(recv_offset == product3(my_sizes_transposed));
+
+  // Use collective MPI communication
+  grid_mpi_alltoallv_double_complex(send_buffer, send_counts,
+                                    send_displacements, transposed, recv_counts,
+                                    recv_displacements, sub_comm[0]);
+
+  free(send_buffer);
+  free(send_counts);
+  free(send_displacements);
+  free(recv_counts);
+  free(recv_displacements);
+}
+
+/*******************************************************************************
  * \brief Performs a transposition of (z,x,y)->(y,z,x).
  * \author Frederick Stein
  ******************************************************************************/

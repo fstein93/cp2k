@@ -135,7 +135,8 @@ void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
 int fft_fftw_2d_distributed_sizes(const int npts_global[2],
                                   const int number_of_ffts,
                                   const grid_mpi_comm comm, int *local_n0,
-                                  int *local_n0_start);
+                                  int *local_n0_start, int *local_n1,
+                                  int *local_n1_start);
 
 /*******************************************************************************
  * \brief Return buffer size and local sizes and start for distributed 3D FFTs.

@@ -58,15 +58,14 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
 
   // Check forward 3D FFTs
   double max_error = 0.0;
-  int number_of_tests = 0;
+  int number_of_tests = -1;
   for (int nx = 0; nx < npts_global[0]; nx++) {
     for (int ny = 0; ny < npts_global[1]; ny++) {
       for (int nz = 0; nz < npts_global[2]; nz++) {
+        number_of_tests++;
         if (test_every > 0 && number_of_tests % test_every != 0) {
-          number_of_tests++;
           continue;
         }
-        number_of_tests++;
         double *buffer_real = grid_rs.data;
         memset(buffer_real, 0, my_number_of_elements_rs * sizeof(double));
 

@@ -379,7 +379,56 @@ fftw_plan *fft_fftw_create_3d_plan(const int direction, const int fft_size[3]) {
   return plan;
 }
 
-#if defined(__parallel) && defined(__FFTW3_MPI)
+#if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
+/*******************************************************************************
+ * \brief Create plan of a 1D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+fftw_plan *fft_fftw_create_distributed_2d_plan(const int direction,
+                                               const int fft_size[2],
+                                               const int number_of_ffts,
+                                               const grid_mpi_comm comm) {
+  const int key[6] = {2,           grid_mpi_comm_c2f(comm),
+                      direction,   fft_size[0],
+                      fft_size[1], number_of_ffts};
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    const int nthreads = omp_get_max_threads();
+    fftw_plan_with_nthreads(nthreads);
+    if (number_of_ffts == 0)
+      return plan;
+    const int block_size_0 =
+        (fft_size[0] + grid_mpi_comm_size(comm) - 1) / grid_mpi_comm_size(comm);
+    const int block_size_1 =
+        (fft_size[1] + grid_mpi_comm_size(comm) - 1) / grid_mpi_comm_size(comm);
+    ptrdiff_t local_n0, local_0_start;
+    ptrdiff_t local_n1, local_1_start;
+    const ptrdiff_t n[2] = {fft_size[0], fft_size[1]};
+    const ptrdiff_t howmany = number_of_ffts;
+    printf("DEBUG %i %i %i\n", fft_size[0], fft_size[1], number_of_ffts);
+    fflush(stdout);
+    const int buffer_size = fftw_mpi_local_size_many_transposed(
+        2, n, howmany, block_size_0, block_size_1, comm, &local_n0,
+        &local_0_start, &local_n1, &local_1_start);
+    double complex *buffer_1 = fftw_alloc_complex(buffer_size);
+    double complex *buffer_2 = fftw_alloc_complex(buffer_size);
+    plan = malloc(sizeof(fftw_plan));
+    if (direction == FFTW_FORWARD) {
+      *plan = fftw_mpi_plan_many_dft(
+          2, n, howmany, block_size_0, block_size_1, buffer_1, buffer_2, comm,
+          direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+    } else {
+      *plan = fftw_mpi_plan_many_dft(
+          2, n, howmany, block_size_0, block_size_1, buffer_1, buffer_2, comm,
+          direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
+    }
+    add_plan_to_cache(key, plan);
+    fftw_free(buffer_1);
+    fftw_free(buffer_2);
+  }
+  return plan;
+}
+
 /*******************************************************************************
  * \brief Create plan of a 1D FFT.
  * \author Frederick Stein
@@ -585,22 +634,34 @@ void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
 int fft_fftw_2d_distributed_sizes(const int npts_global[2],
                                   const int number_of_ffts,
                                   const grid_mpi_comm comm, int *local_n0,
-                                  int *local_n0_start) {
+                                  int *local_n0_start, int *local_n1,
+                                  int *local_n1_start) {
 #if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
-  assert(npts_global[0] > 0);
-  assert(npts_global[1] > 0);
-  assert(number_of_ffts > 0);
+  if (npts_global[0] <= 0 || npts_global[1] <= 0 || number_of_ffts <= 0) {
+    *local_n0_start = 0;
+    *local_n1_start = 0;
+    *local_n0 = 0;
+    *local_n1 = 0;
+    return 0;
+  }
   const ptrdiff_t n[2] = {npts_global[0], npts_global[1]};
   const ptrdiff_t howmany = number_of_ffts;
-  const ptrdiff_t block_size = (npts_global[0] + grid_mpi_comm_size(comm) - 1) /
-                               grid_mpi_comm_size(comm);
-  ptrdiff_t my_local_n0, my_local_n0_start;
-  const ptrdiff_t buffer_size = fftw_mpi_local_size_many(
-      2, n, howmany, block_size, comm, &my_local_n0, &my_local_n0_start);
+  const ptrdiff_t block_size_0 =
+      (npts_global[0] + grid_mpi_comm_size(comm) - 1) /
+      grid_mpi_comm_size(comm);
+  const ptrdiff_t block_size_1 =
+      (npts_global[1] + grid_mpi_comm_size(comm) - 1) /
+      grid_mpi_comm_size(comm);
+  ptrdiff_t my_local_n0, my_local_n0_start, my_local_n1, my_local_n1_start;
+  const ptrdiff_t buffer_size = fftw_mpi_local_size_many_transposed(
+      2, n, howmany, block_size_0, block_size_1, comm, &my_local_n0,
+      &my_local_n0_start, &my_local_n1, &my_local_n1_start);
   *local_n0 = my_local_n0;
   *local_n0_start = my_local_n0_start;
+  *local_n1 = my_local_n1;
+  *local_n1_start = my_local_n1_start;
   return buffer_size;
 #else
   (void)npts_global;
@@ -608,6 +669,8 @@ int fft_fftw_2d_distributed_sizes(const int npts_global[2],
   (void)comm;
   (void)local_n0;
   (void)local_n0_start;
+  (void)local_n1;
+  (void)local_n1_start;
   assert(0 && "The grid library was not compiled with FFTW support.");
   return -1;
 #endif
@@ -624,9 +687,13 @@ int fft_fftw_3d_distributed_sizes(const int npts_global[3],
 #if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
-  assert(npts_global[0] > 0);
-  assert(npts_global[1] > 0);
-  assert(npts_global[2] > 0);
+  if (npts_global[0] <= 0 || npts_global[1] <= 0 || npts_global[2] <= 0) {
+    *local_n2_start = 0;
+    *local_n1_start = 0;
+    *local_n2 = 0;
+    *local_n1 = 0;
+    return 0;
+  }
   const ptrdiff_t n[3] = {npts_global[2], npts_global[1], npts_global[0]};
   ptrdiff_t my_local_n2, my_local_n2_start;
   ptrdiff_t my_local_n1, my_local_n1_start;
@@ -665,15 +732,16 @@ void fft_fftw_2d_fw_distributed(const int npts_global[2],
                                 const grid_mpi_comm comm,
                                 double complex *grid_in,
                                 double complex *grid_out) {
-#if defined(__FFTW3)
+#if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
-  assert(grid_in != NULL);
-  assert(grid_out != NULL);
-  assert(npts_global[0] > 0);
-  assert(npts_global[1] > 0);
-  assert(number_of_ffts > 0);
-  (void)comm;
+  if (npts_global[0] <= 0 || npts_global[1] <= 0 || number_of_ffts <= 0) {
+    return;
+  }
+  fftw_plan *plan = fft_fftw_create_distributed_2d_plan(
+      FFTW_FORWARD, npts_global, number_of_ffts, comm);
+  if (plan != NULL)
+    fftw_mpi_execute_dft(*plan, grid_in, grid_out);
 #else
   (void)npts_global;
   (void)number_of_ffts;
@@ -695,6 +763,9 @@ void fft_fftw_3d_fw_distributed(const int npts_global[3],
 #if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
+  if (npts_global[0] <= 0 || npts_global[1] <= 0 || npts_global[2] <= 0) {
+    return;
+  }
   fftw_plan *plan =
       fft_fftw_create_distributed_3d_plan(FFTW_FORWARD, npts_global, comm);
   fftw_mpi_execute_dft(*plan, grid_in, grid_out);
@@ -718,6 +789,9 @@ void fft_fftw_3d_bw_distributed(const int npts_global[3],
 #if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
+  if (npts_global[0] <= 0 || npts_global[1] <= 0 || npts_global[2] <= 0) {
+    return;
+  }
   fftw_plan *plan =
       fft_fftw_create_distributed_3d_plan(FFTW_BACKWARD, npts_global, comm);
   fftw_mpi_execute_dft(*plan, grid_in, grid_out);

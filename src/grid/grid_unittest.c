@@ -104,6 +104,7 @@ int main(int argc, char *argv[]) {
   errors += run_test(argv[1], "general_overflow.task");
 
   errors += fft_test_local();
+  errors += fft_test_distributed();
   errors += fft_test_transpose();
   errors += fft_test_transpose_parallel();
   errors += fft_test_3d();
