@@ -350,4 +350,20 @@ void fft_3d_fw_distributed(const int npts_global[3], const grid_mpi_comm comm,
   }
 }
 
+/*******************************************************************************
+ * \brief Performs a distributed 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_bw_distributed(const int npts_global[3], const grid_mpi_comm comm,
+                           double complex *grid_in, double complex *grid_out) {
+  assert(fft_lib_use_mpi());
+  switch (grid_fft_lib_choice) {
+  case GRID_FFT_LIB_FFTW:
+    fft_fftw_3d_bw_distributed(npts_global, comm, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Distributed 3D FFT not available.");
+  }
+}
+
 // EOF

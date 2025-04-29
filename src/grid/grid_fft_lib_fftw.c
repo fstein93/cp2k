@@ -250,7 +250,7 @@ fftw_plan *fft_fftw_create_1d_plan(const int direction, const int fft_size,
                                    const bool transpose_gs) {
   const int key[6] = {1 + FFTW_TRANSPOSE_RS * transpose_rs +
                           FFTW_TRANSPOSE_GS * transpose_gs,
-                      grid_mpi_comm_c2f(grid_mpi_comm_self),
+                      grid_mpi_comm_c2f(grid_mpi_comm_null),
                       direction,
                       fft_size,
                       number_of_ffts,
@@ -305,7 +305,7 @@ fftw_plan *fft_fftw_create_2d_plan(const int direction, const int fft_size[2],
                                    const bool transpose_gs) {
   const int key[6] = {2 + FFTW_TRANSPOSE_RS * transpose_rs +
                           FFTW_TRANSPOSE_GS * transpose_gs,
-                      grid_mpi_comm_c2f(grid_mpi_comm_self),
+                      grid_mpi_comm_c2f(grid_mpi_comm_null),
                       direction,
                       fft_size[1],
                       fft_size[0],
@@ -359,7 +359,7 @@ fftw_plan *fft_fftw_create_2d_plan(const int direction, const int fft_size[2],
 fftw_plan *fft_fftw_create_3d_plan(const int direction, const int fft_size[3]) {
   // add
   const int key[6] = {
-      3,           direction,   grid_mpi_comm_c2f(grid_mpi_comm_self),
+      3,           direction,   grid_mpi_comm_c2f(grid_mpi_comm_null),
       fft_size[2], fft_size[1], fft_size[0]};
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -407,9 +407,15 @@ fftw_plan *fft_fftw_create_distributed_3d_plan(const int direction,
     double complex *buffer_1 = fftw_alloc_complex(buffer_size);
     double complex *buffer_2 = fftw_alloc_complex(buffer_size);
     plan = malloc(sizeof(fftw_plan));
-    *plan = fftw_mpi_plan_many_dft(
-        3, n, 1, block_size_2, block_size_1, buffer_1, buffer_2, comm,
-        direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+    if (direction == FFTW_FORWARD) {
+      *plan = fftw_mpi_plan_many_dft(
+          3, n, 1, block_size_2, block_size_1, buffer_1, buffer_2, comm,
+          direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+    } else {
+      *plan = fftw_mpi_plan_many_dft(
+          3, n, 1, block_size_1, block_size_2, buffer_1, buffer_2, comm,
+          direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
+    }
     add_plan_to_cache(key, plan);
     fftw_free(buffer_1);
     fftw_free(buffer_2);
@@ -687,11 +693,33 @@ void fft_fftw_3d_fw_distributed(const int npts_global[3],
                                 double complex *grid_in,
                                 double complex *grid_out) {
 #if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
-  printf("Using distributed 3D FFT\n");
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
   fftw_plan *plan =
       fft_fftw_create_distributed_3d_plan(FFTW_FORWARD, npts_global, comm);
+  fftw_mpi_execute_dft(*plan, grid_in, grid_out);
+#else
+  (void)npts_global;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_3d_bw_distributed(const int npts_global[3],
+                                const grid_mpi_comm comm,
+                                double complex *grid_in,
+                                double complex *grid_out) {
+#if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(use_fftw_mpi);
+  fftw_plan *plan =
+      fft_fftw_create_distributed_3d_plan(FFTW_BACKWARD, npts_global, comm);
   fftw_mpi_execute_dft(*plan, grid_in, grid_out);
 #else
   (void)npts_global;

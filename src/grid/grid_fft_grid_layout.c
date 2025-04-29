@@ -798,18 +798,36 @@ void fft_3d_bw_blocked_low(
     fft_1d_bw_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false,
                     true, grid_buffer_1, grid_buffer_2);
   } else if (proc_grid[0] > 1) {
-    // Perform the first FFT and one transposition (z,y,x)->(x,z,y)
-    fft_1d_bw_local(npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1], false,
-                    true, grid_buffer_1, grid_buffer_2);
+    if (fft_lib_use_mpi()) {
+      // Exchange the first two dimensions
+      for (int index_y = 0; index_y < fft_sizes_gs[1]; index_y++) {
+        for (int index_z = 0; index_z < fft_sizes_gs[2]; index_z++) {
+          int transposed_index = index_y * fft_sizes_gs[2] + index_z;
+          int nontransposed_index = index_z * fft_sizes_gs[1] + index_y;
+          memcpy(&grid_buffer_2[transposed_index * fft_sizes_gs[0]],
+                 &grid_buffer_1[nontransposed_index * fft_sizes_gs[0]],
+                 fft_sizes_gs[0] * sizeof(double complex));
+        }
+      }
+      fft_3d_bw_distributed(npts_global, comm, grid_buffer_2, grid_buffer_1);
+      memcpy(grid_buffer_2, grid_buffer_1,
+             fft_sizes_rs[0] * fft_sizes_rs[1] * fft_sizes_rs[2] *
+                 sizeof(double complex));
+    } else {
+      // Perform the first FFT and one transposition (z,y,x)->(x,z,y)
+      fft_1d_bw_local(npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1], false,
+                      true, grid_buffer_1, grid_buffer_2);
 
-    // Collect data in y-direction and distribute x-direction
-    collect_y_and_distribute_z_blocked(grid_buffer_2, grid_buffer_1,
-                                       npts_global, proc2local_gs,
-                                       proc2local_ms, comm, sub_comm);
+      // Collect data in y-direction and distribute x-direction
+      collect_y_and_distribute_z_blocked(grid_buffer_2, grid_buffer_1,
+                                         npts_global, proc2local_gs,
+                                         proc2local_ms, comm, sub_comm);
 
-    // Perform the second FFT and one transposition (x,z,y)->(y,x,z)
-    fft_2d_bw_local((const int[2]){npts_global[1], npts_global[0]},
-                    fft_sizes_ms[2], false, true, grid_buffer_1, grid_buffer_2);
+      // Perform the second FFT and one transposition (x,z,y)->(y,x,z)
+      fft_2d_bw_local((const int[2]){npts_global[1], npts_global[0]},
+                      fft_sizes_ms[2], false, true, grid_buffer_1,
+                      grid_buffer_2);
+    }
   } else {
     fft_3d_bw_local(npts_global, grid_buffer_1, grid_buffer_2);
   }

@@ -165,6 +165,15 @@ void fft_fftw_3d_fw_distributed(const int npts_global[3],
                                 double complex *grid_in,
                                 double complex *grid_out);
 
+/*******************************************************************************
+ * \brief Performs a distributed 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_3d_bw_distributed(const int npts_global[3],
+                                const grid_mpi_comm comm,
+                                double complex *grid_in,
+                                double complex *grid_out);
+
 #endif /* GRID_FFT_LIB_FFTW_H */
 
 // EOF
