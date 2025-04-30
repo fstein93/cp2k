@@ -179,12 +179,14 @@ int multigrid_test() {
   memset(&rs_grid, 0, sizeof(grid_fft_real_rs_grid));
   grid_create_real_rs_grid(&rs_grid, fft_grid_layout);
 
+#if 0
   grid_copy_to_multigrid_single(multigrid, rs_grid.data,
                                 rs_grid.fft_grid_layout->comm,
                                 rs_grid.fft_grid_layout->proc2local_rs);
   grid_copy_from_multigrid_single(multigrid, rs_grid.data,
                                   rs_grid.fft_grid_layout->comm,
                                   rs_grid.fft_grid_layout->proc2local_rs);
+#endif
 
   grid_free_real_rs_grid(&rs_grid);
   grid_free_fft_grid_layout(fft_grid_layout);

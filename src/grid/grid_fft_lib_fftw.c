@@ -23,13 +23,13 @@
 
 /*******************************************************************************
  * \brief Static variables for retaining objects that are expensive to create.
- * \author Ole Schuett
+ * \author Ole Schuett, Frederick Stein
  ******************************************************************************/
 typedef struct {
   // The key contains
   // 0: rank, transposition (see below)
-  // 1: associated communicator
-  // 2: direction
+  // 1: associated communicator handle (from Fortran)
+  // 2: direction (forward/backward)
   // 3, 4, 5: FFT sizes (or FFT sizes and number of FFTs)
   int key[6];
   fftw_plan *plan;
@@ -102,6 +102,7 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   cache_oldest_entry = 0;
 
   is_initialized = true;
+  // We need a threaded library!
   fftw_init_threads();
 
   fftw_planning_mode = fftw_planning_flag;
@@ -122,8 +123,9 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
     assert(0 && "Unknown FFTW planning flag.");
   }
 
-  // FIXME:
-  // Some systems apparently do not support memory alignment
+  // TODO:
+  // This is only necessary if these routines are called with non-aligned memory
+  // (use fftw_alignment_of to check for that)
 #if defined(__FFTW3_UNALIGNED)
   fftw_planning_mode += FFTW_UNALIGNED
 #endif
