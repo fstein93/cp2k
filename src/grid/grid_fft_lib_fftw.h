@@ -158,6 +158,16 @@ void fft_fftw_2d_fw_distributed(const int npts_global[2],
                                 double complex *grid_out);
 
 /*******************************************************************************
+ * \brief Performs a distributed 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_2d_bw_distributed(const int npts_global[2],
+                                const int number_of_ffts,
+                                const grid_mpi_comm comm,
+                                double complex *grid_in,
+                                double complex *grid_out);
+
+/*******************************************************************************
  * \brief Performs a distributed 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/

@@ -158,8 +158,8 @@ void grid_free_fft_grid_layout(grid_fft_grid_layout *fft_grid) {
       free(fft_grid->proc2local_gs);
       fft_free_complex(fft_grid->buffer_1);
       fft_free_complex(fft_grid->buffer_2);
-      free(fft_grid->xy_to_process);
-      free(fft_grid->ray_to_xy);
+      free(fft_grid->yz_to_process);
+      free(fft_grid->ray_to_yz);
       free(fft_grid->rays_per_process);
       free(fft_grid->index_to_g);
       free(fft_grid->local_index_to_ref_grid);
@@ -235,6 +235,8 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
 #pragma omp parallel for default(none)                                         \
     shared(my_fft_grid, npts_global, block_size_z_gs, number_of_processes)
       for (int process = 0; process < number_of_processes; process++) {
+        int proc_coords[2];
+        grid_mpi_cart_coords(my_fft_grid->comm, process, 2, proc_coords);
         // x needs to be available entirely
         my_fft_grid->proc2local_gs[process][0][0] = 0;
         my_fft_grid->proc2local_gs[process][0][1] = npts_global[0] - 1;
@@ -245,10 +247,9 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
             my_fft_grid->proc2local_ms[process][1][1];
         // z is redistributed now
         my_fft_grid->proc2local_gs[process][2][0] =
-            imin(block_size_z_gs * my_fft_grid->proc_coords[1], npts_global[2]);
-        my_fft_grid->proc2local_gs[process][2][1] =
-            imin(block_size_z_gs * (my_fft_grid->proc_coords[1] + 1) - 1,
-                 npts_global[2] - 1);
+            imin(block_size_z_gs * proc_coords[1], npts_global[2]);
+        my_fft_grid->proc2local_gs[process][2][1] = imin(
+            block_size_z_gs * (proc_coords[1] + 1) - 1, npts_global[2] - 1);
       }
       // We need to consider the last transformation step for the buffer size
       my_fft_grid->buffer_size =
@@ -469,8 +470,8 @@ void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
 
   allocate_fft_buffers(my_fft_grid);
 
-  my_fft_grid->xy_to_process = NULL;
-  my_fft_grid->ray_to_xy = NULL;
+  my_fft_grid->yz_to_process = NULL;
+  my_fft_grid->ray_to_yz = NULL;
   my_fft_grid->rays_per_process = NULL;
   my_fft_grid->index_to_g = calloc(my_fft_grid->npts_gs_local, sizeof(int[3]));
 #pragma omp parallel for default(none) shared(my_fft_grid, my_process)
@@ -563,12 +564,12 @@ void grid_create_fft_grid_layout_from_reference(
 
   setup_proc2local(my_fft_grid, npts_global);
 
-  // Assign the (xy)-rays of the reference grid which are also on the current
+  // Assign the (yz)-rays of the reference grid which are also on the current
   // grid to each process
-  my_fft_grid->xy_to_process =
-      malloc(npts_global[0] * npts_global[1] * sizeof(int));
-  memset(my_fft_grid->xy_to_process, -1,
-         npts_global[0] * npts_global[1] * sizeof(int));
+  my_fft_grid->yz_to_process =
+      malloc(npts_global[1] * npts_global[2] * sizeof(int));
+  memset(my_fft_grid->yz_to_process, -1,
+         npts_global[1] * npts_global[2] * sizeof(int));
   // Count the number of rays on each process
   my_fft_grid->rays_per_process = calloc(number_of_processes, sizeof(int));
   int total_number_of_rays = 0;
@@ -576,18 +577,18 @@ void grid_create_fft_grid_layout_from_reference(
     shared(my_fft_grid, fft_grid_ref, npts_global, number_of_processes)        \
     reduction(+ : total_number_of_rays)
   for (int process = 0; process < number_of_processes; process++) {
-    for (int index_x = fft_grid_ref->proc2local_gs[process][0][0];
-         index_x <= fft_grid_ref->proc2local_gs[process][0][1]; index_x++) {
+    for (int index_z = fft_grid_ref->proc2local_gs[process][2][0];
+         index_z <= fft_grid_ref->proc2local_gs[process][2][1]; index_z++) {
       // The right half of the indices is shifted
-      const int index_x_shifted = convert_c_index_to_shifted_index(
-          index_x, fft_grid_ref->npts_global[0]);
+      const int index_z_shifted = convert_c_index_to_shifted_index(
+          index_z, fft_grid_ref->npts_global[2]);
       // Compare the shifted index with the allowed subset of shifted indices of
       // the new grid The allowed set is given by -(n-1)//2...n//2 (these are
       // always n elements)
-      if (!is_on_grid(index_x_shifted, npts_global[0]))
+      if (!is_on_grid(index_z_shifted, npts_global[2]))
         continue;
-      const int index_x_new =
-          convert_shifted_index_to_c_index(index_x_shifted, npts_global[0]);
+      const int index_z_new =
+          convert_shifted_index_to_c_index(index_z_shifted, npts_global[2]);
       for (int index_y = fft_grid_ref->proc2local_gs[process][1][0];
            index_y <= fft_grid_ref->proc2local_gs[process][1][1]; index_y++) {
         // The right half of the indices is shifted
@@ -598,9 +599,9 @@ void grid_create_fft_grid_layout_from_reference(
           continue;
         const int index_y_new =
             convert_shifted_index_to_c_index(index_y_shifted, npts_global[1]);
-        assert(my_fft_grid->xy_to_process[index_x_new * npts_global[1] +
+        assert(my_fft_grid->yz_to_process[index_z_new * npts_global[1] +
                                           index_y_new] < 0);
-        my_fft_grid->xy_to_process[index_x_new * npts_global[1] + index_y_new] =
+        my_fft_grid->yz_to_process[index_z_new * npts_global[1] + index_y_new] =
             process;
         my_fft_grid->rays_per_process[process]++;
         total_number_of_rays++;
@@ -608,7 +609,7 @@ void grid_create_fft_grid_layout_from_reference(
     }
   }
   my_fft_grid->npts_gs_local =
-      npts_global[2] * my_fft_grid->rays_per_process[my_process];
+      npts_global[0] * my_fft_grid->rays_per_process[my_process];
 
   allocate_fft_buffers(my_fft_grid);
 
@@ -622,17 +623,17 @@ void grid_create_fft_grid_layout_from_reference(
              my_fft_grid->rays_per_process[number_of_processes - 1] ==
          total_number_of_rays);
 
-  // Create the map of xy index to the xy coordinates and the z-values required
+  // Create the map of yz index to the yz coordinates and the x-values required
   // for the mixed space
-  my_fft_grid->ray_to_xy = malloc(total_number_of_rays * sizeof(int[2]));
-  memset(my_fft_grid->ray_to_xy, -1, total_number_of_rays * sizeof(int[2]));
-  for (int index_x = 0; index_x < fft_grid_ref->npts_global[0]; index_x++) {
-    const int index_x_shifted =
-        convert_c_index_to_shifted_index(index_x, fft_grid_ref->npts_global[0]);
-    if (!is_on_grid(index_x_shifted, npts_global[0]))
+  my_fft_grid->ray_to_yz = malloc(total_number_of_rays * sizeof(int[2]));
+  memset(my_fft_grid->ray_to_yz, -1, total_number_of_rays * sizeof(int[2]));
+  for (int index_z = 0; index_z < fft_grid_ref->npts_global[2]; index_z++) {
+    const int index_z_shifted =
+        convert_c_index_to_shifted_index(index_z, fft_grid_ref->npts_global[2]);
+    if (!is_on_grid(index_z_shifted, npts_global[2]))
       continue;
-    const int index_x_new =
-        convert_shifted_index_to_c_index(index_x_shifted, npts_global[0]);
+    const int index_z_new =
+        convert_shifted_index_to_c_index(index_z_shifted, npts_global[2]);
     for (int index_y = 0; index_y < fft_grid_ref->npts_global[1]; index_y++) {
       const int index_y_shifted = convert_c_index_to_shifted_index(
           index_y, fft_grid_ref->npts_global[1]);
@@ -643,13 +644,13 @@ void grid_create_fft_grid_layout_from_reference(
           convert_shifted_index_to_c_index(index_y_shifted, npts_global[1]);
       const int current_process =
           my_fft_grid
-              ->xy_to_process[index_x_new * npts_global[1] + index_y_new];
+              ->yz_to_process[index_z_new * npts_global[1] + index_y_new];
       const int current_ray_index = ray_index_per_process[current_process];
       const int current_ray_offset = ray_offsets[current_process];
-      my_fft_grid->ray_to_xy[current_ray_offset + current_ray_index][0] =
-          index_x_new;
-      my_fft_grid->ray_to_xy[current_ray_offset + current_ray_index][1] =
+      my_fft_grid->ray_to_yz[current_ray_offset + current_ray_index][0] =
           index_y_new;
+      my_fft_grid->ray_to_yz[current_ray_offset + current_ray_index][1] =
+          index_z_new;
       ray_index_per_process[current_process]++;
     }
   }
@@ -660,14 +661,14 @@ void grid_create_fft_grid_layout_from_reference(
     const int current_ray_offset = ray_offsets[process];
     for (int ray_index = 0; ray_index < my_fft_grid->rays_per_process[process];
          ray_index++) {
-      assert(my_fft_grid->ray_to_xy[current_ray_offset + ray_index][0] >= 0 &&
-             my_fft_grid->ray_to_xy[current_ray_offset + ray_index][1] >= 0 &&
-             "The ray has to be assigned to a valid xy index!");
-      assert(my_fft_grid->ray_to_xy[current_ray_offset + ray_index][0] <
-                 npts_global[0] &&
-             my_fft_grid->ray_to_xy[current_ray_offset + ray_index][1] <
+      assert(my_fft_grid->ray_to_yz[current_ray_offset + ray_index][0] >= 0 &&
+             my_fft_grid->ray_to_yz[current_ray_offset + ray_index][1] >= 0 &&
+             "The ray has to be assigned to a valid yz index!");
+      assert(my_fft_grid->ray_to_yz[current_ray_offset + ray_index][0] <
                  npts_global[1] &&
-             "The ray has to be assigned to a valid xy index!");
+             my_fft_grid->ray_to_yz[current_ray_offset + ray_index][1] <
+                 npts_global[2] &&
+             "The ray has to be assigned to a valid yz index!");
     }
   }
 
@@ -752,13 +753,13 @@ void fft_3d_fw_blocked_low(
     if (fft_lib_use_mpi()) {
       // Perform the first two FFTs in x- and y-direction
       // transpose the last two indices (is cheaper)
-      // (z_d,y_d,x) -> (z_d,x_d,y)
+      // (z_d,y,x_d) -> (y_d,z,x_d)
       fft_2d_fw_distributed((const int[2]){npts_global[2], npts_global[1]},
                             fft_sizes_rs[0], sub_comm[0], grid_buffer_1,
                             grid_buffer_2);
 
       // Perform second redistribution and transpose
-      // (z_d,x_d,y) -> (z,y_d,x_d)
+      // (y_d,z,x_d) -> (x,z_d,y_d)
       collect_x_and_distribute_z_blocked_transpose(
           grid_buffer_2, grid_buffer_1, npts_global, proc2local_ms,
           proc2local_gs, comm, sub_comm);
@@ -860,27 +861,46 @@ void fft_3d_bw_blocked_low(
   grid_mpi_cart_get(comm, 2, proc_grid, periods, my_coord);
 
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
-    // Perform the first FFT and one transposition (z,y,x)->(x,z,y)
-    fft_1d_bw_local(npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1], false,
-                    true, grid_buffer_1, grid_buffer_2);
+    if (fft_lib_use_mpi()) {
+      // Perform the first FFT in x-direction
+      fft_1d_bw_local(npts_global[0], fft_sizes_gs[1] * fft_sizes_gs[2], true,
+                      false, grid_buffer_1, grid_buffer_2);
 
-    // Collect data in y-direction and distribute x-direction
-    collect_y_and_distribute_z_blocked(grid_buffer_2, grid_buffer_1,
-                                       npts_global, proc2local_gs,
-                                       proc2local_ms, comm, sub_comm);
+      // Perform second redistribution and transpose
+      // (x,z_d,y_d) -> (y_d,z,x_d)
+      collect_z_and_distribute_x_blocked_transpose(
+          grid_buffer_2, grid_buffer_1, npts_global, proc2local_ms,
+          proc2local_gs, comm, sub_comm);
 
-    // Perform the second FFT and one transposition (x,z,y)->(y,x,z)
-    fft_1d_bw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2], false,
-                    true, grid_buffer_1, grid_buffer_2);
+      // Perform the first two FFTs in x- and y-direction
+      // transpose the last two indices (is cheaper)
+      // (z_d,y,x_d) -> (y_d,z,x_d)
+      fft_2d_bw_distributed((const int[2]){npts_global[2], npts_global[1]},
+                            fft_sizes_rs[0], sub_comm[0], grid_buffer_1,
+                            grid_buffer_2);
+    } else {
+      // Perform the first FFT and one transposition (z,y,x)->(x,z,y)
+      fft_1d_bw_local(npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1], false,
+                      true, grid_buffer_1, grid_buffer_2);
 
-    // Collect data in z-direction and distribute y-direction
-    collect_x_and_distribute_y_blocked(grid_buffer_2, grid_buffer_1,
-                                       npts_global, proc2local_ms,
-                                       proc2local_rs, comm, sub_comm);
+      // Collect data in y-direction and distribute x-direction
+      collect_y_and_distribute_z_blocked(grid_buffer_2, grid_buffer_1,
+                                         npts_global, proc2local_gs,
+                                         proc2local_ms, comm, sub_comm);
 
-    // Perform the third FFT and one transposition (y,x,z)->(z,y,x)
-    fft_1d_bw_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false,
-                    true, grid_buffer_1, grid_buffer_2);
+      // Perform the second FFT and one transposition (x,z,y)->(y,x,z)
+      fft_1d_bw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2], false,
+                      true, grid_buffer_1, grid_buffer_2);
+
+      // Collect data in z-direction and distribute y-direction
+      collect_x_and_distribute_y_blocked(grid_buffer_2, grid_buffer_1,
+                                         npts_global, proc2local_ms,
+                                         proc2local_rs, comm, sub_comm);
+
+      // Perform the third FFT and one transposition (y,x,z)->(z,y,x)
+      fft_1d_bw_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false,
+                      true, grid_buffer_1, grid_buffer_2);
+    }
   } else if (proc_grid[0] > 1) {
     if (fft_lib_use_mpi()) {
       // Exchange the first two dimensions
@@ -925,7 +945,7 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
                        double complex *grid_buffer_2, const int npts_global[3],
                        const int (*proc2local_rs)[3][2],
                        const int (*proc2local_ms)[3][2],
-                       const int *rays_per_process, const int (*ray_to_xy)[2],
+                       const int *rays_per_process, const int (*ray_to_yz)[2],
                        const grid_mpi_comm comm,
                        const grid_mpi_comm sub_comm[2]) {
   const int my_process = grid_mpi_comm_rank(comm);
@@ -939,7 +959,7 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
       proc2local_ms[my_process][0][1] - proc2local_ms[my_process][0][0] + 1,
       proc2local_ms[my_process][1][1] - proc2local_ms[my_process][1][0] + 1,
       proc2local_ms[my_process][2][1] - proc2local_ms[my_process][2][0] + 1};
-  int number_of_local_xy_rays = rays_per_process[my_process];
+  int number_of_local_yz_rays = rays_per_process[my_process];
 
   int proc_grid[2];
   int periods[2];
@@ -962,11 +982,11 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
 
     // Perform second transpose
     collect_z_and_distribute_y_ray(grid_buffer_2, grid_buffer_1, npts_global,
-                                   proc2local_ms, rays_per_process, ray_to_xy,
+                                   proc2local_ms, rays_per_process, ray_to_yz,
                                    comm);
 
     // Perform the third FFT
-    fft_1d_fw_local(npts_global[2], number_of_local_xy_rays, false, true,
+    fft_1d_fw_local(npts_global[2], number_of_local_yz_rays, false, true,
                     grid_buffer_1, grid_buffer_2);
   } else if (proc_grid[0] > 1) {
     // Perform the first FFT
@@ -975,30 +995,30 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
 
     // Perform second transpose
     collect_z_and_distribute_y_ray(grid_buffer_2, grid_buffer_1, npts_global,
-                                   proc2local_ms, rays_per_process, ray_to_xy,
+                                   proc2local_ms, rays_per_process, ray_to_yz,
                                    comm);
 
     // Perform the third FFT
-    fft_1d_fw_local(npts_global[2], number_of_local_xy_rays, false, true,
+    fft_1d_fw_local(npts_global[2], number_of_local_yz_rays, false, true,
                     grid_buffer_1, grid_buffer_2);
   } else {
     fft_3d_fw_local(npts_global, grid_buffer_1, grid_buffer_2);
 // Copy to the ray format
 // Maybe, a 2D FFT, redistribution to rays and final FFT is faster
 #pragma omp parallel for default(none)                                         \
-    shared(npts_global, grid_buffer_1, ray_to_xy, grid_buffer_2,               \
-               number_of_local_xy_rays) collapse(2)
-    for (int index_z = 0; index_z < npts_global[2]; index_z++) {
-      for (int ray_xy = 0; ray_xy < number_of_local_xy_rays; ray_xy++) {
-        const int index_x = ray_to_xy[ray_xy][0];
-        const int index_y = ray_to_xy[ray_xy][1];
-        grid_buffer_1[ray_xy + index_z * number_of_local_xy_rays] =
+    shared(npts_global, grid_buffer_1, ray_to_yz, grid_buffer_2,               \
+               number_of_local_yz_rays) collapse(2)
+    for (int index_x = 0; index_x < npts_global[0]; index_x++) {
+      for (int ray_yz = 0; ray_yz < number_of_local_yz_rays; ray_yz++) {
+        const int index_y = ray_to_yz[ray_yz][0];
+        const int index_z = ray_to_yz[ray_yz][1];
+        grid_buffer_1[ray_yz + index_x * number_of_local_yz_rays] =
             grid_buffer_2[index_z * npts_global[0] * npts_global[1] +
                           index_y * npts_global[0] + index_x];
       }
     }
     memcpy(grid_buffer_2, grid_buffer_1,
-           number_of_local_xy_rays * npts_global[2] *
+           number_of_local_yz_rays * npts_global[2] *
                sizeof(double complex)); // Copy to the new format
   }
 }
@@ -1011,7 +1031,7 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
                        double complex *grid_buffer_2, const int npts_global[3],
                        const int (*proc2local_rs)[3][2],
                        const int (*proc2local_ms)[3][2],
-                       const int *rays_per_process, const int (*ray_to_xy)[2],
+                       const int *rays_per_process, const int (*ray_to_yz)[2],
                        const grid_mpi_comm comm,
                        const grid_mpi_comm sub_comm[2]) {
   const int my_process = grid_mpi_comm_rank(comm);
@@ -1025,7 +1045,7 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
       proc2local_ms[my_process][0][1] - proc2local_ms[my_process][0][0] + 1,
       proc2local_ms[my_process][1][1] - proc2local_ms[my_process][1][0] + 1,
       proc2local_ms[my_process][2][1] - proc2local_ms[my_process][2][0] + 1};
-  int number_of_local_xy_rays = rays_per_process[my_process];
+  int number_of_local_yz_rays = rays_per_process[my_process];
 
   int proc_grid[2];
   int periods[2];
@@ -1034,12 +1054,12 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
 
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     // Perform the first FFT
-    fft_1d_bw_local(npts_global[2], number_of_local_xy_rays, false, true,
+    fft_1d_bw_local(npts_global[2], number_of_local_yz_rays, false, true,
                     grid_buffer_1, grid_buffer_2);
 
     // Perform transpose
     collect_y_and_distribute_z_ray(grid_buffer_2, grid_buffer_1, npts_global,
-                                   proc2local_ms, rays_per_process, ray_to_xy,
+                                   proc2local_ms, rays_per_process, ray_to_yz,
                                    comm);
 
     // Perform the second FFT
@@ -1056,12 +1076,12 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
                     true, grid_buffer_1, grid_buffer_2);
   } else if (proc_grid[0] > 1) {
     // Perform the first FFT
-    fft_1d_bw_local(npts_global[2], number_of_local_xy_rays, false, true,
+    fft_1d_bw_local(npts_global[2], number_of_local_yz_rays, false, true,
                     grid_buffer_1, grid_buffer_2);
 
     // Perform transpose
     collect_y_and_distribute_z_ray(grid_buffer_2, grid_buffer_1, npts_global,
-                                   proc2local_ms, rays_per_process, ray_to_xy,
+                                   proc2local_ms, rays_per_process, ray_to_yz,
                                    comm);
 
     // Perform the second FFT
@@ -1071,16 +1091,16 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
     // Copy to the new format
     // Maybe, the order 1D FFT, redistribution to blocks and 2D FFT is faster
 #pragma omp parallel for default(none)                                         \
-    shared(npts_global, number_of_local_xy_rays, grid_buffer_2, ray_to_xy,     \
+    shared(npts_global, number_of_local_yz_rays, grid_buffer_2, ray_to_yz,     \
                grid_buffer_1) collapse(2)
-    for (int index_z = 0; index_z < npts_global[2]; index_z++) {
-      for (int xy_ray = 0; xy_ray < number_of_local_xy_rays; xy_ray++) {
-        const int index_x = ray_to_xy[xy_ray][0];
-        const int index_y = ray_to_xy[xy_ray][1];
+    for (int index_x = 0; index_x < npts_global[0]; index_x++) {
+      for (int yz_ray = 0; yz_ray < number_of_local_yz_rays; yz_ray++) {
+        const int index_y = ray_to_yz[yz_ray][0];
+        const int index_z = ray_to_yz[yz_ray][1];
 
         grid_buffer_2[index_z * npts_global[0] * npts_global[1] +
                       index_y * npts_global[0] + index_x] =
-            grid_buffer_1[xy_ray + index_z * number_of_local_xy_rays];
+            grid_buffer_1[yz_ray + index_x * number_of_local_yz_rays];
       }
     }
     fft_3d_bw_local(npts_global, grid_buffer_2, grid_buffer_1);
@@ -1157,22 +1177,22 @@ void fft_3d_fw_sorted(const double *grid_rs, double complex *grid_gs,
     fft_3d_fw_ray_low(grid_layout->buffer_1, grid_layout->buffer_2,
                       grid_layout->npts_global, grid_layout->proc2local_rs,
                       grid_layout->proc2local_ms, grid_layout->rays_per_process,
-                      grid_layout->ray_to_xy, grid_layout->comm,
+                      grid_layout->ray_to_yz, grid_layout->comm,
                       grid_layout->sub_comm);
-    const int(*my_ray_to_xy)[2] = grid_layout->ray_to_xy;
+    const int(*my_ray_to_yz)[2] = grid_layout->ray_to_yz;
     for (int process = 0; process < my_process; process++) {
-      my_ray_to_xy += grid_layout->rays_per_process[process];
+      my_ray_to_yz += grid_layout->rays_per_process[process];
     }
     const int my_number_of_rays = grid_layout->rays_per_process[my_process];
 #pragma omp parallel for default(none)                                         \
-    shared(grid_layout, my_ray_to_xy, grid_gs, my_number_of_rays)
+    shared(grid_layout, my_ray_to_yz, grid_gs, my_number_of_rays)
     for (int index = 0; index < grid_layout->npts_gs_local; index++) {
       const int *index_g = grid_layout->index_to_g[index];
-      for (int xy_ray = 0; xy_ray < my_number_of_rays; xy_ray++) {
-        if (my_ray_to_xy[xy_ray][0] == index_g[0] &&
-            my_ray_to_xy[xy_ray][1] == index_g[1]) {
+      for (int yz_ray = 0; yz_ray < my_number_of_rays; yz_ray++) {
+        if (my_ray_to_yz[yz_ray][0] == index_g[0] &&
+            my_ray_to_yz[yz_ray][1] == index_g[1]) {
           grid_gs[index] =
-              grid_layout->buffer_2[xy_ray + index_g[2] * my_number_of_rays];
+              grid_layout->buffer_2[yz_ray + index_g[2] * my_number_of_rays];
           break;
         }
       }
@@ -1260,19 +1280,19 @@ void fft_3d_bw_sorted(const double complex *grid_gs, double *grid_rs,
                           grid_layout->proc2local_rs[my_process][dir][0] + 1;
   }
   if (grid_layout->ray_distribution) {
-    int(*my_ray_to_xy)[2] = grid_layout->ray_to_xy;
+    int(*my_ray_to_yz)[2] = grid_layout->ray_to_yz;
     for (int process = 0; process < my_process; process++) {
-      my_ray_to_xy += grid_layout->rays_per_process[process];
+      my_ray_to_yz += grid_layout->rays_per_process[process];
     }
     const int my_number_of_rays = grid_layout->rays_per_process[my_process];
 #pragma omp parallel for default(none)                                         \
-    shared(grid_layout, grid_gs, my_ray_to_xy, my_number_of_rays)
+    shared(grid_layout, grid_gs, my_ray_to_yz, my_number_of_rays)
     for (int index = 0; index < grid_layout->npts_gs_local; index++) {
       int *index_g = grid_layout->index_to_g[index];
-      for (int xy_ray = 0; xy_ray < my_number_of_rays; xy_ray++) {
-        if (my_ray_to_xy[xy_ray][0] == index_g[0] &&
-            my_ray_to_xy[xy_ray][1] == index_g[1]) {
-          grid_layout->buffer_1[xy_ray + index_g[2] * my_number_of_rays] =
+      for (int yz_ray = 0; yz_ray < my_number_of_rays; yz_ray++) {
+        if (my_ray_to_yz[yz_ray][0] == index_g[0] &&
+            my_ray_to_yz[yz_ray][1] == index_g[1]) {
+          grid_layout->buffer_1[yz_ray + index_g[2] * my_number_of_rays] =
               grid_gs[index];
           break;
         }
@@ -1281,7 +1301,7 @@ void fft_3d_bw_sorted(const double complex *grid_gs, double *grid_rs,
     fft_3d_bw_ray_low(grid_layout->buffer_1, grid_layout->buffer_2,
                       grid_layout->npts_global, grid_layout->proc2local_rs,
                       grid_layout->proc2local_ms, grid_layout->rays_per_process,
-                      grid_layout->ray_to_xy, grid_layout->comm,
+                      grid_layout->ray_to_yz, grid_layout->comm,
                       grid_layout->sub_comm);
   } else {
     int local_sizes_gs[3];

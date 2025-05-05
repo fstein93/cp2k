@@ -755,6 +755,35 @@ void fft_fftw_2d_fw_distributed(const int npts_global[2],
 }
 
 /*******************************************************************************
+ * \brief Performs a distributed 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_2d_bw_distributed(const int npts_global[2],
+                                const int number_of_ffts,
+                                const grid_mpi_comm comm,
+                                double complex *grid_in,
+                                double complex *grid_out) {
+#if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(use_fftw_mpi);
+  if (npts_global[0] <= 0 || npts_global[1] <= 0 || number_of_ffts <= 0) {
+    return;
+  }
+  fftw_plan *plan = fft_fftw_create_distributed_2d_plan(
+      FFTW_BACKWARD, npts_global, number_of_ffts, comm);
+  if (plan != NULL)
+    fftw_mpi_execute_dft(*plan, grid_in, grid_out);
+#else
+  (void)npts_global;
+  (void)number_of_ffts;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
  * \brief Performs a distributed 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/

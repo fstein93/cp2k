@@ -517,8 +517,9 @@ int fft_test_2d_distributed_low(const int fft_size[2],
     const int index_0 = number_of_fft / fft_size[1];
     const int index_1 = number_of_fft % fft_size[1];
     if (index_0 >= local_n0_start && index_0 < local_n0_start + local_n0) {
-      input_array[number_of_fft * local_n0 * fft_size[1] +
-                  (index_0 - local_n0_start) * fft_size[1] + index_1] = 1.0;
+      input_array[number_of_fft +
+                  ((index_0 - local_n0_start) * fft_size[1] + index_1) *
+                      number_of_ffts] = 1.0;
     }
   }
 
@@ -532,8 +533,8 @@ int fft_test_2d_distributed_low(const int fft_size[2],
     for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
       for (int index_1 = 0; index_1 < local_n1; index_1++) {
         const double complex my_value =
-            output_array[number_of_fft * fft_size[0] * local_n1 +
-                         index_1 * fft_size[0] + index_0];
+            output_array[number_of_fft +
+                         (index_1 * fft_size[0] + index_0) * number_of_ffts];
         const double complex ref_value = cexp(
             -2.0 * I * pi *
             ((double)(number_of_fft / fft_size[1]) * index_0 / fft_size[0] +
@@ -553,82 +554,44 @@ int fft_test_2d_distributed_low(const int fft_size[2],
     errors++;
   }
 
-#if 0
   // Check the backward FFT
   memset(output_array, 0,
          fft_size[0] * fft_size[1] * number_of_ffts * sizeof(double complex));
-
-  if (transpose_gs) {
+  // Check the forward FFT
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, number_of_ffts)
-    for (int number_of_fft = 0; number_of_fft < number_of_ffts;
-         number_of_fft++) {
-      output_array[number_of_fft +
-                   (number_of_fft % (fft_size[0] * fft_size[1])) *
-                       number_of_ffts] = 1.0;
-    }
-  } else {
-#pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, number_of_ffts)
-    for (int number_of_fft = 0; number_of_fft < number_of_ffts;
-         number_of_fft++) {
-      output_array[number_of_fft * fft_size[0] * fft_size[1] +
-                   (number_of_fft % (fft_size[0] * fft_size[1]))] = 1.0;
+    shared(input_array, fft_size, number_of_ffts, local_n1, local_n1_start)
+  for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+    const int index_0 = number_of_fft / fft_size[1];
+    const int index_1 = number_of_fft % fft_size[1];
+    if (index_1 >= local_n1_start && index_1 < local_n1_start + local_n1) {
+      input_array[number_of_fft +
+                  ((index_1 - local_n1_start) * fft_size[0] + index_0) *
+                      number_of_ffts] = 1.0;
     }
   }
 
-  fft_2d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-                  output_array, input_array);
+  fft_2d_bw_distributed(fft_size, number_of_ffts, comm, input_array,
+                        output_array);
 
-  max_error = 0.0;
-  if (transpose_rs) {
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, number_of_ffts, pi, my_process)              \
-    reduction(max : max_error) collapse(3)
-    for (int number_of_fft = 0; number_of_fft < number_of_ffts;
-         number_of_fft++) {
-      for (int index_1 = 0; index_1 < fft_size[0]; index_1++) {
-        for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
-          const double complex my_value =
-              input_array[(index_1 * fft_size[1] + index_2) * number_of_ffts +
-                          number_of_fft];
-          const double complex ref_value = cexp(
-              2.0 * I * pi *
-              ((double)(number_of_fft / fft_size[1]) * index_1 / fft_size[0] +
-               (double)(number_of_fft % fft_size[1]) * index_2 / fft_size[1]));
-          double current_error = cabs(my_value - ref_value);
-          if (my_process == 0 && current_error > 1e-12)
-            printf("Error %i %i %i: %f %f\n", index_1, index_2, number_of_fft,
-                   cabs(my_value), cabs(ref_value));
-          max_error = fmax(max_error, current_error);
-        }
-      }
-    }
-  } else {
-#pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, number_of_ffts, pi, my_process)              \
-    reduction(max : max_error) collapse(3)
-    for (int number_of_fft = 0; number_of_fft < number_of_ffts;
-         number_of_fft++) {
-      for (int index_1 = 0; index_1 < fft_size[0]; index_1++) {
-        for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
-          const double complex my_value =
-              input_array[index_1 * fft_size[1] + index_2 +
-                          number_of_fft * fft_size[0] * fft_size[1]];
-          const double complex ref_value = cexp(
-              2.0 * I * pi *
-              ((double)(number_of_fft / fft_size[1]) * index_1 / fft_size[0] +
-               (double)(number_of_fft % fft_size[1]) * index_2 / fft_size[1]));
-          double current_error = cabs(my_value - ref_value);
-          if (my_process == 0 && current_error > 1e-12)
-            printf("Error %i %i %i: %f %f\n", index_1, index_2, number_of_fft,
-                   cabs(my_value), cabs(ref_value));
-          max_error = fmax(max_error, current_error);
-        }
+    shared(output_array, fft_size, number_of_ffts, pi, local_n0,               \
+               local_n0_start) reduction(max : max_error) collapse(3)
+  for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+    for (int index_0 = 0; index_0 < local_n0; index_0++) {
+      for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
+        const double complex my_value =
+            output_array[number_of_fft +
+                         (index_0 * fft_size[1] + index_1) * number_of_ffts];
+        const double complex ref_value = cexp(
+            -2.0 * I * pi *
+            ((double)(number_of_fft / fft_size[1]) *
+                 (index_0 + local_n0_start) / fft_size[0] +
+             (double)(number_of_fft % fft_size[1]) * index_1 / fft_size[1]));
+        double current_error = cabs(my_value - ref_value);
+        max_error = fmax(max_error, current_error);
       }
     }
   }
-#endif
 
   fft_free_complex(input_array);
   fft_free_complex(output_array);

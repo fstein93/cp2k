@@ -411,21 +411,21 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
     total_number_of_rays += fft_grid_layout->rays_per_process[process];
   max_error = 0.0;
   number_of_tests = 0;
-  for (int nz = 0; nz < npts_global[2]; nz++) {
-    for (int nxy = 0; nxy < total_number_of_rays; nxy++) {
+  for (int nx = 0; nx < npts_global[0]; nx++) {
+    for (int nyz = 0; nyz < total_number_of_rays; nyz++) {
       if (test_every > 0 && number_of_tests % test_every != 0) {
         number_of_tests++;
         continue;
       }
       number_of_tests++;
-      const int nx = fft_grid_layout->ray_to_xy[nxy][0];
-      const int ny = fft_grid_layout->ray_to_xy[nxy][1];
+      const int ny = fft_grid_layout->ray_to_yz[nyz][0];
+      const int nz = fft_grid_layout->ray_to_yz[nyz][1];
 
       memset(buffer_2, 0,
              fft_grid_layout->npts_gs_local * sizeof(double complex));
 
-      if (nxy >= my_ray_offset &&
-          nxy < my_ray_offset + fft_grid_layout->rays_per_process[my_process]) {
+      if (nyz >= my_ray_offset &&
+          nyz < my_ray_offset + fft_grid_layout->rays_per_process[my_process]) {
         for (int index = 0; index < my_number_of_elements_gs; index++) {
           if (fft_grid_layout->index_to_g[index][0] == nx &&
               fft_grid_layout->index_to_g[index][1] == ny &&

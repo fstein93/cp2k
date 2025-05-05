@@ -337,6 +337,24 @@ void fft_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
 }
 
 /*******************************************************************************
+ * \brief Performs a distributed 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_2d_bw_distributed(const int npts_global[2], const int number_of_ffts,
+                           const grid_mpi_comm comm, double complex *grid_in,
+                           double complex *grid_out) {
+  assert(fft_lib_use_mpi());
+  switch (grid_fft_lib_choice) {
+  case GRID_FFT_LIB_FFTW:
+    fft_fftw_2d_bw_distributed(npts_global, number_of_ffts, comm, grid_in,
+                               grid_out);
+    break;
+  default:
+    assert(0 && "Distributed 2D FFT not available.");
+  }
+}
+
+/*******************************************************************************
  * \brief Performs a distributed 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
