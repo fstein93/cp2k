@@ -109,7 +109,7 @@ int main(int argc, char *argv[]) {
   errors += fft_test_transpose_parallel();
   errors += fft_test_3d();
   errors += fft_test_add_copy();
-  // errors += multigrid_test();
+  errors += multigrid_test();
 
   // If we have MPI, we are also testing with the in-house MPI-backend
   if (fft_lib_use_mpi()) {
@@ -119,9 +119,9 @@ int main(int argc, char *argv[]) {
     errors += fft_test_distributed();
     errors += fft_test_transpose();
     errors += fft_test_transpose_parallel();
-    //  errors += fft_test_3d();
-    // errors += fft_test_add_copy();
-    //  errors += multigrid_test();
+    errors += fft_test_3d();
+    errors += fft_test_add_copy();
+    errors += multigrid_test();
   }
 
   fft_finalize_lib();
