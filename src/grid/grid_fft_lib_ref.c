@@ -6,16 +6,13 @@
 /*----------------------------------------------------------------------------*/
 
 #include "grid_fft_lib_ref.h"
+#include "grid_fft_lib_ref_low.h"
 
 #include <assert.h>
 #include <math.h>
 #include <stddef.h>
 #include <stdlib.h>
 #include <string.h>
-
-#if defined(__FFTW3)
-#include <fftw3.h>
-#endif
 
 /*******************************************************************************
  * \brief Initialize the FFT library (if not done externally).
@@ -78,62 +75,21 @@ void fft_ref_free_complex(double complex *buffer) { free(buffer); }
 void fft_ref_1d_fw_local(const double complex *grid_rs, double complex *grid_gs,
                          const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs) {
-  const double pi = acos(-1.0);
   if (transpose_rs) {
     if (transpose_gs) {
-#pragma omp parallel for default(none) collapse(2)                             \
-    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        for (int index_out = 0; index_out < fft_size; index_out++) {
-          double complex tmp = 0.0;
-          for (int index_in = 0; index_in < fft_size; index_in++) {
-            tmp += grid_rs[index_in * number_of_ffts + fft] *
-                   cexp(-2.0 * I * pi * index_out * index_in / fft_size);
-          }
-          grid_gs[fft + index_out * number_of_ffts] = tmp;
-        }
-      }
+      fft_ref_1d_fw_local_low(grid_rs, grid_gs, fft_size, number_of_ffts,
+                              number_of_ffts, number_of_ffts, 1, 1);
     } else {
-#pragma omp parallel for default(none) collapse(2)                             \
-    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        for (int index_out = 0; index_out < fft_size; index_out++) {
-          double complex tmp = 0.0;
-          for (int index_in = 0; index_in < fft_size; index_in++) {
-            tmp += grid_rs[index_in * number_of_ffts + fft] *
-                   cexp(-2.0 * I * pi * index_out * index_in / fft_size);
-          }
-          grid_gs[fft * fft_size + index_out] = tmp;
-        }
-      }
+      fft_ref_1d_fw_local_low(grid_rs, grid_gs, fft_size, number_of_ffts,
+                              number_of_ffts, 1, 1, fft_size);
     }
   } else {
     if (transpose_gs) {
-#pragma omp parallel for default(none) collapse(2)                             \
-    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        for (int index_out = 0; index_out < fft_size; index_out++) {
-          double complex tmp = 0.0;
-          for (int index_in = 0; index_in < fft_size; index_in++) {
-            tmp += grid_rs[index_in + fft * fft_size] *
-                   cexp(-2.0 * I * pi * index_out * index_in / fft_size);
-          }
-          grid_gs[fft + index_out * number_of_ffts] = tmp;
-        }
-      }
+      fft_ref_1d_fw_local_low(grid_rs, grid_gs, fft_size, number_of_ffts, 1,
+                              number_of_ffts, fft_size, 1);
     } else {
-#pragma omp parallel for default(none) collapse(2)                             \
-    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        for (int index_out = 0; index_out < fft_size; index_out++) {
-          double complex tmp = 0.0;
-          for (int index_in = 0; index_in < fft_size; index_in++) {
-            tmp += grid_rs[index_in + fft * fft_size] *
-                   cexp(-2.0 * I * pi * index_out * index_in / fft_size);
-          }
-          grid_gs[fft * fft_size + index_out] = tmp;
-        }
-      }
+      fft_ref_1d_fw_local_low(grid_rs, grid_gs, fft_size, number_of_ffts, 1, 1,
+                              fft_size, fft_size);
     }
   }
 }
@@ -145,62 +101,21 @@ void fft_ref_1d_fw_local(const double complex *grid_rs, double complex *grid_gs,
 void fft_ref_1d_bw_local(const double complex *grid_gs, double complex *grid_rs,
                          const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs) {
-  const double pi = acos(-1.0);
   if (transpose_rs) {
     if (transpose_gs) {
-#pragma omp parallel for default(none) collapse(2)                             \
-    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        for (int index_out = 0; index_out < fft_size; index_out++) {
-          double complex tmp = 0.0;
-          for (int index_in = 0; index_in < fft_size; index_in++) {
-            tmp += grid_gs[fft + index_in * number_of_ffts] *
-                   cexp(2.0 * I * pi * index_out * index_in / fft_size);
-          }
-          grid_rs[index_out * number_of_ffts + fft] = tmp;
-        }
-      }
+      fft_ref_1d_bw_local_low(grid_gs, grid_rs, fft_size, number_of_ffts,
+                              number_of_ffts, number_of_ffts, 1, 1);
     } else {
-#pragma omp parallel for default(none) collapse(2)                             \
-    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        for (int index_out = 0; index_out < fft_size; index_out++) {
-          double complex tmp = 0.0;
-          for (int index_in = 0; index_in < fft_size; index_in++) {
-            tmp += grid_gs[fft * fft_size + index_in] *
-                   cexp(2.0 * I * pi * index_out * index_in / fft_size);
-          }
-          grid_rs[index_out * number_of_ffts + fft] = tmp;
-        }
-      }
+      fft_ref_1d_bw_local_low(grid_gs, grid_rs, fft_size, number_of_ffts, 1,
+                              number_of_ffts, fft_size, 1);
     }
   } else {
     if (transpose_gs) {
-#pragma omp parallel for default(none) collapse(2)                             \
-    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        for (int index_out = 0; index_out < fft_size; index_out++) {
-          double complex tmp = 0.0;
-          for (int index_in = 0; index_in < fft_size; index_in++) {
-            tmp += grid_gs[fft + index_in * number_of_ffts] *
-                   cexp(2.0 * I * pi * index_out * index_in / fft_size);
-          }
-          grid_rs[index_out + fft * fft_size] = tmp;
-        }
-      }
+      fft_ref_1d_bw_local_low(grid_gs, grid_rs, fft_size, number_of_ffts,
+                              number_of_ffts, 1, 1, fft_size);
     } else {
-#pragma omp parallel for default(none) collapse(2)                             \
-    shared(grid_rs, grid_gs, fft_size, number_of_ffts, pi)
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        for (int index_out = 0; index_out < fft_size; index_out++) {
-          double complex tmp = 0.0;
-          for (int index_in = 0; index_in < fft_size; index_in++) {
-            tmp += grid_gs[fft * fft_size + index_in] *
-                   cexp(2.0 * I * pi * index_out * index_in / fft_size);
-          }
-          grid_rs[index_out + fft * fft_size] = tmp;
-        }
-      }
+      fft_ref_1d_bw_local_low(grid_gs, grid_rs, fft_size, number_of_ffts, 1, 1,
+                              fft_size, fft_size);
     }
   }
 }
