@@ -252,7 +252,6 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
   double max_error;
 
   if (fft_lib_use_mpi()) {
-    printf("Test collect_x_and_distribute_z_blocked_transpose\n");
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_layout, my_sizes_ms, my_bounds_ms, npts_global)            \
     collapse(3)
@@ -313,7 +312,6 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
             npts_global[0], npts_global[1], npts_global[2], max_error);
       errors++;
     }
-    printf("Test collect_z_and_distribute_x_blocked_transpose\n");
 
     // Check the reverse direction
 #pragma omp parallel for default(none)                                         \
@@ -377,7 +375,6 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
       errors++;
     }
   } else {
-    printf("Test collect_y_and_distribute_z_blocked\n");
 // Check forward RS->MS FFTs
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_layout, my_sizes_rs, my_bounds_rs, npts_global)            \
@@ -433,7 +430,6 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
                npts_global[0], npts_global[1], npts_global[2], max_error);
       errors++;
     }
-    printf("Test collect_z_and_distribute_y_blocked\n");
 
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_layout, my_sizes_ms, my_bounds_ms, npts_global)            \
@@ -493,7 +489,6 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
                npts_global[0], npts_global[1], npts_global[2], max_error);
       errors++;
     }
-    printf("Test collect_x_and_distribute_y_blocked\n");
 
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_layout, my_sizes_ms, my_bounds_ms, npts_global)            \
@@ -553,7 +548,6 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
                npts_global[0], npts_global[1], npts_global[2], max_error);
       errors++;
     }
-    printf("Test collect_y_and_distribute_x_blocked\n");
 
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_layout, my_sizes_gs, my_bounds_gs, npts_global)            \
@@ -629,12 +623,10 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_transpose_parallel() {
-  printf("Enter fft_test_transpose_parallel\n");
   const grid_mpi_comm comm = grid_mpi_comm_world;
   const int my_process = grid_mpi_comm_rank(comm);
 
   int errors = 0;
-  printf("Start tests fft_test_transpose_parallel\n");
 
   // Grid sizes to be checked
   const int npts_global[3] = {2, 4, 8};
@@ -664,7 +656,6 @@ int fft_test_transpose_parallel() {
 
   if (errors == 0 && my_process == 0)
     printf("\n The parallel transposition routines work correctly!\n");
-  printf("Exit fft_test_transpose_parallel\n");
   return errors;
 }
 

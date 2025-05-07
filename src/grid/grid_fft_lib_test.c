@@ -542,10 +542,15 @@ int fft_test_2d_distributed_low(const int fft_size[2],
              (double)(number_of_fft % fft_size[1]) *
                  (index_1 + local_n1_start) / fft_size[1]));
         double current_error = cabs(my_value - ref_value);
+        if (current_error > 1e-12)
+          printf("Error %i %i %i: %f %f\n", index_0, index_1, number_of_fft,
+                 cabs(my_value), cabs(ref_value));
         max_error = fmax(max_error, current_error);
       }
     }
   }
+  fflush(stdout);
+  grid_mpi_max_double(&max_error, 1, comm);
 
   if (max_error > 1.0e-12) {
     if (my_process == 0)
@@ -556,8 +561,8 @@ int fft_test_2d_distributed_low(const int fft_size[2],
   }
 
   // Check the backward FFT
-  memset(output_array, 0,
-         fft_size[0] * fft_size[1] * number_of_ffts * sizeof(double complex));
+  memset(input_array, 0, buffer_size * sizeof(double complex));
+  memset(output_array, 0, buffer_size * sizeof(double complex));
   // Check the forward FFT
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, number_of_ffts, local_n1, local_n1_start)
@@ -584,16 +589,20 @@ int fft_test_2d_distributed_low(const int fft_size[2],
             output_array[number_of_fft +
                          (index_0 * fft_size[1] + index_1) * number_of_ffts];
         const double complex ref_value = cexp(
-            -2.0 * I * pi *
+            2.0 * I * pi *
             ((double)(number_of_fft / fft_size[1]) *
                  (index_0 + local_n0_start) / fft_size[0] +
              (double)(number_of_fft % fft_size[1]) * index_1 / fft_size[1]));
         double current_error = cabs(my_value - ref_value);
+        if (current_error > 1e-12)
+          printf("Error %i %i %i: %f %f\n", index_0, index_1, number_of_fft,
+                 cabs(my_value), cabs(ref_value));
         max_error = fmax(max_error, current_error);
       }
     }
   }
-
+  fflush(stdout);
+  grid_mpi_max_double(&max_error, 1, comm);
   fft_free_complex(input_array);
   fft_free_complex(output_array);
 
@@ -761,12 +770,10 @@ int fft_test_distributed() {
     return 0;
   }
 
-  if (false) {
-    errors += fft_test_2d_distributed_low((const int[2]){10, 10}, 19);
-    errors += fft_test_2d_distributed_low((const int[2]){16, 9}, 51);
-    errors += fft_test_2d_distributed_low((const int[2]){7, 20}, 37);
-    errors += fft_test_2d_distributed_low((const int[2]){12, 14}, 23);
-  }
+  errors += fft_test_2d_distributed_low((const int[2]){10, 10}, 19);
+  errors += fft_test_2d_distributed_low((const int[2]){16, 9}, 51);
+  errors += fft_test_2d_distributed_low((const int[2]){7, 20}, 37);
+  errors += fft_test_2d_distributed_low((const int[2]){12, 14}, 23);
 
   errors += fft_test_3d_distributed_low((const int[3]){8, 8, 8}, 19);
   errors += fft_test_3d_distributed_low((const int[3]){3, 4, 5}, 13);

@@ -407,8 +407,6 @@ fftw_plan *fft_fftw_create_distributed_2d_plan(const int direction,
     ptrdiff_t local_n1, local_1_start;
     const ptrdiff_t n[2] = {fft_size[0], fft_size[1]};
     const ptrdiff_t howmany = number_of_ffts;
-    printf("DEBUG %i %i %i\n", fft_size[0], fft_size[1], number_of_ffts);
-    fflush(stdout);
     const int buffer_size = fftw_mpi_local_size_many_transposed(
         2, n, howmany, block_size_0, block_size_1, comm, &local_n0,
         &local_0_start, &local_n1, &local_1_start);
@@ -421,12 +419,12 @@ fftw_plan *fft_fftw_create_distributed_2d_plan(const int direction,
           direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
     } else {
       *plan = fftw_mpi_plan_many_dft(
-          2, n, howmany, block_size_0, block_size_1, buffer_1, buffer_2, comm,
+          2, n, howmany, block_size_1, block_size_0, buffer_1, buffer_2, comm,
           direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
     }
-    add_plan_to_cache(key, plan);
     fftw_free(buffer_1);
     fftw_free(buffer_2);
+    add_plan_to_cache(key, plan);
   }
   return plan;
 }

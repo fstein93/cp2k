@@ -393,37 +393,6 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
                             my_fft_grid->proc2local_gs[my_process][2][0] + 1));
     my_fft_grid->buffer_size = buffer_size;
   }
-  if (my_process == 0) {
-    for (int process = 0; process < number_of_processes; process++) {
-      printf("Process %d: RS %d:%d %d:%d %d:%d\n", process,
-             my_fft_grid->proc2local_rs[process][0][0],
-             my_fft_grid->proc2local_rs[process][0][1],
-             my_fft_grid->proc2local_rs[process][1][0],
-             my_fft_grid->proc2local_rs[process][1][1],
-             my_fft_grid->proc2local_rs[process][2][0],
-             my_fft_grid->proc2local_rs[process][2][1]);
-    }
-    for (int process = 0; process < number_of_processes; process++) {
-      printf("Process %d: MS %d:%d %d:%d %d:%d\n", process,
-             my_fft_grid->proc2local_ms[process][0][0],
-             my_fft_grid->proc2local_ms[process][0][1],
-             my_fft_grid->proc2local_ms[process][1][0],
-             my_fft_grid->proc2local_ms[process][1][1],
-             my_fft_grid->proc2local_ms[process][2][0],
-             my_fft_grid->proc2local_ms[process][2][1]);
-    }
-    for (int process = 0; process < number_of_processes; process++) {
-      printf("Process %d: GS %d:%d %d:%d %d:%d\n", process,
-             my_fft_grid->proc2local_gs[process][0][0],
-             my_fft_grid->proc2local_gs[process][0][1],
-             my_fft_grid->proc2local_gs[process][1][0],
-             my_fft_grid->proc2local_gs[process][1][1],
-             my_fft_grid->proc2local_gs[process][2][0],
-             my_fft_grid->proc2local_gs[process][2][1]);
-    }
-    fflush(stdout);
-  }
-  grid_mpi_barrier(my_fft_grid->comm);
 }
 
 void allocate_fft_buffers(grid_fft_grid_layout *my_fft_grid) {
@@ -608,17 +577,6 @@ void grid_create_fft_grid_layout_from_reference(
     shared(my_fft_grid, fft_grid_ref, npts_global, number_of_processes,        \
                my_process, stdout) reduction(+ : total_number_of_rays)
   for (int process = 0; process < number_of_processes; process++) {
-    if (my_process == 0) {
-      printf("Process %d: %i %i / %i %i / %i %i\n", process,
-             fft_grid_ref->proc2local_gs[process][0][0],
-             fft_grid_ref->proc2local_gs[process][0][1],
-             fft_grid_ref->proc2local_gs[process][1][0],
-             fft_grid_ref->proc2local_gs[process][1][1],
-             fft_grid_ref->proc2local_gs[process][2][0],
-             fft_grid_ref->proc2local_gs[process][2][1]);
-    }
-    fflush(stdout);
-    grid_mpi_barrier(fft_grid_ref->comm);
     for (int index_z = fft_grid_ref->proc2local_gs[process][2][0];
          index_z <= fft_grid_ref->proc2local_gs[process][2][1]; index_z++) {
       // The right half of the indices is shifted
@@ -641,10 +599,6 @@ void grid_create_fft_grid_layout_from_reference(
           continue;
         const int index_y_new =
             convert_shifted_index_to_c_index(index_y_shifted, npts_global[1]);
-        printf("Process %d: Try yz index %d %d/%d %d/%i %i assigned to process "
-               "%d\n",
-               my_process, index_y_new, index_z_new, index_y, index_z,
-               index_y_shifted, index_z_shifted, process);
         assert(my_fft_grid->yz_to_process[index_z_new * npts_global[1] +
                                           index_y_new] < 0);
         my_fft_grid->yz_to_process[index_z_new * npts_global[1] + index_y_new] =
