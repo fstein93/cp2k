@@ -20,19 +20,19 @@
 void fft_ref_1d_fw_local_naive(double complex *grid_in,
                                double complex *grid_out, const int fft_size,
                                const int number_of_ffts) {
+  memset(grid_out, 0, fft_size * number_of_ffts * sizeof(double complex));
   // Perform FFTs along the first dimension
   const double pi = acos(-1.0);
-// Perform the FFTs along the longer sub-dimension
-#pragma omp parallel for default(none) collapse(2)                             \
+#pragma omp parallel for default(none)                                         \
     shared(grid_in, grid_out, fft_size, number_of_ffts, pi)
-  for (int fft = 0; fft < number_of_ffts; fft++) {
-    for (int index_out = 0; index_out < fft_size; index_out++) {
-      double complex tmp = 0.0;
-      for (int index_in = 0; index_in < fft_size; index_in++) {
-        tmp += grid_in[fft + index_in * number_of_ffts] *
-               cexp(-2.0 * I * pi * index_out * index_in / fft_size);
+  for (int index_out = 0; index_out < fft_size; index_out++) {
+    for (int index_in = 0; index_in < fft_size; index_in++) {
+      const double complex phase_factor =
+          cexp(-2.0 * I * pi * index_out * index_in / fft_size);
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out[fft + index_out * number_of_ffts] +=
+            grid_in[fft + index_in * number_of_ffts] * phase_factor;
       }
-      grid_out[fft + index_out * number_of_ffts] = tmp;
     }
   }
 }
@@ -44,17 +44,18 @@ void fft_ref_1d_fw_local_naive(double complex *grid_in,
 void fft_ref_1d_bw_local_naive(const double complex *grid_in,
                                double complex *grid_out, const int fft_size,
                                const int number_of_ffts) {
+  memset(grid_out, 0, fft_size * number_of_ffts * sizeof(double complex));
   const double pi = acos(-1.0);
-#pragma omp parallel for default(none) collapse(2)                             \
+#pragma omp parallel for default(none)                                         \
     shared(grid_in, grid_out, fft_size, number_of_ffts, pi)
-  for (int fft = 0; fft < number_of_ffts; fft++) {
-    for (int index_out = 0; index_out < fft_size; index_out++) {
-      double complex tmp = 0.0;
-      for (int index_in = 0; index_in < fft_size; index_in++) {
-        tmp += grid_in[fft + index_in * number_of_ffts] *
-               cexp(2.0 * I * pi * index_out * index_in / fft_size);
+  for (int index_out = 0; index_out < fft_size; index_out++) {
+    for (int index_in = 0; index_in < fft_size; index_in++) {
+      const double complex phase_factor =
+          cexp(2.0 * I * pi * index_out * index_in / fft_size);
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out[fft + index_out * number_of_ffts] +=
+            grid_in[fft + index_in * number_of_ffts] * phase_factor;
       }
-      grid_out[fft + index_out * number_of_ffts] = tmp;
     }
   }
 }
@@ -85,9 +86,9 @@ void fft_ref_1d_fw_local_low(double complex *grid_in, double complex *grid_out,
 #pragma omp parallel for default(none) collapse(3)                             \
     shared(grid_in, grid_out, number_of_ffts, stride_in, distance_in,          \
                small_factor, large_factor)
-  for (int fft = 0; fft < number_of_ffts; fft++) {
-    for (int index_large = 0; index_large < large_factor; index_large++) {
-      for (int index_small = 0; index_small < small_factor; index_small++) {
+  for (int index_large = 0; index_large < large_factor; index_large++) {
+    for (int index_small = 0; index_small < small_factor; index_small++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
         grid_out[fft +
                  (index_small * large_factor + index_large) * number_of_ffts] =
             grid_in[(index_small * large_factor + index_large) * stride_in +
@@ -127,9 +128,9 @@ void fft_ref_1d_fw_local_low(double complex *grid_in, double complex *grid_out,
 #pragma omp parallel for default(none) collapse(3)                             \
     shared(grid_in, grid_out, number_of_ffts, stride_out, distance_out,        \
                small_factor, large_factor)
-  for (int fft = 0; fft < number_of_ffts; fft++) {
-    for (int index_small = 0; index_small < small_factor; index_small++) {
-      for (int index_large = 0; index_large < large_factor; index_large++) {
+  for (int index_small = 0; index_small < small_factor; index_small++) {
+    for (int index_large = 0; index_large < large_factor; index_large++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
         grid_out[fft * distance_out +
                  (index_large * small_factor + index_small) * stride_out] =
             grid_in[fft + (index_large * small_factor + index_small) *
@@ -165,9 +166,9 @@ void fft_ref_1d_bw_local_low(double complex *grid_in, double complex *grid_out,
 #pragma omp parallel for default(none) collapse(3)                             \
     shared(grid_in, grid_out, number_of_ffts, stride_in, distance_in,          \
                small_factor, large_factor)
-  for (int fft = 0; fft < number_of_ffts; fft++) {
-    for (int index_large = 0; index_large < large_factor; index_large++) {
-      for (int index_small = 0; index_small < small_factor; index_small++) {
+  for (int index_large = 0; index_large < large_factor; index_large++) {
+    for (int index_small = 0; index_small < small_factor; index_small++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
         grid_out[fft +
                  (index_small * large_factor + index_large) * number_of_ffts] =
             grid_in[(index_small * large_factor + index_large) * stride_in +
@@ -207,9 +208,9 @@ void fft_ref_1d_bw_local_low(double complex *grid_in, double complex *grid_out,
 #pragma omp parallel for default(none) collapse(3)                             \
     shared(grid_in, grid_out, number_of_ffts, stride_out, distance_out,        \
                small_factor, large_factor)
-  for (int fft = 0; fft < number_of_ffts; fft++) {
-    for (int index_small = 0; index_small < small_factor; index_small++) {
-      for (int index_large = 0; index_large < large_factor; index_large++) {
+  for (int index_small = 0; index_small < small_factor; index_small++) {
+    for (int index_large = 0; index_large < large_factor; index_large++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
         grid_out[fft * distance_out +
                  (index_large * small_factor + index_small) * stride_out] =
             grid_in[fft + (index_large * small_factor + index_small) *
