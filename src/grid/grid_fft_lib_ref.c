@@ -72,7 +72,7 @@ void fft_ref_free_complex(double complex *buffer) { free(buffer); }
  * \brief Naive implementation of FFT from transposed format (for easier
  *transposition). \author Frederick Stein
  ******************************************************************************/
-void fft_ref_1d_fw_local(const double complex *grid_rs, double complex *grid_gs,
+void fft_ref_1d_fw_local(double complex *grid_rs, double complex *grid_gs,
                          const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs) {
   if (transpose_rs) {
@@ -98,7 +98,7 @@ void fft_ref_1d_fw_local(const double complex *grid_rs, double complex *grid_gs,
  * \brief Naive implementation of backwards FFT to transposed format (for easier
  *transposition). \author Frederick Stein
  ******************************************************************************/
-void fft_ref_1d_bw_local(const double complex *grid_gs, double complex *grid_rs,
+void fft_ref_1d_bw_local(double complex *grid_gs, double complex *grid_rs,
                          const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs) {
   if (transpose_rs) {

@@ -17,11 +17,10 @@
  * \brief Naive implementation of FFT from transposed format (for easier
  *transposition). \author Frederick Stein
  ******************************************************************************/
-void fft_ref_1d_fw_local_low(const double complex *grid_in,
-                             double complex *grid_out, const int fft_size,
-                             const int number_of_ffts, const int stride_in,
-                             const int stride_out, const int distance_in,
-                             const int distance_out) {
+void fft_ref_1d_fw_local_low(double complex *grid_in, double complex *grid_out,
+                             const int fft_size, const int number_of_ffts,
+                             const int stride_in, const int stride_out,
+                             const int distance_in, const int distance_out) {
 
   // Determine a factorization of the FFT size
   int small_factor = 1;
@@ -68,11 +67,10 @@ void fft_ref_1d_fw_local_low(const double complex *grid_in,
  * \brief Naive implementation of backwards FFT to transposed format (for
  *easier transposition). \author Frederick Stein
  ******************************************************************************/
-void fft_ref_1d_bw_local_low(const double complex *grid_in,
-                             double complex *grid_out, const int fft_size,
-                             const int number_of_ffts, const int stride_in,
-                             const int stride_out, const int distance_in,
-                             const int distance_out) {
+void fft_ref_1d_bw_local_low(double complex *grid_in, double complex *grid_out,
+                             const int fft_size, const int number_of_ffts,
+                             const int stride_in, const int stride_out,
+                             const int distance_in, const int distance_out) {
 
   // Determine a factorization of the FFT size
   int small_factor = 1;
