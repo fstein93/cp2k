@@ -490,7 +490,31 @@ int fft_test_local() {
   errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 17);
   errors += fft_test_3d_local_low((const int[3]){72, 72, 72}, 54321);
   clock_t end = clock();
-  printf("Time to test local FFTs: %f\n",
+  printf("Time to test local FFTs (I): %f\n",
+         (double)(end - begin) / CLOCKS_PER_SEC);
+
+  begin = clock();
+  errors += fft_test_1d_local_low(16, 26, true, true);
+  errors += fft_test_1d_local_low(18, 22, true, false);
+  errors += fft_test_1d_local_low(20, 28, false, true);
+  errors += fft_test_1d_local_low(12, 14, false, false);
+  errors += fft_test_1d_local_low(144, 14, false, true);
+  errors += fft_test_1d_local_low(144, 14, true, false);
+
+  errors += fft_test_2d_local_low((const int[2]){10, 10}, 20, true, true);
+  errors += fft_test_2d_local_low((const int[2]){16, 9}, 90, true, false);
+  errors += fft_test_2d_local_low((const int[2]){7, 20}, 70, false, true);
+  errors += fft_test_2d_local_low((const int[2]){12, 14}, 50, false, false);
+  errors += fft_test_2d_local_low((const int[2]){96, 96}, 10, false, false);
+
+  // Reduce tests to ca 10 per set
+  errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 23);
+  errors += fft_test_3d_local_low((const int[3]){3, 4, 5}, 13);
+  errors += fft_test_3d_local_low((const int[3]){4, 8, 2}, 11);
+  errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 17);
+  errors += fft_test_3d_local_low((const int[3]){72, 72, 72}, 54321);
+  end = clock();
+  printf("Time to test local FFTs (II): %f\n",
          (double)(end - begin) / CLOCKS_PER_SEC);
 
   return errors;
