@@ -14,6 +14,52 @@
 #include <string.h>
 
 /*******************************************************************************
+ * \brief Naive implementation of FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_1d_fw_local_naive(double complex *grid_in,
+                               double complex *grid_out, const int fft_size,
+                               const int number_of_ffts) {
+  // Perform FFTs along the first dimension
+  const double pi = acos(-1.0);
+// Perform the FFTs along the longer sub-dimension
+#pragma omp parallel for default(none) collapse(2)                             \
+    shared(grid_in, grid_out, fft_size, number_of_ffts, pi)
+  for (int fft = 0; fft < number_of_ffts; fft++) {
+    for (int index_out = 0; index_out < fft_size; index_out++) {
+      double complex tmp = 0.0;
+      for (int index_in = 0; index_in < fft_size; index_in++) {
+        tmp += grid_in[fft * fft_size + index_in] *
+               cexp(-2.0 * I * pi * index_out * index_in / fft_size);
+      }
+      grid_out[fft * fft_size + index_out] = tmp;
+    }
+  }
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_1d_bw_local_naive(const double complex *grid_in,
+                               double complex *grid_out, const int fft_size,
+                               const int number_of_ffts) {
+  const double pi = acos(-1.0);
+#pragma omp parallel for default(none) collapse(2)                             \
+    shared(grid_in, grid_out, fft_size, number_of_ffts, pi)
+  for (int fft = 0; fft < number_of_ffts; fft++) {
+    for (int index_out = 0; index_out < fft_size; index_out++) {
+      double complex tmp = 0.0;
+      for (int index_in = 0; index_in < fft_size; index_in++) {
+        tmp += grid_in[fft * fft_size + index_in] *
+               cexp(2.0 * I * pi * index_out * index_in / fft_size);
+      }
+      grid_out[fft * fft_size + index_out] = tmp;
+    }
+  }
+}
+
+/*******************************************************************************
  * \brief Naive implementation of FFT from transposed format (for easier
  *transposition). \author Frederick Stein
  ******************************************************************************/
@@ -31,6 +77,8 @@ void fft_ref_1d_fw_local_low(double complex *grid_in, double complex *grid_out,
     }
   }
   const int large_factor = fft_size / small_factor;
+  assert(small_factor * large_factor == fft_size);
+  assert(small_factor <= large_factor);
 
   const double pi = acos(-1.0);
   // Reorder the data to have elements of the same FFT in consecutive memory
@@ -46,51 +94,30 @@ void fft_ref_1d_fw_local_low(double complex *grid_in, double complex *grid_out,
       }
     }
   }
-// Perform FFTs along the shorter sub-dimension
-#pragma omp parallel for default(none) collapse(2)                             \
-    shared(grid_in, grid_out, number_of_ffts, pi, small_factor, large_factor)
-  for (int fft = 0; fft < number_of_ffts * large_factor; fft++) {
-    for (int index_out_small = 0; index_out_small < small_factor;
-         index_out_small++) {
-      double complex tmp = 0.0;
-      for (int index_in_small = 0; index_in_small < small_factor;
-           index_in_small++) {
-        tmp += grid_out[fft * small_factor + index_in_small] *
-               cexp(-2.0 * I * pi * index_out_small * index_in_small /
-                    small_factor);
-      }
-      grid_in[fft * small_factor + index_out_small] = tmp;
-    }
-  }
+  if (small_factor == 1 || large_factor == 1) {
+    // If the FFT size is prime, we can use the naive implementation
+    fft_ref_1d_fw_local_naive(grid_out, grid_in, fft_size, number_of_ffts);
+  } else {
+    // Perform FFTs along the shorter sub-dimension
+    fft_ref_1d_fw_local_naive(grid_out, grid_in, small_factor,
+                              number_of_ffts * large_factor);
 // Transpose and multiply with twiddle factors
 #pragma omp parallel for default(none) collapse(3)                             \
     shared(grid_in, grid_out, fft_size, number_of_ffts, pi, small_factor,      \
                large_factor)
-  for (int fft = 0; fft < number_of_ffts; fft++) {
-    for (int index_small = 0; index_small < small_factor; index_small++) {
-      for (int index_large = 0; index_large < large_factor; index_large++) {
-        grid_out[fft * fft_size + index_small * large_factor + index_large] =
-            grid_in[fft * fft_size + index_large * small_factor + index_small] *
-            cexp(-2.0 * I * pi * index_small * index_large / fft_size);
+    for (int fft = 0; fft < number_of_ffts; fft++) {
+      for (int index_small = 0; index_small < small_factor; index_small++) {
+        for (int index_large = 0; index_large < large_factor; index_large++) {
+          grid_out[fft * fft_size + index_small * large_factor + index_large] =
+              grid_in[fft * fft_size + index_large * small_factor +
+                      index_small] *
+              cexp(-2.0 * I * pi * index_small * index_large / fft_size);
+        }
       }
     }
-  }
-// Perform the FFTs along the longer sub-dimension
-#pragma omp parallel for default(none) collapse(2)                             \
-    shared(grid_in, grid_out, fft_size, number_of_ffts, pi, small_factor,      \
-               large_factor)
-  for (int fft = 0; fft < number_of_ffts * small_factor; fft++) {
-    for (int index_out_large = 0; index_out_large < large_factor;
-         index_out_large++) {
-      double complex tmp = 0.0;
-      for (int index_in_large = 0; index_in_large < large_factor;
-           index_in_large++) {
-        tmp += grid_out[fft * large_factor + index_in_large] *
-               cexp(-2.0 * I * pi * index_out_large * index_in_large /
-                    large_factor);
-      }
-      grid_in[fft * large_factor + index_out_large] = tmp;
-    }
+    fft_ref_1d_fw_local_low(grid_out, grid_in, large_factor,
+                            number_of_ffts * small_factor, 1, 1, large_factor,
+                            large_factor);
   }
 // Reorder to the requested output format
 #pragma omp parallel for default(none) collapse(3)                             \
@@ -125,6 +152,8 @@ void fft_ref_1d_bw_local_low(double complex *grid_in, double complex *grid_out,
     }
   }
   const int large_factor = fft_size / small_factor;
+  assert(small_factor * large_factor == fft_size);
+  assert(small_factor <= large_factor);
 
   const double pi = acos(-1.0);
   // Reorder the data to have elements of the same FFT in consecutive memory
@@ -140,51 +169,31 @@ void fft_ref_1d_bw_local_low(double complex *grid_in, double complex *grid_out,
       }
     }
   }
-// Perform FFTs along the shorter sub-dimension
-#pragma omp parallel for default(none) collapse(2)                             \
-    shared(grid_in, grid_out, number_of_ffts, pi, small_factor, large_factor)
-  for (int fft = 0; fft < number_of_ffts * large_factor; fft++) {
-    for (int index_out_small = 0; index_out_small < small_factor;
-         index_out_small++) {
-      double complex tmp = 0.0;
-      for (int index_in_small = 0; index_in_small < small_factor;
-           index_in_small++) {
-        tmp += grid_out[fft * small_factor + index_in_small] *
-               cexp(2.0 * I * pi * index_out_small * index_in_small /
-                    small_factor);
-      }
-      grid_in[fft * small_factor + index_out_small] = tmp;
-    }
-  }
+  if (small_factor == 1 || large_factor == 1) {
+    // If the FFT size is prime, we can use the naive implementation
+    fft_ref_1d_bw_local_naive(grid_out, grid_in, fft_size, number_of_ffts);
+  } else {
+    // Perform FFTs along the shorter sub-dimension
+    fft_ref_1d_bw_local_low(grid_out, grid_in, small_factor,
+                            number_of_ffts * large_factor, 1, 1, small_factor,
+                            small_factor);
 // Transpose and multiply with twiddle factors
 #pragma omp parallel for default(none) collapse(3)                             \
     shared(grid_in, grid_out, fft_size, number_of_ffts, pi, small_factor,      \
                large_factor)
-  for (int fft = 0; fft < number_of_ffts; fft++) {
-    for (int index_small = 0; index_small < small_factor; index_small++) {
-      for (int index_large = 0; index_large < large_factor; index_large++) {
-        grid_out[fft * fft_size + index_small * large_factor + index_large] =
-            grid_in[fft * fft_size + index_large * small_factor + index_small] *
-            cexp(2.0 * I * pi * index_small * index_large / fft_size);
+    for (int fft = 0; fft < number_of_ffts; fft++) {
+      for (int index_small = 0; index_small < small_factor; index_small++) {
+        for (int index_large = 0; index_large < large_factor; index_large++) {
+          grid_out[fft * fft_size + index_small * large_factor + index_large] =
+              grid_in[fft * fft_size + index_large * small_factor +
+                      index_small] *
+              cexp(2.0 * I * pi * index_small * index_large / fft_size);
+        }
       }
     }
-  }
-// Perform the FFTs along the longer sub-dimension
-#pragma omp parallel for default(none) collapse(2)                             \
-    shared(grid_in, grid_out, fft_size, number_of_ffts, pi, small_factor,      \
-               large_factor)
-  for (int fft = 0; fft < number_of_ffts * small_factor; fft++) {
-    for (int index_out_large = 0; index_out_large < large_factor;
-         index_out_large++) {
-      double complex tmp = 0.0;
-      for (int index_in_large = 0; index_in_large < large_factor;
-           index_in_large++) {
-        tmp += grid_out[fft * large_factor + index_in_large] *
-               cexp(2.0 * I * pi * index_out_large * index_in_large /
-                    large_factor);
-      }
-      grid_in[fft * large_factor + index_out_large] = tmp;
-    }
+    fft_ref_1d_bw_local_low(grid_out, grid_in, large_factor,
+                            number_of_ffts * small_factor, 1, 1, large_factor,
+                            large_factor);
   }
 // Reorder to the requested output format
 #pragma omp parallel for default(none) collapse(3)                             \
