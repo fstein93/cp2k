@@ -743,28 +743,6 @@ void collect_yz_and_distribute_x_ray(const double complex *grid,
   const int number_of_processes = grid_mpi_comm_size(comm);
   const int my_process = grid_mpi_comm_rank(comm);
 
-  if (my_process == 0) {
-    for (int process = 0; process < number_of_processes; process++) {
-      printf("proc2local_transposed[%d] = (%d,%d,%d) -> (%d,%d,%d)\n", process,
-             proc2local_transposed[process][0][0],
-             proc2local_transposed[process][1][0],
-             proc2local_transposed[process][2][0],
-             proc2local_transposed[process][0][1],
-             proc2local_transposed[process][1][1],
-             proc2local_transposed[process][2][1]);
-    }
-    int offset = 0;
-    for (int process = 0; process < number_of_processes; process++) {
-      for (int ray = offset; ray < offset + number_of_rays[process]; ray++) {
-        printf("ray_to_yz %d (%d,%d): %i\n", ray, ray_to_yz[ray][0],
-               ray_to_yz[ray][1], process);
-      }
-      offset += number_of_rays[process];
-    }
-    fflush(stdout);
-  }
-  grid_mpi_barrier(comm);
-
   int max_number_of_rays = 0;
   for (int process = 0; process < number_of_processes; process++)
     max_number_of_rays = imax(max_number_of_rays, number_of_rays[process]);
@@ -882,11 +860,7 @@ void collect_yz_and_distribute_x_ray(const double complex *grid,
         send_process, 1, comm, &send_request);
 
     // Wait for the receive process and copy the data
-    printf("%i Waiting for receive process %d\n", my_process, recv_process);
-    fflush(stdout);
     grid_mpi_wait(&recv_request);
-    printf("%i Received data from process %d\n", my_process, recv_process);
-    fflush(stdout);
 
 #pragma omp parallel for default(none) shared(                                 \
         my_transposed_sizes, my_bounds, number_of_rays_to_recv, recv_buffer,   \
@@ -908,11 +882,7 @@ void collect_yz_and_distribute_x_ray(const double complex *grid,
     }
 
     // Wait for the send request
-    printf("%i Waiting for send process %d\n", my_process, send_process);
-    fflush(stdout);
     grid_mpi_wait(&send_request);
-    printf("%i Sent data to process %d\n", my_process, send_process);
-    fflush(stdout);
   }
 
   free(recv_buffer);
@@ -1082,28 +1052,6 @@ void collect_yz_and_distribute_x_ray_transpose(
   const int number_of_processes = grid_mpi_comm_size(comm);
   const int my_process = grid_mpi_comm_rank(comm);
 
-  if (my_process == 0) {
-    for (int process = 0; process < number_of_processes; process++) {
-      printf("proc2local_transposed[%d] = (%d,%d,%d) -> (%d,%d,%d)\n", process,
-             proc2local_transposed[process][0][0],
-             proc2local_transposed[process][1][0],
-             proc2local_transposed[process][2][0],
-             proc2local_transposed[process][0][1],
-             proc2local_transposed[process][1][1],
-             proc2local_transposed[process][2][1]);
-    }
-    int offset = 0;
-    for (int process = 0; process < number_of_processes; process++) {
-      for (int ray = offset; ray < offset + number_of_rays[process]; ray++) {
-        printf("ray_to_yz %d (%d,%d): %i\n", ray, ray_to_yz[ray][0],
-               ray_to_yz[ray][1], process);
-      }
-      offset += number_of_rays[process];
-    }
-    fflush(stdout);
-  }
-  grid_mpi_barrier(comm);
-
   int max_number_of_rays = 0;
   for (int process = 0; process < number_of_processes; process++)
     max_number_of_rays = imax(max_number_of_rays, number_of_rays[process]);
@@ -1221,11 +1169,7 @@ void collect_yz_and_distribute_x_ray_transpose(
         send_process, 1, comm, &send_request);
 
     // Wait for the receive process and copy the data
-    printf("%i Waiting for receive process %d\n", my_process, recv_process);
-    fflush(stdout);
     grid_mpi_wait(&recv_request);
-    printf("%i Received data from process %d\n", my_process, recv_process);
-    fflush(stdout);
 
 #pragma omp parallel for default(none) shared(                                 \
         my_transposed_sizes, my_bounds, number_of_rays_to_recv, recv_buffer,   \
@@ -1248,11 +1192,7 @@ void collect_yz_and_distribute_x_ray_transpose(
     }
 
     // Wait for the send request
-    printf("%i Waiting for send process %d\n", my_process, send_process);
-    fflush(stdout);
     grid_mpi_wait(&send_request);
-    printf("%i Sent data to process %d\n", my_process, send_process);
-    fflush(stdout);
   }
 
   free(recv_buffer);

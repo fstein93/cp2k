@@ -728,10 +728,6 @@ void fft_3d_fw_blocked_low(
     const int (*proc2local_ms)[3][2], const int (*proc2local_gs)[3][2],
     const grid_mpi_comm comm, const grid_mpi_comm sub_comm[2]) {
   const int my_process = grid_mpi_comm_rank(comm);
-  if (my_process == 0) {
-    printf("Enter fft_3d_fw_blocked_low\n");
-    fflush(stdout);
-  }
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {
@@ -761,7 +757,6 @@ void fft_3d_fw_blocked_low(
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     // Perform the first FFT
     if (fft_lib_use_mpi()) {
-      printf("Use 2D MPI path\n");
       // Perform the first two FFTs in x- and y-direction
       // transpose the last two indices (is cheaper)
       // (z_d,y,x_d) -> (y_d,z,x_d)
@@ -779,7 +774,6 @@ void fft_3d_fw_blocked_low(
       fft_1d_fw_local(npts_global[0], fft_sizes_gs[1] * fft_sizes_gs[2], true,
                       false, grid_buffer_1, grid_buffer_2);
     } else {
-      printf("Use 2D legacy path\n");
       fft_1d_fw_local(npts_global[2], fft_sizes_rs[0] * fft_sizes_rs[1], true,
                       false, grid_buffer_1, grid_buffer_2);
 
@@ -804,7 +798,6 @@ void fft_3d_fw_blocked_low(
   } else if (proc_grid[0] > 1) {
     assert(fft_sizes_rs[1] == npts_global[1]);
     if (fft_lib_use_mpi()) {
-      printf("Use 3D MPI path\n");
       // Perform the distributed 3D FFT in one shot (z_D, y, x)->(y_D,z, x)
       // Returns transposed layout
       fft_3d_fw_distributed(npts_global, comm, grid_buffer_1, grid_buffer_2);
@@ -824,7 +817,6 @@ void fft_3d_fw_blocked_low(
              fft_sizes_gs[0] * fft_sizes_gs[1] * fft_sizes_gs[2] *
                  sizeof(double complex));
     } else {
-      printf("Use 3D legacy path\n");
       // Perform the first FFT
       fft_2d_fw_local((const int[2]){npts_global[2], npts_global[1]},
                       fft_sizes_rs[0], true, false, grid_buffer_1,
@@ -841,10 +833,6 @@ void fft_3d_fw_blocked_low(
     }
   } else {
     fft_3d_fw_local(npts_global, grid_buffer_1, grid_buffer_2);
-  }
-  if (my_process == 0) {
-    printf("Enter fft_3d_fw_blocked_low\n");
-    fflush(stdout);
   }
 }
 
@@ -893,8 +881,8 @@ void fft_3d_bw_blocked_low(
       // Perform second redistribution and transpose
       // (x,z_d,y_d) -> (y_d,z,x_d)
       collect_z_and_distribute_x_blocked_transpose(
-          grid_buffer_2, grid_buffer_1, npts_global, proc2local_ms,
-          proc2local_gs, comm, sub_comm);
+          grid_buffer_2, grid_buffer_1, npts_global, proc2local_gs,
+          proc2local_ms, comm, sub_comm);
 
       // Perform the first two FFTs in x- and y-direction
       // transpose the last two indices (is cheaper)
@@ -1166,22 +1154,42 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
                                          proc2local_rs, comm, sub_comm);
 
       // Perform the third FFT
-      fft_1d_bw_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], true,
+      fft_1d_bw_local(npts_global[2], fft_sizes_rs[0] * fft_sizes_rs[1], true,
                       false, grid_buffer_1, grid_buffer_2);
     }
   } else if (proc_grid[0] > 1) {
-    // Perform the first FFT
-    fft_1d_bw_local(npts_global[0], number_of_local_yz_rays, true, false,
-                    grid_buffer_1, grid_buffer_2);
+    if (fft_lib_use_mpi()) {
+      // Perform the first FFT in x-direction
+      fft_1d_bw_local(npts_global[0], number_of_local_yz_rays, true, false,
+                      grid_buffer_1, grid_buffer_2);
 
-    // Perform transpose
-    collect_yz_and_distribute_x_ray(grid_buffer_2, grid_buffer_1, npts_global,
-                                    proc2local_ms, rays_per_process, ray_to_yz,
-                                    comm);
+      // Perform second redistribution and transpose
+      // (x,zy_d) -> (y_d,z,x_d)
+      collect_yz_and_distribute_x_ray_transpose(
+          grid_buffer_2, grid_buffer_1, npts_global, proc2local_ms,
+          rays_per_process, ray_to_yz, comm);
 
-    // Perform the second FFT
-    fft_2d_bw_local((const int[2]){npts_global[2], npts_global[1]},
-                    fft_sizes_ms[0], true, false, grid_buffer_1, grid_buffer_2);
+      // Perform the first two FFTs in x- and y-direction
+      // transpose the last two indices (is cheaper)
+      // (y_d,z,x_d) -> (z_d,y,x_d)
+      fft_2d_bw_distributed((const int[2]){npts_global[2], npts_global[1]},
+                            fft_sizes_rs[0], sub_comm[0], grid_buffer_1,
+                            grid_buffer_2);
+    } else {
+      // Perform the first FFT
+      fft_1d_bw_local(npts_global[0], number_of_local_yz_rays, true, false,
+                      grid_buffer_1, grid_buffer_2);
+
+      // Perform transpose
+      collect_yz_and_distribute_x_ray(grid_buffer_2, grid_buffer_1, npts_global,
+                                      proc2local_ms, rays_per_process,
+                                      ray_to_yz, comm);
+
+      // Perform the second FFT
+      fft_2d_bw_local((const int[2]){npts_global[2], npts_global[1]},
+                      fft_sizes_ms[0], true, false, grid_buffer_1,
+                      grid_buffer_2);
+    }
   } else {
     // Copy to the new format
     // Maybe, the order 1D FFT, redistribution to blocks and 2D FFT is faster
@@ -1195,7 +1203,7 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
 
         grid_buffer_2[index_z * npts_global[0] * npts_global[1] +
                       index_y * npts_global[0] + index_x] =
-            grid_buffer_1[yz_ray + index_x * number_of_local_yz_rays];
+            grid_buffer_1[yz_ray * npts_global[0] + index_x];
       }
     }
     fft_3d_bw_local(npts_global, grid_buffer_2, grid_buffer_1);
@@ -1376,7 +1384,7 @@ void fft_3d_bw_sorted(const double complex *grid_gs, double *grid_rs,
                           grid_layout->proc2local_rs[my_process][dir][0] + 1;
   }
   if (grid_layout->ray_distribution) {
-    int(*my_ray_to_yz)[2] = grid_layout->ray_to_yz;
+    const int(*my_ray_to_yz)[2] = grid_layout->ray_to_yz;
     for (int process = 0; process < my_process; process++) {
       my_ray_to_yz += grid_layout->rays_per_process[process];
     }
