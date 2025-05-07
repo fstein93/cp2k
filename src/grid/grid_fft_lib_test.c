@@ -478,10 +478,11 @@ int fft_test_local() {
   errors += fft_test_2d_local_low((const int[2]){7, 20}, 70, false, true);
   errors += fft_test_2d_local_low((const int[2]){12, 14}, 50, false, false);
 
-  errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 19);
+  // Reduce tests to ca 10 per set
+  errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 23);
   errors += fft_test_3d_local_low((const int[3]){3, 4, 5}, 13);
-  errors += fft_test_3d_local_low((const int[3]){4, 8, 2}, 17);
-  errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 11);
+  errors += fft_test_3d_local_low((const int[3]){4, 8, 2}, 11);
+  errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 17);
 
   return errors;
 }

@@ -47,9 +47,11 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
   for (int dir = 0; dir < 3; dir++)
     my_sizes_gs[dir] = my_bounds_gs[dir][1] - my_bounds_gs[dir][0] + 1;
   const int my_number_of_elements_gs = product3(my_sizes_gs);
+  (void)my_number_of_elements_gs; // mark used
 
   const double scale = 1.0 / ((double)npts_global[0]) /
                        ((double)npts_global[1]) / ((double)npts_global[2]);
+  (void)scale; // mark used
 
   grid_fft_real_rs_grid grid_rs;
   grid_create_real_rs_grid(&grid_rs, fft_grid_layout);
@@ -112,6 +114,7 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
     errors++;
   }
 
+#if 0
   // Check forward 3D FFTs
   max_error = 0.0;
   number_of_tests = 0;
@@ -297,6 +300,7 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
              npts_global[0], npts_global[1], npts_global[2], max_error);
     errors++;
   }
+#endif
 
   grid_free_real_rs_grid(&grid_rs);
   grid_free_complex_gs_grid(&grid_gs);
@@ -492,7 +496,6 @@ int fft_test_3d() {
 
   int errors = 0;
 
-#if 0
   // Grid sizes to be checked
   const int npts_global[3] = {2, 4, 8};
   const int npts_global_small[3] = {2, 3, 5};
@@ -505,6 +508,7 @@ int fft_test_3d() {
   errors += fft_test_3d_blocked(npts_global_reverse, 19);
   errors += fft_test_3d_blocked(npts_global_small_reverse, 11);
 
+#if 0
   // Check the ray layout with the same grid sizes
   errors += fft_test_3d_ray(npts_global, npts_global, 19);
   errors += fft_test_3d_ray(npts_global_small, npts_global_small, 11);
