@@ -95,6 +95,32 @@ void fft_ref_1d_fw_local(double complex *grid_rs, double complex *grid_gs,
 }
 
 /*******************************************************************************
+ * \brief Naive implementation of FFT from transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_1d_fw_local(double *grid_rs, double complex *grid_gs,
+                         const int fft_size, const int number_of_ffts,
+                         const bool transpose_rs, const bool transpose_gs) {
+  if (transpose_rs) {
+    if (transpose_gs) {
+      fft_ref_1d_fw_local_r2c_low(grid_rs, grid_gs, fft_size, number_of_ffts,
+                              number_of_ffts, number_of_ffts, 1, 1);
+    } else {
+      fft_ref_1d_fw_local_r2c_low(grid_rs, grid_gs, fft_size, number_of_ffts,
+                              number_of_ffts, 1, 1, fft_size);
+    }
+  } else {
+    if (transpose_gs) {
+      fft_ref_1d_fw_local_r2c_low(grid_rs, grid_gs, fft_size, number_of_ffts, 1,
+                              number_of_ffts, fft_size, 1);
+    } else {
+      fft_ref_1d_fw_local_r2c_low(grid_rs, grid_gs, fft_size, number_of_ffts, 1, 1,
+                              fft_size, fft_size);
+    }
+  }
+}
+
+/*******************************************************************************
  * \brief Naive implementation of backwards FFT to transposed format (for easier
  *transposition). \author Frederick Stein
  ******************************************************************************/
@@ -115,6 +141,32 @@ void fft_ref_1d_bw_local(double complex *grid_gs, double complex *grid_rs,
                               number_of_ffts, 1, 1, fft_size);
     } else {
       fft_ref_1d_bw_local_low(grid_gs, grid_rs, fft_size, number_of_ffts, 1, 1,
+                              fft_size, fft_size);
+    }
+  }
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of backwards FFT to transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_1d_bw_local_r2c(double complex *grid_gs, double *grid_rs,
+                         const int fft_size, const int number_of_ffts,
+                         const bool transpose_rs, const bool transpose_gs) {
+  if (transpose_rs) {
+    if (transpose_gs) {
+      fft_ref_1d_bw_local_r2c_low(grid_gs, grid_rs, fft_size, number_of_ffts,
+                              number_of_ffts, number_of_ffts, 1, 1);
+    } else {
+      fft_ref_1d_bw_local_r2c_low(grid_gs, grid_rs, fft_size, number_of_ffts, 1,
+                              number_of_ffts, fft_size, 1);
+    }
+  } else {
+    if (transpose_gs) {
+      fft_ref_1d_bw_local_r2c_low(grid_gs, grid_rs, fft_size, number_of_ffts,
+                              number_of_ffts, 1, 1, fft_size);
+    } else {
+      fft_ref_1d_bw_local_r2c_low(grid_gs, grid_rs, fft_size, number_of_ffts, 1, 1,
                               fft_size, fft_size);
     }
   }

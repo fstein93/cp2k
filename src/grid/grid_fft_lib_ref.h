@@ -60,6 +60,14 @@ void fft_ref_1d_fw_local(double complex *grid_rs, double complex *grid_gs,
                          const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs);
 
+                         /*******************************************************************************
+                          * \brief 1D Forward FFT from transposed format.
+                          * \author Frederick Stein
+                          ******************************************************************************/
+                         void fft_ref_1d_fw_local_r2c(double *grid_rs, double complex *grid_gs,
+                                                  const int fft_size, const int number_of_ffts,
+                                                  const bool transpose_rs, const bool transpose_gs);
+
 /*******************************************************************************
  * \brief 1D Backward FFT to transposed format.
  * \author Frederick Stein
@@ -67,6 +75,14 @@ void fft_ref_1d_fw_local(double complex *grid_rs, double complex *grid_gs,
 void fft_ref_1d_bw_local(double complex *grid_gs, double complex *grid_rs,
                          const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs);
+
+                         /*******************************************************************************
+                          * \brief 1D Backward FFT to transposed format.
+                          * \author Frederick Stein
+                          ******************************************************************************/
+                         void fft_ref_1d_bw_local_r2c(double complex *grid_gs, double *grid_rs,
+                                                  const int fft_size, const int number_of_ffts,
+                                                  const bool transpose_rs, const bool transpose_gs);
 
 /*******************************************************************************
  * \brief Local transposition.
