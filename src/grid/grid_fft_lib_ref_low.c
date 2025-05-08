@@ -13,6 +13,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+// Assume a cache line size of 64 bytes and 8 bytes per double
+#define DOUBLES_PER_CACHE_LINE 8
+
 // We need these definitions for the recursion within this module
 void fft_ref_1d_fw_local_internal(double *restrict grid_in_real,
                                   double *restrict grid_in_imag,
@@ -76,13 +79,28 @@ void fft_ref_1d_fw_local_naive(const double *restrict grid_in_real,
     memcpy(grid_out_imag, grid_in_imag,
            fft_size * number_of_ffts * sizeof(double));
   } else if (fft_size == 2) {
-    for (int fft = 0; fft < number_of_ffts; fft++) {
+    for (int fft = 0;
+         fft < number_of_ffts / DOUBLES_PER_CACHE_LINE * DOUBLES_PER_CACHE_LINE;
+         fft += DOUBLES_PER_CACHE_LINE) {
+      for (int fft_inner = fft; fft_inner < fft + DOUBLES_PER_CACHE_LINE;
+           fft_inner++) {
+        grid_out_real[fft_inner] =
+            grid_in_real[fft_inner] + grid_in_real[fft_inner + number_of_ffts];
+        grid_out_imag[fft_inner] =
+            grid_in_imag[fft_inner] + grid_in_imag[fft_inner + number_of_ffts];
+        grid_out_real[fft_inner + number_of_ffts] =
+            grid_in_real[fft_inner] - grid_in_real[fft_inner + number_of_ffts];
+        grid_out_imag[fft_inner + number_of_ffts] =
+            grid_in_imag[fft_inner] - grid_in_imag[fft_inner + number_of_ffts];
+      }
+    }
+    for (int fft =
+             number_of_ffts / DOUBLES_PER_CACHE_LINE * DOUBLES_PER_CACHE_LINE;
+         fft < number_of_ffts; fft++) {
       grid_out_real[fft] =
           grid_in_real[fft] + grid_in_real[fft + number_of_ffts];
       grid_out_imag[fft] =
           grid_in_imag[fft] + grid_in_imag[fft + number_of_ffts];
-    }
-    for (int fft = 0; fft < number_of_ffts; fft++) {
       grid_out_real[fft + number_of_ffts] =
           grid_in_real[fft] - grid_in_real[fft + number_of_ffts];
       grid_out_imag[fft + number_of_ffts] =
@@ -132,13 +150,28 @@ void fft_ref_1d_bw_local_naive(const double *restrict grid_in_real,
     memcpy(grid_out_imag, grid_in_imag,
            fft_size * number_of_ffts * sizeof(double));
   } else if (fft_size == 2) {
-    for (int fft = 0; fft < number_of_ffts; fft++) {
+    for (int fft = 0;
+         fft < number_of_ffts / DOUBLES_PER_CACHE_LINE * DOUBLES_PER_CACHE_LINE;
+         fft += DOUBLES_PER_CACHE_LINE) {
+      for (int fft_inner = fft; fft_inner < fft + DOUBLES_PER_CACHE_LINE;
+           fft_inner++) {
+        grid_out_real[fft_inner] =
+            grid_in_real[fft_inner] + grid_in_real[fft_inner + number_of_ffts];
+        grid_out_imag[fft_inner] =
+            grid_in_imag[fft_inner] + grid_in_imag[fft_inner + number_of_ffts];
+        grid_out_real[fft_inner + number_of_ffts] =
+            grid_in_real[fft_inner] - grid_in_real[fft_inner + number_of_ffts];
+        grid_out_imag[fft_inner + number_of_ffts] =
+            grid_in_imag[fft_inner] - grid_in_imag[fft_inner + number_of_ffts];
+      }
+    }
+    for (int fft =
+             number_of_ffts / DOUBLES_PER_CACHE_LINE * DOUBLES_PER_CACHE_LINE;
+         fft < number_of_ffts; fft++) {
       grid_out_real[fft] =
           grid_in_real[fft] + grid_in_real[fft + number_of_ffts];
       grid_out_imag[fft] =
           grid_in_imag[fft] + grid_in_imag[fft + number_of_ffts];
-    }
-    for (int fft = 0; fft < number_of_ffts; fft++) {
       grid_out_real[fft + number_of_ffts] =
           grid_in_real[fft] - grid_in_real[fft + number_of_ffts];
       grid_out_imag[fft + number_of_ffts] =
