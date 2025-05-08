@@ -67,26 +67,49 @@ void fft_ref_1d_fw_local_naive(const double *restrict grid_in_real,
                                double *restrict grid_out_real,
                                double *restrict grid_out_imag,
                                const int fft_size, const int number_of_ffts) {
-  memset(grid_out_real, 0, fft_size * number_of_ffts * sizeof(double));
-  memset(grid_out_imag, 0, fft_size * number_of_ffts * sizeof(double));
   // Perform FFTs along the first dimension
   const double pi = acos(-1.0);
+  if (fft_size == 1) {
+    // If the FFT size is 1, we can use a simple copy
+    memcpy(grid_out_real, grid_in_real,
+           fft_size * number_of_ffts * sizeof(double));
+    memcpy(grid_out_imag, grid_in_imag,
+           fft_size * number_of_ffts * sizeof(double));
+  } else if (fft_size == 2) {
+    for (int fft = 0; fft < number_of_ffts; fft++) {
+      grid_out_real[fft] =
+          grid_in_real[fft] + grid_in_real[fft + number_of_ffts];
+      grid_out_imag[fft] =
+          grid_in_imag[fft] + grid_in_imag[fft + number_of_ffts];
+    }
+    for (int fft = 0; fft < number_of_ffts; fft++) {
+      grid_out_real[fft + number_of_ffts] =
+          grid_in_real[fft] - grid_in_real[fft + number_of_ffts];
+      grid_out_imag[fft + number_of_ffts] =
+          grid_in_imag[fft] - grid_in_imag[fft + number_of_ffts];
+    }
+  } else {
+    memset(grid_out_real, 0, fft_size * number_of_ffts * sizeof(double));
+    memset(grid_out_imag, 0, fft_size * number_of_ffts * sizeof(double));
 #pragma omp parallel for default(none)                                         \
     shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag, fft_size, \
                number_of_ffts, pi)
-  for (int index_out = 0; index_out < fft_size; index_out++) {
-    for (int index_in = 0; index_in < fft_size; index_in++) {
-      const double complex phase_factor =
-          cexp(-2.0 * I * pi * index_out * index_in / fft_size);
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_out_real[fft + index_out * number_of_ffts] +=
-            grid_in_real[fft + index_in * number_of_ffts] *
-                creal(phase_factor) -
-            grid_in_imag[fft + index_in * number_of_ffts] * cimag(phase_factor);
-        grid_out_imag[fft + index_out * number_of_ffts] +=
-            grid_in_real[fft + index_in * number_of_ffts] *
-                cimag(phase_factor) +
-            grid_in_imag[fft + index_in * number_of_ffts] * creal(phase_factor);
+    for (int index_out = 0; index_out < fft_size; index_out++) {
+      for (int index_in = 0; index_in < fft_size; index_in++) {
+        const double complex phase_factor =
+            cexp(-2.0 * I * pi * index_out * index_in / fft_size);
+        for (int fft = 0; fft < number_of_ffts; fft++) {
+          grid_out_real[fft + index_out * number_of_ffts] +=
+              grid_in_real[fft + index_in * number_of_ffts] *
+                  creal(phase_factor) -
+              grid_in_imag[fft + index_in * number_of_ffts] *
+                  cimag(phase_factor);
+          grid_out_imag[fft + index_out * number_of_ffts] +=
+              grid_in_real[fft + index_in * number_of_ffts] *
+                  cimag(phase_factor) +
+              grid_in_imag[fft + index_in * number_of_ffts] *
+                  creal(phase_factor);
+        }
       }
     }
   }
@@ -101,25 +124,48 @@ void fft_ref_1d_bw_local_naive(const double *restrict grid_in_real,
                                double *restrict grid_out_real,
                                double *restrict grid_out_imag,
                                const int fft_size, const int number_of_ffts) {
-  memset(grid_out_real, 0, fft_size * number_of_ffts * sizeof(double));
-  memset(grid_out_imag, 0, fft_size * number_of_ffts * sizeof(double));
   const double pi = acos(-1.0);
+  if (fft_size == 1) {
+    // If the FFT size is 1, we can use a simple copy
+    memcpy(grid_out_real, grid_in_real,
+           fft_size * number_of_ffts * sizeof(double));
+    memcpy(grid_out_imag, grid_in_imag,
+           fft_size * number_of_ffts * sizeof(double));
+  } else if (fft_size == 2) {
+    for (int fft = 0; fft < number_of_ffts; fft++) {
+      grid_out_real[fft] =
+          grid_in_real[fft] + grid_in_real[fft + number_of_ffts];
+      grid_out_imag[fft] =
+          grid_in_imag[fft] + grid_in_imag[fft + number_of_ffts];
+    }
+    for (int fft = 0; fft < number_of_ffts; fft++) {
+      grid_out_real[fft + number_of_ffts] =
+          grid_in_real[fft] - grid_in_real[fft + number_of_ffts];
+      grid_out_imag[fft + number_of_ffts] =
+          grid_in_imag[fft] - grid_in_imag[fft + number_of_ffts];
+    }
+  } else {
+    memset(grid_out_real, 0, fft_size * number_of_ffts * sizeof(double));
+    memset(grid_out_imag, 0, fft_size * number_of_ffts * sizeof(double));
 #pragma omp parallel for default(none)                                         \
     shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag, fft_size, \
                number_of_ffts, pi)
-  for (int index_out = 0; index_out < fft_size; index_out++) {
-    for (int index_in = 0; index_in < fft_size; index_in++) {
-      const double complex phase_factor =
-          cexp(2.0 * I * pi * index_out * index_in / fft_size);
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_out_real[fft + index_out * number_of_ffts] +=
-            grid_in_real[fft + index_in * number_of_ffts] *
-                creal(phase_factor) -
-            grid_in_imag[fft + index_in * number_of_ffts] * cimag(phase_factor);
-        grid_out_imag[fft + index_out * number_of_ffts] +=
-            grid_in_real[fft + index_in * number_of_ffts] *
-                cimag(phase_factor) +
-            grid_in_imag[fft + index_in * number_of_ffts] * creal(phase_factor);
+    for (int index_out = 0; index_out < fft_size; index_out++) {
+      for (int index_in = 0; index_in < fft_size; index_in++) {
+        const double complex phase_factor =
+            cexp(2.0 * I * pi * index_out * index_in / fft_size);
+        for (int fft = 0; fft < number_of_ffts; fft++) {
+          grid_out_real[fft + index_out * number_of_ffts] +=
+              grid_in_real[fft + index_in * number_of_ffts] *
+                  creal(phase_factor) -
+              grid_in_imag[fft + index_in * number_of_ffts] *
+                  cimag(phase_factor);
+          grid_out_imag[fft + index_out * number_of_ffts] +=
+              grid_in_real[fft + index_in * number_of_ffts] *
+                  cimag(phase_factor) +
+              grid_in_imag[fft + index_in * number_of_ffts] *
+                  creal(phase_factor);
+        }
       }
     }
   }
