@@ -21,6 +21,34 @@ void fft_ref_1d_bw_local_internal(double complex *grid_in,
                                   double complex *grid_out, const int fft_size,
                                   const int number_of_ffts);
 
+void reorder_input(double complex *grid_in, double complex *grid_out,
+                   const int fft_size, const int number_of_ffts,
+                   const int stride_in, const int distance_in) {
+  // Reorder the data to have elements of the same FFT in consecutive memory
+#pragma omp parallel for default(none) collapse(2) shared(                     \
+        grid_in, grid_out, number_of_ffts, stride_in, distance_in, fft_size)
+  for (int index = 0; index < fft_size; index++) {
+    for (int fft = 0; fft < number_of_ffts; fft++) {
+      grid_out[fft + index * number_of_ffts] =
+          grid_in[index * stride_in + fft * distance_in];
+    }
+  }
+}
+
+void reorder_output(double complex *grid_in, double complex *grid_out,
+                    const int fft_size, const int number_of_ffts,
+                    const int stride_out, const int distance_out) {
+// Reorder to the requested output format
+#pragma omp parallel for default(none) collapse(2) shared(                     \
+        grid_in, grid_out, number_of_ffts, stride_out, distance_out, fft_size)
+  for (int index = 0; index < fft_size; index++) {
+    for (int fft = 0; fft < number_of_ffts; fft++) {
+      grid_out[fft * distance_out + index * stride_out] =
+          grid_in[fft + index * number_of_ffts];
+    }
+  }
+}
+
 /*******************************************************************************
  * \brief Naive implementation of FFT.
  * \author Frederick Stein
@@ -140,20 +168,8 @@ void fft_ref_1d_fw_local_low(double complex *grid_in, double complex *grid_out,
   assert(small_factor <= large_factor);
 
   const double pi = acos(-1.0);
-  // Reorder the data to have elements of the same FFT in consecutive memory
-#pragma omp parallel for default(none) collapse(3)                             \
-    shared(grid_in, grid_out, number_of_ffts, stride_in, distance_in,          \
-               small_factor, large_factor)
-  for (int index_large = 0; index_large < large_factor; index_large++) {
-    for (int index_small = 0; index_small < small_factor; index_small++) {
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_out[fft +
-                 (index_small * large_factor + index_large) * number_of_ffts] =
-            grid_in[(index_small * large_factor + index_large) * stride_in +
-                    fft * distance_in];
-      }
-    }
-  }
+  reorder_input(grid_in, grid_out, fft_size, number_of_ffts, stride_in,
+                distance_in);
   if (small_factor == 1 || large_factor == 1) {
     // If the FFT size is prime, we can use the naive implementation
     fft_ref_1d_fw_local_naive(grid_out, grid_in, fft_size, number_of_ffts);
@@ -181,20 +197,8 @@ void fft_ref_1d_fw_local_low(double complex *grid_in, double complex *grid_out,
     fft_ref_1d_fw_local_internal(grid_out, grid_in, large_factor,
                                  number_of_ffts * small_factor);
   }
-// Reorder to the requested output format
-#pragma omp parallel for default(none) collapse(3)                             \
-    shared(grid_in, grid_out, number_of_ffts, stride_out, distance_out,        \
-               small_factor, large_factor)
-  for (int index_small = 0; index_small < small_factor; index_small++) {
-    for (int index_large = 0; index_large < large_factor; index_large++) {
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_out[fft * distance_out +
-                 (index_large * small_factor + index_small) * stride_out] =
-            grid_in[fft + (index_large * small_factor + index_small) *
-                              number_of_ffts];
-      }
-    }
-  }
+  reorder_output(grid_in, grid_out, fft_size, number_of_ffts, stride_out,
+                 distance_out);
 }
 
 /*******************************************************************************
@@ -269,20 +273,8 @@ void fft_ref_1d_bw_local_low(double complex *grid_in, double complex *grid_out,
   assert(small_factor <= large_factor);
 
   const double pi = acos(-1.0);
-  // Reorder the data to have elements of the same FFT in consecutive memory
-#pragma omp parallel for default(none) collapse(3)                             \
-    shared(grid_in, grid_out, number_of_ffts, stride_in, distance_in,          \
-               small_factor, large_factor)
-  for (int index_large = 0; index_large < large_factor; index_large++) {
-    for (int index_small = 0; index_small < small_factor; index_small++) {
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_out[fft +
-                 (index_small * large_factor + index_large) * number_of_ffts] =
-            grid_in[(index_small * large_factor + index_large) * stride_in +
-                    fft * distance_in];
-      }
-    }
-  }
+  reorder_input(grid_in, grid_out, fft_size, number_of_ffts, stride_in,
+                distance_in);
   if (small_factor == 1 || large_factor == 1) {
     // If the FFT size is prime, we can use the naive implementation
     fft_ref_1d_bw_local_naive(grid_out, grid_in, fft_size, number_of_ffts);
@@ -310,20 +302,8 @@ void fft_ref_1d_bw_local_low(double complex *grid_in, double complex *grid_out,
     fft_ref_1d_bw_local_internal(grid_out, grid_in, large_factor,
                                  number_of_ffts * small_factor);
   }
-// Reorder to the requested output format
-#pragma omp parallel for default(none) collapse(3)                             \
-    shared(grid_in, grid_out, number_of_ffts, stride_out, distance_out,        \
-               small_factor, large_factor)
-  for (int index_small = 0; index_small < small_factor; index_small++) {
-    for (int index_large = 0; index_large < large_factor; index_large++) {
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_out[fft * distance_out +
-                 (index_large * small_factor + index_small) * stride_out] =
-            grid_in[fft + (index_large * small_factor + index_small) *
-                              number_of_ffts];
-      }
-    }
-  }
+  reorder_output(grid_in, grid_out, fft_size, number_of_ffts, stride_out,
+                 distance_out);
 }
 
 // EOF
