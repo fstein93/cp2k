@@ -24,13 +24,18 @@ void fft_ref_1d_bw_local_internal(double complex *grid_in,
 void reorder_input(double complex *grid_in, double complex *grid_out,
                    const int fft_size, const int number_of_ffts,
                    const int stride_in, const int distance_in) {
-  // Reorder the data to have elements of the same FFT in consecutive memory
+  if (distance_in == 1 && stride_in == number_of_ffts) {
+    memcpy(grid_out, grid_in,
+           fft_size * number_of_ffts * sizeof(double complex));
+  } else {
+    // If the distance is 1, we can use a simple copy
 #pragma omp parallel for default(none) collapse(2) shared(                     \
         grid_in, grid_out, number_of_ffts, stride_in, distance_in, fft_size)
-  for (int index = 0; index < fft_size; index++) {
-    for (int fft = 0; fft < number_of_ffts; fft++) {
-      grid_out[fft + index * number_of_ffts] =
-          grid_in[index * stride_in + fft * distance_in];
+    for (int index = 0; index < fft_size; index++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out[fft + index * number_of_ffts] =
+            grid_in[index * stride_in + fft * distance_in];
+      }
     }
   }
 }
@@ -38,13 +43,17 @@ void reorder_input(double complex *grid_in, double complex *grid_out,
 void reorder_output(double complex *grid_in, double complex *grid_out,
                     const int fft_size, const int number_of_ffts,
                     const int stride_out, const int distance_out) {
-// Reorder to the requested output format
+  if (distance_out == 1 && stride_out == number_of_ffts) {
+    memcpy(grid_out, grid_in,
+           fft_size * number_of_ffts * sizeof(double complex));
+  } else {
 #pragma omp parallel for default(none) collapse(2) shared(                     \
         grid_in, grid_out, number_of_ffts, stride_out, distance_out, fft_size)
-  for (int index = 0; index < fft_size; index++) {
-    for (int fft = 0; fft < number_of_ffts; fft++) {
-      grid_out[fft * distance_out + index * stride_out] =
-          grid_in[fft + index * number_of_ffts];
+    for (int index = 0; index < fft_size; index++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out[fft * distance_out + index * stride_out] =
+            grid_in[fft + index * number_of_ffts];
+      }
     }
   }
 }
