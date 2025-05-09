@@ -72,13 +72,13 @@ void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out);
 
-                     /*******************************************************************************
-                      * \brief 1D Forward FFT from transposed format.
-                      * \author Frederick Stein
-                      ******************************************************************************/
-                     void fft_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
-                                          const bool transpose_rs, const bool transpose_gs,
-                                          double *grid_in, double complex *grid_out);
+/*******************************************************************************
+ * \brief 1D Forward FFT from transposed format.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
+                         const bool transpose_rs, const bool transpose_gs,
+                         double *grid_in, double complex *grid_out);
 
 /*******************************************************************************
  * \brief 1D Backward FFT to transposed format.
@@ -88,13 +88,13 @@ void fft_1d_bw_local(const int fft_size, const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out);
 
-                     /*******************************************************************************
-                      * \brief 1D Backward FFT to transposed format.
-                      * \author Frederick Stein
-                      ******************************************************************************/
-                     void fft_1d_bw_local_r2c(const int fft_size, const int number_of_ffts,
-                                          const bool transpose_rs, const bool transpose_gs,
-                                          double complex *grid_in, double *grid_out);
+/*******************************************************************************
+ * \brief 1D Backward FFT to transposed format.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
+                         const bool transpose_rs, const bool transpose_gs,
+                         double complex *grid_in, double *grid_out);
 
 /*******************************************************************************
  * \brief Local transposition.
