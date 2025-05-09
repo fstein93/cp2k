@@ -178,7 +178,7 @@ int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
   double *input_array = NULL;
   double complex *output_array = NULL;
   fft_allocate_double(2 * (fft_size / 2 + 1) * number_of_ffts, &input_array);
-  fft_allocate_complex((fft_size / 2 + 1) * number_of_ffts, &output_array);
+  fft_allocate_complex((fft_size / 2 + 1) * number_of_ffts + 4, &output_array);
 
   memset(input_array, 0, fft_size * number_of_ffts * sizeof(double));
   // Check the forward FFT
