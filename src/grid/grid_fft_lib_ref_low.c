@@ -214,17 +214,49 @@ void fft_ref_1d_fw_local_r2c_naive(const double *restrict grid_in,
          (fft_size / 2 + 1) * number_of_ffts * sizeof(double));
   memset(grid_out_imag, 0,
          (fft_size / 2 + 1) * number_of_ffts * sizeof(double));
-#pragma omp parallel for default(none) shared(                                 \
-        grid_in, grid_out_real, grid_out_imag, fft_size, number_of_ffts, pi)
-  for (int index_out = 0; index_out < fft_size / 2 + 1; index_out++) {
-    for (int index_in = 0; index_in < fft_size; index_in++) {
-      const double complex phase_factor =
-          cexp(-2.0 * I * pi * index_out * index_in / fft_size);
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_out_real[fft + index_out * number_of_ffts] +=
-            grid_in[fft + index_in * number_of_ffts] * creal(phase_factor);
-        grid_out_imag[fft + index_out * number_of_ffts] +=
-            grid_in[fft + index_in * number_of_ffts] * cimag(phase_factor);
+
+  // Determine a factorization of the FFT size
+  int small_factor = 1;
+  for (int i = 2; i * i <= fft_size; i++) {
+    if (fft_size % i == 0) {
+      small_factor = i;
+      break;
+    }
+  }
+  const int large_factor = fft_size / small_factor;
+  assert(small_factor * large_factor == fft_size);
+  assert(small_factor <= large_factor);
+
+  for (int index_out_large = 0; index_out_large < large_factor / 2 + 1;
+       index_out_large++) {
+    for (int index_out_small = 0; index_out_small < small_factor;
+         index_out_small++) {
+      const int index_out = index_out_large * small_factor + index_out_small;
+      if (index_out >= fft_size / 2 + 1)
+        continue;
+      for (int index_in_small = 0; index_in_small < small_factor;
+           index_in_small++) {
+        for (int index_in_large = 0; index_in_large < large_factor;
+             index_in_large++) {
+          const double complex phase_factor =
+              cexp(-2.0 * I * pi *
+                   (index_out_large * small_factor + index_out_small) *
+                   (index_in_small * large_factor + index_in_large) / fft_size);
+          for (int fft = 0; fft < number_of_ffts; fft++) {
+            grid_out_real[fft +
+                          (index_out_large * small_factor + index_out_small) *
+                              number_of_ffts] +=
+                grid_in[fft + (index_in_small * large_factor + index_in_large) *
+                                  number_of_ffts] *
+                creal(phase_factor);
+            grid_out_imag[fft +
+                          (index_out_large * small_factor + index_out_small) *
+                              number_of_ffts] +=
+                grid_in[fft + (index_in_small * large_factor + index_in_large) *
+                                  number_of_ffts] *
+                cimag(phase_factor);
+          }
+        }
       }
     }
   }
