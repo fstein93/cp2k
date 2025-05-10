@@ -95,6 +95,27 @@ void reorder_output(const double *grid_in_real, const double *grid_in_imag,
   }
 }
 
+void reorder_output_2d(const double *grid_in_real, const double *grid_in_imag,
+                       double complex *grid_out, const int fft_size[2],
+                       const int number_of_ffts, const int stride_out,
+                       const int distance_out) {
+#pragma omp parallel for default(none) collapse(2)                             \
+    shared(grid_in_real, grid_in_imag, grid_out, number_of_ffts, stride_out,   \
+               distance_out, fft_size)
+  for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
+    for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out[fft * distance_out +
+                 (index_0 * fft_size[1] + index_1) * stride_out] =
+            CMPLX(grid_in_real[fft + (index_1 * fft_size[0] + index_0) *
+                                         number_of_ffts],
+                  grid_in_imag[fft + (index_1 * fft_size[0] + index_0) *
+                                         number_of_ffts]);
+      }
+    }
+  }
+}
+
 void reorder_output_r2c(const double *grid_in_real, const double *grid_in_imag,
                         double complex *grid_out, const int fft_size,
                         const int number_of_ffts, const int stride_out,
@@ -693,6 +714,209 @@ void fft_ref_1d_bw_local_c2r_low(double complex *restrict grid_in,
                                 number_of_ffts, offset_imaginary);
   reorder_output_c2r(grid_in_real, grid_out, fft_size, number_of_ffts,
                      stride_out, distance_out);
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of FFT from transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_2d_fw_local_low(double complex *restrict grid_in,
+                             double complex *restrict grid_out,
+                             const int fft_size[2], const int number_of_ffts,
+                             const int stride_in, const int stride_out,
+                             const int distance_in, const int distance_out) {
+
+  // We reorder the data to a format more suitable for vectorization
+  double *grid_in_real = (double *)grid_in;
+  double *grid_in_imag =
+      ((double *)grid_in) + fft_size[0] * fft_size[1] * number_of_ffts;
+  double *grid_out_real = (double *)grid_out;
+  double *grid_out_imag =
+      ((double *)grid_out) + fft_size[0] * fft_size[1] * number_of_ffts;
+
+  reorder_input(grid_in, grid_out_real, grid_out_imag,
+                fft_size[0] * fft_size[1], number_of_ffts, stride_in,
+                distance_in);
+  fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[0],
+                               number_of_ffts * fft_size[1]);
+  // Transpose the data
+  for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out_real[index_1 * fft_size[0] * number_of_ffts +
+                      index_0 * number_of_ffts + fft] =
+            grid_in_real[index_0 * fft_size[1] * number_of_ffts +
+                         index_1 * number_of_ffts + fft];
+        grid_out_imag[index_1 * fft_size[0] * number_of_ffts +
+                      index_0 * number_of_ffts + fft] =
+            grid_in_imag[index_0 * fft_size[1] * number_of_ffts +
+                         index_1 * number_of_ffts + fft];
+      }
+    }
+  }
+  fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[1],
+                               number_of_ffts * fft_size[0]);
+  reorder_output_2d(grid_in_real, grid_in_imag, grid_out, fft_size,
+                    number_of_ffts, stride_out, distance_out);
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of FFT from transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_2d_bw_local_low(double complex *restrict grid_in,
+                             double complex *restrict grid_out,
+                             const int fft_size[2], const int number_of_ffts,
+                             const int stride_in, const int stride_out,
+                             const int distance_in, const int distance_out) {
+
+  // We reorder the data to a format more suitable for vectorization
+  double *grid_in_real = (double *)grid_in;
+  double *grid_in_imag =
+      ((double *)grid_in) + fft_size[0] * fft_size[1] * number_of_ffts;
+  double *grid_out_real = (double *)grid_out;
+  double *grid_out_imag =
+      ((double *)grid_out) + fft_size[0] * fft_size[1] * number_of_ffts;
+
+  reorder_input(grid_in, grid_out_real, grid_out_imag,
+                fft_size[0] * fft_size[1], number_of_ffts, stride_in,
+                distance_in);
+  fft_ref_1d_bw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[0],
+                               number_of_ffts * fft_size[1]);
+  // Transpose the data
+  for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out_real[index_1 * fft_size[0] * number_of_ffts +
+                      index_0 * number_of_ffts + fft] =
+            grid_in_real[index_0 * fft_size[1] * number_of_ffts +
+                         index_1 * number_of_ffts + fft];
+        grid_out_imag[index_1 * fft_size[0] * number_of_ffts +
+                      index_0 * number_of_ffts + fft] =
+            grid_in_imag[index_0 * fft_size[1] * number_of_ffts +
+                         index_1 * number_of_ffts + fft];
+      }
+    }
+  }
+  fft_ref_1d_bw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[1],
+                               number_of_ffts * fft_size[0]);
+  reorder_output_2d(grid_in_real, grid_in_imag, grid_out, fft_size,
+                    number_of_ffts, stride_out, distance_out);
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of FFT from transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_3d_fw_local_low(double complex *restrict grid_in,
+                             double complex *restrict grid_out,
+                             const int fft_size[3]) {
+
+  // We reorder the data to a format more suitable for vectorization
+  double *grid_in_real = (double *)grid_in;
+  double *grid_in_imag =
+      ((double *)grid_in) + fft_size[0] * fft_size[1] * fft_size[2];
+  double *grid_out_real = (double *)grid_out;
+  double *grid_out_imag =
+      ((double *)grid_out) + fft_size[0] * fft_size[1] * fft_size[2];
+
+  reorder_input(grid_in, grid_out_real, grid_out_imag,
+                fft_size[0] * fft_size[1] * fft_size[2], 1, 1,
+                fft_size[0] * fft_size[1] * fft_size[2]);
+  fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[2],
+                               fft_size[0] * fft_size[1]);
+  // Transpose the data
+  for (int index_0 = 0; index_0 < fft_size[2]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[0] * fft_size[1]; index_1++) {
+      grid_out_real[index_1 * fft_size[2] + index_0] =
+          grid_in_real[index_0 * fft_size[0] * fft_size[1] + index_1];
+      grid_out_imag[index_1 * fft_size[2] + index_0] =
+          grid_in_imag[index_0 * fft_size[0] * fft_size[1] + index_1];
+    }
+  }
+  fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[1],
+                               fft_size[0] * fft_size[2]);
+  // Transpose the data
+  for (int index_0 = 0; index_0 < fft_size[1]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[0] * fft_size[2]; index_1++) {
+      grid_out_real[index_1 * fft_size[1] + index_0] =
+          grid_in_real[index_0 * fft_size[0] * fft_size[2] + index_1];
+      grid_out_imag[index_1 * fft_size[1] + index_0] =
+          grid_in_imag[index_0 * fft_size[0] * fft_size[2] + index_1];
+    }
+  }
+  fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[0],
+                               fft_size[1] * fft_size[2]);
+  // Transpose the data
+  for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[1] * fft_size[2]; index_1++) {
+      grid_out[index_1 * fft_size[0] + index_0] =
+          CMPLX(grid_in_real[index_0 * fft_size[1] * fft_size[2] + index_1],
+                grid_in_imag[index_0 * fft_size[1] * fft_size[2] + index_1]);
+    }
+  }
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of FFT from transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_3d_bw_local_low(double complex *restrict grid_in,
+                             double complex *restrict grid_out,
+                             const int fft_size[3]) {
+
+  // We reorder the data to a format more suitable for vectorization
+  double *grid_in_real = (double *)grid_in;
+  double *grid_in_imag =
+      ((double *)grid_in) + fft_size[0] * fft_size[1] * fft_size[2];
+  double *grid_out_real = (double *)grid_out;
+  double *grid_out_imag =
+      ((double *)grid_out) + fft_size[0] * fft_size[1] * fft_size[2];
+
+  reorder_input(grid_in, grid_out_real, grid_out_imag,
+                fft_size[0] * fft_size[1] * fft_size[2], 1, 1, 1);
+  fft_ref_1d_bw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[2],
+                               fft_size[0] * fft_size[1]);
+  // Transpose the data
+  for (int index_0 = 0; index_0 < fft_size[2]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[0] * fft_size[1]; index_1++) {
+      grid_out_real[index_1 * fft_size[2] + index_0] =
+          grid_in_real[index_0 * fft_size[0] * fft_size[1] + index_1];
+      grid_out_imag[index_1 * fft_size[2] + index_0] =
+          grid_in_imag[index_0 * fft_size[0] * fft_size[1] + index_1];
+    }
+  }
+  fft_ref_1d_bw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[1],
+                               fft_size[0] * fft_size[2]);
+  // Transpose the data
+  for (int index_0 = 0; index_0 < fft_size[1]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[0] * fft_size[2]; index_1++) {
+      grid_out_real[index_1 * fft_size[1] + index_0] =
+          grid_in_real[index_0 * fft_size[0] * fft_size[2] + index_1];
+      grid_out_imag[index_1 * fft_size[1] + index_0] =
+          grid_in_imag[index_0 * fft_size[0] * fft_size[2] + index_1];
+    }
+  }
+  fft_ref_1d_bw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[0],
+                               fft_size[1] * fft_size[2]);
+  // Transpose the data
+  for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[1] * fft_size[2]; index_1++) {
+      grid_out[index_1 * fft_size[0] + index_0] =
+          CMPLX(grid_in_real[index_0 * fft_size[1] * fft_size[2] + index_1],
+                grid_in_imag[index_0 * fft_size[1] * fft_size[2] + index_1]);
+    }
+  }
 }
 
 // EOF

@@ -198,35 +198,21 @@ void fft_ref_transpose_local(double complex *grid,
 void fft_ref_2d_fw_local(double complex *grid_rs, double complex *grid_gs,
                          const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs) {
-
   if (transpose_rs) {
-    fft_ref_1d_fw_local(grid_rs, grid_gs, fft_size[0],
-                        fft_size[1] * number_of_ffts, true, false);
-
-    fft_ref_1d_fw_local(grid_gs, grid_rs, fft_size[1],
-                        fft_size[0] * number_of_ffts, true, false);
-
     if (transpose_gs) {
-      fft_ref_transpose_local(grid_rs, grid_gs, fft_size[0] * fft_size[1],
-                              number_of_ffts);
+      fft_ref_2d_fw_local_low(grid_rs, grid_gs, fft_size, number_of_ffts,
+                              number_of_ffts, number_of_ffts, 1, 1);
     } else {
-      memcpy(grid_gs, grid_rs,
-             fft_size[0] * fft_size[1] * number_of_ffts *
-                 sizeof(double complex));
+      fft_ref_2d_fw_local_low(grid_rs, grid_gs, fft_size, number_of_ffts,
+                              number_of_ffts, 1, 1, fft_size[0] * fft_size[1]);
     }
   } else {
-    fft_ref_1d_fw_local(grid_rs, grid_gs, fft_size[1],
-                        fft_size[0] * number_of_ffts, false, true);
-
-    fft_ref_1d_fw_local(grid_gs, grid_rs, fft_size[0],
-                        fft_size[1] * number_of_ffts, false, true);
-
     if (transpose_gs) {
-      memcpy(grid_gs, grid_rs,
-             fft_size[0] * fft_size[1] * number_of_ffts *
-                 sizeof(double complex));
+      fft_ref_2d_fw_local_low(grid_rs, grid_gs, fft_size, number_of_ffts, 1,
+                              number_of_ffts, fft_size[0] * fft_size[1], 1);
     } else {
-      fft_ref_transpose_local(grid_rs, grid_gs, number_of_ffts,
+      fft_ref_2d_fw_local_low(grid_rs, grid_gs, fft_size, number_of_ffts, 1, 1,
+                              fft_size[0] * fft_size[1],
                               fft_size[0] * fft_size[1]);
     }
   }
@@ -241,35 +227,21 @@ void fft_ref_2d_fw_local(double complex *grid_rs, double complex *grid_gs,
 void fft_ref_2d_bw_local(double complex *grid_gs, double complex *grid_rs,
                          const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs) {
-
-  if (transpose_gs) {
-    fft_ref_1d_bw_local(grid_gs, grid_rs, fft_size[0],
-                        fft_size[1] * number_of_ffts, false, true);
-
-    fft_ref_1d_bw_local(grid_rs, grid_gs, fft_size[1],
-                        fft_size[0] * number_of_ffts, false, true);
-
-    if (transpose_rs) {
-      fft_ref_transpose_local(grid_gs, grid_rs, fft_size[0] * fft_size[1],
-                              number_of_ffts);
+  if (transpose_rs) {
+    if (transpose_gs) {
+      fft_ref_2d_bw_local_low(grid_gs, grid_rs, fft_size, number_of_ffts,
+                              number_of_ffts, number_of_ffts, 1, 1);
     } else {
-      memcpy(grid_rs, grid_gs,
-             fft_size[0] * fft_size[1] * number_of_ffts *
-                 sizeof(double complex));
+      fft_ref_2d_bw_local_low(grid_gs, grid_rs, fft_size, number_of_ffts, 1,
+                              number_of_ffts, fft_size[0] * fft_size[1], 1);
     }
   } else {
-    fft_ref_1d_bw_local(grid_gs, grid_rs, fft_size[1],
-                        fft_size[0] * number_of_ffts, true, false);
-
-    fft_ref_1d_bw_local(grid_rs, grid_gs, fft_size[0],
-                        fft_size[1] * number_of_ffts, true, false);
-
-    if (transpose_rs) {
-      memcpy(grid_rs, grid_gs,
-             fft_size[0] * fft_size[1] * number_of_ffts *
-                 sizeof(double complex));
+    if (transpose_gs) {
+      fft_ref_2d_bw_local_low(grid_gs, grid_rs, fft_size, number_of_ffts,
+                              number_of_ffts, 1, 1, fft_size[0] * fft_size[1]);
     } else {
-      fft_ref_transpose_local(grid_gs, grid_rs, number_of_ffts,
+      fft_ref_2d_bw_local_low(grid_gs, grid_rs, fft_size, number_of_ffts, 1, 1,
+                              fft_size[0] * fft_size[1],
                               fft_size[0] * fft_size[1]);
     }
   }
@@ -284,17 +256,7 @@ void fft_ref_2d_bw_local(double complex *grid_gs, double complex *grid_rs,
 void fft_ref_3d_fw_local(double complex *grid_rs, double complex *grid_gs,
                          const int fft_size[3]) {
 
-  // Perform the first FFT along z
-  fft_ref_1d_fw_local(grid_rs, grid_gs, fft_size[0], fft_size[1] * fft_size[2],
-                      false, true);
-
-  // Perform the second FFT along y
-  fft_ref_1d_fw_local(grid_gs, grid_rs, fft_size[1], fft_size[0] * fft_size[2],
-                      false, true);
-
-  // Perform the third FFT along x
-  fft_ref_1d_fw_local(grid_rs, grid_gs, fft_size[2], fft_size[0] * fft_size[1],
-                      false, true);
+  fft_ref_3d_fw_local_low(grid_rs, grid_gs, fft_size);
 }
 
 /*******************************************************************************
@@ -306,17 +268,7 @@ void fft_ref_3d_fw_local(double complex *grid_rs, double complex *grid_gs,
 void fft_ref_3d_bw_local(double complex *grid_gs, double complex *grid_rs,
                          const int fft_size[3]) {
 
-  // Perform the first FFT along x
-  fft_ref_1d_bw_local(grid_gs, grid_rs, fft_size[2], fft_size[0] * fft_size[1],
-                      false, true);
-
-  // Perform the second FFT along y
-  fft_ref_1d_bw_local(grid_rs, grid_gs, fft_size[1], fft_size[0] * fft_size[2],
-                      false, true);
-
-  // Perform the third FFT along z
-  fft_ref_1d_bw_local(grid_gs, grid_rs, fft_size[0], fft_size[1] * fft_size[2],
-                      false, true);
+  fft_ref_3d_bw_local_low(grid_gs, grid_rs, fft_size);
 }
 
 // EOF

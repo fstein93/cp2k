@@ -46,6 +46,38 @@ void fft_ref_1d_bw_local_c2r_low(double complex *grid_in, double *grid_out,
                                  const int stride_in, const int stride_out,
                                  const int distance_in, const int distance_out);
 
+/*******************************************************************************
+ * \brief 2D Forward FFT from transposed format.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_2d_fw_local_low(double complex *grid_in, double complex *grid_out,
+                             const int fft_size[2], const int number_of_ffts,
+                             const int stride_in, const int stride_out,
+                             const int distance_in, const int distance_out);
+
+/*******************************************************************************
+ * \brief 2D Backward FFT to transposed format.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_2d_bw_local_low(double complex *grid_in, double complex *grid_out,
+                             const int fft_size[2], const int number_of_ffts,
+                             const int stride_in, const int stride_out,
+                             const int distance_in, const int distance_out);
+
+/*******************************************************************************
+ * \brief 3D Forward FFT from transposed format.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_3d_fw_local_low(double complex *grid_in, double complex *grid_out,
+                             const int fft_size[3]);
+
+/*******************************************************************************
+ * \brief 3D Backward FFT to transposed format.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_3d_bw_local_low(double complex *grid_in, double complex *grid_out,
+                             const int fft_size[3]);
+
 #endif /* GRID_FFT_LIB_REF_LOW_H */
 
 // EOF
