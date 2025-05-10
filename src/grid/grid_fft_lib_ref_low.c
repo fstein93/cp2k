@@ -257,15 +257,25 @@ void fft_ref_1d_fw_local_r2c_naive(const double *restrict grid_in,
   double *buffer_imag2 = calloc(number_of_ffts * fft_size, sizeof(double));
   for (int index_small = 0; index_small < small_factor; index_small++) {
     for (int index_large = 0; index_large < large_factor; index_large++) {
+      const double complex phase_factor =
+          cexp(-2.0 * I * pi * index_small * index_large / fft_size);
       for (int fft = 0; fft < number_of_ffts; fft++) {
         buffer_real2[fft + (index_large * small_factor + index_small) *
                                number_of_ffts] =
             buffer_real[fft + (index_small * large_factor + index_large) *
-                                  number_of_ffts];
+                                  number_of_ffts] *
+                creal(phase_factor) -
+            buffer_imag[fft + (index_small * large_factor + index_large) *
+                                  number_of_ffts] *
+                cimag(phase_factor);
         buffer_imag2[fft + (index_large * small_factor + index_small) *
                                number_of_ffts] =
+            buffer_real[fft + (index_small * large_factor + index_large) *
+                                  number_of_ffts] *
+                cimag(phase_factor) +
             buffer_imag[fft + (index_small * large_factor + index_large) *
-                                  number_of_ffts];
+                                  number_of_ffts] *
+                creal(phase_factor);
       }
     }
   }
@@ -276,12 +286,9 @@ void fft_ref_1d_fw_local_r2c_naive(const double *restrict grid_in,
        index_out_large++) {
     for (int index_in_large = 0; index_in_large < large_factor;
          index_in_large++) {
+      const double complex phase_factor =
+          cexp(-2.0 * I * pi * index_out_large * index_in_large / large_factor);
       for (int index_small = 0; index_small < small_factor; index_small++) {
-        const double complex phase_factor =
-            cexp(-2.0 * I * pi *
-                 (index_out_large * small_factor * index_in_large +
-                  index_small * index_in_large) /
-                 fft_size);
         for (int fft = 0; fft < number_of_ffts; fft++) {
           grid_out_real[fft + (index_out_large * small_factor + index_small) *
                                   number_of_ffts] +=
@@ -316,13 +323,10 @@ void fft_ref_1d_fw_local_r2c_naive(const double *restrict grid_in,
   } else {
     for (int index_in_large = 0; index_in_large < large_factor;
          index_in_large++) {
+      const double complex phase_factor = cexp(
+          -2.0 * I * pi * (large_factor / 2) * index_in_large / large_factor);
       for (int index_small = 0; index_small < small_factor / 2 + 1;
            index_small++) {
-        const double complex phase_factor =
-            cexp(-2.0 * I * pi *
-                 (large_factor / 2 * small_factor * index_in_large +
-                  index_small * index_in_large) /
-                 fft_size);
         for (int fft = 0; fft < number_of_ffts; fft++) {
           grid_out_real[fft + (large_factor / 2 * small_factor + index_small) *
                                   number_of_ffts] +=
