@@ -227,85 +227,110 @@ void fft_ref_1d_fw_local_r2c_naive(const double *restrict grid_in,
   assert(small_factor * large_factor == fft_size);
   assert(small_factor <= large_factor);
 
+  double *buffer_real = calloc(number_of_ffts * fft_size, sizeof(double));
+  double *buffer_imag = calloc(number_of_ffts * fft_size, sizeof(double));
+  for (int index_out_small = 0; index_out_small < small_factor;
+       index_out_small++) {
+    for (int index_in_small = 0; index_in_small < small_factor;
+         index_in_small++) {
+      const double complex phase_factor =
+          cexp(-2.0 * I * pi * index_out_small * index_in_small / small_factor);
+      for (int index_large = 0; index_large < large_factor; index_large++) {
+        for (int fft = 0; fft < number_of_ffts; fft++) {
+          buffer_real[fft + (index_out_small * large_factor + index_large) *
+                                number_of_ffts] +=
+              creal(
+                  grid_in[fft + (index_in_small * large_factor + index_large) *
+                                    number_of_ffts] *
+                  phase_factor);
+          buffer_imag[fft + (index_out_small * large_factor + index_large) *
+                                number_of_ffts] +=
+              cimag(
+                  grid_in[fft + (index_in_small * large_factor + index_large) *
+                                    number_of_ffts] *
+                  phase_factor);
+        }
+      }
+    }
+  }
+
   // l is even: 0=(0, 0), ... , l*s/2=(l/2, 0)
   // l is odd: 0, ... , l'*s+s/2=(l/2, s/2)
   for (int index_out_large = 0; index_out_large < large_factor / 2;
        index_out_large++) {
-    for (int index_out_small = 0; index_out_small < small_factor;
-         index_out_small++) {
-      for (int index_in_small = 0; index_in_small < small_factor;
-           index_in_small++) {
-        for (int index_in_large = 0; index_in_large < large_factor;
-             index_in_large++) {
-          const double complex phase_factor =
-              cexp(-2.0 * I * pi *
-                   (index_out_small * index_in_small * large_factor +
-                    index_out_large * small_factor * index_in_large +
-                    index_out_small * index_in_large) /
-                   fft_size);
-          for (int fft = 0; fft < number_of_ffts; fft++) {
-            grid_out_real[fft +
-                          (index_out_large * small_factor + index_out_small) *
-                              number_of_ffts] +=
-                grid_in[fft + (index_in_small * large_factor + index_in_large) *
-                                  number_of_ffts] *
-                creal(phase_factor);
-            grid_out_imag[fft +
-                          (index_out_large * small_factor + index_out_small) *
-                              number_of_ffts] +=
-                grid_in[fft + (index_in_small * large_factor + index_in_large) *
-                                  number_of_ffts] *
-                cimag(phase_factor);
-          }
+    for (int index_in_large = 0; index_in_large < large_factor;
+         index_in_large++) {
+      for (int index_small = 0; index_small < small_factor; index_small++) {
+        const double complex phase_factor =
+            cexp(-2.0 * I * pi *
+                 (index_out_large * small_factor * index_in_large +
+                  index_small * index_in_large) /
+                 fft_size);
+        for (int fft = 0; fft < number_of_ffts; fft++) {
+          grid_out_real[fft + (index_out_large * small_factor + index_small) *
+                                  number_of_ffts] +=
+              buffer_real[fft + (index_small * large_factor + index_in_large) *
+                                    number_of_ffts] *
+                  creal(phase_factor) -
+              buffer_imag[fft + (index_small * large_factor + index_in_large) *
+                                    number_of_ffts] *
+                  cimag(phase_factor);
+          grid_out_imag[fft + (index_out_large * small_factor + index_small) *
+                                  number_of_ffts] +=
+              buffer_real[fft + (index_small * large_factor + index_in_large) *
+                                    number_of_ffts] *
+                  cimag(phase_factor) +
+              buffer_imag[fft + (index_small * large_factor + index_in_large) *
+                                    number_of_ffts] *
+                  creal(phase_factor);
         }
       }
     }
   }
   if (large_factor % 2 == 0) {
-    for (int index_in_small = 0; index_in_small < small_factor;
-         index_in_small++) {
-      for (int index_in_large = 0; index_in_large < large_factor;
-           index_in_large++) {
-        const double phase_factor = index_in_large % 2 == 0 ? 1.0 : -1.0;
-        for (int fft = 0; fft < number_of_ffts; fft++) {
-          grid_out_real[fft + fft_size / 2 * number_of_ffts] +=
-              grid_in[fft + (index_in_small * large_factor + index_in_large) *
-                                number_of_ffts] *
-              phase_factor;
-        }
+    for (int index_in_large = 0; index_in_large < large_factor;
+         index_in_large++) {
+      const double phase_factor = index_in_large % 2 == 0 ? 1.0 : -1.0;
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out_real[fft + fft_size / 2 * number_of_ffts] +=
+            buffer_real[fft +
+                        (0 * large_factor + index_in_large) * number_of_ffts] *
+            phase_factor;
       }
     }
   } else {
     for (int index_in_large = 0; index_in_large < large_factor;
          index_in_large++) {
-      for (int index_out_small = 0; index_out_small < small_factor / 2 + 1;
-           index_out_small++) {
-        for (int index_in_small = 0; index_in_small < small_factor;
-             index_in_small++) {
-          const double complex phase_factor =
-              cexp(-2.0 * I * pi *
-                   (index_out_small * index_in_small * large_factor +
-                    large_factor / 2 * small_factor * index_in_large +
-                    index_out_small * index_in_large) /
-                   fft_size);
-          for (int fft = 0; fft < number_of_ffts; fft++) {
-            grid_out_real[fft +
-                          (large_factor / 2 * small_factor + index_out_small) *
-                              number_of_ffts] +=
-                grid_in[fft + (index_in_small * large_factor + index_in_large) *
-                                  number_of_ffts] *
-                creal(phase_factor);
-            grid_out_imag[fft +
-                          (large_factor / 2 * small_factor + index_out_small) *
-                              number_of_ffts] +=
-                grid_in[fft + (index_in_small * large_factor + index_in_large) *
-                                  number_of_ffts] *
-                cimag(phase_factor);
-          }
+      for (int index_small = 0; index_small < small_factor / 2 + 1;
+           index_small++) {
+        const double complex phase_factor =
+            cexp(-2.0 * I * pi *
+                 (large_factor / 2 * small_factor * index_in_large +
+                  index_small * index_in_large) /
+                 fft_size);
+        for (int fft = 0; fft < number_of_ffts; fft++) {
+          grid_out_real[fft + (large_factor / 2 * small_factor + index_small) *
+                                  number_of_ffts] +=
+              buffer_real[fft + (index_small * large_factor + index_in_large) *
+                                    number_of_ffts] *
+                  creal(phase_factor) -
+              buffer_imag[fft + (index_small * large_factor + index_in_large) *
+                                    number_of_ffts] *
+                  cimag(phase_factor);
+          grid_out_imag[fft + (large_factor / 2 * small_factor + index_small) *
+                                  number_of_ffts] +=
+              buffer_real[fft + (index_small * large_factor + index_in_large) *
+                                    number_of_ffts] *
+                  cimag(phase_factor) +
+              buffer_imag[fft + (index_small * large_factor + index_in_large) *
+                                    number_of_ffts] *
+                  creal(phase_factor);
         }
       }
     }
   }
+  free(buffer_real);
+  free(buffer_imag);
 }
 
 /*******************************************************************************
