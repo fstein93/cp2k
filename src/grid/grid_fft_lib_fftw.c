@@ -323,8 +323,6 @@ fftw_plan *fft_fftw_create_1d_plan_r2c(const int direction, const int fft_size,
     double complex *buffer_2 =
         fftw_alloc_complex((fft_size / 2 + 1) * number_of_ffts + 1);
     plan = malloc(sizeof(fftw_plan));
-    printf("Create plan\n");
-    fflush(stdout);
     if (direction == FFTW_FORWARD) {
       *plan = fftw_plan_many_dft_r2c(rank, n, howmany, buffer_1, inembed,
                                      istride, idist, buffer_2, onembed, ostride,
@@ -335,8 +333,6 @@ fftw_plan *fft_fftw_create_1d_plan_r2c(const int direction, const int fft_size,
                                      idist, fftw_planning_mode);
     }
     assert(plan != NULL);
-    printf("Done planning\n");
-    fflush(stdout);
     add_plan_to_cache(key, plan);
     fftw_free(buffer_1);
     fftw_free(buffer_2);
@@ -551,15 +547,8 @@ void fft_fftw_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
   assert(omp_get_num_threads() == 1);
   fftw_plan *plan = fft_fftw_create_1d_plan_r2c(
       FFTW_FORWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs);
-  printf("Run R2C\n");
-  fflush(stdout);
   assert(plan != NULL);
   fftw_execute_dft_r2c(*plan, grid_in, grid_out);
-  // FFTW shifts the data by one double ???
-  memmove(grid_out, ((double *)grid_out) + 1,
-          number_of_ffts * (fft_size / 2 + 1) * sizeof(double complex));
-  printf("Done R2C\n");
-  fflush(stdout);
 #else
   (void)fft_size;
   (void)number_of_ffts;
@@ -605,13 +594,7 @@ void fft_fftw_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
   assert(omp_get_num_threads() == 1);
   fftw_plan *plan = fft_fftw_create_1d_plan_r2c(
       FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs);
-  printf("Run C2R\n");
-  fflush(stdout);
   fftw_execute_dft_c2r(*plan, grid_in, grid_out);
-  for (int index = 0; index < number_of_ffts * fft_size; index++)
-    grid_out[index] *= fft_size;
-  printf("Done C2R\n");
-  fflush(stdout);
 #else
   (void)fft_size;
   (void)number_of_ffts;
