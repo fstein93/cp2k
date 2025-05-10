@@ -554,7 +554,7 @@ void fft_fftw_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
   printf("Run R2C\n");
   fflush(stdout);
   assert(plan != NULL);
-  fftw_execute_dft(*plan, (double complex *)grid_in, grid_out + 2);
+  fftw_execute_dft_r2c(*plan, grid_in, grid_out);
   // FFTW shifts the data by one double ???
   memmove(grid_out, ((double *)grid_out) + 1,
           number_of_ffts * (fft_size / 2 + 1) * sizeof(double complex));
@@ -607,7 +607,7 @@ void fft_fftw_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
       FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs);
   printf("Run C2R\n");
   fflush(stdout);
-  fftw_execute_dft(*plan, grid_in, (double complex *)grid_out);
+  fftw_execute_dft_c2r(*plan, grid_in, grid_out);
   for (int index = 0; index < number_of_ffts * fft_size; index++)
     grid_out[index] *= fft_size;
   printf("Done C2R\n");

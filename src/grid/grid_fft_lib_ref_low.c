@@ -31,7 +31,7 @@ void reorder_input(const double complex *restrict grid_in,
                    double *restrict grid_out_imag, const int fft_size,
                    const int number_of_ffts, const int stride_in,
                    const int distance_in) {
-  // If the distance is 1, we can use a simple copy
+
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_in, grid_out_real, grid_out_imag, number_of_ffts, stride_in,   \
                distance_in, fft_size)
@@ -323,8 +323,9 @@ void fft_ref_1d_fw_local_r2c_naive(const double *restrict grid_in,
   } else {
     for (int index_in_large = 0; index_in_large < large_factor;
          index_in_large++) {
-      const double complex phase_factor = cexp(
-          -2.0 * I * pi * (large_factor / 2) * index_in_large / large_factor);
+      const double complex phase_factor =
+          cexp(-2.0 * I * pi * (large_factor - 1) / large_factor / 2 *
+               index_in_large);
       for (int index_small = 0; index_small < small_factor / 2 + 1;
            index_small++) {
         for (int fft = 0; fft < number_of_ffts; fft++) {

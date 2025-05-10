@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
 
   offload_set_chosen_device(0);
   grid_library_init();
-  fft_init_lib(GRID_FFT_LIB_REF, FFT_MEASURE, true);
+  fft_init_lib(GRID_FFT_LIB_DEFAULT, FFT_MEASURE, true);
 
   int errors = 0;
   errors += run_test(argv[1], "ortho_density_l0000.task");
@@ -115,7 +115,7 @@ int main(int argc, char *argv[]) {
   // library
   fft_finalize_lib();
   fft_init_lib(GRID_FFT_LIB_REF, FFT_MEASURE, false);
-  // errors += fft_test_local();
+  errors += fft_test_local();
   errors += fft_test_distributed();
   errors += fft_test_transpose();
   errors += fft_test_transpose_parallel();
