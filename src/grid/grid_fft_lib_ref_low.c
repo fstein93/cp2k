@@ -337,23 +337,23 @@ void fft_ref_1d_fw_local_naive(const double *restrict grid_in_real,
     time_4 += (double)(clock() - begin) / CLOCKS_PER_SEC;
   } else if (fft_size == 3) {
     const double pi = acos(-1.0);
-    memset(grid_out_real, 0, fft_size * number_of_ffts * sizeof(double));
-    memset(grid_out_imag, 0, fft_size * number_of_ffts * sizeof(double));
-#pragma omp parallel for default(none)                                         \
-    shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag, fft_size, \
-               number_of_ffts, stride_size, pi)
     for (int index_out = 0; index_out < fft_size; index_out++) {
-      for (int index_in = 0; index_in < fft_size; index_in++) {
-        const double complex phase_factor =
-            cexp(-2.0 * I * pi * index_out * index_in / fft_size);
-        for (int fft = 0; fft < number_of_ffts; fft++) {
-          grid_out_real[fft + index_out * stride_size] +=
-              grid_in_real[fft + index_in * stride_size] * creal(phase_factor) -
-              grid_in_imag[fft + index_in * stride_size] * cimag(phase_factor);
-          grid_out_imag[fft + index_out * stride_size] +=
-              grid_in_real[fft + index_in * stride_size] * cimag(phase_factor) +
-              grid_in_imag[fft + index_in * stride_size] * creal(phase_factor);
-        }
+      const double complex phase_factor = cexp(-2.0 * I * pi * index_out / 3);
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out_real[fft + index_out * stride_size] = grid_in_real[fft];
+        grid_out_imag[fft + index_out * stride_size] = grid_in_imag[fft];
+        grid_out_real[fft + index_out * stride_size] +=
+            grid_in_real[fft + stride_size] * creal(phase_factor) -
+            grid_in_imag[fft + stride_size] * cimag(phase_factor);
+        grid_out_imag[fft + index_out * stride_size] +=
+            grid_in_real[fft + stride_size] * cimag(phase_factor) +
+            grid_in_imag[fft + stride_size] * creal(phase_factor);
+        grid_out_real[fft + index_out * stride_size] +=
+            grid_in_real[fft + 2 * stride_size] * creal(phase_factor) +
+            grid_in_imag[fft + 2 * stride_size] * cimag(phase_factor);
+        grid_out_imag[fft + index_out * stride_size] +=
+            -grid_in_real[fft + 2 * stride_size] * cimag(phase_factor) +
+            grid_in_imag[fft + 2 * stride_size] * creal(phase_factor);
       }
     }
     time_3 += (double)(clock() - begin) / CLOCKS_PER_SEC;
@@ -635,25 +635,45 @@ void fft_ref_1d_bw_local_naive(const double *restrict grid_in_real,
     }
     time_4 += (double)(clock() - begin) / CLOCKS_PER_SEC;
   } else if (fft_size == 3) {
-    const double pi = acos(-1.0);
-    memset(grid_out_real, 0, fft_size * number_of_ffts * sizeof(double));
-    memset(grid_out_imag, 0, fft_size * number_of_ffts * sizeof(double));
+    const double half_sqrt3 = 0.5 * sqrt(3.0);
 #pragma omp parallel for default(none)                                         \
-    shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag, fft_size, \
-               number_of_ffts, stride_size, pi)
-    for (int index_out = 0; index_out < fft_size; index_out++) {
-      for (int index_in = 0; index_in < fft_size; index_in++) {
-        const double complex phase_factor =
-            cexp(2.0 * I * pi * index_out * index_in / fft_size);
-        for (int fft = 0; fft < number_of_ffts; fft++) {
-          grid_out_real[fft + index_out * stride_size] +=
-              grid_in_real[fft + index_in * stride_size] * creal(phase_factor) -
-              grid_in_imag[fft + index_in * stride_size] * cimag(phase_factor);
-          grid_out_imag[fft + index_out * stride_size] +=
-              grid_in_real[fft + index_in * stride_size] * cimag(phase_factor) +
-              grid_in_imag[fft + index_in * stride_size] * creal(phase_factor);
-        }
-      }
+    shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag,           \
+               number_of_ffts, stride_size, half_sqrt3)
+    for (int fft = 0; fft < number_of_ffts; fft++) {
+      grid_out_real[fft] = grid_in_real[fft];
+      grid_out_real[fft] += grid_in_real[fft + stride_size];
+      grid_out_real[fft] += grid_in_real[fft + 2 * stride_size];
+      grid_out_imag[fft] = grid_in_imag[fft];
+      grid_out_imag[fft] += grid_in_imag[fft + stride_size];
+      grid_out_imag[fft] += grid_in_imag[fft + 2 * stride_size];
+      grid_out_real[fft + stride_size] = grid_in_real[fft];
+      grid_out_real[fft + stride_size] -=
+          0.5 * grid_in_real[fft + stride_size] +
+          grid_in_imag[fft + stride_size] * half_sqrt3;
+      grid_out_real[fft + stride_size] +=
+          -0.5 * grid_in_real[fft + 2 * stride_size] +
+          grid_in_imag[fft + 2 * stride_size] * half_sqrt3;
+      grid_out_imag[fft + stride_size] = grid_in_imag[fft];
+      grid_out_imag[fft + stride_size] +=
+          grid_in_real[fft + stride_size] * half_sqrt3 -
+          0.5 * grid_in_imag[fft + stride_size];
+      grid_out_imag[fft + stride_size] +=
+          -grid_in_real[fft + 2 * stride_size] * half_sqrt3 -
+          0.5 * grid_in_imag[fft + 2 * stride_size];
+      grid_out_real[fft + 2 * stride_size] = grid_in_real[fft];
+      grid_out_real[fft + 2 * stride_size] +=
+          -0.5 * grid_in_real[fft + stride_size] +
+          grid_in_imag[fft + stride_size] * half_sqrt3;
+      grid_out_real[fft + 2 * stride_size] -=
+          0.5 * grid_in_real[fft + 2 * stride_size] +
+          grid_in_imag[fft + 2 * stride_size] * half_sqrt3;
+      grid_out_imag[fft + 2 * stride_size] = grid_in_imag[fft];
+      grid_out_imag[fft + 2 * stride_size] +=
+          -grid_in_real[fft + stride_size] * half_sqrt3 -
+          0.5 * grid_in_imag[fft + stride_size];
+      grid_out_imag[fft + 2 * stride_size] +=
+          grid_in_real[fft + 2 * stride_size] * half_sqrt3 -
+          0.5 * grid_in_imag[fft + 2 * stride_size];
     }
     time_3 += (double)(clock() - begin) / CLOCKS_PER_SEC;
   } else if (fft_size == 5) {
