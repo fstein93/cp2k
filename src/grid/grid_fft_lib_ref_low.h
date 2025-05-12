@@ -65,6 +65,16 @@ void fft_ref_2d_fw_local_low(double complex *grid_in, double complex *grid_out,
                              const int distance_in, const int distance_out);
 
 /*******************************************************************************
+ * \brief 2D Forward FFT from transposed format.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_2d_fw_local_r2c_low(double *grid_in, double complex *grid_out,
+                                 const int fft_size[2],
+                                 const int number_of_ffts, const int stride_in,
+                                 const int stride_out, const int distance_in,
+                                 const int distance_out);
+
+/*******************************************************************************
  * \brief 2D Backward FFT to transposed format.
  * \author Frederick Stein
  ******************************************************************************/
@@ -72,6 +82,16 @@ void fft_ref_2d_bw_local_low(double complex *grid_in, double complex *grid_out,
                              const int fft_size[2], const int number_of_ffts,
                              const int stride_in, const int stride_out,
                              const int distance_in, const int distance_out);
+
+/*******************************************************************************
+ * \brief 2D Backward FFT to transposed format.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_2d_bw_local_c2r_low(double complex *grid_in, double *grid_out,
+                                 const int fft_size[2],
+                                 const int number_of_ffts, const int stride_in,
+                                 const int stride_out, const int distance_in,
+                                 const int distance_out);
 
 /*******************************************************************************
  * \brief 3D Forward FFT from transposed format.

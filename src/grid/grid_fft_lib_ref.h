@@ -102,6 +102,14 @@ void fft_ref_2d_fw_local(double complex *grid_rs, double complex *grid_gs,
                          const bool transpose_rs, const bool transpose_gs);
 
 /*******************************************************************************
+ * \brief Naive implementation of 2D FFT (transposed format, no normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_2d_fw_local_r2c(double *grid_rs, double complex *grid_gs,
+                             const int fft_size[2], const int number_of_ffts,
+                             const bool transpose_rs, const bool transpose_gs);
+
+/*******************************************************************************
  * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
  * \note fft_2d_bw_local(grid_gs, grid_rs, n1, n2, m) is the reverse to
  * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
@@ -110,6 +118,16 @@ void fft_ref_2d_fw_local(double complex *grid_rs, double complex *grid_gs,
 void fft_ref_2d_bw_local(double complex *grid_gs, double complex *grid_rs,
                          const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs);
+
+/*******************************************************************************
+ * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
+ * \note fft_2d_bw_local(grid_gs, grid_rs, n1, n2, m) is the reverse to
+ * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_2d_bw_local_c2r(double complex *grid_gs, double *grid_rs,
+                             const int fft_size[2], const int number_of_ffts,
+                             const bool transpose_rs, const bool transpose_gs);
 
 /*******************************************************************************
  * \brief Performs local 3D FFT (no normalization).
