@@ -18,6 +18,7 @@
 // Assume a cache line size of 64 bytes and 8 bytes per double
 #define DOUBLES_PER_CACHE_LINE 8
 
+static double time_transpose = 0.0;
 static double time_reorder_input = 0.0;
 static double time_reorder_output = 0.0;
 static double time_1 = 0.0;
@@ -36,6 +37,65 @@ void fft_ref_1d_bw_local_internal(double *grid_in_real, double *grid_in_imag,
                                   double *grid_out_real, double *grid_out_imag,
                                   const int fft_size, const int number_of_ffts,
                                   const int stride_size);
+
+/*******************************************************************************
+ * \brief Local transposition.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_transpose_local_complex_low(double complex *grid,
+                                         double complex *grid_transposed,
+                                         const int number_of_columns_grid,
+                                         const int number_of_rows_grid) {
+  time_t begin = clock();
+  for (int column_index = 0; column_index < number_of_columns_grid;
+       column_index++) {
+    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
+      grid_transposed[column_index * number_of_rows_grid + row_index] =
+          grid[row_index * number_of_columns_grid + column_index];
+    }
+  }
+  time_transpose += (double)(clock() - begin) / CLOCKS_PER_SEC;
+}
+
+/*******************************************************************************
+ * \brief Local transposition.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_transpose_local_double_low(double *grid, double *grid_transposed,
+                                        const int number_of_columns_grid,
+                                        const int number_of_rows_grid) {
+  time_t begin = clock();
+  for (int column_index = 0; column_index < number_of_columns_grid;
+       column_index++) {
+    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
+      grid_transposed[column_index * number_of_rows_grid + row_index] =
+          grid[row_index * number_of_columns_grid + column_index];
+    }
+  }
+  time_transpose += (double)(clock() - begin) / CLOCKS_PER_SEC;
+}
+
+/*******************************************************************************
+ * \brief Local transposition.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_transpose_local_double_block(double *grid, double *grid_transposed,
+                                          const int number_of_columns_grid,
+                                          const int number_of_rows_grid,
+                                          const int block_size) {
+  time_t begin = clock();
+  for (int column_index = 0; column_index < number_of_columns_grid;
+       column_index++) {
+    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
+      memcpy(grid_transposed +
+                 (column_index * number_of_rows_grid + row_index) * block_size,
+             grid + (row_index * number_of_columns_grid + column_index) *
+                        block_size,
+             block_size * sizeof(double));
+    }
+  }
+  time_transpose += (double)(clock() - begin) / CLOCKS_PER_SEC;
+}
 
 void reorder_input(const double complex *restrict grid_in,
                    double *restrict grid_out_real,
@@ -767,7 +827,7 @@ void fft_ref_1d_fw_local_low(double complex *restrict grid_in,
                  stride_out, distance_out);
 
   clock_t end = clock();
-  printf("Time Reorder input: %f\n", time_reorder_input);
+  printf("Time Reorder input: %f\n", time_transpose);
   printf("Time Reorder output: %f\n", time_reorder_output);
   printf("Time 1: %f\n", time_1);
   printf("Time 2: %f\n", time_2);
@@ -814,7 +874,7 @@ void fft_ref_1d_fw_local_r2c_low(double *restrict grid_in,
 
 #if 0
   clock_t end = clock();
-  printf("Time Reorder input: %f\n", time_reorder_input);
+  printf("Time Reorder input: %f\n", time_transpose);
   printf("Time Reorder output: %f\n", time_reorder_output);
   printf("Time 1: %f\n", time_1);
   printf("Time 2: %f\n", time_2);
@@ -860,7 +920,7 @@ void fft_ref_1d_bw_local_low(double complex *restrict grid_in,
                  stride_out, distance_out);
 
   clock_t end = clock();
-  printf("Time Reorder input: %f\n", time_reorder_input);
+  printf("Time Reorder input: %f\n", time_transpose);
   printf("Time Reorder output: %f\n", time_reorder_output);
   printf("Time 1: %f\n", time_1);
   printf("Time 2: %f\n", time_2);
@@ -906,7 +966,7 @@ void fft_ref_1d_bw_local_c2r_low(double complex *restrict grid_in,
 
 #if 0
   clock_t end = clock();
-  printf("Time Reorder input: %f\n", time_reorder_input);
+  printf("Time Reorder input: %f\n", time_transpose);
   printf("Time Reorder output: %f\n", time_reorder_output);
   printf("Time 1: %f\n", time_1);
   printf("Time 2: %f\n", time_2);
@@ -928,6 +988,7 @@ void fft_ref_2d_fw_local_low(double complex *restrict grid_in,
                              const int stride_in, const int stride_out,
                              const int distance_in, const int distance_out) {
 
+  time_transpose = 0.0;
   time_reorder_input = 0.0;
   time_reorder_output = 0.0;
   time_1 = 0.0;
@@ -951,24 +1012,11 @@ void fft_ref_2d_fw_local_low(double complex *restrict grid_in,
   fft_ref_1d_fw_local_internal(
       grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[0],
       number_of_ffts * fft_size[1], number_of_ffts * fft_size[1]);
-// Transpose the data
-#pragma omp parallel for collapse(2) default(none)                             \
-    shared(fft_size, grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, \
-               number_of_ffts)
-  for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
-    for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
-      memcpy(grid_out_real + index_1 * fft_size[0] * number_of_ffts +
-                 index_0 * number_of_ffts,
-             grid_in_real + index_0 * fft_size[1] * number_of_ffts +
-                 index_1 * number_of_ffts,
-             number_of_ffts * sizeof(double));
-      memcpy(grid_out_imag + index_1 * fft_size[0] * number_of_ffts +
-                 index_0 * number_of_ffts,
-             grid_in_imag + index_0 * fft_size[1] * number_of_ffts +
-                 index_1 * number_of_ffts,
-             number_of_ffts * sizeof(double));
-    }
-  }
+  // Transpose the data
+  fft_ref_transpose_local_double_block(grid_in_real, grid_out_real, fft_size[1],
+                                       fft_size[0], number_of_ffts);
+  fft_ref_transpose_local_double_block(grid_in_imag, grid_out_imag, fft_size[1],
+                                       fft_size[0], number_of_ffts);
   fft_ref_1d_fw_local_internal(
       grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[1],
       number_of_ffts * fft_size[0], number_of_ffts * fft_size[0]);
@@ -976,6 +1024,7 @@ void fft_ref_2d_fw_local_low(double complex *restrict grid_in,
                     number_of_ffts, stride_out, distance_out);
 
   clock_t end = clock();
+  printf("Time Transpose: %f\n", time_transpose);
   printf("Time Reorder input: %f\n", time_reorder_input);
   printf("Time Reorder output: %f\n", time_reorder_output);
   printf("Time 1: %f\n", time_1);
@@ -997,6 +1046,7 @@ void fft_ref_2d_bw_local_low(double complex *restrict grid_in,
                              const int stride_in, const int stride_out,
                              const int distance_in, const int distance_out) {
 
+  time_transpose = 0.0;
   time_reorder_input = 0.0;
   time_reorder_output = 0.0;
   time_1 = 0.0;
@@ -1020,24 +1070,11 @@ void fft_ref_2d_bw_local_low(double complex *restrict grid_in,
   fft_ref_1d_bw_local_internal(
       grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[0],
       number_of_ffts * fft_size[1], number_of_ffts * fft_size[1]);
-// Transpose the data
-#pragma omp parallel for collapse(2) default(none)                             \
-    shared(fft_size, grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, \
-               number_of_ffts)
-  for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
-    for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
-      memcpy(grid_out_real + index_1 * fft_size[0] * number_of_ffts +
-                 index_0 * number_of_ffts,
-             grid_in_real + index_0 * fft_size[1] * number_of_ffts +
-                 index_1 * number_of_ffts,
-             number_of_ffts * sizeof(double));
-      memcpy(grid_out_imag + index_1 * fft_size[0] * number_of_ffts +
-                 index_0 * number_of_ffts,
-             grid_in_imag + index_0 * fft_size[1] * number_of_ffts +
-                 index_1 * number_of_ffts,
-             number_of_ffts * sizeof(double));
-    }
-  }
+  // Transpose the data
+  fft_ref_transpose_local_double_block(grid_in_real, grid_out_real, fft_size[1],
+                                       fft_size[0], number_of_ffts);
+  fft_ref_transpose_local_double_block(grid_in_imag, grid_out_imag, fft_size[1],
+                                       fft_size[0], number_of_ffts);
   fft_ref_1d_bw_local_internal(
       grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[1],
       number_of_ffts * fft_size[0], number_of_ffts * fft_size[0]);
@@ -1045,6 +1082,7 @@ void fft_ref_2d_bw_local_low(double complex *restrict grid_in,
                     number_of_ffts, stride_out, distance_out);
 
   clock_t end = clock();
+  printf("Time Transpose: %f\n", time_transpose);
   printf("Time Reorder input: %f\n", time_reorder_input);
   printf("Time Reorder output: %f\n", time_reorder_output);
   printf("Time 1: %f\n", time_1);
@@ -1064,6 +1102,7 @@ void fft_ref_3d_fw_local_low(double complex *restrict grid_in,
                              double complex *restrict grid_out,
                              const int fft_size[3]) {
 
+  time_transpose = 0.0;
   time_reorder_input = 0.0;
   time_reorder_output = 0.0;
   time_1 = 0.0;
@@ -1088,26 +1127,18 @@ void fft_ref_3d_fw_local_low(double complex *restrict grid_in,
       grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[2],
       fft_size[0] * fft_size[1], fft_size[0] * fft_size[1]);
   // Transpose the data
-  for (int index_0 = 0; index_0 < fft_size[2]; index_0++) {
-    for (int index_1 = 0; index_1 < fft_size[0] * fft_size[1]; index_1++) {
-      grid_out_real[index_1 * fft_size[2] + index_0] =
-          grid_in_real[index_0 * fft_size[0] * fft_size[1] + index_1];
-      grid_out_imag[index_1 * fft_size[2] + index_0] =
-          grid_in_imag[index_0 * fft_size[0] * fft_size[1] + index_1];
-    }
-  }
+  fft_ref_transpose_local_double_low(grid_in_real, grid_out_real,
+                                     fft_size[0] * fft_size[1], fft_size[2]);
+  fft_ref_transpose_local_double_low(grid_in_imag, grid_out_imag,
+                                     fft_size[0] * fft_size[1], fft_size[2]);
   fft_ref_1d_fw_local_internal(
       grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[1],
       fft_size[0] * fft_size[2], fft_size[0] * fft_size[2]);
   // Transpose the data
-  for (int index_0 = 0; index_0 < fft_size[1]; index_0++) {
-    for (int index_1 = 0; index_1 < fft_size[0] * fft_size[2]; index_1++) {
-      grid_out_real[index_1 * fft_size[1] + index_0] =
-          grid_in_real[index_0 * fft_size[0] * fft_size[2] + index_1];
-      grid_out_imag[index_1 * fft_size[1] + index_0] =
-          grid_in_imag[index_0 * fft_size[0] * fft_size[2] + index_1];
-    }
-  }
+  fft_ref_transpose_local_double_low(grid_in_real, grid_out_real,
+                                     fft_size[0] * fft_size[2], fft_size[1]);
+  fft_ref_transpose_local_double_low(grid_in_imag, grid_out_imag,
+                                     fft_size[0] * fft_size[2], fft_size[1]);
   fft_ref_1d_fw_local_internal(
       grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[0],
       fft_size[1] * fft_size[2], fft_size[1] * fft_size[2]);
@@ -1121,6 +1152,7 @@ void fft_ref_3d_fw_local_low(double complex *restrict grid_in,
   }
 
   clock_t end = clock();
+  printf("Time Transpose: %f\n", time_transpose);
   printf("Time Reorder input: %f\n", time_reorder_input);
   printf("Time Reorder output: %f\n", time_reorder_output);
   printf("Time 1: %f\n", time_1);
@@ -1140,6 +1172,7 @@ void fft_ref_3d_bw_local_low(double complex *restrict grid_in,
                              double complex *restrict grid_out,
                              const int fft_size[3]) {
 
+  time_transpose = 0.0;
   time_reorder_input = 0.0;
   time_reorder_output = 0.0;
   time_1 = 0.0;
@@ -1163,26 +1196,18 @@ void fft_ref_3d_bw_local_low(double complex *restrict grid_in,
       grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[2],
       fft_size[0] * fft_size[1], fft_size[0] * fft_size[1]);
   // Transpose the data
-  for (int index_0 = 0; index_0 < fft_size[2]; index_0++) {
-    for (int index_1 = 0; index_1 < fft_size[0] * fft_size[1]; index_1++) {
-      grid_out_real[index_1 * fft_size[2] + index_0] =
-          grid_in_real[index_0 * fft_size[0] * fft_size[1] + index_1];
-      grid_out_imag[index_1 * fft_size[2] + index_0] =
-          grid_in_imag[index_0 * fft_size[0] * fft_size[1] + index_1];
-    }
-  }
+  fft_ref_transpose_local_double_low(grid_in_real, grid_out_real,
+                                     fft_size[0] * fft_size[1], fft_size[2]);
+  fft_ref_transpose_local_double_low(grid_in_imag, grid_out_imag,
+                                     fft_size[0] * fft_size[1], fft_size[2]);
   fft_ref_1d_bw_local_internal(
       grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[1],
       fft_size[0] * fft_size[2], fft_size[0] * fft_size[2]);
   // Transpose the data
-  for (int index_0 = 0; index_0 < fft_size[1]; index_0++) {
-    for (int index_1 = 0; index_1 < fft_size[0] * fft_size[2]; index_1++) {
-      grid_out_real[index_1 * fft_size[1] + index_0] =
-          grid_in_real[index_0 * fft_size[0] * fft_size[2] + index_1];
-      grid_out_imag[index_1 * fft_size[1] + index_0] =
-          grid_in_imag[index_0 * fft_size[0] * fft_size[2] + index_1];
-    }
-  }
+  fft_ref_transpose_local_double_low(grid_in_real, grid_out_real,
+                                     fft_size[0] * fft_size[2], fft_size[1]);
+  fft_ref_transpose_local_double_low(grid_in_imag, grid_out_imag,
+                                     fft_size[0] * fft_size[2], fft_size[1]);
   fft_ref_1d_bw_local_internal(
       grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[0],
       fft_size[1] * fft_size[2], fft_size[1] * fft_size[2]);
@@ -1196,6 +1221,7 @@ void fft_ref_3d_bw_local_low(double complex *restrict grid_in,
   }
 
   clock_t end = clock();
+  printf("Time Transpose: %f\n", time_transpose);
   printf("Time Reorder input: %f\n", time_reorder_input);
   printf("Time Reorder output: %f\n", time_reorder_output);
   printf("Time 1: %f\n", time_1);

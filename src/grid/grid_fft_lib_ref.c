@@ -180,15 +180,8 @@ void fft_ref_transpose_local(double complex *grid,
                              double complex *grid_transposed,
                              const int number_of_columns_grid,
                              const int number_of_rows_grid) {
-#pragma omp parallel for collapse(2) default(none)                             \
-    shared(grid, grid_transposed, number_of_columns_grid, number_of_rows_grid)
-  for (int column_index = 0; column_index < number_of_columns_grid;
-       column_index++) {
-    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
-      grid_transposed[column_index * number_of_rows_grid + row_index] =
-          grid[row_index * number_of_columns_grid + column_index];
-    }
-  }
+  fft_ref_transpose_local_complex_low(
+      grid, grid_transposed, number_of_columns_grid, number_of_rows_grid);
 }
 
 /*******************************************************************************

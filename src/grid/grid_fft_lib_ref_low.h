@@ -11,6 +11,15 @@
 #include <stdbool.h>
 
 /*******************************************************************************
+ * \brief Local transposition.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_transpose_local_complex_low(double complex *grid,
+                                         double complex *grid_transposed,
+                                         const int number_of_columns_grid,
+                                         const int number_of_rows_grid);
+
+/*******************************************************************************
  * \brief 1D Forward FFT from transposed format.
  * \author Frederick Stein
  ******************************************************************************/
