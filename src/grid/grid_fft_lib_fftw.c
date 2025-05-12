@@ -394,6 +394,93 @@ fftw_plan *fft_fftw_create_2d_plan(const int direction, const int fft_size[2],
  * \brief Create plan of a 1D FFT.
  * \author Frederick Stein
  ******************************************************************************/
+fftw_plan *fft_fftw_create_2d_plan_r2c(const int direction,
+                                       const int fft_size[2],
+                                       const int number_of_ffts,
+                                       const bool transpose_rs,
+                                       const bool transpose_gs) {
+  const int key[6] = {2 + FFTW_TRANSPOSE_RS * transpose_rs +
+                          FFTW_TRANSPOSE_GS * transpose_gs + FFTW_R2C,
+                      grid_mpi_comm_c2f(grid_mpi_comm_null),
+                      direction,
+                      fft_size[1],
+                      fft_size[0],
+                      number_of_ffts};
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    const int nthreads = omp_get_max_threads();
+    fftw_plan_with_nthreads(nthreads);
+    // We need the guru interface here because cuts the last dimension in half
+    // whereas we want the first dimension
+    const int rank = 2;
+    fftw_iodim dims[2];
+    const int howmany_rank = 1;
+    fftw_iodim howmany_dims[1];
+    dims[0].n = fft_size[1];
+    dims[1].n = fft_size[0];
+    howmany_dims[0].n = number_of_ffts;
+    double *double_buffer = fftw_alloc_real(2 * (fft_size[0] / 2 + 1) *
+                                            fft_size[1] * number_of_ffts);
+    double complex *complex_buffer = fftw_alloc_complex(
+        (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts);
+    plan = malloc(sizeof(fftw_plan));
+    if (direction == FFTW_FORWARD) {
+      if (transpose_rs) {
+        dims[0].is = number_of_ffts;
+        dims[1].is = number_of_ffts * fft_size[1];
+        howmany_dims[0].is = 1;
+      } else {
+        dims[0].is = 1;
+        dims[1].is = fft_size[1];
+        howmany_dims[0].is = fft_size[0] * fft_size[1];
+      }
+      if (transpose_gs) {
+        dims[0].os = number_of_ffts;
+        dims[1].os = number_of_ffts * fft_size[1];
+        howmany_dims[0].os = 1;
+      } else {
+        dims[0].os = 1;
+        dims[1].os = fft_size[1];
+        howmany_dims[0].os = (fft_size[0] / 2 + 1) * fft_size[1];
+      }
+      *plan = fftw_plan_guru_dft_r2c(rank, dims, howmany_rank, howmany_dims,
+                                     double_buffer, complex_buffer,
+                                     fftw_planning_mode);
+    } else {
+      if (transpose_rs) {
+        dims[0].os = number_of_ffts;
+        dims[1].os = number_of_ffts * fft_size[1];
+        howmany_dims[0].os = 1;
+      } else {
+        dims[0].os = 1;
+        dims[1].os = fft_size[1];
+        howmany_dims[0].os = fft_size[0] * fft_size[1];
+      }
+      if (transpose_gs) {
+        dims[0].is = number_of_ffts;
+        dims[1].is = number_of_ffts * fft_size[1];
+        howmany_dims[0].is = 1;
+      } else {
+        dims[0].is = 1;
+        dims[1].is = fft_size[1];
+        howmany_dims[0].is = (fft_size[0] / 2 + 1) * fft_size[1];
+      }
+      *plan = fftw_plan_guru_dft_c2r(rank, dims, howmany_rank, howmany_dims,
+                                     complex_buffer, double_buffer,
+                                     fftw_planning_mode);
+    }
+    assert(plan != NULL);
+    add_plan_to_cache(key, plan);
+    fftw_free(double_buffer);
+    fftw_free(complex_buffer);
+  }
+  return plan;
+}
+
+/*******************************************************************************
+ * \brief Create plan of a 1D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
 fftw_plan *fft_fftw_create_3d_plan(const int direction, const int fft_size[3]) {
   // add
   const int key[6] = {
@@ -649,6 +736,29 @@ void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
 }
 
 /*******************************************************************************
+ * \brief Naive implementation of 2D FFT (transposed format, no normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
+                              const bool transpose_rs, const bool transpose_gs,
+                              double *grid_in, double complex *grid_out) {
+#if defined(__FFTW3)
+  assert(omp_get_num_threads() == 1);
+  fftw_plan *plan = fft_fftw_create_2d_plan_r2c(
+      FFTW_FORWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs);
+  fftw_execute_dft_r2c(*plan, grid_in, grid_out);
+#else
+  (void)fft_size;
+  (void)number_of_ffts;
+  (void)grid_in;
+  (void)grid_out;
+  (void)transpose_rs;
+  (void)transpose_gs;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
  * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
  * \note fft_2d_bw_local(grid_gs, grid_rs, n1, n2, m) is the reverse to
  * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
@@ -662,6 +772,31 @@ void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
   fftw_plan *plan = fft_fftw_create_2d_plan(
       FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs);
   fftw_execute_dft(*plan, grid_in, grid_out);
+#else
+  (void)fft_size;
+  (void)number_of_ffts;
+  (void)grid_in;
+  (void)grid_out;
+  (void)transpose_rs;
+  (void)transpose_gs;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
+ * \note fft_2d_bw_local(grid_gs, grid_rs, n1, n2, m) is the reverse to
+ * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
+                              const bool transpose_rs, const bool transpose_gs,
+                              double complex *grid_in, double *grid_out) {
+#if defined(__FFTW3)
+  assert(omp_get_num_threads() == 1);
+  fftw_plan *plan = fft_fftw_create_2d_plan_r2c(
+      FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs);
+  fftw_execute_dft_c2r(*plan, grid_in, grid_out);
 #else
   (void)fft_size;
   (void)number_of_ffts;

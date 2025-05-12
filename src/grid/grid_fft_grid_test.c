@@ -404,7 +404,6 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
              npts_global_ref[1], npts_global_ref[2], max_error);
     errors++;
   }
-  printf("%i test BW ray FFT\n", my_process);
   fflush(stdout);
 
   // Check backwards 3D FFTs
