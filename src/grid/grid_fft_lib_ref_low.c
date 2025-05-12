@@ -25,7 +25,6 @@ static double time_1 = 0.0;
 static double time_2 = 0.0;
 static double time_3 = 0.0;
 static double time_4 = 0.0;
-static double time_5 = 0.0;
 static double time_naive = 0.0;
 
 // We need these definitions for the recursion within this module
@@ -296,46 +295,30 @@ void fft_ref_1d_fw_local_naive(const double *restrict grid_in_real,
     shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag,           \
                number_of_ffts, stride_size)
     for (int fft = 0; fft < number_of_ffts; fft++) {
-      grid_out_real[fft] = grid_in_real[fft];
-      grid_out_imag[fft] = grid_in_imag[fft];
-      grid_out_real[fft] += grid_in_real[fft + stride_size];
-      grid_out_imag[fft] += grid_in_imag[fft + stride_size];
-      grid_out_real[fft] += grid_in_real[fft + 2 * stride_size];
-      grid_out_imag[fft] += grid_in_imag[fft + 2 * stride_size];
-      grid_out_real[fft] += grid_in_real[fft + 3 * stride_size];
-      grid_out_imag[fft] += grid_in_imag[fft + 3 * stride_size];
-      grid_out_real[fft + stride_size] = grid_in_real[fft];
-      grid_out_imag[fft + stride_size] = grid_in_imag[fft];
-      grid_out_real[fft + stride_size] += grid_in_imag[fft + stride_size];
-      grid_out_imag[fft + stride_size] -= grid_in_real[fft + stride_size];
-      grid_out_real[fft + stride_size] -= grid_in_real[fft + 2 * stride_size];
-      grid_out_imag[fft + stride_size] -= grid_in_imag[fft + 2 * stride_size];
-      grid_out_real[fft + stride_size] -= grid_in_imag[fft + 3 * stride_size];
-      grid_out_imag[fft + stride_size] += grid_in_real[fft + 3 * stride_size];
-      grid_out_real[fft + 2 * stride_size] = grid_in_real[fft];
-      grid_out_imag[fft + 2 * stride_size] = grid_in_imag[fft];
-      grid_out_real[fft + 2 * stride_size] -= grid_in_real[fft + stride_size];
-      grid_out_imag[fft + 2 * stride_size] -= grid_in_imag[fft + stride_size];
-      grid_out_real[fft + 2 * stride_size] +=
-          grid_in_real[fft + 2 * stride_size];
-      grid_out_imag[fft + 2 * stride_size] +=
-          grid_in_imag[fft + 2 * stride_size];
-      grid_out_real[fft + 2 * stride_size] -=
-          grid_in_real[fft + 3 * stride_size];
-      grid_out_imag[fft + 2 * stride_size] -=
-          grid_in_imag[fft + 3 * stride_size];
-      grid_out_real[fft + 3 * stride_size] = grid_in_real[fft];
-      grid_out_imag[fft + 3 * stride_size] = grid_in_imag[fft];
-      grid_out_real[fft + 3 * stride_size] -= grid_in_imag[fft + stride_size];
-      grid_out_imag[fft + 3 * stride_size] += grid_in_real[fft + stride_size];
-      grid_out_real[fft + 3 * stride_size] -=
-          grid_in_real[fft + 2 * stride_size];
-      grid_out_imag[fft + 3 * stride_size] -=
-          grid_in_imag[fft + 2 * stride_size];
-      grid_out_real[fft + 3 * stride_size] +=
-          grid_in_imag[fft + 3 * stride_size];
-      grid_out_imag[fft + 3 * stride_size] -=
-          grid_in_real[fft + 3 * stride_size];
+      const double real_sum1 =
+          grid_in_real[fft] + grid_in_real[fft + 2 * stride_size];
+      const double real_sum2 =
+          grid_in_real[fft + stride_size] + grid_in_real[fft + 3 * stride_size];
+      const double real_diff1 =
+          grid_in_real[fft] - grid_in_real[fft + 2 * stride_size];
+      const double real_diff2 =
+          grid_in_real[fft + stride_size] - grid_in_real[fft + 3 * stride_size];
+      const double imag_sum1 =
+          grid_in_imag[fft] + grid_in_imag[fft + 2 * stride_size];
+      const double imag_sum2 =
+          grid_in_imag[fft + stride_size] + grid_in_imag[fft + 3 * stride_size];
+      const double imag_diff1 =
+          grid_in_imag[fft] - grid_in_imag[fft + 2 * stride_size];
+      const double imag_diff2 =
+          grid_in_imag[fft + stride_size] - grid_in_imag[fft + 3 * stride_size];
+      grid_out_real[fft] = real_sum1 + real_sum2;
+      grid_out_real[fft + stride_size] = real_diff1 + imag_diff2;
+      grid_out_real[fft + 2 * stride_size] = real_sum1 - real_sum2;
+      grid_out_real[fft + 3 * stride_size] = real_diff1 - imag_diff2;
+      grid_out_imag[fft] = imag_sum1 + imag_sum2;
+      grid_out_imag[fft + stride_size] = imag_diff1 - real_diff2;
+      grid_out_imag[fft + 2 * stride_size] = imag_sum1 - imag_sum2;
+      grid_out_imag[fft + 3 * stride_size] = imag_diff1 + real_diff2;
     }
     time_4 += (double)(clock() - begin) / CLOCKS_PER_SEC;
   } else if (fft_size == 3) {
@@ -370,28 +353,6 @@ void fft_ref_1d_fw_local_naive(const double *restrict grid_in_real,
       grid_out_imag[fft + 2 * stride_size] -= 0.5 * imag_sum;
     }
     time_3 += (double)(clock() - begin) / CLOCKS_PER_SEC;
-  } else if (fft_size == 5) {
-    const double pi = acos(-1.0);
-    memset(grid_out_real, 0, fft_size * number_of_ffts * sizeof(double));
-    memset(grid_out_imag, 0, fft_size * number_of_ffts * sizeof(double));
-#pragma omp parallel for default(none)                                         \
-    shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag, fft_size, \
-               number_of_ffts, stride_size, pi)
-    for (int index_out = 0; index_out < fft_size; index_out++) {
-      for (int index_in = 0; index_in < fft_size; index_in++) {
-        const double complex phase_factor =
-            cexp(-2.0 * I * pi * index_out * index_in / fft_size);
-        for (int fft = 0; fft < number_of_ffts; fft++) {
-          grid_out_real[fft + index_out * stride_size] +=
-              grid_in_real[fft + index_in * stride_size] * creal(phase_factor) -
-              grid_in_imag[fft + index_in * stride_size] * cimag(phase_factor);
-          grid_out_imag[fft + index_out * stride_size] +=
-              grid_in_real[fft + index_in * stride_size] * cimag(phase_factor) +
-              grid_in_imag[fft + index_in * stride_size] * creal(phase_factor);
-        }
-      }
-    }
-    time_5 += (double)(clock() - begin) / CLOCKS_PER_SEC;
   } else {
     const double pi = acos(-1.0);
     memset(grid_out_real, 0, fft_size * number_of_ffts * sizeof(double));
@@ -608,46 +569,30 @@ void fft_ref_1d_bw_local_naive(const double *restrict grid_in_real,
     shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag,           \
                number_of_ffts, stride_size)
     for (int fft = 0; fft < number_of_ffts; fft++) {
-      grid_out_real[fft] = grid_in_real[fft];
-      grid_out_real[fft] += grid_in_real[fft + stride_size];
-      grid_out_real[fft] += grid_in_real[fft + 2 * stride_size];
-      grid_out_real[fft] += grid_in_real[fft + 3 * stride_size];
-      grid_out_real[fft + stride_size] = grid_in_real[fft];
-      grid_out_real[fft + stride_size] -= grid_in_imag[fft + stride_size];
-      grid_out_real[fft + stride_size] -= grid_in_real[fft + 2 * stride_size];
-      grid_out_real[fft + stride_size] += grid_in_imag[fft + 3 * stride_size];
-      grid_out_real[fft + 2 * stride_size] = grid_in_real[fft];
-      grid_out_real[fft + 2 * stride_size] -= grid_in_real[fft + stride_size];
-      grid_out_real[fft + 2 * stride_size] +=
-          grid_in_real[fft + 2 * stride_size];
-      grid_out_real[fft + 2 * stride_size] -=
-          grid_in_real[fft + 3 * stride_size];
-      grid_out_real[fft + 3 * stride_size] = grid_in_real[fft];
-      grid_out_real[fft + 3 * stride_size] += grid_in_imag[fft + stride_size];
-      grid_out_real[fft + 3 * stride_size] -=
-          grid_in_real[fft + 2 * stride_size];
-      grid_out_real[fft + 3 * stride_size] -=
-          grid_in_imag[fft + 3 * stride_size];
-      grid_out_imag[fft] = grid_in_imag[fft];
-      grid_out_imag[fft] += grid_in_imag[fft + stride_size];
-      grid_out_imag[fft] += grid_in_imag[fft + 2 * stride_size];
-      grid_out_imag[fft] += grid_in_imag[fft + 3 * stride_size];
-      grid_out_imag[fft + stride_size] = grid_in_imag[fft];
-      grid_out_imag[fft + stride_size] += grid_in_real[fft + stride_size];
-      grid_out_imag[fft + stride_size] -= grid_in_imag[fft + 2 * stride_size];
-      grid_out_imag[fft + stride_size] -= grid_in_real[fft + 3 * stride_size];
-      grid_out_imag[fft + 2 * stride_size] = grid_in_imag[fft];
-      grid_out_imag[fft + 2 * stride_size] -= grid_in_imag[fft + stride_size];
-      grid_out_imag[fft + 2 * stride_size] +=
-          grid_in_imag[fft + 2 * stride_size];
-      grid_out_imag[fft + 2 * stride_size] -=
-          grid_in_imag[fft + 3 * stride_size];
-      grid_out_imag[fft + 3 * stride_size] = grid_in_imag[fft];
-      grid_out_imag[fft + 3 * stride_size] -= grid_in_real[fft + stride_size];
-      grid_out_imag[fft + 3 * stride_size] -=
-          grid_in_imag[fft + 2 * stride_size];
-      grid_out_imag[fft + 3 * stride_size] -=
-          -grid_in_real[fft + 3 * stride_size];
+      const double real_sum1 =
+          grid_in_real[fft] + grid_in_real[fft + 2 * stride_size];
+      const double real_sum2 =
+          grid_in_real[fft + stride_size] + grid_in_real[fft + 3 * stride_size];
+      const double real_diff1 =
+          grid_in_real[fft] - grid_in_real[fft + 2 * stride_size];
+      const double real_diff2 =
+          grid_in_real[fft + stride_size] - grid_in_real[fft + 3 * stride_size];
+      const double imag_sum1 =
+          grid_in_imag[fft] + grid_in_imag[fft + 2 * stride_size];
+      const double imag_sum2 =
+          grid_in_imag[fft + stride_size] + grid_in_imag[fft + 3 * stride_size];
+      const double imag_diff1 =
+          grid_in_imag[fft] - grid_in_imag[fft + 2 * stride_size];
+      const double imag_diff2 =
+          grid_in_imag[fft + stride_size] - grid_in_imag[fft + 3 * stride_size];
+      grid_out_real[fft] = real_sum1 + real_sum2;
+      grid_out_real[fft + stride_size] = real_diff1 - imag_diff2;
+      grid_out_real[fft + 2 * stride_size] = real_sum1 - real_sum2;
+      grid_out_real[fft + 3 * stride_size] = real_diff1 + imag_diff2;
+      grid_out_imag[fft] = imag_sum1 + imag_sum2;
+      grid_out_imag[fft + stride_size] = imag_diff1 + real_diff2;
+      grid_out_imag[fft + 2 * stride_size] = imag_sum1 - imag_sum2;
+      grid_out_imag[fft + 3 * stride_size] = imag_diff1 - real_diff2;
     }
     time_4 += (double)(clock() - begin) / CLOCKS_PER_SEC;
   } else if (fft_size == 3) {
@@ -682,28 +627,6 @@ void fft_ref_1d_bw_local_naive(const double *restrict grid_in_real,
       grid_out_imag[fft + 2 * stride_size] -= 0.5 * imag_sum;
     }
     time_3 += (double)(clock() - begin) / CLOCKS_PER_SEC;
-  } else if (fft_size == 5) {
-    const double pi = acos(-1.0);
-    memset(grid_out_real, 0, fft_size * number_of_ffts * sizeof(double));
-    memset(grid_out_imag, 0, fft_size * number_of_ffts * sizeof(double));
-#pragma omp parallel for default(none)                                         \
-    shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag, fft_size, \
-               number_of_ffts, stride_size, pi)
-    for (int index_out = 0; index_out < fft_size; index_out++) {
-      for (int index_in = 0; index_in < fft_size; index_in++) {
-        const double complex phase_factor =
-            cexp(2.0 * I * pi * index_out * index_in / fft_size);
-        for (int fft = 0; fft < number_of_ffts; fft++) {
-          grid_out_real[fft + index_out * stride_size] +=
-              grid_in_real[fft + index_in * stride_size] * creal(phase_factor) -
-              grid_in_imag[fft + index_in * stride_size] * cimag(phase_factor);
-          grid_out_imag[fft + index_out * stride_size] +=
-              grid_in_real[fft + index_in * stride_size] * cimag(phase_factor) +
-              grid_in_imag[fft + index_in * stride_size] * creal(phase_factor);
-        }
-      }
-    }
-    time_5 += (double)(clock() - begin) / CLOCKS_PER_SEC;
   } else {
     const double pi = acos(-1.0);
     memset(grid_out_real, 0, fft_size * number_of_ffts * sizeof(double));
@@ -925,7 +848,6 @@ void fft_ref_1d_fw_local_low(double complex *restrict grid_in,
   time_2 = 0.0;
   time_3 = 0.0;
   time_4 = 0.0;
-  time_5 = 0.0;
   time_naive = 0.0;
 
   clock_t begin = clock();
@@ -951,7 +873,6 @@ void fft_ref_1d_fw_local_low(double complex *restrict grid_in,
   printf("Time 2: %f\n", time_2);
   printf("Time 3: %f\n", time_3);
   printf("Time 4: %f\n", time_4);
-  printf("Time 5: %f\n", time_5);
   printf("Time naive: %f\n", time_naive);
   printf("Total Time 1D FW %i %i: %f\n", fft_size, number_of_ffts,
          (double)(end - begin) / CLOCKS_PER_SEC);
@@ -976,7 +897,6 @@ void fft_ref_1d_fw_local_r2c_low(double *restrict grid_in,
   time_2 = 0.0;
   time_3 = 0.0;
   time_4 = 0.0;
-  time_5 = 0.0;
   time_naive = 0.0;
 
   clock_t begin = clock();
@@ -1002,7 +922,6 @@ void fft_ref_1d_fw_local_r2c_low(double *restrict grid_in,
   printf("Time 2: %f\n", time_2);
   printf("Time 3: %f\n", time_3);
   printf("Time 4: %f\n", time_4);
-  printf("Time 5: %f\n", time_5);
   printf("Time naive: %f\n", time_naive);
   printf("Total Time R2C FW %i %i: %f\n", fft_size, number_of_ffts,
          (double)(end - begin) / CLOCKS_PER_SEC);
@@ -1026,7 +945,6 @@ void fft_ref_1d_bw_local_low(double complex *restrict grid_in,
   time_2 = 0.0;
   time_3 = 0.0;
   time_4 = 0.0;
-  time_5 = 0.0;
   time_naive = 0.0;
 
   clock_t begin = clock();
@@ -1052,7 +970,6 @@ void fft_ref_1d_bw_local_low(double complex *restrict grid_in,
   printf("Time 2: %f\n", time_2);
   printf("Time 3: %f\n", time_3);
   printf("Time 4: %f\n", time_4);
-  printf("Time 5: %f\n", time_5);
   printf("Time naive: %f\n", time_naive);
   printf("Total Time 1D BW %i %i: %f\n", fft_size, number_of_ffts,
          (double)(end - begin) / CLOCKS_PER_SEC);
@@ -1076,7 +993,6 @@ void fft_ref_1d_bw_local_c2r_low(double complex *restrict grid_in,
   time_2 = 0.0;
   time_3 = 0.0;
   time_4 = 0.0;
-  time_5 = 0.0;
   time_naive = 0.0;
 
   clock_t begin = clock();
@@ -1102,7 +1018,6 @@ void fft_ref_1d_bw_local_c2r_low(double complex *restrict grid_in,
   printf("Time 2: %f\n", time_2);
   printf("Time 3: %f\n", time_3);
   printf("Time 4: %f\n", time_4);
-  printf("Time 5: %f\n", time_5);
   printf("Time naive: %f\n", time_naive);
   printf("Total Time 1D C2R BW %i %i: %f\n", fft_size, number_of_ffts,
          (double)(end - begin) / CLOCKS_PER_SEC);
@@ -1127,7 +1042,6 @@ void fft_ref_2d_fw_local_low(double complex *restrict grid_in,
   time_2 = 0.0;
   time_3 = 0.0;
   time_4 = 0.0;
-  time_5 = 0.0;
   time_naive = 0.0;
 
   clock_t begin = clock();
@@ -1165,7 +1079,6 @@ void fft_ref_2d_fw_local_low(double complex *restrict grid_in,
   printf("Time 2: %f\n", time_2);
   printf("Time 3: %f\n", time_3);
   printf("Time 4: %f\n", time_4);
-  printf("Time 5: %f\n", time_5);
   printf("Time naive: %f\n", time_naive);
   printf("Total Time 2D FW %i %i %i: %f\n", fft_size[0], fft_size[1],
          number_of_ffts, (double)(end - begin) / CLOCKS_PER_SEC);
@@ -1189,7 +1102,6 @@ void fft_ref_2d_bw_local_low(double complex *restrict grid_in,
   time_2 = 0.0;
   time_3 = 0.0;
   time_4 = 0.0;
-  time_5 = 0.0;
   time_naive = 0.0;
 
   clock_t begin = clock();
@@ -1227,7 +1139,6 @@ void fft_ref_2d_bw_local_low(double complex *restrict grid_in,
   printf("Time 2: %f\n", time_2);
   printf("Time 3: %f\n", time_3);
   printf("Time 4: %f\n", time_4);
-  printf("Time 5: %f\n", time_5);
   printf("Time naive: %f\n", time_naive);
   printf("Total Time 2D BW %i %i %i: %f\n", fft_size[0], fft_size[1],
          number_of_ffts, (double)(end - begin) / CLOCKS_PER_SEC);
@@ -1249,7 +1160,6 @@ void fft_ref_3d_fw_local_low(double complex *restrict grid_in,
   time_2 = 0.0;
   time_3 = 0.0;
   time_4 = 0.0;
-  time_5 = 0.0;
   time_naive = 0.0;
 
   clock_t begin = clock();
@@ -1301,7 +1211,6 @@ void fft_ref_3d_fw_local_low(double complex *restrict grid_in,
   printf("Time 2: %f\n", time_2);
   printf("Time 3: %f\n", time_3);
   printf("Time 4: %f\n", time_4);
-  printf("Time 5: %f\n", time_5);
   printf("Time naive: %f\n", time_naive);
   printf("Total Time 3D FW %i %i %i: %f\n", fft_size[0], fft_size[1],
          fft_size[2], (double)(end - begin) / CLOCKS_PER_SEC);
@@ -1323,7 +1232,6 @@ void fft_ref_3d_bw_local_low(double complex *restrict grid_in,
   time_2 = 0.0;
   time_3 = 0.0;
   time_4 = 0.0;
-  time_5 = 0.0;
   time_naive = 0.0;
 
   clock_t begin = clock();
@@ -1374,7 +1282,6 @@ void fft_ref_3d_bw_local_low(double complex *restrict grid_in,
   printf("Time 2: %f\n", time_2);
   printf("Time 3: %f\n", time_3);
   printf("Time 4: %f\n", time_4);
-  printf("Time 5: %f\n", time_5);
   printf("Time naive: %f\n", time_naive);
   printf("Total Time 3D BW %i %i %i: %f\n", fft_size[0], fft_size[1],
          fft_size[2], (double)(end - begin) / CLOCKS_PER_SEC);
