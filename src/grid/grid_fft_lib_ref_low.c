@@ -1330,9 +1330,156 @@ void fft_ref_3d_fw_local_low(double complex *restrict grid_in,
  * \brief Naive implementation of FFT from transposed format (for easier
  *transposition). \author Frederick Stein
  ******************************************************************************/
+void fft_ref_3d_fw_local_r2c_low(double *restrict grid_in,
+                                 double complex *restrict grid_out,
+                                 const int fft_size[3]) {
+
+#if PROFILE_CODE
+  time_transpose = 0.0;
+  time_reorder_input = 0.0;
+  time_reorder_output = 0.0;
+  time_2 = 0.0;
+  time_3 = 0.0;
+  time_4 = 0.0;
+  time_naive = 0.0;
+
+  clock_t begin = clock();
+#endif
+
+  // We reorder the data to a format more suitable for vectorization
+  double *grid_in_real = (double *)grid_in;
+  double *grid_in_imag =
+      ((double *)grid_in) + fft_size[0] * fft_size[1] * fft_size[2];
+  double *grid_out_real = (double *)grid_out;
+  double *grid_out_imag =
+      ((double *)grid_out) + fft_size[0] * fft_size[1] * fft_size[2];
+
+  reorder_input((double complex *)grid_in, grid_out_real, grid_out_imag,
+                fft_size[0] * fft_size[1] * fft_size[2], 1, 1,
+                fft_size[0] * fft_size[1] * fft_size[2]);
+  fft_ref_1d_fw_local_internal(
+      grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[2],
+      fft_size[0] * fft_size[1], fft_size[0] * fft_size[1]);
+  // Transpose the data
+  fft_ref_transpose_local_double_low(grid_in_real, grid_out_real,
+                                     fft_size[0] * fft_size[1], fft_size[2]);
+  fft_ref_transpose_local_double_low(grid_in_imag, grid_out_imag,
+                                     fft_size[0] * fft_size[1], fft_size[2]);
+  fft_ref_1d_fw_local_internal(
+      grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[1],
+      fft_size[0] * fft_size[2], fft_size[0] * fft_size[2]);
+  // Transpose the data
+  fft_ref_transpose_local_double_low(grid_in_real, grid_out_real,
+                                     fft_size[0] * fft_size[2], fft_size[1]);
+  fft_ref_transpose_local_double_low(grid_in_imag, grid_out_imag,
+                                     fft_size[0] * fft_size[2], fft_size[1]);
+  fft_ref_1d_fw_local_internal(
+      grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[0],
+      fft_size[1] * fft_size[2], fft_size[1] * fft_size[2]);
+  // Transpose the data
+  for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[1] * fft_size[2]; index_1++) {
+      grid_out[index_1 * fft_size[0] + index_0] =
+          CMPLX(grid_in_real[index_0 * fft_size[1] * fft_size[2] + index_1],
+                grid_in_imag[index_0 * fft_size[1] * fft_size[2] + index_1]);
+    }
+  }
+
+#if PROFILE_CODE
+  clock_t end = clock();
+  printf("Time Transpose: %f\n", time_transpose);
+  printf("Time Reorder input: %f\n", time_reorder_input);
+  printf("Time Reorder output: %f\n", time_reorder_output);
+  printf("Time 2: %f\n", time_2);
+  printf("Time 3: %f\n", time_3);
+  printf("Time 4: %f\n", time_4);
+  printf("Time naive: %f\n", time_naive);
+  printf("Total Time 3D FW %i %i %i: %f\n", fft_size[0], fft_size[1],
+         fft_size[2], (double)(end - begin) / CLOCKS_PER_SEC);
+  fflush(stdout);
+#endif
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of FFT from transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
 void fft_ref_3d_bw_local_low(double complex *restrict grid_in,
                              double complex *restrict grid_out,
                              const int fft_size[3]) {
+
+#if PROFILE_CODE
+  time_transpose = 0.0;
+  time_reorder_input = 0.0;
+  time_reorder_output = 0.0;
+  time_2 = 0.0;
+  time_3 = 0.0;
+  time_4 = 0.0;
+  time_naive = 0.0;
+
+  clock_t begin = clock();
+#endif
+
+  // We reorder the data to a format more suitable for vectorization
+  double *grid_in_real = (double *)grid_in;
+  double *grid_in_imag =
+      ((double *)grid_in) + fft_size[0] * fft_size[1] * fft_size[2];
+  double *grid_out_real = (double *)grid_out;
+  double *grid_out_imag =
+      ((double *)grid_out) + fft_size[0] * fft_size[1] * fft_size[2];
+
+  reorder_input(grid_in, grid_out_real, grid_out_imag,
+                fft_size[0] * fft_size[1] * fft_size[2], 1, 1, 1);
+  fft_ref_1d_bw_local_internal(
+      grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[2],
+      fft_size[0] * fft_size[1], fft_size[0] * fft_size[1]);
+  // Transpose the data
+  fft_ref_transpose_local_double_low(grid_in_real, grid_out_real,
+                                     fft_size[0] * fft_size[1], fft_size[2]);
+  fft_ref_transpose_local_double_low(grid_in_imag, grid_out_imag,
+                                     fft_size[0] * fft_size[1], fft_size[2]);
+  fft_ref_1d_bw_local_internal(
+      grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[1],
+      fft_size[0] * fft_size[2], fft_size[0] * fft_size[2]);
+  // Transpose the data
+  fft_ref_transpose_local_double_low(grid_in_real, grid_out_real,
+                                     fft_size[0] * fft_size[2], fft_size[1]);
+  fft_ref_transpose_local_double_low(grid_in_imag, grid_out_imag,
+                                     fft_size[0] * fft_size[2], fft_size[1]);
+  fft_ref_1d_bw_local_internal(
+      grid_out_real, grid_out_imag, grid_in_real, grid_in_imag, fft_size[0],
+      fft_size[1] * fft_size[2], fft_size[1] * fft_size[2]);
+  // Transpose the data
+  for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[1] * fft_size[2]; index_1++) {
+      grid_out[index_1 * fft_size[0] + index_0] =
+          CMPLX(grid_in_real[index_0 * fft_size[1] * fft_size[2] + index_1],
+                grid_in_imag[index_0 * fft_size[1] * fft_size[2] + index_1]);
+    }
+  }
+
+#if PROFILE_CODE
+  clock_t end = clock();
+  printf("Time Transpose: %f\n", time_transpose);
+  printf("Time Reorder input: %f\n", time_reorder_input);
+  printf("Time Reorder output: %f\n", time_reorder_output);
+  printf("Time 2: %f\n", time_2);
+  printf("Time 3: %f\n", time_3);
+  printf("Time 4: %f\n", time_4);
+  printf("Time naive: %f\n", time_naive);
+  printf("Total Time 3D BW %i %i %i: %f\n", fft_size[0], fft_size[1],
+         fft_size[2], (double)(end - begin) / CLOCKS_PER_SEC);
+  fflush(stdout);
+#endif
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of FFT from transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_3d_bw_local_c2r_low(double complex *restrict grid_in,
+                                 double *restrict grid_out,
+                                 const int fft_size[3]) {
 
 #if PROFILE_CODE
   time_transpose = 0.0;

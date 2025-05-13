@@ -150,6 +150,15 @@ void fft_3d_fw_local(const int fft_size[3], double complex *grid_in,
                      double complex *grid_out);
 
 /*******************************************************************************
+ * \brief Performs local 3D FFT (no normalization).
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
+                         double complex *grid_out);
+
+/*******************************************************************************
  * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
  * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
@@ -157,6 +166,15 @@ void fft_3d_fw_local(const int fft_size[3], double complex *grid_in,
  ******************************************************************************/
 void fft_3d_bw_local(const int fft_size[3], double complex *grid_in,
                      double complex *grid_out);
+
+/*******************************************************************************
+ * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
+                         double *grid_out);
 
 /*******************************************************************************
  * \brief Return buffer size and local sizes and start for distributed 2D FFTs.

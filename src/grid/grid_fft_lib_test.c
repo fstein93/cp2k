@@ -869,6 +869,150 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
 }
 
 /*******************************************************************************
+ * \brief Function to test the local FFT backend.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
+  const int my_process = grid_mpi_comm_rank(grid_mpi_comm_world);
+
+  int errors = 0;
+
+  const double pi = acos(-1);
+
+  double *input_array = NULL;
+  double complex *output_array = NULL;
+  fft_allocate_double(2 * fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1),
+                      &input_array);
+  fft_allocate_complex(fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1),
+                       &output_array);
+
+  double max_error = 0.0;
+  int number_of_tests = 0;
+  for (int mx = 0; mx < fft_size[0]; mx++) {
+    for (int my = 0; my < fft_size[1]; my++) {
+      for (int mz = 0; mz < fft_size[2]; mz++) {
+        if (test_every > 0 && number_of_tests % test_every != 0) {
+          number_of_tests++;
+          continue;
+        }
+        number_of_tests++;
+        memset(input_array, 0,
+               fft_size[0] * fft_size[1] * fft_size[2] *
+                   sizeof(double complex));
+        input_array[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
+            1.0;
+        fft_3d_fw_local_r2c(fft_size, input_array, output_array);
+
+#pragma omp parallel for default(none)                                         \
+    shared(output_array, fft_size, pi, mx, my, mz, my_process)                 \
+    reduction(max : max_error) collapse(3)
+        for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
+          for (int ny = 0; ny < fft_size[1]; ny++) {
+            for (int nx = 0; nx < fft_size[0]; nx++) {
+              const double complex my_value =
+                  output_array[nz * fft_size[0] * fft_size[1] +
+                               ny * fft_size[0] + nx];
+              const double complex ref_value =
+                  cexp(-2.0 * I * pi *
+                       (((double)mx) * nx / fft_size[0] +
+                        ((double)my) * ny / fft_size[1] +
+                        ((double)mz) * nz / fft_size[2]));
+              double current_error = cabs(my_value - ref_value);
+              if (my_process == 0 && current_error > 1e-6) {
+                printf("ERROR %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny, nz,
+                       mx, my, mz, creal(my_value), cimag(my_value),
+                       creal(ref_value), cimag(ref_value));
+              }
+              max_error = fmax(max_error, current_error);
+            }
+          }
+        }
+      }
+    }
+  }
+  fflush(stdout);
+
+  if (max_error > 1.0e-6) {
+    if (my_process == 0) {
+      printf("The fw R2C 3D-FFT does not work correctly (%i %i %i): %f!\n",
+             fft_size[0], fft_size[1], fft_size[2], max_error);
+      fflush(stdout);
+    }
+    errors++;
+  }
+
+  max_error = 0.0;
+  number_of_tests = 0;
+  for (int mx = 0; mx < fft_size[0]; mx++) {
+    for (int my = 0; my < fft_size[1]; my++) {
+      for (int mz = 0; mz < fft_size[2]; mz++) {
+        if (test_every > 0 && number_of_tests % test_every != 0) {
+          number_of_tests++;
+          continue;
+        }
+        number_of_tests++;
+
+#pragma omp parallel for default(none)                                         \
+    shared(output_array, fft_size, pi, mx, my, mz, my_process)                 \
+    reduction(max : max_error) collapse(3)
+        for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
+          for (int ny = 0; ny < fft_size[1]; ny++) {
+            for (int nx = 0; nx < fft_size[0]; nx++) {
+              output_array[nz * fft_size[0] * fft_size[1] + ny * fft_size[0] +
+                           nx] = cexp(-2.0 * I * pi *
+                                      (((double)mx) * nx / fft_size[0] +
+                                       ((double)my) * ny / fft_size[1] +
+                                       ((double)mz) * nz / fft_size[2]));
+            }
+          }
+        }
+        fft_3d_bw_local_c2r(fft_size, output_array, input_array);
+
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, pi, mx, my, mz, my_process)                  \
+    reduction(max : max_error) collapse(3)
+        for (int nx = 0; nx < fft_size[0]; nx++) {
+          for (int ny = 0; ny < fft_size[1]; ny++) {
+            for (int nz = 0; nz < fft_size[2]; nz++) {
+              const double my_value =
+                  input_array[nz * fft_size[0] * fft_size[1] +
+                              ny * fft_size[0] + nx];
+              const double ref_value = (nx == mx && ny == my && nz == mz)
+                                           ? (double)product3(fft_size)
+                                           : 0.0;
+              double current_error = fabs(my_value - ref_value);
+              if (my_process == 0 && current_error > 1e-6) {
+                printf("ERROR %i %i %i/%i %i %i: %f %f\n", nx, ny, nz, mx, my,
+                       mz, my_value, ref_value);
+              }
+              max_error = fmax(max_error, current_error);
+            }
+          }
+        }
+      }
+    }
+  }
+  fflush(stdout);
+
+  fft_free_double(input_array);
+  fft_free_complex(output_array);
+
+  if (max_error > 1e-6) {
+    if (my_process == 0) {
+      printf("The bw 3D C2R FFT does not work correctly (%i %i %i): %f!\n",
+             fft_size[0], fft_size[1], fft_size[2], max_error);
+      fflush(stdout);
+    }
+    errors++;
+  }
+
+  if (errors == 0 && my_process == 0)
+    printf("The 3D R2C/C2R FFT does work correctly (%i %i %i)!\n", fft_size[0],
+           fft_size[1], fft_size[2]);
+  return errors;
+}
+
+/*******************************************************************************
  * \brief Function to test the local FFT backend (1-3D).
  * \author Frederick Stein
  ******************************************************************************/
@@ -912,6 +1056,14 @@ int fft_test_local() {
   errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 17);
   // A larger test
   errors += fft_test_3d_local_low((const int[3]){72, 72, 84}, 54321);
+
+  // Reduce tests to ca 10 per set
+  // errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 23);
+  // errors += fft_test_3d_local_r2c_low((const int[3]){3, 4, 5}, 13);
+  // errors += fft_test_3d_local_r2c_low((const int[3]){4, 8, 2}, 11);
+  // errors += fft_test_3d_local_r2c_low((const int[3]){7, 5, 3}, 17);
+  // A larger test
+  // errors += fft_test_3d_local_r2c_low((const int[3]){72, 72, 84}, 54321);
   clock_t end = clock();
   printf("Time to test local FFTs with planning: %f\n",
          (double)(end - begin) / CLOCKS_PER_SEC);
@@ -953,6 +1105,14 @@ int fft_test_local() {
   errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 17);
   // A larger test
   errors += fft_test_3d_local_low((const int[3]){72, 72, 84}, 54321);
+
+  // Reduce tests to ca 10 per set
+  // errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 23);
+  // errors += fft_test_3d_local_r2c_low((const int[3]){3, 4, 5}, 13);
+  // errors += fft_test_3d_local_r2c_low((const int[3]){4, 8, 2}, 11);
+  // errors += fft_test_3d_local_r2c_low((const int[3]){7, 5, 3}, 17);
+  // A larger test
+  // errors += fft_test_3d_local_r2c_low((const int[3]){72, 72, 84}, 54321);
   end = clock();
   printf("Time to test local FFTs without planning: %f\n",
          (double)(end - begin) / CLOCKS_PER_SEC);

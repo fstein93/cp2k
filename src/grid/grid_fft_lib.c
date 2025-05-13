@@ -345,6 +345,27 @@ void fft_3d_fw_local(const int fft_size[3], double complex *grid_in,
 }
 
 /*******************************************************************************
+ * \brief Performs local 3D FFT (no normalization).
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
+                         double complex *grid_out) {
+  switch (grid_fft_lib_choice) {
+  case GRID_FFT_LIB_REF:
+    fft_fftw_3d_fw_local_r2c(fft_size, grid_in, grid_out);
+    // fft_ref_3d_fw_local_r2c(grid_in, grid_out, fft_size);
+    break;
+  case GRID_FFT_LIB_FFTW:
+    fft_fftw_3d_fw_local_r2c(fft_size, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+}
+
+/*******************************************************************************
  * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
  * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
@@ -358,6 +379,27 @@ void fft_3d_bw_local(const int fft_size[3], double complex *grid_in,
     break;
   case GRID_FFT_LIB_FFTW:
     fft_fftw_3d_bw_local(fft_size, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+}
+
+/*******************************************************************************
+ * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
+                         double *grid_out) {
+  switch (grid_fft_lib_choice) {
+  case GRID_FFT_LIB_REF:
+    fft_fftw_3d_bw_local_c2r(fft_size, grid_in, grid_out);
+    // fft_ref_3d_bw_local_c2r(grid_in, grid_out, fft_size);
+    break;
+  case GRID_FFT_LIB_FFTW:
+    fft_fftw_3d_bw_local_c2r(fft_size, grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");

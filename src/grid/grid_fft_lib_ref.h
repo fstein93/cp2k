@@ -139,6 +139,15 @@ void fft_ref_3d_fw_local(double complex *grid_rs, double complex *grid_gs,
                          const int fft_size[3]);
 
 /*******************************************************************************
+ * \brief Performs local 3D FFT (no normalization).
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_3d_fw_local_r2c(double *grid_rs, double complex *grid_gs,
+                             const int fft_size[3]);
+
+/*******************************************************************************
  * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
  * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
@@ -146,6 +155,15 @@ void fft_ref_3d_fw_local(double complex *grid_rs, double complex *grid_gs,
  ******************************************************************************/
 void fft_ref_3d_bw_local(double complex *grid_gs, double complex *grid_rs,
                          const int fft_size[3]);
+
+/*******************************************************************************
+ * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_3d_bw_local_c2r(double complex *grid_gs, double *grid_rs,
+                             const int fft_size[3]);
 
 #endif /* GRID_FFT_LIB_REF_H */
 

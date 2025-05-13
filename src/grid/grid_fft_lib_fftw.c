@@ -505,6 +505,60 @@ fftw_plan *fft_fftw_create_3d_plan(const int direction, const int fft_size[3]) {
   return plan;
 }
 
+/*******************************************************************************
+ * \brief Create plan of a 1D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+fftw_plan *fft_fftw_create_3d_plan_r2c(const int direction,
+                                       const int fft_size[3]) {
+  const int key[6] = {3 + FFTW_R2C, grid_mpi_comm_c2f(grid_mpi_comm_null),
+                      direction,    fft_size[2],
+                      fft_size[1],  fft_size[0]};
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    const int nthreads = omp_get_max_threads();
+    fftw_plan_with_nthreads(nthreads);
+    // We need the guru interface here because cuts the last dimension in half
+    // whereas we want the first dimension
+    const int rank = 3;
+    fftw_iodim dims[3];
+    // This indicates only a single FFT
+    const int howmany_rank = 0;
+    fftw_iodim howmany_dims[1];
+    dims[0].n = fft_size[0];
+    dims[1].n = fft_size[1];
+    dims[2].n = fft_size[2];
+    dims[0].is = 1;
+    dims[1].is = fft_size[0];
+    dims[2].is = fft_size[0] * fft_size[1];
+    dims[0].os = 1;
+    dims[1].os = fft_size[0];
+    dims[2].os = fft_size[0] * fft_size[1];
+    howmany_dims[0].n = 1;
+    howmany_dims[0].is = 1;
+    howmany_dims[0].os = 1;
+    double *double_buffer =
+        fftw_alloc_real(2 * (fft_size[2] / 2 + 1) * fft_size[1] * fft_size[0]);
+    double complex *complex_buffer =
+        fftw_alloc_complex((fft_size[2] / 2 + 1) * fft_size[1] * fft_size[0]);
+    plan = malloc(sizeof(fftw_plan));
+    if (direction == FFTW_FORWARD) {
+      *plan = fftw_plan_guru_dft_r2c(rank, dims, howmany_rank, howmany_dims,
+                                     double_buffer, complex_buffer,
+                                     fftw_planning_mode);
+    } else {
+      *plan = fftw_plan_guru_dft_c2r(rank, dims, howmany_rank, howmany_dims,
+                                     complex_buffer, double_buffer,
+                                     fftw_planning_mode);
+    }
+    assert(plan != NULL);
+    add_plan_to_cache(key, plan);
+    fftw_free(double_buffer);
+    fftw_free(complex_buffer);
+  }
+  return plan;
+}
+
 #if defined(__FFTW3) && defined(__parallel) && defined(__FFTW3_MPI)
 /*******************************************************************************
  * \brief Create plan of a 1D FFT.
@@ -829,6 +883,27 @@ void fft_fftw_3d_fw_local(const int fft_size[3], double complex *grid_in,
 }
 
 /*******************************************************************************
+ * \brief Naive implementation of 2D FFT (transposed format, no normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
+                              double complex *grid_out) {
+#if defined(__FFTW3)
+  assert(omp_get_num_threads() == 1);
+  fftw_plan *plan = fft_fftw_create_3d_plan_r2c(FFTW_FORWARD, fft_size);
+  fftw_execute_dft_r2c(*plan, grid_in, grid_out);
+#else
+  (void)fft_size;
+  (void)number_of_ffts;
+  (void)grid_in;
+  (void)grid_out;
+  (void)transpose_rs;
+  (void)transpose_gs;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
  * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
  * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
@@ -844,6 +919,29 @@ void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
   (void)fft_size;
   (void)grid_in;
   (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
+ * \note fft_2d_bw_local(grid_gs, grid_rs, n1, n2, m) is the reverse to
+ * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
+                              double *grid_out) {
+#if defined(__FFTW3)
+  assert(omp_get_num_threads() == 1);
+  fftw_plan *plan = fft_fftw_create_3d_plan_r2c(FFTW_BACKWARD, fft_size);
+  fftw_execute_dft_c2r(*plan, grid_in, grid_out);
+#else
+  (void)fft_size;
+  (void)number_of_ffts;
+  (void)grid_in;
+  (void)grid_out;
+  (void)transpose_rs;
+  (void)transpose_gs;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
