@@ -879,14 +879,72 @@ void fft_ref_1d_fw_local_r2c_low(double *restrict grid_in,
   int offset_imaginary;
   double *grid_in_real = grid_in;
   double *grid_out_real = (double *)grid_out;
+  double *grid_in_imag = grid_in_real + (fft_size / 2 + 1) * number_of_ffts;
+  double *grid_out_imag = grid_out_real + (fft_size / 2 + 1) * number_of_ffts;
 
-  reorder_input_r2c(grid_in, grid_out_real, fft_size, number_of_ffts, stride_in,
-                    distance_in);
-  fft_ref_1d_fw_local_r2c_naive(grid_out_real, grid_in_real, fft_size,
-                                number_of_ffts, &offset_imaginary);
-  double *grid_in_imag = grid_in_real + offset_imaginary;
-  reorder_output_r2c(grid_in_real, grid_in_imag, grid_out, fft_size,
-                     number_of_ffts, stride_out, distance_out);
+  if (fft_size % 2 == 0) {
+    const int large_factor = fft_size / 2;
+    for (int index_large = 0; index_large < large_factor; index_large++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out_real[index_large * number_of_ffts + fft] =
+            grid_in[2 * index_large * stride_in + fft * distance_in];
+        grid_out_imag[index_large * number_of_ffts + fft] =
+            grid_in[(2 * index_large + 1) * stride_in + fft * distance_in];
+      }
+    }
+    fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                                 grid_in_imag, large_factor, number_of_ffts,
+                                 number_of_ffts);
+    for (int index_large = 0; index_large < large_factor + 1; index_large++) {
+      const double complex phase_factor =
+          cexp(-acos(-1) * I * index_large / large_factor);
+      const double factor_plus_real = 0.5 - 0.5 * cimag(phase_factor);
+      const double factor_minus_real = 0.5 + 0.5 * cimag(phase_factor);
+      const double half_factor_real = 0.5 * creal(phase_factor);
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out_real[index_large * number_of_ffts + fft] =
+            factor_minus_real *
+                grid_in_real[index_large % large_factor * number_of_ffts +
+                             fft] +
+            half_factor_real *
+                grid_in_imag[index_large % large_factor * number_of_ffts + fft];
+        grid_out_real[index_large * number_of_ffts + fft] +=
+            factor_plus_real * grid_in_real[(large_factor - index_large) %
+                                                large_factor * number_of_ffts +
+                                            fft] +
+            half_factor_real * grid_in_imag[(large_factor - index_large) %
+                                                large_factor * number_of_ffts +
+                                            fft];
+        grid_out_imag[index_large * number_of_ffts + fft] =
+            -half_factor_real *
+                grid_in_real[index_large % large_factor * number_of_ffts +
+                             fft] +
+            factor_minus_real *
+                grid_in_imag[index_large % large_factor * number_of_ffts + fft];
+        grid_out_imag[index_large * number_of_ffts + fft] +=
+            half_factor_real * grid_in_real[(large_factor - index_large) %
+                                                large_factor * number_of_ffts +
+                                            fft] -
+            factor_plus_real * grid_in_imag[(large_factor - index_large) %
+                                                large_factor * number_of_ffts +
+                                            fft];
+      }
+    }
+    memcpy(grid_in_real, grid_out_real,
+           number_of_ffts * (fft_size / 2 + 1) * sizeof(double));
+    memcpy(grid_in_imag, grid_out_imag,
+           number_of_ffts * (fft_size / 2 + 1) * sizeof(double));
+    reorder_output_r2c(grid_in_real, grid_in_imag, grid_out, fft_size,
+                       number_of_ffts, stride_out, distance_out);
+  } else {
+    reorder_input_r2c(grid_in, grid_out_real, fft_size, number_of_ffts,
+                      stride_in, distance_in);
+    fft_ref_1d_fw_local_r2c_naive(grid_out_real, grid_in_real, fft_size,
+                                  number_of_ffts, &offset_imaginary);
+    double *grid_in_imag = grid_in_real + offset_imaginary;
+    reorder_output_r2c(grid_in_real, grid_in_imag, grid_out, fft_size,
+                       number_of_ffts, stride_out, distance_out);
+  }
 
 #if PROFILE_CODE
   clock_t end = clock();
