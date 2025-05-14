@@ -254,6 +254,50 @@ void reorder_input_c2r_2d(const double complex *restrict grid_in,
 #endif
 }
 
+void reorder_input_c2r_for_c2c(const double complex *restrict grid_in,
+                               double *restrict grid_out_real,
+                               double *restrict grid_out_imag,
+                               const int large_factor, const int number_of_ffts,
+                               const int stride_in, const int distance_in) {
+
+  const double pi = acos(-1);
+#pragma omp parallel for default(none)                                         \
+    shared(grid_in, grid_out_real, grid_out_imag, number_of_ffts, stride_in,   \
+               distance_in, large_factor, pi)
+  for (int index_large = 0; index_large < large_factor; index_large++) {
+    const double complex phase_factor =
+        cexp(pi * I * index_large / large_factor);
+    // This refers to Re(1+i*phase_factor) and Re(1-i*phase_factor)
+    const double factor_plus_real = 1.0 - cimag(phase_factor);
+    const double factor_minus_real = 1.0 + cimag(phase_factor);
+    const double half_factor_real = creal(phase_factor);
+    for (int fft = 0; fft < number_of_ffts; fft++) {
+      grid_out_real[index_large * number_of_ffts + fft] =
+          factor_plus_real *
+              creal(grid_in[index_large * stride_in + fft * distance_in]) -
+          half_factor_real *
+              cimag(grid_in[index_large * stride_in + fft * distance_in]) +
+          factor_minus_real *
+              creal(grid_in[(large_factor - index_large) * stride_in +
+                            fft * distance_in]) -
+          half_factor_real *
+              cimag(grid_in[(large_factor - index_large) * stride_in +
+                            fft * distance_in]);
+      grid_out_imag[index_large * number_of_ffts + fft] =
+          half_factor_real *
+              creal(grid_in[index_large * stride_in + fft * distance_in]) +
+          factor_plus_real *
+              cimag(grid_in[index_large * stride_in + fft * distance_in]) -
+          half_factor_real *
+              creal(grid_in[(large_factor - index_large) * stride_in +
+                            fft * distance_in]) -
+          factor_minus_real *
+              cimag(grid_in[(large_factor - index_large) * stride_in +
+                            fft * distance_in]);
+    }
+  }
+}
+
 void reorder_output(const double *grid_in_real, const double *grid_in_imag,
                     double complex *grid_out, const int fft_size,
                     const int number_of_ffts, const int stride_out,
@@ -338,6 +382,30 @@ void reorder_output_c2r(const double *grid_in, double *grid_out,
     for (int fft = 0; fft < number_of_ffts; fft++) {
       grid_out[fft * distance_out + index * stride_out] =
           grid_in[fft + index * number_of_ffts];
+    }
+  }
+#if PROFILE_CODE
+  time_reorder_output += (double)(clock() - begin) / CLOCKS_PER_SEC;
+#endif
+}
+
+void reorder_output_c2r_from_c2c(const double *grid_in_real,
+                                 const double *grid_in_imag, double *grid_out,
+                                 const int large_factor,
+                                 const int number_of_ffts, const int stride_out,
+                                 const int distance_out) {
+#if PROFILE_CODE
+  clock_t begin = clock();
+#endif
+#pragma omp parallel for default(none) collapse(2)                             \
+    shared(grid_in_real, grid_in_imag, grid_out, number_of_ffts, stride_out,   \
+               distance_out, large_factor)
+  for (int index_large = 0; index_large < large_factor; index_large++) {
+    for (int fft = 0; fft < number_of_ffts; fft++) {
+      grid_out[2 * index_large * stride_out + fft * distance_out] =
+          grid_in_real[index_large * number_of_ffts + fft];
+      grid_out[(2 * index_large + 1) * stride_out + fft * distance_out] =
+          grid_in_imag[index_large * number_of_ffts + fft];
     }
   }
 #if PROFILE_CODE
@@ -1036,49 +1104,15 @@ void fft_ref_1d_bw_local_c2r_low(double complex *restrict grid_in,
     double *grid_out_real = grid_out;
     double *grid_out_imag = grid_out + large_factor * number_of_ffts;
 
-    for (int index_large = 0; index_large < large_factor; index_large++) {
-      const double complex phase_factor =
-          cexp(acos(-1) * I * index_large / large_factor);
-      // This refers to Re(1+i*phase_factor) and Re(1-i*phase_factor)
-      const double factor_plus_real = 1.0 - cimag(phase_factor);
-      const double factor_minus_real = 1.0 + cimag(phase_factor);
-      const double half_factor_real = creal(phase_factor);
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_out_real[index_large * number_of_ffts + fft] =
-            factor_plus_real *
-                creal(grid_in[index_large * stride_in + fft * distance_in]) -
-            half_factor_real *
-                cimag(grid_in[index_large * stride_in + fft * distance_in]) +
-            factor_minus_real *
-                creal(grid_in[(large_factor - index_large) * stride_in +
-                              fft * distance_in]) -
-            half_factor_real *
-                cimag(grid_in[(large_factor - index_large) * stride_in +
-                              fft * distance_in]);
-        grid_out_imag[index_large * number_of_ffts + fft] =
-            half_factor_real *
-                creal(grid_in[index_large * stride_in + fft * distance_in]) +
-            factor_plus_real *
-                cimag(grid_in[index_large * stride_in + fft * distance_in]) -
-            half_factor_real *
-                creal(grid_in[(large_factor - index_large) * stride_in +
-                              fft * distance_in]) -
-            factor_minus_real *
-                cimag(grid_in[(large_factor - index_large) * stride_in +
-                              fft * distance_in]);
-      }
-    }
+    reorder_input_c2r_for_c2c(grid_in, grid_out_real, grid_out_imag,
+                              large_factor, number_of_ffts, stride_in,
+                              distance_in);
     fft_ref_1d_bw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
                                  grid_in_imag, large_factor, number_of_ffts,
                                  number_of_ffts);
-    for (int index_large = 0; index_large < large_factor; index_large++) {
-      for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_out[2 * index_large * stride_out + fft * distance_out] =
-            grid_in_real[index_large * number_of_ffts + fft];
-        grid_out[(2 * index_large + 1) * stride_out + fft * distance_out] =
-            grid_in_imag[index_large * number_of_ffts + fft];
-      }
-    }
+    reorder_output_c2r_from_c2c(grid_in_real, grid_in_imag, grid_out,
+                                large_factor, number_of_ffts, stride_out,
+                                distance_out);
   } else {
     double *grid_in_real = (double *)grid_in;
     double *grid_out_real = grid_out;
