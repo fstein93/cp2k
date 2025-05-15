@@ -1058,12 +1058,12 @@ int fft_test_local() {
   errors += fft_test_3d_local_low((const int[3]){72, 72, 84}, 34321);
 
   // Reduce tests to ca 10 per set
-  // errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 23);
-  // errors += fft_test_3d_local_r2c_low((const int[3]){3, 4, 5}, 13);
-  // errors += fft_test_3d_local_r2c_low((const int[3]){4, 8, 2}, 11);
-  // errors += fft_test_3d_local_r2c_low((const int[3]){7, 5, 3}, 17);
+  errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 23);
+  errors += fft_test_3d_local_r2c_low((const int[3]){3, 4, 5}, 13);
+  errors += fft_test_3d_local_r2c_low((const int[3]){4, 8, 2}, 11);
+  errors += fft_test_3d_local_r2c_low((const int[3]){7, 5, 3}, 17);
   // A larger test
-  // errors += fft_test_3d_local_r2c_low((const int[3]){72, 72, 84}, 54321);
+  errors += fft_test_3d_local_r2c_low((const int[3]){72, 72, 84}, 54321);
   clock_t end = clock();
   printf("Time to test local FFTs with planning: %f\n",
          (double)(end - begin) / CLOCKS_PER_SEC);
@@ -1107,12 +1107,12 @@ int fft_test_local() {
   errors += fft_test_3d_local_low((const int[3]){72, 72, 84}, 34321);
 
   // Reduce tests to ca 10 per set
-  // errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 23);
-  // errors += fft_test_3d_local_r2c_low((const int[3]){3, 4, 5}, 13);
-  // errors += fft_test_3d_local_r2c_low((const int[3]){4, 8, 2}, 11);
-  // errors += fft_test_3d_local_r2c_low((const int[3]){7, 5, 3}, 17);
+  errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 23);
+  errors += fft_test_3d_local_r2c_low((const int[3]){3, 4, 5}, 13);
+  errors += fft_test_3d_local_r2c_low((const int[3]){4, 8, 2}, 11);
+  errors += fft_test_3d_local_r2c_low((const int[3]){7, 5, 3}, 17);
   // A larger test
-  // errors += fft_test_3d_local_r2c_low((const int[3]){72, 72, 84}, 54321);
+  errors += fft_test_3d_local_r2c_low((const int[3]){72, 72, 84}, 54321);
   end = clock();
   printf("Time to test local FFTs without planning: %f\n",
          (double)(end - begin) / CLOCKS_PER_SEC);
