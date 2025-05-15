@@ -1035,27 +1035,27 @@ int fft_test_local() {
   // A larger test
   errors += fft_test_1d_local_r2c_low(280, 12, true, false);
 
-  errors += fft_test_2d_local_low((const int[2]){10, 10}, 20, true, true);
-  errors += fft_test_2d_local_low((const int[2]){15, 9}, 90, true, false);
-  errors += fft_test_2d_local_low((const int[2]){7, 20}, 70, false, true);
-  errors += fft_test_2d_local_low((const int[2]){12, 14}, 50, false, false);
+  errors += fft_test_2d_local_low((const int[2]){10, 10}, 40, true, true);
+  errors += fft_test_2d_local_low((const int[2]){15, 9}, 150, true, false);
+  errors += fft_test_2d_local_low((const int[2]){7, 20}, 120, false, true);
+  errors += fft_test_2d_local_low((const int[2]){12, 14}, 90, false, false);
   // A larger test
-  errors += fft_test_2d_local_low((const int[2]){96, 96}, 10, false, false);
+  errors += fft_test_2d_local_low((const int[2]){96, 96}, 15, false, false);
 
-  errors += fft_test_2d_local_r2c_low((const int[2]){10, 10}, 20, true, true);
-  errors += fft_test_2d_local_r2c_low((const int[2]){15, 9}, 90, true, false);
-  errors += fft_test_2d_local_r2c_low((const int[2]){7, 20}, 70, false, true);
-  errors += fft_test_2d_local_r2c_low((const int[2]){12, 14}, 50, false, false);
+  errors += fft_test_2d_local_r2c_low((const int[2]){10, 10}, 30, true, true);
+  errors += fft_test_2d_local_r2c_low((const int[2]){15, 9}, 120, true, false);
+  errors += fft_test_2d_local_r2c_low((const int[2]){7, 20}, 100, false, true);
+  errors += fft_test_2d_local_r2c_low((const int[2]){12, 14}, 70, false, false);
   // A larger test
-  errors += fft_test_2d_local_r2c_low((const int[2]){96, 96}, 10, false, false);
+  errors += fft_test_2d_local_r2c_low((const int[2]){96, 96}, 15, false, false);
 
   // Reduce tests to ca 10 per set
-  errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 23);
-  errors += fft_test_3d_local_low((const int[3]){3, 4, 5}, 13);
-  errors += fft_test_3d_local_low((const int[3]){4, 8, 2}, 11);
-  errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 17);
+  errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 19);
+  errors += fft_test_3d_local_low((const int[3]){3, 4, 5}, 11);
+  errors += fft_test_3d_local_low((const int[3]){4, 8, 2}, 7);
+  errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 13);
   // A larger test
-  errors += fft_test_3d_local_low((const int[3]){72, 72, 84}, 54321);
+  errors += fft_test_3d_local_low((const int[3]){72, 72, 84}, 34321);
 
   // Reduce tests to ca 10 per set
   // errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 23);
@@ -1079,32 +1079,32 @@ int fft_test_local() {
   errors += fft_test_1d_local_r2c_low(4, 4, false, false);
   errors += fft_test_1d_local_r2c_low(15, 22, true, false);
   errors += fft_test_1d_local_r2c_low(12, 14, false, false);
-  errors += fft_test_1d_local_r2c_low(18, 28, false, true);
+  errors += fft_test_1d_local_r2c_low(20, 28, false, true);
   errors += fft_test_1d_local_r2c_low(16, 26, true, true);
   // A larger test
   errors += fft_test_1d_local_r2c_low(280, 12, true, false);
 
-  errors += fft_test_2d_local_low((const int[2]){10, 10}, 20, true, true);
-  errors += fft_test_2d_local_low((const int[2]){15, 9}, 90, true, false);
-  errors += fft_test_2d_local_low((const int[2]){7, 20}, 70, false, true);
-  errors += fft_test_2d_local_low((const int[2]){12, 14}, 50, false, false);
+  errors += fft_test_2d_local_low((const int[2]){10, 10}, 40, true, true);
+  errors += fft_test_2d_local_low((const int[2]){15, 9}, 150, true, false);
+  errors += fft_test_2d_local_low((const int[2]){7, 20}, 120, false, true);
+  errors += fft_test_2d_local_low((const int[2]){12, 14}, 90, false, false);
   // A larger test
-  errors += fft_test_2d_local_low((const int[2]){96, 96}, 10, false, false);
+  errors += fft_test_2d_local_low((const int[2]){96, 96}, 15, false, false);
 
-  errors += fft_test_2d_local_r2c_low((const int[2]){10, 10}, 20, true, true);
-  errors += fft_test_2d_local_r2c_low((const int[2]){15, 9}, 90, true, false);
-  errors += fft_test_2d_local_r2c_low((const int[2]){7, 20}, 70, false, true);
-  errors += fft_test_2d_local_r2c_low((const int[2]){12, 14}, 50, false, false);
+  errors += fft_test_2d_local_r2c_low((const int[2]){10, 10}, 30, true, true);
+  errors += fft_test_2d_local_r2c_low((const int[2]){15, 9}, 120, true, false);
+  errors += fft_test_2d_local_r2c_low((const int[2]){7, 20}, 100, false, true);
+  errors += fft_test_2d_local_r2c_low((const int[2]){12, 14}, 70, false, false);
   // A larger test
-  errors += fft_test_2d_local_r2c_low((const int[2]){96, 96}, 10, false, false);
+  errors += fft_test_2d_local_r2c_low((const int[2]){96, 96}, 15, false, false);
 
   // Reduce tests to ca 10 per set
-  errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 23);
-  errors += fft_test_3d_local_low((const int[3]){3, 4, 5}, 13);
-  errors += fft_test_3d_local_low((const int[3]){4, 8, 2}, 11);
-  errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 17);
+  errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 19);
+  errors += fft_test_3d_local_low((const int[3]){3, 4, 5}, 11);
+  errors += fft_test_3d_local_low((const int[3]){4, 8, 2}, 7);
+  errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 13);
   // A larger test
-  errors += fft_test_3d_local_low((const int[3]){72, 72, 84}, 54321);
+  errors += fft_test_3d_local_low((const int[3]){72, 72, 84}, 34321);
 
   // Reduce tests to ca 10 per set
   // errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 23);
