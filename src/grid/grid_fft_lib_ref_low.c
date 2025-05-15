@@ -751,6 +751,76 @@ void fft_twiddle_r2c_fw_for_c2c(const double *grid_in_real,
 #endif
 }
 
+void fft_twiddle_r2c_fw_for_c2c_2d(const double *grid_in_real,
+                                   const double *grid_in_imag, double *grid_out,
+                                   const int fft_size[2],
+                                   const int number_of_ffts) {
+#if PROFILE_CODE
+  clock_t begin = clock();
+#endif
+  const int large_factor = fft_size[0] / 2;
+  for (int index_large = 0; index_large < large_factor + 1; index_large++) {
+    const double complex phase_factor =
+        cexp(-acos(-1) * I * index_large / large_factor);
+    // This refers to Re(1+i*phase_factor) and Re(1-i*phase_factor)
+    const double factor_plus_real = 0.5 - 0.5 * cimag(phase_factor);
+    const double factor_minus_real = 0.5 + 0.5 * cimag(phase_factor);
+    const double half_factor_real = 0.5 * creal(phase_factor);
+    for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out[index_1 * number_of_ffts * (large_factor + 1) +
+                 fft * (large_factor + 1) + index_large] =
+            factor_minus_real *
+                grid_in_real[(index_large % large_factor * fft_size[1] +
+                              index_1) *
+                                 number_of_ffts +
+                             fft] +
+            half_factor_real *
+                grid_in_imag[(index_large % large_factor * fft_size[1] +
+                              index_1) *
+                                 number_of_ffts +
+                             fft] +
+            factor_plus_real * grid_in_real[((large_factor - index_large) %
+                                                 large_factor * fft_size[1] +
+                                             index_1) *
+                                                number_of_ffts +
+                                            fft] +
+            half_factor_real * grid_in_imag[((large_factor - index_large) %
+                                                 large_factor * fft_size[1] +
+                                             index_1) *
+                                                number_of_ffts +
+                                            fft];
+        grid_out[(large_factor + 1) * number_of_ffts * fft_size[1] +
+                 index_1 * number_of_ffts * (large_factor + 1) +
+                 fft * (large_factor + 1) + index_large] =
+            -half_factor_real *
+                grid_in_real[(index_large % large_factor * fft_size[1] +
+                              index_1) *
+                                 number_of_ffts +
+                             fft] +
+            factor_minus_real *
+                grid_in_imag[(index_large % large_factor * fft_size[1] +
+                              index_1) *
+                                 number_of_ffts +
+                             fft] +
+            half_factor_real * grid_in_real[((large_factor - index_large) %
+                                                 large_factor * fft_size[1] +
+                                             index_1) *
+                                                number_of_ffts +
+                                            fft] -
+            factor_plus_real * grid_in_imag[((large_factor - index_large) %
+                                                 large_factor * fft_size[1] +
+                                             index_1) *
+                                                number_of_ffts +
+                                            fft];
+      }
+    }
+  }
+#if PROFILE_CODE
+  time_twiddle += (double)(clock() - begin) / CLOCKS_PER_SEC;
+#endif
+}
+
 /*******************************************************************************
  * \brief Naive implementation of FFT from transposed format (for easier
  *transposition). \author Frederick Stein
@@ -1250,20 +1320,47 @@ void fft_ref_2d_fw_local_r2c_low(double *restrict grid_in,
   double *grid_out_real = (double *)grid_out;
   double *grid_out_imag =
       ((double *)grid_out) + fft_size[0] * fft_size[1] * number_of_ffts;
-
-  reorder_input_r2c(grid_in, grid_out_real, fft_size[0] * fft_size[1],
-                    number_of_ffts, stride_in, distance_in);
+  double *grid_in_imag =
+      grid_in_real + fft_size[0] * fft_size[1] * number_of_ffts;
   int offset_imaginary;
-  fft_ref_1d_fw_local_r2c_naive(grid_out_real, grid_in_real, fft_size[0],
-                                number_of_ffts * fft_size[1],
-                                &offset_imaginary);
-  double *grid_in_imag = grid_in_real + offset_imaginary;
-  grid_out_imag = grid_out_real + offset_imaginary;
-  // Transpose the data
-  fft_ref_transpose_local_double_block(grid_in_real, grid_out_real, fft_size[1],
-                                       fft_size[0] / 2 + 1, number_of_ffts);
-  fft_ref_transpose_local_double_block(grid_in_imag, grid_out_imag, fft_size[1],
-                                       fft_size[0] / 2 + 1, number_of_ffts);
+
+  // Perform the first FFT (R2C along the first dimension) and prepare for the
+  // second FFT
+  if (false && fft_size[0] % 2 == 0) {
+    const int large_factor = fft_size[0] / 2;
+    // Perform two FFTs of half length
+    grid_in_imag = grid_in_real + large_factor * fft_size[1] * number_of_ffts;
+    grid_out_imag = grid_out_real + large_factor * fft_size[1] * number_of_ffts;
+    reorder_input_r2c_for_c2c(grid_in, grid_out_real, grid_out_imag, fft_size,
+                              number_of_ffts, stride_in, distance_in);
+    fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                                 grid_in_imag, large_factor, number_of_ffts,
+                                 number_of_ffts * fft_size[1]);
+    fft_twiddle_r2c_fw_for_c2c_2d(grid_in_real, grid_in_imag, grid_out_real,
+                                  fft_size, number_of_ffts);
+  } else {
+    reorder_input_r2c(grid_in, grid_out_real, fft_size[0] * fft_size[1],
+                      number_of_ffts, stride_in, distance_in);
+    fft_ref_1d_fw_local_r2c_naive(grid_out_real, grid_in_real, fft_size[0],
+                                  number_of_ffts * fft_size[1],
+                                  &offset_imaginary);
+    grid_in_imag =
+        grid_in_real + (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts;
+    grid_out_imag =
+        grid_out_real + (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts;
+    // Transpose the data
+    fft_ref_transpose_local_double_block(grid_in_real, grid_out_real,
+                                         fft_size[1], fft_size[0] / 2 + 1,
+                                         number_of_ffts);
+    fft_ref_transpose_local_double_block(grid_in_imag, grid_out_imag,
+                                         fft_size[1], fft_size[0] / 2 + 1,
+                                         number_of_ffts);
+  }
+  grid_out_imag =
+      grid_out_real + (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts;
+  grid_in_imag =
+      grid_in_real + (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts;
+
   fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
                                grid_in_imag, fft_size[1],
                                number_of_ffts * (fft_size[0] / 2 + 1),
