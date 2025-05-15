@@ -379,21 +379,22 @@ void reorder_output_2d(const double *grid_in_real, const double *grid_in_imag,
 }
 
 void reorder_output_r2c(const double *grid_in_real, const double *grid_in_imag,
-                        double complex *grid_out, const int fft_size,
+                        double *grid_out, const int fft_size,
                         const int number_of_ffts, const int stride_out,
-                        const int distance_out) {
+                        const int distance_out, const int imag_shift) {
 #if PROFILE_CODE
   clock_t begin = clock();
 #endif
 // The first element is just given by the real part
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_in_real, grid_in_imag, grid_out, number_of_ffts, stride_out,   \
-               distance_out, fft_size)
+               distance_out, fft_size, imag_shift)
   for (int index = 0; index < fft_size / 2 + 1; index++) {
     for (int fft = 0; fft < number_of_ffts; fft++) {
-      grid_out[fft * distance_out + index * stride_out] =
-          CMPLX(grid_in_real[fft + index * number_of_ffts],
-                grid_in_imag[fft + index * number_of_ffts]);
+      grid_out[2 * fft * distance_out + 2 * index * stride_out] =
+          grid_in_real[fft + index * number_of_ffts];
+      grid_out[2 * fft * distance_out + 2 * index * stride_out + imag_shift] =
+          grid_in_imag[fft + index * number_of_ffts];
     }
   }
 #if PROFILE_CODE
@@ -767,10 +768,10 @@ void fft_ref_1d_bw_local_c2r_naive(double *restrict grid_in,
 }
 
 void fft_twiddle_r2c_fw_for_c2c(const double *grid_in_real,
-                                const double *grid_in_imag,
-                                double complex *grid_out, const int fft_size,
-                                const int number_of_ffts, const int stride_out,
-                                const int distance_out) {
+                                const double *grid_in_imag, double *grid_out,
+                                const int fft_size, const int number_of_ffts,
+                                const int stride_out, const int distance_out,
+                                const int imag_shift) {
   const int large_factor = fft_size / 2;
   for (int index_large = 0; index_large < large_factor + 1; index_large++) {
     const double complex phase_factor =
@@ -780,7 +781,7 @@ void fft_twiddle_r2c_fw_for_c2c(const double *grid_in_real,
     const double factor_minus_real = 0.5 + 0.5 * cimag(phase_factor);
     const double half_factor_real = 0.5 * creal(phase_factor);
     for (int fft = 0; fft < number_of_ffts; fft++) {
-      const double real_part =
+      grid_out[2 * index_large * stride_out + 2 * fft * distance_out] =
           factor_minus_real *
               grid_in_real[index_large % large_factor * number_of_ffts + fft] +
           half_factor_real *
@@ -791,7 +792,8 @@ void fft_twiddle_r2c_fw_for_c2c(const double *grid_in_real,
           half_factor_real * grid_in_imag[(large_factor - index_large) %
                                               large_factor * number_of_ffts +
                                           fft];
-      const double imag_part =
+      grid_out[2 * index_large * stride_out + 2 * fft * distance_out +
+               imag_shift] =
           -half_factor_real *
               grid_in_real[index_large % large_factor * number_of_ffts + fft] +
           factor_minus_real *
@@ -802,8 +804,6 @@ void fft_twiddle_r2c_fw_for_c2c(const double *grid_in_real,
           factor_plus_real * grid_in_imag[(large_factor - index_large) %
                                               large_factor * number_of_ffts +
                                           fft];
-      grid_out[index_large * stride_out + fft * distance_out] =
-          CMPLX(real_part, imag_part);
     }
   }
 }
@@ -1031,16 +1031,17 @@ void fft_ref_1d_fw_local_r2c_low(double *restrict grid_in,
     fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
                                  grid_in_imag, large_factor, number_of_ffts,
                                  number_of_ffts);
-    fft_twiddle_r2c_fw_for_c2c(grid_in_real, grid_in_imag, grid_out, fft_size,
-                               number_of_ffts, stride_out, distance_out);
+    fft_twiddle_r2c_fw_for_c2c(grid_in_real, grid_in_imag, grid_out_real,
+                               fft_size, number_of_ffts, stride_out,
+                               distance_out, 1);
   } else {
     reorder_input_r2c(grid_in, grid_out_real, fft_size, number_of_ffts,
                       stride_in, distance_in);
     fft_ref_1d_fw_local_r2c_naive(grid_out_real, grid_in_real, fft_size,
                                   number_of_ffts, &offset_imaginary);
     double *grid_in_imag = grid_in_real + offset_imaginary;
-    reorder_output_r2c(grid_in_real, grid_in_imag, grid_out, fft_size,
-                       number_of_ffts, stride_out, distance_out);
+    reorder_output_r2c(grid_in_real, grid_in_imag, grid_out_real, fft_size,
+                       number_of_ffts, stride_out, distance_out, 1);
   }
 
 #if PROFILE_CODE
