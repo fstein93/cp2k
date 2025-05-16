@@ -1023,15 +1023,14 @@ int fft_test_local() {
   errors += fft_test_1d_local_low(15, 26, true, true);
   errors += fft_test_1d_local_low(18, 22, true, false);
   errors += fft_test_1d_local_low(20, 28, false, true);
-  errors += fft_test_1d_local_low(12, 14, false, false);
+  errors += fft_test_1d_local_low(14, 13, false, false);
   // A larger test
   errors += fft_test_1d_local_low(144, 14, true, false);
 
-  errors += fft_test_1d_local_r2c_low(4, 4, false, false);
-  errors += fft_test_1d_local_r2c_low(15, 22, true, false);
-  errors += fft_test_1d_local_r2c_low(12, 14, false, false);
+  errors += fft_test_1d_local_r2c_low(15, 26, true, false);
+  errors += fft_test_1d_local_r2c_low(18, 22, false, false);
   errors += fft_test_1d_local_r2c_low(20, 28, false, true);
-  errors += fft_test_1d_local_r2c_low(16, 26, true, true);
+  errors += fft_test_1d_local_r2c_low(14, 13, true, true);
   // A larger test
   errors += fft_test_1d_local_r2c_low(280, 12, true, false);
 
@@ -1072,15 +1071,14 @@ int fft_test_local() {
   errors += fft_test_1d_local_low(15, 26, true, true);
   errors += fft_test_1d_local_low(18, 22, true, false);
   errors += fft_test_1d_local_low(20, 28, false, true);
-  errors += fft_test_1d_local_low(12, 14, false, false);
+  errors += fft_test_1d_local_low(14, 13, false, false);
   // A larger test
   errors += fft_test_1d_local_low(144, 14, true, false);
 
-  errors += fft_test_1d_local_r2c_low(4, 4, false, false);
-  errors += fft_test_1d_local_r2c_low(15, 22, true, false);
-  errors += fft_test_1d_local_r2c_low(12, 14, false, false);
+  errors += fft_test_1d_local_r2c_low(15, 26, true, false);
+  errors += fft_test_1d_local_r2c_low(18, 22, false, false);
   errors += fft_test_1d_local_r2c_low(20, 28, false, true);
-  errors += fft_test_1d_local_r2c_low(16, 26, true, true);
+  errors += fft_test_1d_local_r2c_low(14, 13, true, true);
   // A larger test
   errors += fft_test_1d_local_r2c_low(280, 12, true, false);
 

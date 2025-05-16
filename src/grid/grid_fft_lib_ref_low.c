@@ -1146,6 +1146,8 @@ void fft_ref_1d_fw_local_r2c_low(double *restrict grid_in,
   double *grid_out_imag = grid_out_real + (fft_size / 2 + 1) * number_of_ffts;
 
   if (fft_size % 2 == 0) {
+    grid_in_imag = grid_in_real + (fft_size / 2 + 1) * number_of_ffts;
+    grid_out_imag = grid_out_real + (fft_size / 2 + 1) * number_of_ffts;
     const int large_factor = fft_size / 2;
     reorder_input_r2c_for_c2c(grid_in, grid_out_real, grid_out_imag,
                               (const int[2]){fft_size, 1}, number_of_ffts,
@@ -1156,13 +1158,61 @@ void fft_ref_1d_fw_local_r2c_low(double *restrict grid_in,
                                fft_size, number_of_ffts, stride_out,
                                distance_out, 1);
   } else {
-    reorder_input_r2c(grid_in, grid_out_real, fft_size, number_of_ffts,
-                      stride_in, distance_in);
-    fft_ref_1d_fw_local_r2c_naive(grid_out_real, grid_in_real, fft_size,
-                                  number_of_ffts);
-    double *grid_in_imag = grid_in_real + (fft_size / 2 + 1) * number_of_ffts;
-    reorder_output_r2c(grid_in_real, grid_in_imag, grid_out_real, fft_size,
-                       number_of_ffts, stride_out, distance_out, 1);
+    grid_in_imag = grid_in_real + fft_size * (number_of_ffts / 2);
+    grid_out_imag = grid_out_real + fft_size * (number_of_ffts / 2);
+    // Calculate two R2C FFTs as a single complex FFT
+    for (int fft = 0; fft < number_of_ffts / 2 * 2; fft += 2) {
+      for (int index = 0; index < fft_size; index++) {
+        grid_out_real[index * (number_of_ffts / 2) + fft / 2] =
+            grid_in[index * stride_in + fft * distance_in];
+        grid_out_imag[index * (number_of_ffts / 2) + fft / 2] =
+            grid_in[index * stride_in + (fft + 1) * distance_in];
+      }
+    }
+    // If the number of FFTs is odd, we take care of the last FFT at the end
+    if (number_of_ffts % 2 == 1) {
+      for (int index = 0; index < fft_size; index++) {
+        grid_out_imag[fft_size * (number_of_ffts / 2) + index] =
+            grid_in[index * stride_in + (number_of_ffts - 1) * distance_in];
+      }
+    }
+    // Perform the actual FFTs
+    fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                                 grid_in_imag, fft_size, number_of_ffts / 2);
+    fft_ref_1d_fw_local_r2c_naive(
+        grid_out_imag + fft_size * (number_of_ffts / 2),
+        grid_in_imag + fft_size * (number_of_ffts / 2), fft_size, 1);
+    // Reorder the data to the final layout
+    for (int fft = 0; fft < number_of_ffts / 2 * 2; fft += 2) {
+      for (int index = 0; index < fft_size / 2 + 1; index++) {
+        grid_out[index * stride_out + fft * distance_out] =
+            CMPLX(0.5 * (grid_in_real[index * (number_of_ffts / 2) + fft / 2] +
+                         grid_in_real[(fft_size - index) % fft_size *
+                                          (number_of_ffts / 2) +
+                                      fft / 2]),
+                  0.5 * (grid_in_imag[index * (number_of_ffts / 2) + fft / 2] -
+                         grid_in_imag[(fft_size - index) % fft_size *
+                                          (number_of_ffts / 2) +
+                                      fft / 2]));
+        grid_out[index * stride_out + (fft + 1) * distance_out] =
+            CMPLX(0.5 * (grid_in_imag[index * (number_of_ffts / 2) + fft / 2] +
+                         grid_in_imag[(fft_size - index) % fft_size *
+                                          (number_of_ffts / 2) +
+                                      fft / 2]),
+                  -0.5 * (grid_in_real[index * (number_of_ffts / 2) + fft / 2] -
+                          grid_in_real[(fft_size - index) % fft_size *
+                                           (number_of_ffts / 2) +
+                                       fft / 2]));
+      }
+    }
+    if (number_of_ffts % 2 == 1) {
+      for (int index = 0; index < fft_size / 2 + 1; index++) {
+        grid_out[index * stride_out + (number_of_ffts - 1) * distance_out] =
+            CMPLX(grid_in_imag[fft_size * (number_of_ffts / 2) + index],
+                  grid_in_imag[fft_size * (number_of_ffts / 2) +
+                               (fft_size / 2 + 1) + index]);
+      }
+    }
   }
 
 #if PROFILE_CODE
