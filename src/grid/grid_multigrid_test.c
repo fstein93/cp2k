@@ -173,7 +173,7 @@ int multigrid_test() {
 
   grid_fft_grid_layout *fft_grid_layout = NULL;
   grid_create_fft_grid_layout(&fft_grid_layout, grid_mpi_comm_world,
-                              npts_global[0], dh_inv[0]);
+                              npts_global[0], dh_inv[0], false);
 
   grid_fft_real_rs_grid rs_grid;
   memset(&rs_grid, 0, sizeof(grid_fft_real_rs_grid));

@@ -2331,7 +2331,8 @@ void grid_multigrid_setup_distribution(
 
 void grid_multigrid_setup_fft_grids(grid_multigrid *multigrid) {
   grid_create_fft_grid_layout(&multigrid->fft_grid_layouts[0], multigrid->comm,
-                              multigrid->npts_global[0], multigrid->dh_inv[0]);
+                              multigrid->npts_global[0], multigrid->dh_inv[0],
+                              false);
   grid_create_real_rs_grid(&multigrid->fft_rs_grids[0],
                            multigrid->fft_grid_layouts[0]);
   grid_create_complex_gs_grid(&multigrid->fft_gs_grids[0],

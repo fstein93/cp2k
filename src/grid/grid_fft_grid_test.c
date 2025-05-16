@@ -34,7 +34,8 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
       {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
   grid_fft_grid_layout *fft_grid_layout = NULL;
-  grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv);
+  grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
+                              false);
 
   const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
@@ -325,7 +326,8 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
       {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
   grid_fft_grid_layout *ref_grid_layout = NULL;
-  grid_create_fft_grid_layout(&ref_grid_layout, comm, npts_global_ref, dh_inv);
+  grid_create_fft_grid_layout(&ref_grid_layout, comm, npts_global_ref, dh_inv,
+                              false);
 
   grid_fft_grid_layout *fft_grid_layout = NULL;
   grid_create_fft_grid_layout_from_reference(&fft_grid_layout, npts_global,
@@ -528,7 +530,7 @@ int fft_test_add_copy_low(const int npts_global_fine[3],
 
   grid_fft_grid_layout *fft_grid_fine_layout = NULL;
   grid_create_fft_grid_layout(&fft_grid_fine_layout, comm, npts_global_fine,
-                              dh_inv);
+                              dh_inv, false);
 
   grid_fft_grid_layout *fft_grid_coarse_layout = NULL;
   grid_create_fft_grid_layout_from_reference(

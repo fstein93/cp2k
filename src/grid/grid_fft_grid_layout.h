@@ -28,6 +28,10 @@ typedef struct {
   int npts_global[3];
   // Grid spacing in reciprocal space
   double h_inv[3][3];
+  // Whether to use only one half of g-space
+  // If used, then complex-valued real-space grids are not possible anymore
+  bool use_halfspace;
+  int npts_global_gspace[3];
   // Number of local points in g-space (relevant with ray-distribution)
   int npts_gs_local;
   bool ray_distribution;
@@ -73,7 +77,8 @@ void grid_free_fft_grid_layout(grid_fft_grid_layout *fft_grid);
 void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
                                  const grid_mpi_comm comm,
                                  const int npts_global[3],
-                                 const double dh_inv[3][3]);
+                                 const double dh_inv[3][3],
+                                 const bool use_halfspace);
 
 /*******************************************************************************
  * \brief Create a FFT grid using a reference grid to interact with this grid.

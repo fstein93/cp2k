@@ -412,7 +412,8 @@ void allocate_fft_buffers(grid_fft_grid_layout *my_fft_grid) {
 void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
                                  const grid_mpi_comm comm,
                                  const int npts_global[3],
-                                 const double dh_inv[3][3]) {
+                                 const double dh_inv[3][3],
+                                 const bool use_halfspace) {
   grid_fft_grid_layout *my_fft_grid = NULL;
   if (*fft_grid != NULL) {
     my_fft_grid = *fft_grid;
@@ -429,6 +430,7 @@ void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
   my_fft_grid->ref_counter = 1;
   my_fft_grid->ray_distribution = false;
 
+  // Split the last dimension in real-space
   if (npts_global[0] < number_of_processes) {
     // We only distribute in two directions if necessary to reduce communication
     grid_mpi_dims_create(number_of_processes, 2, my_fft_grid->proc_grid);
@@ -437,7 +439,11 @@ void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
     my_fft_grid->proc_grid[1] = 1;
   }
 
+  my_fft_grid->use_halfspace = use_halfspace;
   memcpy(my_fft_grid->npts_global, npts_global, 3 * sizeof(int));
+  memcpy(my_fft_grid->npts_global_gspace, npts_global, 3 * sizeof(int));
+  if (my_fft_grid->use_halfspace)
+    my_fft_grid->npts_global_gspace[2] = npts_global[2] / 2 + 1;
   for (int dir = 0; dir < 3; dir++) {
     for (int dir2 = 0; dir2 < 3; dir2++) {
       my_fft_grid->h_inv[dir][dir2] =
@@ -547,7 +553,11 @@ void grid_create_fft_grid_layout_from_reference(
     my_fft_grid->proc_grid[1] = 1;
   }
 
+  my_fft_grid->use_halfspace = fft_grid_ref->use_halfspace;
   memcpy(my_fft_grid->npts_global, npts_global, 3 * sizeof(int));
+  memcpy(my_fft_grid->npts_global_gspace, npts_global, 3 * sizeof(int));
+  if (my_fft_grid->use_halfspace)
+    my_fft_grid->npts_global_gspace[2] = npts_global[2] / 2 + 1;
 
   my_fft_grid->periodic[0] = 1;
   my_fft_grid->periodic[1] = 1;
