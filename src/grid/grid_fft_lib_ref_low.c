@@ -14,10 +14,7 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define PROFILE_CODE 1
-
-// Assume a cache line size of 64 bytes and 8 bytes per double
-#define DOUBLES_PER_CACHE_LINE 8
+#define PROFILE_CODE 0
 
 #if PROFILE_CODE
 #include <time.h>
