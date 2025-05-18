@@ -611,7 +611,7 @@ fftw_plan *fft_fftw_create_distributed_2d_plan(const int direction,
  * \brief Create plan of a 1D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-fftw_plan *fft_fftw_create_distributed_2d_plan(const int direction,
+fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const int direction,
                                                const int fft_size[2],
                                                const int number_of_ffts,
                                                const grid_mpi_comm comm) {
@@ -728,13 +728,13 @@ fftw_plan *fft_fftw_create_distributed_3d_plan_r2c(const int direction,
     double complex *buffer_2 = fftw_alloc_complex(buffer_size);
     plan = malloc(sizeof(fftw_plan));
     if (direction == FFTW_FORWARD) {
-      *plan = fftw_mpi_plan_many_dft(
+      *plan = fftw_mpi_plan_many_dft_r2c(
           3, n, 1, block_size_0, block_size_1, buffer_1, buffer_2, comm,
-          direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+          fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
     } else {
-      *plan = fftw_mpi_plan_many_dft(
-          3, n, 1, block_size_1, block_size_0, buffer_1, buffer_0, comm,
-          direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
+      *plan = fftw_mpi_plan_many_dft_c2r(
+          3, n, 1, block_size_1, block_size_0, buffer_2, buffer_1, comm,
+          fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
     }
     assert(plan != NULL);
     add_plan_to_cache(key, plan);
