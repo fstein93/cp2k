@@ -612,9 +612,9 @@ fftw_plan *fft_fftw_create_distributed_2d_plan(const int direction,
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const int direction,
-                                               const int fft_size[2],
-                                               const int number_of_ffts,
-                                               const grid_mpi_comm comm) {
+                                                   const int fft_size[2],
+                                                   const int number_of_ffts,
+                                                   const grid_mpi_comm comm) {
   const int key[6] = {2 + FFTW_R2C, grid_mpi_comm_c2f(comm),
                       direction,    fft_size[0],
                       fft_size[1],  number_of_ffts};
@@ -634,23 +634,24 @@ fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const int direction,
     const ptrdiff_t n[2] = {fft_size[0], fft_size[1]};
     const ptrdiff_t howmany = number_of_ffts;
     const int buffer_size = fftw_mpi_local_size_many_transposed(
-        2, n, howmany, block_size_0, block_size_1, comm, &local_n0,
-        &local_0_start, &local_n1, &local_1_start);
-    double complex *buffer_1 = fftw_alloc_complex(buffer_size);
-    double complex *buffer_2 = fftw_alloc_complex(buffer_size);
+        2, (const ptrdiff_t[2]){fft_size[0], fft_size[1] / 2 + 1}, howmany,
+        block_size_0, block_size_1, comm, &local_n0, &local_0_start, &local_n1,
+        &local_1_start);
+    double *real_buffer = fftw_alloc_real(2 * buffer_size);
+    double complex *complex_buffer = fftw_alloc_complex(buffer_size);
     plan = malloc(sizeof(fftw_plan));
     if (direction == FFTW_FORWARD) {
-      *plan = fftw_mpi_plan_many_dft(
-          2, n, howmany, block_size_0, block_size_1, buffer_1, buffer_2, comm,
-          direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+      *plan = fftw_mpi_plan_many_dft_r2c(
+          2, n, howmany, block_size_0, block_size_1, real_buffer,
+          complex_buffer, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
     } else {
-      *plan = fftw_mpi_plan_many_dft(
-          2, n, howmany, block_size_1, block_size_0, buffer_1, buffer_2, comm,
-          direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
+      *plan = fftw_mpi_plan_many_dft_c2r(
+          2, n, howmany, block_size_1, block_size_0, complex_buffer,
+          real_buffer, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
     }
     assert(plan != NULL);
-    fftw_free(buffer_1);
-    fftw_free(buffer_2);
+    fftw_free(real_buffer);
+    fftw_free(complex_buffer);
     add_plan_to_cache(key, plan);
   }
   return plan;
@@ -722,7 +723,8 @@ fftw_plan *fft_fftw_create_distributed_3d_plan_r2c(const int direction,
     ptrdiff_t local_n1, local_1_start;
     const ptrdiff_t n[3] = {fft_size[0], fft_size[1], fft_size[2]};
     const int buffer_size = fftw_mpi_local_size_many_transposed(
-        3, n, 1, block_size_0, block_size_1, comm, &local_n0, &local_0_start,
+        3, (const ptrdiff_t[3]){fft_size[0], fft_size[1], fft_size[2] / 2 + 1},
+        1, block_size_0, block_size_1, comm, &local_n0, &local_0_start,
         &local_n1, &local_1_start);
     double *buffer_1 = fftw_alloc_real(2 * buffer_size);
     double complex *buffer_2 = fftw_alloc_complex(buffer_size);

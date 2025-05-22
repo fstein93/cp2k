@@ -167,6 +167,21 @@ void grid_mpi_sendrecv_double(const double *sendbuffer, const int sendcount,
                               const grid_mpi_comm comm);
 
 /*******************************************************************************
+ * \brief Perform a blocing send of int.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_mpi_send_int(const int *sendbuffer, const int sendcount,
+                       const int dest, const int sendtag,
+                       const grid_mpi_comm comm);
+
+/*******************************************************************************
+ * \brief Perform a blocking recv of int.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_mpi_recv_int(int *recvbuffer, const int recvcount, const int source,
+                       const int recvtag, const grid_mpi_comm comm);
+
+/*******************************************************************************
  * \brief Perform a non-blocing send of doubles.
  * \author Frederick Stein
  ******************************************************************************/

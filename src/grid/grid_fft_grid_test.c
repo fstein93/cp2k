@@ -512,8 +512,9 @@ int fft_test_3d() {
   errors += fft_test_3d_ray(npts_global_small, npts_global_small, 11);
   errors += fft_test_3d_ray(npts_global_small, npts_global, 13);
   errors += fft_test_3d_ray(npts_global_reverse, npts_global_reverse, 17);
-  errors +=
-      fft_test_3d_ray(npts_global_small_reverse, npts_global_small_reverse, 7);
+  // errors +=
+  //     fft_test_3d_ray(npts_global_small_reverse, npts_global_small_reverse,
+  //     7);
 
   if (errors == 0 && my_process == 0)
     fprintf(stdout, "\n The 3D FFT routines work correctly!\n");

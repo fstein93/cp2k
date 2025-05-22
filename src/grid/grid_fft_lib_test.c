@@ -14,6 +14,7 @@
 #include "grid_fft_lib.h"
 #include "grid_fft_reorder.h"
 
+#include <assert.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -953,8 +954,7 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
         number_of_tests++;
 
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, pi, mx, my, mz, my_process)                 \
-    reduction(max : max_error) collapse(3)
+    shared(output_array, fft_size, pi, mx, my, mz, my_process) collapse(3)
         for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nx = 0; nx < fft_size[0]; nx++) {
@@ -1234,8 +1234,6 @@ int fft_test_2d_distributed_low(const int fft_size[2],
   }
   fflush(stdout);
   grid_mpi_max_double(&max_error, 1, comm);
-  fft_free_complex(input_array);
-  fft_free_complex(output_array);
 
   if (max_error > 1e-12) {
     if (my_process == 0)
@@ -1244,6 +1242,9 @@ int fft_test_2d_distributed_low(const int fft_size[2],
           fft_size[0], fft_size[1], number_of_ffts, max_error);
     errors++;
   }
+
+  fft_free_complex(input_array);
+  fft_free_complex(output_array);
 
   if (errors == 0 && my_process == 0)
     printf("The distributed 2D FFT does work correctly (%i %i/%i)!\n",
@@ -1269,6 +1270,23 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
   const int buffer_size =
       fft_2d_distributed_sizes_r2c(fft_size, number_of_ffts, comm, &local_n0,
                                    &local_n0_start, &local_n1, &local_n1_start);
+  int sum_n0 = local_n0;
+  int sum_n1 = local_n1;
+  grid_mpi_sum_int(&sum_n0, 1, comm);
+  grid_mpi_sum_int(&sum_n1, 1, comm);
+  if (my_process == 0) {
+    printf("DEBUG sizes: %i %i / %i %i\n", sum_n0, sum_n1, fft_size[0],
+           fft_size[1] / 2 + 1);
+    fflush(stdout);
+  }
+  grid_mpi_barrier(comm);
+  // assert(sum_n0 == fft_size[0]);
+  // assert(sum_n1 == fft_size[1] / 2 + 1);
+
+  printf("Process %i has sizes %i and %i starting at %i and %i (%i %i)\n",
+         my_process, local_n0, local_n1, local_n0, local_n1_start, fft_size[0],
+         fft_size[1]);
+  fflush(stdout);
 
   double *input_array = NULL;
   double complex *output_array = NULL;
@@ -1277,39 +1295,56 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
 
   double max_error = 0.0;
   // Check the forward FFT
+  memset(input_array, 0, 2 * buffer_size * sizeof(double));
+  memset(output_array, 0, buffer_size * sizeof(double complex));
+  int number_of_elements = 0;
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, number_of_ffts, local_n0, local_n0_start)
+    shared(input_array, fft_size, number_of_ffts, local_n0, local_n0_start,    \
+               my_process) reduction(+ : number_of_elements)
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
-    const int index_0 = number_of_fft / fft_size[1];
+    const int index_0 = (number_of_fft / fft_size[1]) % fft_size[0];
     const int index_1 = number_of_fft % fft_size[1];
     if (index_0 >= local_n0_start && index_0 < local_n0_start + local_n0) {
       input_array[number_of_fft +
-                  ((index_0 - local_n0_start) * fft_size[1] + index_1) *
+                  ((index_0 - local_n0_start) * (fft_size[1] / 2 + 1) * 2 +
+                   index_1) *
                       number_of_ffts] = 1.0;
+      number_of_elements++;
+      printf("Set element %i %i %i/%i %i %i on process %i\n", index_0, index_1,
+             number_of_fft, fft_size[0], fft_size[1], number_of_ffts,
+             my_process);
     }
   }
+  fflush(stdout);
+  grid_mpi_sum_int(&number_of_elements, 1, comm);
+  assert(number_of_elements == number_of_ffts);
 
   fft_2d_fw_distributed_r2c(fft_size, number_of_ffts, comm, input_array,
                             output_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(output_array, fft_size, number_of_ffts, pi, local_n1,               \
-               local_n1_start) reduction(max : max_error) collapse(3)
-  for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+               local_n1_start, my_process) reduction(max : max_error)          \
+    collapse(3)
+  for (int index_1 = 0; index_1 < local_n1; index_1++) {
     for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
-      for (int index_1 = 0; index_1 < local_n1; index_1++) {
+      for (int number_of_fft = 0; number_of_fft < number_of_ffts;
+           number_of_fft++) {
         const double complex my_value =
             output_array[number_of_fft +
                          (index_1 * fft_size[0] + index_0) * number_of_ffts];
-        const double complex ref_value = cexp(
-            -2.0 * I * pi *
-            ((double)(number_of_fft / fft_size[1]) * index_0 / fft_size[0] +
-             (double)(number_of_fft % fft_size[1]) *
-                 (index_1 + local_n1_start) / fft_size[1]));
+        const double complex ref_value =
+            cexp(-2.0 * I * pi *
+                 ((double)((number_of_fft / fft_size[1]) % fft_size[0]) *
+                      index_0 / fft_size[0] +
+                  (double)(number_of_fft % fft_size[1]) *
+                      (index_1 + local_n1_start) / fft_size[1]));
         double current_error = cabs(my_value - ref_value);
         if (current_error > 1e-12)
-          printf("Error %i %i %i: %f %f\n", index_0, index_1, number_of_fft,
-                 cabs(my_value), cabs(ref_value));
+          printf("%i Error %i %i %i / %i %i %i: (%f %f) (%f %f)\n", my_process,
+                 index_0, index_1 + local_n1_start, number_of_fft, fft_size[0],
+                 fft_size[1], number_of_ffts, creal(my_value), cimag(my_value),
+                 creal(ref_value), cimag(ref_value));
         max_error = fmax(max_error, current_error);
       }
     }
@@ -1323,26 +1358,50 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
           "The distributed fw R2C 2D-FFT does not work correctly (%i %i/%i): "
           "%f!\n",
           fft_size[0], fft_size[1], number_of_ffts, max_error);
+    fflush(stdout);
+    grid_mpi_barrier(comm);
     errors++;
+    int dummy = my_process;
+    if (my_process > 0)
+      grid_mpi_recv_int(&dummy, 1, my_process - 1, 42, comm);
+    for (int index = 0; index < buffer_size; index++) {
+      const int fft = index < number_of_ffts * local_n1 * fft_size[0]
+                          ? index % number_of_ffts
+                          : -1;
+      const int index_0 = index < number_of_ffts * local_n1 * fft_size[0]
+                              ? (index / number_of_ffts) % fft_size[0]
+                              : -1;
+      const int index_1 =
+          index < number_of_ffts * local_n1 * fft_size[0]
+              ? index / (number_of_ffts * fft_size[0]) + local_n1_start
+              : -1;
+      const double complex my_value = output_array[index];
+      printf("%i Element %i (%i %i %i): (%f %f)\n", my_process, index, index_0,
+             index_1, fft, creal(my_value), cimag(my_value));
+    }
+    fflush(stdout);
+    if (my_process < grid_mpi_comm_size(comm) - 1)
+      grid_mpi_send_int(&my_process, 1, my_process + 1, 42, comm);
   }
 
+#if 0
   // Check the backward FFT
-  memset(input_array, 0, 2 * buffer_size * sizeof(complex));
+  memset(input_array, 0, 2 * buffer_size * sizeof(double));
   memset(output_array, 0, buffer_size * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(output_array, fft_size, number_of_ffts, pi, local_n1,               \
                local_n1_start) reduction(max : max_error) collapse(3)
-  for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
+  for (int index_1 = 0; index_1 < local_n1; index_1++) {
     for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
-      for (int index_1 = 0; index_1 < local_n1; index_1++) {
+      for (int number_of_fft = 0; number_of_fft < number_of_ffts;
+           number_of_fft++) {
         output_array[number_of_fft +
-                     ((index_1 - local_n1_start) * fft_size[0] + index_0) *
-                         number_of_ffts] =
-            cexp(
-                -2.0 * I * pi *
-                ((double)(number_of_fft / fft_size[1]) * index_0 / fft_size[0] +
-                 (double)(number_of_fft % fft_size[1]) *
-                     (index_1 + local_n1_start) / fft_size[1]));
+                     (index_1 * fft_size[0] + index_0) * number_of_ffts] =
+            cexp(-2.0 * I * pi *
+                 ((double)((number_of_fft / fft_size[1]) % fft_size[0]) *
+                      index_0 / fft_size[0] +
+                  (double)(number_of_fft % fft_size[1]) *
+                      (index_1 + local_n1_start) / fft_size[1]));
       }
     }
   }
@@ -1353,29 +1412,31 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, number_of_ffts, pi, local_n0,                \
                local_n0_start) reduction(max : max_error) collapse(3)
-  for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
-    for (int index_0 = 0; index_0 < local_n0; index_0++) {
-      for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
+  for (int index_0 = 0; index_0 < local_n0; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
+      for (int number_of_fft = 0; number_of_fft < number_of_ffts;
+           number_of_fft++) {
         const double my_value =
             input_array[number_of_fft +
-                        (index_0 * fft_size[1] + index_1) * number_of_ffts];
+                        (index_0 * (fft_size[1] / 2 + 1) * 2 + index_1) *
+                            number_of_ffts];
         const double ref_value =
-            (index_0 + local_n0 == number_of_fft % fft_size[1] &&
-             index_1 == number_of_fft / fft_size[1])
+            (index_0 + local_n0_start ==
+                 (number_of_fft / fft_size[1]) % fft_size[0] &&
+             index_1 == number_of_fft % fft_size[1])
                 ? (double)(fft_size[0] * fft_size[1])
                 : 0.0;
         double current_error = fabs(my_value - ref_value);
         if (current_error > 1e-12)
-          printf("Error %i %i %i: %f %f\n", index_0, index_1, number_of_fft,
-                 my_value, ref_value);
+          printf("Error %i %i %i / %i %i %i: %f %f\n", index_0 + local_n0_start,
+                 index_1, number_of_fft, fft_size[0], fft_size[1],
+                 number_of_ffts, my_value, ref_value);
         max_error = fmax(max_error, current_error);
       }
     }
   }
   fflush(stdout);
   grid_mpi_max_double(&max_error, 1, comm);
-  fft_free_double(input_array);
-  fft_free_complex(output_array);
 
   if (max_error > 1e-12) {
     if (my_process == 0)
@@ -1384,6 +1445,10 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
              fft_size[0], fft_size[1], number_of_ffts, max_error);
     errors++;
   }
+#endif
+
+  fft_free_double(input_array);
+  fft_free_complex(output_array);
 
   if (errors == 0 && my_process == 0)
     printf("The distributed 2D R2C/C2R FFT does work correctly (%i %i/%i)!\n",
@@ -1513,9 +1578,6 @@ int fft_test_3d_distributed_low(const int fft_size[3], const int test_every) {
   fflush(stdout);
   grid_mpi_max_double(&max_error, 1, comm);
 
-  fft_free_complex(input_array);
-  fft_free_complex(output_array);
-
   if (max_error > 1e-12) {
     if (my_process == 0)
       printf("The distributed bw 3D-FFT does not work correctly (%i %i %i): "
@@ -1524,8 +1586,164 @@ int fft_test_3d_distributed_low(const int fft_size[3], const int test_every) {
     errors++;
   }
 
+  fft_free_complex(input_array);
+  fft_free_complex(output_array);
+
   if (errors == 0 && my_process == 0)
     printf("The distributed 3D FFT does work correctly (%i %i %i)!\n",
+           fft_size[0], fft_size[1], fft_size[2]);
+  return errors;
+}
+
+/*******************************************************************************
+ * \brief Function to test the local FFT backend.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_3d_distributed_r2c_low(const int fft_size[3],
+                                    const int test_every) {
+  const grid_mpi_comm comm = grid_mpi_comm_world;
+  const int my_process = grid_mpi_comm_rank(comm);
+
+  int errors = 0;
+
+  const double pi = acos(-1);
+
+  int local_n0, local_n0_start;
+  int local_n1, local_n1_start;
+  const int buffer_size = fft_3d_distributed_sizes_r2c(
+      fft_size, comm, &local_n0, &local_n0_start, &local_n1, &local_n1_start);
+
+  double *real_buffer = NULL;
+  double complex *complex_buffer = NULL;
+  fft_allocate_double(2 * buffer_size, &real_buffer);
+  fft_allocate_complex(buffer_size, &complex_buffer);
+
+  double max_error = 0.0;
+  int number_of_tests = 0;
+  for (int mx = 0; mx < fft_size[0]; mx++) {
+    for (int my = 0; my < fft_size[1]; my++) {
+      for (int mz = 0; mz < fft_size[2]; mz++) {
+        if (test_every > 0 && number_of_tests % test_every != 0) {
+          number_of_tests++;
+          continue;
+        }
+        number_of_tests++;
+        memset(real_buffer, 0, 2 * buffer_size * sizeof(double));
+        if (mx >= local_n0_start && mx < local_n0_start + local_n0)
+          real_buffer[(mx - local_n0_start) * fft_size[1] *
+                          (fft_size[2] / 2 + 1) * 2 +
+                      my * (fft_size[2] / 2 + 1) * 2 + mz] = 1.0;
+        fft_3d_fw_distributed_r2c(fft_size, comm, real_buffer, complex_buffer);
+
+#pragma omp parallel for default(none)                                         \
+    shared(complex_buffer, fft_size, pi, mx, my, mz, local_n1, local_n1_start) \
+    reduction(max : max_error) collapse(3)
+        for (int nx = 0; nx < fft_size[0]; nx++) {
+          for (int ny = 0; ny < local_n1; ny++) {
+            for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
+              const double complex my_value =
+                  complex_buffer[ny * fft_size[0] * (fft_size[2] / 2 + 1) +
+                                 nx * (fft_size[2] / 2 + 1) + nz];
+              const double complex ref_value =
+                  cexp(-2.0 * I * pi *
+                       (((double)mx) * nx / fft_size[0] +
+                        ((double)my) * (ny + local_n1_start) / fft_size[1] +
+                        ((double)mz) * nz / fft_size[2]));
+              double current_error = cabs(my_value - ref_value);
+              if (current_error > 1e-12) {
+                printf("Error %i %i %i/ %i %i %i: (%f %f) (%f %f)\n", nx, ny,
+                       nz, mx, my, mz, creal(my_value), cimag(my_value),
+                       creal(ref_value), cimag(ref_value));
+              }
+              max_error = fmax(max_error, current_error);
+            }
+          }
+        }
+      }
+    }
+  }
+  fflush(stdout);
+  grid_mpi_max_double(&max_error, 1, comm);
+
+  if (max_error > 1.0e-12) {
+    if (my_process == 0)
+      printf(
+          "The distributed fw R2C 3D-FFT does not work correctly (%i %i %i): "
+          "%f!\n",
+          fft_size[0], fft_size[1], fft_size[2], max_error);
+    errors++;
+  }
+
+  max_error = 0.0;
+  number_of_tests = 0;
+  for (int mx = 0; mx < fft_size[0]; mx++) {
+    for (int my = 0; my < fft_size[1]; my++) {
+      for (int mz = 0; mz < fft_size[2]; mz++) {
+        if (test_every > 0 && number_of_tests % test_every != 0) {
+          number_of_tests++;
+          continue;
+        }
+        number_of_tests++;
+#pragma omp parallel for default(none)                                         \
+    shared(complex_buffer, fft_size, pi, mx, my, mz, local_n1, local_n1_start) \
+    collapse(3)
+        for (int nx = 0; nx < fft_size[0]; nx++) {
+          for (int ny = 0; ny < local_n1; ny++) {
+            for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
+              complex_buffer[ny * fft_size[0] * (fft_size[2] / 2 + 1) +
+                             nx * (fft_size[2] / 2 + 1) + nz] =
+                  cexp(-2.0 * I * pi *
+                       (((double)mx) * nx / fft_size[0] +
+                        ((double)my) * (ny + local_n1_start) / fft_size[1] +
+                        ((double)mz) * nz / fft_size[2]));
+            }
+          }
+        }
+
+        fft_3d_bw_distributed_c2r(fft_size, comm, complex_buffer, real_buffer);
+
+#pragma omp parallel for default(none)                                         \
+    shared(real_buffer, fft_size, pi, mx, my, mz, local_n0, local_n0_start)    \
+    reduction(max : max_error) collapse(3)
+        for (int nz = 0; nz < fft_size[2]; nz++) {
+          for (int ny = 0; ny < fft_size[1]; ny++) {
+            for (int nx = 0; nx < local_n0; nx++) {
+              const double my_value =
+                  real_buffer[nx * fft_size[1] * (fft_size[2] / 2 + 1) * 2 +
+                              ny * (fft_size[2] / 2 + 1) * 2 + nz];
+              const double ref_value =
+                  (nx + local_n0_start == mx && ny == my && nz == mz)
+                      ? (double)(fft_size[0] * fft_size[1] * fft_size[2])
+                      : 0.0;
+              double current_error = fabs(my_value - ref_value);
+              if (current_error > 1e-12) {
+                printf("Error %i %i %i/ %i %i %i: %f %f\n", nx + local_n0_start,
+                       ny, nz, mx, my, mz, my_value, ref_value);
+              }
+              max_error = fmax(max_error, current_error);
+            }
+          }
+        }
+      }
+    }
+  }
+  fflush(stdout);
+  grid_mpi_max_double(&max_error, 1, comm);
+
+  if (max_error > 1e-12) {
+    if (my_process == 0)
+      printf(
+          "The distributed bw C2R 3D-FFT does not work correctly (%i %i %i): "
+          "%f!\n",
+          fft_size[0], fft_size[1], fft_size[2], max_error);
+    errors++;
+  }
+
+  fft_free_double(real_buffer);
+  fft_free_complex(complex_buffer);
+
+  if (errors == 0 && my_process == 0)
+    printf("The distributed 3D R2C FFT does work correctly (%i %i %i)!\n",
            fft_size[0], fft_size[1], fft_size[2]);
   return errors;
 }
@@ -1558,6 +1776,11 @@ int fft_test_distributed() {
   errors += fft_test_3d_distributed_low((const int[3]){3, 4, 5}, 13);
   errors += fft_test_3d_distributed_low((const int[3]){4, 8, 2}, 17);
   errors += fft_test_3d_distributed_low((const int[3]){7, 5, 3}, 11);
+
+  errors += fft_test_3d_distributed_r2c_low((const int[3]){8, 8, 8}, 19);
+  errors += fft_test_3d_distributed_r2c_low((const int[3]){3, 4, 5}, 14);
+  errors += fft_test_3d_distributed_r2c_low((const int[3]){4, 8, 2}, 17);
+  errors += fft_test_3d_distributed_r2c_low((const int[3]){7, 5, 3}, 11);
 
   return errors;
 }

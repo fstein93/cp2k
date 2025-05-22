@@ -347,6 +347,56 @@ void grid_mpi_sendrecv_double(const double *sendbuffer, const int sendcount,
  * \brief Perform a non-blocing send of doubles.
  * \author Frederick Stein
  ******************************************************************************/
+void grid_mpi_send_int(const int *sendbuffer, const int sendcount,
+                       const int dest, const int sendtag,
+                       const grid_mpi_comm comm) {
+#if defined(__parallel)
+  assert(sendbuffer != NULL);
+  assert(sendcount >= 0 && "Send count must be nonnegative!");
+  assert(sendtag >= 0 && "Send tag must be nonnegative!");
+  assert(dest >= 0 && "Send process must be nonnegative!");
+  assert(dest < grid_mpi_comm_size(comm) &&
+         "Send process must be lower than the number of processes!");
+  error_check(MPI_Send(sendbuffer, sendcount, MPI_INT, dest, sendtag, comm));
+#else
+  (void)sendbuffer;
+  (void)sendcount;
+  (void)dest;
+  (void)sendtag;
+  (void)comm;
+  assert(false && "Single send not allowed in serial mode");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Perform a non-blocking recv of doubles.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_mpi_recv_int(int *recvbuffer, const int recvcount, const int source,
+                       const int recvtag, const grid_mpi_comm comm) {
+#if defined(__parallel)
+  assert(recvbuffer != NULL);
+  assert(recvcount >= 0 && "Receive count must be nonnegative!");
+  assert(recvtag >= 0 && "Receive tag must be nonnegative!");
+  assert(source >= 0 && "Receive process must be nonnegative!");
+  assert(source < grid_mpi_comm_size(comm) &&
+         "Receive process must be lower than the number of processes!");
+  error_check(MPI_Recv(recvbuffer, recvcount, MPI_INT, source, recvtag, comm,
+                       MPI_STATUS_IGNORE));
+#else
+  (void)recvbuffer;
+  (void)recvcount;
+  (void)source;
+  (void)recvtag;
+  (void)comm;
+  assert(false && "Single receive not allowed in serial mode");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Perform a non-blocing send of doubles.
+ * \author Frederick Stein
+ ******************************************************************************/
 void grid_mpi_isend_double(const double *sendbuffer, const int sendcount,
                            const int dest, const int sendtag,
                            const grid_mpi_comm comm,
