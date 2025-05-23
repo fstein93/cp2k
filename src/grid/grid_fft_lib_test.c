@@ -1270,23 +1270,6 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
   const int buffer_size =
       fft_2d_distributed_sizes_r2c(fft_size, number_of_ffts, comm, &local_n0,
                                    &local_n0_start, &local_n1, &local_n1_start);
-  int sum_n0 = local_n0;
-  int sum_n1 = local_n1;
-  grid_mpi_sum_int(&sum_n0, 1, comm);
-  grid_mpi_sum_int(&sum_n1, 1, comm);
-  if (my_process == 0) {
-    printf("DEBUG sizes: %i %i / %i %i\n", sum_n0, sum_n1, fft_size[0],
-           fft_size[1] / 2 + 1);
-    fflush(stdout);
-  }
-  grid_mpi_barrier(comm);
-  // assert(sum_n0 == fft_size[0]);
-  // assert(sum_n1 == fft_size[1] / 2 + 1);
-
-  printf("Process %i has sizes %i and %i starting at %i and %i (%i %i)\n",
-         my_process, local_n0, local_n1, local_n0, local_n1_start, fft_size[0],
-         fft_size[1]);
-  fflush(stdout);
 
   double *input_array = NULL;
   double complex *output_array = NULL;
@@ -1361,27 +1344,6 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
     fflush(stdout);
     grid_mpi_barrier(comm);
     errors++;
-    int dummy = my_process;
-    if (my_process > 0)
-      grid_mpi_recv_int(&dummy, 1, my_process - 1, 42, comm);
-    for (int index = 0; index < buffer_size; index++) {
-      const int fft = index < number_of_ffts * local_n1 * fft_size[0]
-                          ? index % number_of_ffts
-                          : -1;
-      const int index_0 = index < number_of_ffts * local_n1 * fft_size[0]
-                              ? (index / number_of_ffts) % fft_size[0]
-                              : -1;
-      const int index_1 =
-          index < number_of_ffts * local_n1 * fft_size[0]
-              ? index / (number_of_ffts * fft_size[0]) + local_n1_start
-              : -1;
-      const double complex my_value = output_array[index];
-      printf("%i Element %i (%i %i %i): (%f %f)\n", my_process, index, index_0,
-             index_1, fft, creal(my_value), cimag(my_value));
-    }
-    fflush(stdout);
-    if (my_process < grid_mpi_comm_size(comm) - 1)
-      grid_mpi_send_int(&my_process, 1, my_process + 1, 42, comm);
   }
 
   // Check the backward FFT
