@@ -1305,10 +1305,10 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
     const int index_0 = (number_of_fft / fft_size[1]) % fft_size[0];
     const int index_1 = number_of_fft % fft_size[1];
     if (index_0 >= local_n0_start && index_0 < local_n0_start + local_n0) {
-      input_array[number_of_fft +
-                  ((index_0 - local_n0_start) * (fft_size[1] / 2 + 1) * 2 +
+      input_array[((index_0 - local_n0_start) * (fft_size[1] / 2 + 1) * 2 +
                    index_1) *
-                      number_of_ffts] = 1.0;
+                      number_of_ffts +
+                  number_of_fft] = 1.0;
       number_of_elements++;
       printf("Set element %i %i %i/%i %i %i on process %i\n", index_0, index_1,
              number_of_fft, fft_size[0], fft_size[1], number_of_ffts,
@@ -1331,8 +1331,8 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
       for (int number_of_fft = 0; number_of_fft < number_of_ffts;
            number_of_fft++) {
         const double complex my_value =
-            output_array[number_of_fft +
-                         (index_1 * fft_size[0] + index_0) * number_of_ffts];
+            output_array[(index_1 * fft_size[0] + index_0) * number_of_ffts +
+                         number_of_fft];
         const double complex ref_value =
             cexp(-2.0 * I * pi *
                  ((double)((number_of_fft / fft_size[1]) % fft_size[0]) *
@@ -1384,7 +1384,6 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
       grid_mpi_send_int(&my_process, 1, my_process + 1, 42, comm);
   }
 
-#if 0
   // Check the backward FFT
   memset(input_array, 0, 2 * buffer_size * sizeof(double));
   memset(output_array, 0, buffer_size * sizeof(double complex));
@@ -1445,7 +1444,6 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
              fft_size[0], fft_size[1], number_of_ffts, max_error);
     errors++;
   }
-#endif
 
   fft_free_double(input_array);
   fft_free_complex(output_array);
@@ -1765,12 +1763,11 @@ int fft_test_distributed() {
   errors += fft_test_2d_distributed_low((const int[2]){7, 20}, 37);
   errors += fft_test_2d_distributed_low((const int[2]){12, 14}, 23);
 
-#if 0
+  errors += fft_test_2d_distributed_r2c_low((const int[2]){4, 4}, 16);
   errors += fft_test_2d_distributed_r2c_low((const int[2]){10, 10}, 19);
   errors += fft_test_2d_distributed_r2c_low((const int[2]){16, 9}, 51);
   errors += fft_test_2d_distributed_r2c_low((const int[2]){7, 20}, 37);
   errors += fft_test_2d_distributed_r2c_low((const int[2]){12, 14}, 23);
-#endif
 
   errors += fft_test_3d_distributed_low((const int[3]){8, 8, 8}, 19);
   errors += fft_test_3d_distributed_low((const int[3]){3, 4, 5}, 13);

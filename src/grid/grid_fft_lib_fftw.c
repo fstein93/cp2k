@@ -641,10 +641,14 @@ fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const int direction,
     double complex *complex_buffer = fftw_alloc_complex(buffer_size);
     plan = malloc(sizeof(fftw_plan));
     if (direction == FFTW_FORWARD) {
+      printf("Create plan FW %li %li %li %i %i\n", n[0], n[1], howmany,
+             block_size_0, block_size_1);
       *plan = fftw_mpi_plan_many_dft_r2c(
           2, n, howmany, block_size_0, block_size_1, real_buffer,
           complex_buffer, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
     } else {
+      printf("Create plan BW %li %li %li %i %i\n", n[0], n[1], howmany,
+             block_size_0, block_size_1);
       *plan = fftw_mpi_plan_many_dft_c2r(
           2, n, howmany, block_size_1, block_size_0, complex_buffer,
           real_buffer, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
@@ -1108,7 +1112,7 @@ int fft_fftw_2d_distributed_sizes_r2c(const int npts_global[2],
     *local_n1 = 0;
     return 0;
   }
-  const ptrdiff_t n[2] = {npts_global[0], npts_global[1]};
+  const ptrdiff_t n[2] = {npts_global[0], npts_global[1] / 2 + 1};
   const ptrdiff_t howmany = number_of_ffts;
   const ptrdiff_t block_size_0 =
       (npts_global[0] + grid_mpi_comm_size(comm) - 1) /
