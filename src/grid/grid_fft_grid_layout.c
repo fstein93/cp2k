@@ -842,7 +842,9 @@ void fft_3d_fw_blocked_low(
                       false, grid_buffer_1, grid_buffer_2);
     }
   } else {
-    fft_3d_fw_local(npts_global, grid_buffer_1, grid_buffer_2);
+    fft_3d_fw_local(
+        (const int[3]){npts_global[2], npts_global[1], npts_global[0]},
+        grid_buffer_1, grid_buffer_2);
   }
 }
 
@@ -955,7 +957,9 @@ void fft_3d_bw_blocked_low(
                       grid_buffer_2);
     }
   } else {
-    fft_3d_bw_local(npts_global, grid_buffer_1, grid_buffer_2);
+    fft_3d_bw_local(
+        (const int[3]){npts_global[2], npts_global[1], npts_global[0]},
+        grid_buffer_1, grid_buffer_2);
   }
 }
 
@@ -1070,7 +1074,9 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
                       grid_buffer_1, grid_buffer_2);
     }
   } else {
-    fft_3d_fw_local(npts_global, grid_buffer_1, grid_buffer_2);
+    fft_3d_fw_local(
+        (const int[3]){npts_global[2], npts_global[1], npts_global[0]},
+        grid_buffer_1, grid_buffer_2);
 // Copy to the ray format
 // Maybe, a 2D FFT, redistribution to rays and final FFT is faster
 #pragma omp parallel for default(none)                                         \
@@ -1216,7 +1222,9 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
             grid_buffer_1[yz_ray * npts_global[0] + index_x];
       }
     }
-    fft_3d_bw_local(npts_global, grid_buffer_2, grid_buffer_1);
+    fft_3d_bw_local(
+        (const int[3]){npts_global[2], npts_global[1], npts_global[0]},
+        grid_buffer_2, grid_buffer_1);
     memcpy(grid_buffer_2, grid_buffer_1,
            product3(npts_global) * sizeof(double complex));
   }

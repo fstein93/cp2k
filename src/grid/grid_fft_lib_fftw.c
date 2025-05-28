@@ -485,7 +485,7 @@ fftw_plan *fft_fftw_create_3d_plan(const int direction, const int fft_size[3]) {
   // add
   const int key[6] = {
       3,           direction,   grid_mpi_comm_c2f(grid_mpi_comm_null),
-      fft_size[2], fft_size[1], fft_size[0]};
+      fft_size[0], fft_size[1], fft_size[2]};
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     const int nthreads = omp_get_max_threads();
@@ -495,7 +495,7 @@ fftw_plan *fft_fftw_create_3d_plan(const int direction, const int fft_size[3]) {
     double complex *buffer_2 =
         fftw_alloc_complex(fft_size[0] * fft_size[1] * fft_size[2]);
     plan = malloc(sizeof(fftw_plan));
-    *plan = fftw_plan_dft_3d(fft_size[2], fft_size[1], fft_size[0], buffer_1,
+    *plan = fftw_plan_dft_3d(fft_size[0], fft_size[1], fft_size[2], buffer_1,
                              buffer_2, direction, fftw_planning_mode);
     add_plan_to_cache(key, plan);
     assert(plan != NULL);

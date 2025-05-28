@@ -775,7 +775,8 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
                    sizeof(double complex));
         input_array[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
             1.0;
-        fft_3d_fw_local(fft_size, input_array, output_array);
+        fft_3d_fw_local((const int[3]){fft_size[2], fft_size[1], fft_size[0]},
+                        input_array, output_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(output_array, fft_size, pi, mx, my, mz) reduction(max : max_error)  \
@@ -825,7 +826,8 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
                    sizeof(double complex));
         output_array[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
             1.0;
-        fft_3d_bw_local(fft_size, output_array, input_array);
+        fft_3d_bw_local((const int[3]){fft_size[2], fft_size[1], fft_size[0]},
+                        output_array, input_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, pi, mx, my, mz) reduction(max : max_error)   \
