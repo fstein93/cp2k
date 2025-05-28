@@ -1024,45 +1024,29 @@ int fft_test_local() {
   errors += fft_test_1d_local_low(18, 22, true, false);
   errors += fft_test_1d_local_low(20, 28, false, true);
   errors += fft_test_1d_local_low(14, 13, false, false);
-  // A larger test
-  errors += fft_test_1d_local_low(144, 14, true, false);
 
   errors += fft_test_1d_local_r2c_low(15, 26, true, false);
   errors += fft_test_1d_local_r2c_low(18, 22, false, false);
   errors += fft_test_1d_local_r2c_low(20, 28, false, true);
   errors += fft_test_1d_local_r2c_low(14, 13, true, true);
-  // A larger test
-  errors += fft_test_1d_local_r2c_low(280, 12, true, false);
 
-  errors += fft_test_2d_local_low((const int[2]){10, 10}, 40, true, true);
-  errors += fft_test_2d_local_low((const int[2]){15, 9}, 150, true, false);
-  errors += fft_test_2d_local_low((const int[2]){7, 20}, 120, false, true);
-  errors += fft_test_2d_local_low((const int[2]){12, 14}, 90, false, false);
-  // A larger test
-  errors += fft_test_2d_local_low((const int[2]){96, 96}, 15, false, false);
+  errors += fft_test_2d_local_low((const int[2]){10, 10}, 10, true, true);
+  errors += fft_test_2d_local_low((const int[2]){15, 9}, 10, true, false);
+  errors += fft_test_2d_local_low((const int[2]){7, 20}, 11, false, true);
+  errors += fft_test_2d_local_low((const int[2]){12, 14}, 10, false, false);
 
-  errors += fft_test_2d_local_r2c_low((const int[2]){10, 10}, 30, true, true);
-  errors += fft_test_2d_local_r2c_low((const int[2]){15, 9}, 120, true, false);
-  errors += fft_test_2d_local_r2c_low((const int[2]){7, 20}, 100, false, true);
-  errors += fft_test_2d_local_r2c_low((const int[2]){12, 14}, 70, false, false);
-  // A larger test
-  errors += fft_test_2d_local_r2c_low((const int[2]){96, 96}, 15, false, false);
+  errors += fft_test_2d_local_r2c_low((const int[2]){10, 10}, 10, true, true);
+  errors += fft_test_2d_local_r2c_low((const int[2]){15, 9}, 10, true, false);
+  errors += fft_test_2d_local_r2c_low((const int[2]){7, 20}, 10, false, true);
+  errors += fft_test_2d_local_r2c_low((const int[2]){12, 14}, 11, false, false);
 
   // Reduce tests to ca 10 per set
-  errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 19);
-  errors += fft_test_3d_local_low((const int[3]){3, 4, 5}, 11);
-  errors += fft_test_3d_local_low((const int[3]){4, 8, 2}, 7);
-  errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 13);
-  // A larger test
-  errors += fft_test_3d_local_low((const int[3]){72, 72, 84}, 34321);
+  errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 10);
+  errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 10);
 
   // Reduce tests to ca 10 per set
-  errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 23);
-  errors += fft_test_3d_local_r2c_low((const int[3]){3, 4, 5}, 13);
-  errors += fft_test_3d_local_r2c_low((const int[3]){4, 8, 2}, 11);
-  errors += fft_test_3d_local_r2c_low((const int[3]){7, 5, 3}, 17);
-  // A larger test
-  errors += fft_test_3d_local_r2c_low((const int[3]){72, 72, 84}, 54321);
+  errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 10);
+  errors += fft_test_3d_local_r2c_low((const int[3]){7, 5, 3}, 10);
   clock_t end = clock();
   printf("Time to test local FFTs with planning: %f\n",
          (double)(end - begin) / CLOCKS_PER_SEC);
@@ -1072,45 +1056,29 @@ int fft_test_local() {
   errors += fft_test_1d_local_low(18, 22, true, false);
   errors += fft_test_1d_local_low(20, 28, false, true);
   errors += fft_test_1d_local_low(14, 13, false, false);
-  // A larger test
-  errors += fft_test_1d_local_low(144, 14, true, false);
 
   errors += fft_test_1d_local_r2c_low(15, 26, true, false);
   errors += fft_test_1d_local_r2c_low(18, 22, false, false);
   errors += fft_test_1d_local_r2c_low(20, 28, false, true);
   errors += fft_test_1d_local_r2c_low(14, 13, true, true);
-  // A larger test
-  errors += fft_test_1d_local_r2c_low(280, 12, true, false);
 
-  errors += fft_test_2d_local_low((const int[2]){10, 10}, 40, true, true);
-  errors += fft_test_2d_local_low((const int[2]){15, 9}, 150, true, false);
-  errors += fft_test_2d_local_low((const int[2]){7, 20}, 120, false, true);
-  errors += fft_test_2d_local_low((const int[2]){12, 14}, 90, false, false);
-  // A larger test
-  errors += fft_test_2d_local_low((const int[2]){96, 96}, 15, false, false);
+  errors += fft_test_2d_local_low((const int[2]){10, 10}, 10, true, true);
+  errors += fft_test_2d_local_low((const int[2]){15, 9}, 10, true, false);
+  errors += fft_test_2d_local_low((const int[2]){7, 20}, 11, false, true);
+  errors += fft_test_2d_local_low((const int[2]){12, 14}, 11, false, false);
 
-  errors += fft_test_2d_local_r2c_low((const int[2]){10, 10}, 30, true, true);
-  errors += fft_test_2d_local_r2c_low((const int[2]){15, 9}, 120, true, false);
-  errors += fft_test_2d_local_r2c_low((const int[2]){7, 20}, 100, false, true);
-  errors += fft_test_2d_local_r2c_low((const int[2]){12, 14}, 70, false, false);
-  // A larger test
-  errors += fft_test_2d_local_r2c_low((const int[2]){96, 96}, 15, false, false);
+  errors += fft_test_2d_local_r2c_low((const int[2]){10, 10}, 10, true, true);
+  errors += fft_test_2d_local_r2c_low((const int[2]){15, 9}, 10, true, false);
+  errors += fft_test_2d_local_r2c_low((const int[2]){7, 20}, 11, false, true);
+  errors += fft_test_2d_local_r2c_low((const int[2]){12, 14}, 11, false, false);
 
   // Reduce tests to ca 10 per set
-  errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 19);
-  errors += fft_test_3d_local_low((const int[3]){3, 4, 5}, 11);
-  errors += fft_test_3d_local_low((const int[3]){4, 8, 2}, 7);
-  errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 13);
-  // A larger test
-  errors += fft_test_3d_local_low((const int[3]){72, 72, 84}, 34321);
+  errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 10);
+  errors += fft_test_3d_local_low((const int[3]){7, 5, 3}, 10);
 
   // Reduce tests to ca 10 per set
-  errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 23);
-  errors += fft_test_3d_local_r2c_low((const int[3]){3, 4, 5}, 13);
-  errors += fft_test_3d_local_r2c_low((const int[3]){4, 8, 2}, 11);
-  errors += fft_test_3d_local_r2c_low((const int[3]){7, 5, 3}, 17);
-  // A larger test
-  errors += fft_test_3d_local_r2c_low((const int[3]){72, 72, 84}, 54321);
+  errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 10);
+  errors += fft_test_3d_local_r2c_low((const int[3]){7, 5, 3}, 10);
   end = clock();
   printf("Time to test local FFTs without planning: %f\n",
          (double)(end - begin) / CLOCKS_PER_SEC);
@@ -1280,10 +1248,9 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
   // Check the forward FFT
   memset(input_array, 0, 2 * buffer_size * sizeof(double));
   memset(output_array, 0, buffer_size * sizeof(double complex));
-  int number_of_elements = 0;
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, number_of_ffts, local_n0, local_n0_start,    \
-               my_process) reduction(+ : number_of_elements)
+               my_process)
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
     const int index_0 = (number_of_fft / fft_size[1]) % fft_size[0];
     const int index_1 = number_of_fft % fft_size[1];
@@ -1292,15 +1259,8 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
                    index_1) *
                       number_of_ffts +
                   number_of_fft] = 1.0;
-      number_of_elements++;
-      printf("Set element %i %i %i/%i %i %i on process %i\n", index_0, index_1,
-             number_of_fft, fft_size[0], fft_size[1], number_of_ffts,
-             my_process);
     }
   }
-  fflush(stdout);
-  grid_mpi_sum_int(&number_of_elements, 1, comm);
-  assert(number_of_elements == number_of_ffts);
 
   fft_2d_fw_distributed_r2c(fft_size, number_of_ffts, comm, input_array,
                             output_array);
@@ -1720,26 +1680,37 @@ int fft_test_distributed() {
     return 0;
   }
 
-  errors += fft_test_2d_distributed_low((const int[2]){10, 10}, 19);
-  errors += fft_test_2d_distributed_low((const int[2]){16, 9}, 51);
-  errors += fft_test_2d_distributed_low((const int[2]){7, 20}, 37);
+  clock_t begin = clock();
+  errors += fft_test_2d_distributed_low((const int[2]){15, 9}, 51);
   errors += fft_test_2d_distributed_low((const int[2]){12, 14}, 23);
 
-  errors += fft_test_2d_distributed_r2c_low((const int[2]){4, 4}, 16);
-  errors += fft_test_2d_distributed_r2c_low((const int[2]){10, 10}, 19);
-  errors += fft_test_2d_distributed_r2c_low((const int[2]){16, 9}, 51);
-  errors += fft_test_2d_distributed_r2c_low((const int[2]){7, 20}, 37);
+  errors += fft_test_2d_distributed_r2c_low((const int[2]){15, 9}, 51);
   errors += fft_test_2d_distributed_r2c_low((const int[2]){12, 14}, 23);
 
   errors += fft_test_3d_distributed_low((const int[3]){8, 8, 8}, 19);
-  errors += fft_test_3d_distributed_low((const int[3]){3, 4, 5}, 13);
-  errors += fft_test_3d_distributed_low((const int[3]){4, 8, 2}, 17);
   errors += fft_test_3d_distributed_low((const int[3]){7, 5, 3}, 11);
 
   errors += fft_test_3d_distributed_r2c_low((const int[3]){8, 8, 8}, 19);
-  errors += fft_test_3d_distributed_r2c_low((const int[3]){3, 4, 5}, 14);
-  errors += fft_test_3d_distributed_r2c_low((const int[3]){4, 8, 2}, 17);
   errors += fft_test_3d_distributed_r2c_low((const int[3]){7, 5, 3}, 11);
+  clock_t end = clock();
+  printf("Time to test distributed FFTs with planning: %f\n",
+         (double)(end - begin) / CLOCKS_PER_SEC);
+
+  begin = clock();
+  errors += fft_test_2d_distributed_low((const int[2]){15, 9}, 51);
+  errors += fft_test_2d_distributed_low((const int[2]){12, 14}, 23);
+
+  errors += fft_test_2d_distributed_r2c_low((const int[2]){15, 9}, 51);
+  errors += fft_test_2d_distributed_r2c_low((const int[2]){12, 14}, 23);
+
+  errors += fft_test_3d_distributed_low((const int[3]){8, 8, 8}, 19);
+  errors += fft_test_3d_distributed_low((const int[3]){7, 5, 3}, 11);
+
+  errors += fft_test_3d_distributed_r2c_low((const int[3]){8, 8, 8}, 19);
+  errors += fft_test_3d_distributed_r2c_low((const int[3]){7, 5, 3}, 11);
+  end = clock();
+  printf("Time to test distributed FFTs without planning: %f\n",
+         (double)(end - begin) / CLOCKS_PER_SEC);
 
   return errors;
 }

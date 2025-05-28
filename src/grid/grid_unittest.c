@@ -108,22 +108,22 @@ int main(int argc, char *argv[]) {
   errors += fft_test_transpose();
   errors += fft_test_transpose_parallel();
   errors += fft_test_3d();
-  // errors += fft_test_add_copy();
+  errors += fft_test_add_copy();
   // errors += multigrid_test();
 
-// Test also the reference backend and without distributed FFTs from the
-// library
-#if 0
-  fft_finalize_lib();
-  fft_init_lib(GRID_FFT_LIB_REF, FFT_MEASURE, false);
-  errors += fft_test_local();
-  errors += fft_test_distributed();
-  errors += fft_test_transpose();
-  errors += fft_test_transpose_parallel();
-  errors += fft_test_3d();
-  errors += fft_test_add_copy();
-  errors += multigrid_test();
-#endif
+  // Test also the reference backend and without distributed FFTs from the
+  // library
+  if (false) {
+    fft_finalize_lib();
+    fft_init_lib(GRID_FFT_LIB_REF, FFT_MEASURE, false);
+    errors += fft_test_local();
+    errors += fft_test_distributed();
+    errors += fft_test_transpose();
+    errors += fft_test_transpose_parallel();
+    errors += fft_test_3d();
+    errors += fft_test_add_copy();
+    //    errors += multigrid_test();
+  }
 
   fft_finalize_lib();
   grid_library_print_stats(&mpi_sum_func, 0, &print_func, 0);
