@@ -267,8 +267,9 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
       int local_n2_rs, local_n2_start_rs, local_n1_gs, local_n1_start_gs,
           my_bounds[3][2];
       my_fft_grid->buffer_size = fft_3d_distributed_sizes(
-          npts_global, my_fft_grid->comm, &local_n2_rs, &local_n2_start_rs,
-          &local_n1_gs, &local_n1_start_gs);
+          (const int[3]){npts_global[2], npts_global[1], npts_global[0]},
+          my_fft_grid->comm, &local_n2_rs, &local_n2_start_rs, &local_n1_gs,
+          &local_n1_start_gs);
       my_bounds[0][0] = 0;
       my_bounds[0][1] = npts_global[0] - 1;
       my_bounds[1][0] = 0;
@@ -810,7 +811,9 @@ void fft_3d_fw_blocked_low(
     if (fft_lib_use_mpi()) {
       // Perform the distributed 3D FFT in one shot (z_D, y, x)->(y_D,z, x)
       // Returns transposed layout
-      fft_3d_fw_distributed(npts_global, comm, grid_buffer_1, grid_buffer_2);
+      fft_3d_fw_distributed(
+          (const int[3]){npts_global[2], npts_global[1], npts_global[0]}, comm,
+          grid_buffer_1, grid_buffer_2);
 
       // Exchange the first two dimensions to arrive at the correct layout
       for (int index_y = 0; index_y < fft_sizes_gs[1]; index_y++) {
@@ -937,7 +940,9 @@ void fft_3d_bw_blocked_low(
                  fft_sizes_gs[0] * sizeof(double complex));
         }
       }
-      fft_3d_bw_distributed(npts_global, comm, grid_buffer_2, grid_buffer_1);
+      fft_3d_bw_distributed(
+          (const int[3]){npts_global[2], npts_global[1], npts_global[0]}, comm,
+          grid_buffer_2, grid_buffer_1);
       memcpy(grid_buffer_2, grid_buffer_1,
              fft_sizes_rs[0] * fft_sizes_rs[1] * fft_sizes_rs[2] *
                  sizeof(double complex));

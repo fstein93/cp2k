@@ -1393,7 +1393,8 @@ int fft_test_3d_distributed_low(const int fft_size[3], const int test_every) {
   int local_n2, local_n2_start;
   int local_n1, local_n1_start;
   const int buffer_size = fft_3d_distributed_sizes(
-      fft_size, comm, &local_n2, &local_n2_start, &local_n1, &local_n1_start);
+      (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm, &local_n2,
+      &local_n2_start, &local_n1, &local_n1_start);
 
   double complex *input_array = NULL, *output_array = NULL;
   fft_allocate_complex(buffer_size, &input_array);
@@ -1413,7 +1414,9 @@ int fft_test_3d_distributed_low(const int fft_size[3], const int test_every) {
         if (mz >= local_n2_start && mz < local_n2_start + local_n2)
           input_array[(mz - local_n2_start) * fft_size[0] * fft_size[1] +
                       my * fft_size[0] + mx] = 1.0;
-        fft_3d_fw_distributed(fft_size, comm, input_array, output_array);
+        fft_3d_fw_distributed(
+            (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm,
+            input_array, output_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(output_array, fft_size, pi, mx, my, mz, local_n1, local_n1_start)   \
@@ -1468,7 +1471,9 @@ int fft_test_3d_distributed_low(const int fft_size[3], const int test_every) {
           output_array[(my - local_n1_start) * fft_size[0] * fft_size[2] +
                        mz * fft_size[0] + mx] = 1.0;
 
-        fft_3d_bw_distributed(fft_size, comm, output_array, input_array);
+        fft_3d_bw_distributed(
+            (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm,
+            output_array, input_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, pi, mx, my, mz, local_n2, local_n2_start)    \
