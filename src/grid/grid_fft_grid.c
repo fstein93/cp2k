@@ -84,6 +84,28 @@ void grid_create_real_rs_grid(grid_fft_real_rs_grid *grid,
 }
 
 /*******************************************************************************
+ * \brief Create a real-valued real-space grid.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_create_complex_rs_grid(grid_fft_complex_rs_grid *grid,
+                                 grid_fft_grid_layout *grid_layout) {
+  assert(grid != NULL);
+  assert(grid_layout->ref_counter > 0);
+  assert(!grid_layout->use_halfspace &&
+         "Complex RS grid require the whole g-space!");
+  grid->fft_grid_layout = grid_layout;
+  grid_retain_fft_grid_layout(grid->fft_grid_layout);
+  const int(*my_bounds)[2] =
+      grid_layout->proc2local_rs[grid_mpi_comm_rank(grid_layout->comm)];
+  int number_of_elements = 1;
+  for (int dir = 0; dir < 3; dir++) {
+    number_of_elements *= imax(0, my_bounds[dir][1] - my_bounds[dir][0] + 1);
+  }
+  grid->data = NULL;
+  fft_allocate_complex(number_of_elements, &grid->data);
+}
+
+/*******************************************************************************
  * \brief Create a complex-valued reciprocal-space grid.
  * \author Frederick Stein
  ******************************************************************************/
@@ -94,6 +116,19 @@ void grid_create_complex_gs_grid(grid_fft_complex_gs_grid *grid,
   grid_retain_fft_grid_layout(grid->fft_grid_layout);
   grid->data = NULL;
   fft_allocate_complex(grid_layout->npts_gs_local, &grid->data);
+}
+
+/*******************************************************************************
+ * \brief Frees a real-valued real-space grid.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_free_complex_rs_grid(grid_fft_complex_rs_grid *grid) {
+  if (grid != NULL) {
+    fft_free_complex(grid->data);
+    grid->data = NULL;
+    grid_free_fft_grid_layout(grid->fft_grid_layout);
+    grid->fft_grid_layout = NULL;
+  }
 }
 
 /*******************************************************************************
@@ -128,7 +163,7 @@ void grid_free_complex_gs_grid(grid_fft_complex_gs_grid *grid) {
  * \param grid_gs complex data in reciprocal space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw(const grid_fft_real_rs_grid *grid_rs,
+void fft_3d_fw(const grid_fft_complex_rs_grid *grid_rs,
                const grid_fft_complex_gs_grid *grid_gs) {
   assert(grid_rs != NULL);
   assert(grid_gs != NULL);
@@ -146,17 +181,54 @@ void fft_3d_fw(const grid_fft_real_rs_grid *grid_rs,
 }
 
 /*******************************************************************************
+ * \brief Performs a forward 3D-FFT.
+ * \param grid_rs real-valued data in real space.
+ * \param grid_gs complex data in reciprocal space.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_fw_r2c(const grid_fft_real_rs_grid *grid_rs,
+                   const grid_fft_complex_gs_grid *grid_gs) {
+  assert(grid_rs != NULL);
+  assert(grid_gs != NULL);
+  assert(grid_rs->fft_grid_layout->grid_id ==
+         grid_gs->fft_grid_layout->grid_id);
+  const grid_fft_grid_layout *grid_layout = grid_gs->fft_grid_layout;
+  fft_3d_fw_r2c_with_layout(grid_rs->data, grid_gs->data, grid_layout);
+  const double scale =
+      1.0 / (((double)grid_layout->npts_global[0]) *
+             grid_layout->npts_global[1] * grid_layout->npts_global[2]);
+#pragma omp parallel for default(none) shared(grid_gs, grid_layout, scale)
+  for (int index = 0; index < grid_layout->npts_gs_local; index++) {
+    grid_gs->data[index] *= scale;
+  }
+}
+
+/*******************************************************************************
  * \brief Performs a backward 3D-FFT.
  * \param grid_gs complex data in reciprocal space.
  * \param grid_rs real-valued data in real space.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw(const grid_fft_complex_gs_grid *grid_gs,
-               const grid_fft_real_rs_grid *grid_rs) {
+               const grid_fft_complex_rs_grid *grid_rs) {
   assert(grid_rs->fft_grid_layout->grid_id ==
          grid_gs->fft_grid_layout->grid_id);
   const grid_fft_grid_layout *grid_layout = grid_rs->fft_grid_layout;
   fft_3d_bw_with_layout(grid_gs->data, grid_rs->data, grid_layout);
+}
+
+/*******************************************************************************
+ * \brief Performs a backward 3D-FFT.
+ * \param grid_gs complex data in reciprocal space.
+ * \param grid_rs real-valued data in real space.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_bw_c2r(const grid_fft_complex_gs_grid *grid_gs,
+                   const grid_fft_real_rs_grid *grid_rs) {
+  assert(grid_rs->fft_grid_layout->grid_id ==
+         grid_gs->fft_grid_layout->grid_id);
+  const grid_fft_grid_layout *grid_layout = grid_rs->fft_grid_layout;
+  fft_3d_bw_c2r_with_layout(grid_gs->data, grid_rs->data, grid_layout);
 }
 
 // EOF

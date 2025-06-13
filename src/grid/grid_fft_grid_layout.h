@@ -72,7 +72,8 @@ void grid_free_fft_grid_layout(grid_fft_grid_layout *fft_grid);
 
 /*******************************************************************************
  * \brief Create a FFT grid.
- * \author Frederick Stein
+ * \note If a grid layout was created using use_halfspace, only real-valued
+ *grids in real-space can be created from this layout \author Frederick Stein
  ******************************************************************************/
 void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
                                  const grid_mpi_comm comm,
@@ -82,7 +83,8 @@ void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
 
 /*******************************************************************************
  * \brief Create a FFT grid using a reference grid to interact with this grid.
- * \author Frederick Stein
+ * \note The reference grid has had to be created using
+ *grid_create_fft_grid_layout \author Frederick Stein
  ******************************************************************************/
 void grid_create_fft_grid_layout_from_reference(
     grid_fft_grid_layout **fft_grid, const int npts_global[3],
@@ -122,21 +124,42 @@ inline bool is_on_grid(const int shifted_index, const int npts) {
 /*******************************************************************************
  * \brief Performs a forward 3D-FFT and sorts the data in g-space.
  * \param grid_rs real-valued data in real space.
- * \param grid_gs complex data in reciprocal space.
+ * \param grid_gs complex-valued data in reciprocal space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_with_layout(const double *grid_rs, double complex *grid_gs,
+void fft_3d_fw_with_layout(const double complex *grid_rs,
+                           double complex *grid_gs,
                            const grid_fft_grid_layout *grid_layout);
+
+/*******************************************************************************
+ * \brief Performs a forward 3D-FFT and sorts the data in g-space.
+ * \param grid_rs real-valued data in real space.
+ * \param grid_gs complex-valued data in reciprocal space.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_fw_r2c_with_layout(const double *grid_rs, double complex *grid_gs,
+                               const grid_fft_grid_layout *grid_layout);
 
 /*******************************************************************************
  * \brief Performs a backward 3D-FFT from data sorted in g-space.
  * \param fft_grid FFT grid object.
- * \param grid_gs complex data in reciprocal space.
+ * \param grid_gs complex-valued data in reciprocal space.
+ * \param grid_rs complex-valued data in real space.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_bw_with_layout(const double complex *grid_gs,
+                           double complex *grid_rs,
+                           const grid_fft_grid_layout *fft_grid);
+
+/*******************************************************************************
+ * \brief Performs a backward 3D-FFT from data sorted in g-space.
+ * \param fft_grid FFT grid object.
+ * \param grid_gs complex-valued data in reciprocal space.
  * \param grid_rs real-valued data in real space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_with_layout(const double complex *grid_gs, double *grid_rs,
-                           const grid_fft_grid_layout *fft_grid);
+void fft_3d_bw_c2r_with_layout(const double complex *grid_gs, double *grid_rs,
+                               const grid_fft_grid_layout *fft_grid);
 
 #endif
 

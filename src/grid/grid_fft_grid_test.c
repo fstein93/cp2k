@@ -52,8 +52,8 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
   const double scale = 1.0 / ((double)npts_global[0]) /
                        ((double)npts_global[1]) / ((double)npts_global[2]);
 
-  grid_fft_real_rs_grid grid_rs;
-  grid_create_real_rs_grid(&grid_rs, fft_grid_layout);
+  grid_fft_complex_rs_grid grid_rs;
+  grid_create_complex_rs_grid(&grid_rs, fft_grid_layout);
   grid_fft_complex_gs_grid grid_gs;
   grid_create_complex_gs_grid(&grid_gs, fft_grid_layout);
 
@@ -67,18 +67,18 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
         if (test_every > 0 && number_of_tests % test_every != 0) {
           continue;
         }
-        double *buffer_real = grid_rs.data;
-        memset(buffer_real, 0, my_number_of_elements_rs * sizeof(double));
+        memset(grid_rs.data, 0,
+               my_number_of_elements_rs * sizeof(double complex));
 
         if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
             ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
             nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
-          buffer_real[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] *
-                          my_sizes_rs[1] +
-                      (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
-                      (nx - my_bounds_rs[0][0])] = 1.0;
+          grid_rs.data[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] *
+                           my_sizes_rs[1] +
+                       (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
+                       (nx - my_bounds_rs[0][0])] = 1.0;
 
-        fft_3d_fw_with_layout(buffer_real, grid_gs.data, fft_grid_layout);
+        fft_3d_fw_with_layout(grid_rs.data, grid_gs.data, fft_grid_layout);
 
 #pragma omp parallel for default(none)                                         \
     shared(grid_gs, my_bounds_gs, my_sizes_gs, fft_grid_layout, nx, ny, nz,    \
@@ -125,7 +125,8 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
         }
         number_of_tests++;
 
-        memset(grid_rs.data, 0, my_number_of_elements_rs * sizeof(double));
+        memset(grid_rs.data, 0,
+               my_number_of_elements_rs * sizeof(double complex));
 
         if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
             ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
@@ -204,6 +205,235 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
         for (int mx = 0; mx < my_sizes_rs[0]; mx++) {
           for (int my = 0; my < my_sizes_rs[1]; my++) {
             for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
+              const double complex my_value =
+                  grid_rs.data[mz * my_sizes_rs[0] * my_sizes_rs[1] +
+                               my * my_sizes_rs[0] + mx];
+              const double complex ref_value = cexp(
+                  2.0 * I * pi *
+                  (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +
+                   ((double)my + my_bounds_rs[1][0]) * ny / npts_global[1] +
+                   ((double)mz + my_bounds_rs[2][0]) * nz / npts_global[2]));
+              double current_error = cabs(my_value - ref_value);
+              if (current_error > 1e-12) {
+                printf("ERROR %i %i %i/%i %i %i: (%f %f) (%f $´%f)\n", nx, ny,
+                       nz, mx, my, mz, creal(my_value), cimag(my_value),
+                       creal(ref_value), cimag(ref_value));
+              }
+              max_error = fmax(max_error, current_error);
+            }
+          }
+        }
+      }
+    }
+  }
+  fflush(stdout);
+  grid_mpi_max_double(&max_error, 1, comm);
+
+  if (max_error > 1e-12) {
+    if (my_process == 0)
+      printf("The bw 3D FFT (blocked) to ordered layout does not work "
+             "correctly "
+             "(%i %i %i): %f!\n",
+             npts_global[0], npts_global[1], npts_global[2], max_error);
+    errors++;
+  }
+
+  grid_free_complex_rs_grid(&grid_rs);
+  grid_free_complex_gs_grid(&grid_gs);
+  grid_free_fft_grid_layout(fft_grid_layout);
+
+  if (errors == 0 && my_process == 0)
+    printf("The 3D FFT with blocked layout does work correctly (sizes %i %i "
+           "%i)!\n",
+           npts_global[0], npts_global[1], npts_global[2]);
+  return errors;
+}
+
+/*******************************************************************************
+ * \brief Function to test the parallel FFT backend.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_3d_r2c_blocked(const int npts_global[3], const int test_every) {
+  const grid_mpi_comm comm = grid_mpi_comm_world;
+  const int my_process = grid_mpi_comm_rank(comm);
+
+  int errors = 0;
+
+  const double pi = acos(-1);
+  const double dh_inv[3][3] = {
+      {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
+
+  grid_fft_grid_layout *fft_grid_layout = NULL;
+  grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
+                              false);
+
+  const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int my_sizes_rs[3];
+  for (int dir = 0; dir < 3; dir++)
+    my_sizes_rs[dir] = my_bounds_rs[dir][1] - my_bounds_rs[dir][0] + 1;
+  const int my_number_of_elements_rs = product3(my_sizes_rs);
+
+  const int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
+  int my_sizes_gs[3];
+  for (int dir = 0; dir < 3; dir++)
+    my_sizes_gs[dir] = my_bounds_gs[dir][1] - my_bounds_gs[dir][0] + 1;
+  const int my_number_of_elements_gs = product3(my_sizes_gs);
+
+  const double scale = 1.0 / ((double)npts_global[0]) /
+                       ((double)npts_global[1]) / ((double)npts_global[2]);
+
+  grid_fft_real_rs_grid grid_rs;
+  grid_create_real_rs_grid(&grid_rs, fft_grid_layout);
+  grid_fft_complex_gs_grid grid_gs;
+  grid_create_complex_gs_grid(&grid_gs, fft_grid_layout);
+
+  // Check forward 3D FFTs
+  double max_error = 0.0;
+  int number_of_tests = -1;
+  for (int nx = 0; nx < npts_global[0]; nx++) {
+    for (int ny = 0; ny < npts_global[1]; ny++) {
+      for (int nz = 0; nz < npts_global[2]; nz++) {
+        number_of_tests++;
+        if (test_every > 0 && number_of_tests % test_every != 0) {
+          continue;
+        }
+        double *buffer_real = grid_rs.data;
+        memset(buffer_real, 0, my_number_of_elements_rs * sizeof(double));
+
+        if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
+            ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
+            nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
+          buffer_real[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] *
+                          my_sizes_rs[1] +
+                      (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
+                      (nx - my_bounds_rs[0][0])] = 1.0;
+
+        fft_3d_fw_r2c_with_layout(buffer_real, grid_gs.data, fft_grid_layout);
+
+#pragma omp parallel for default(none)                                         \
+    shared(grid_gs, my_bounds_gs, my_sizes_gs, fft_grid_layout, nx, ny, nz,    \
+               npts_global) reduction(max : max_error)
+        for (int index = 0; index < fft_grid_layout->npts_gs_local; index++) {
+          const int *index_g = fft_grid_layout->index_to_g[index];
+          const double complex my_value = grid_gs.data[index];
+          const double complex ref_value =
+              cexp(-2.0 * I * pi *
+                   (((double)index_g[0]) * nx / npts_global[0] +
+                    ((double)index_g[1]) * ny / npts_global[1] +
+                    ((double)index_g[2]) * nz / npts_global[2]));
+          double current_error = cabs(my_value - ref_value);
+          if (current_error > 1e-12)
+            printf("ERROR %i %i %i/%i %i %i (%i): (%f %f) (%f %f)\n", nx, ny,
+                   nz, index_g[0], index_g[1], index_g[2], index,
+                   creal(my_value), cimag(my_value), creal(ref_value),
+                   cimag(ref_value));
+          max_error = fmax(max_error, current_error);
+        }
+      }
+    }
+  }
+  fflush(stdout);
+  grid_mpi_max_double(&max_error, 1, comm);
+
+  if (max_error > 1e-12) {
+    if (my_process == 0)
+      printf("The fw R2C 3D FFT (blocked) does not work correctly (%i "
+             "%i %i): %f!\n",
+             npts_global[0], npts_global[1], npts_global[2], max_error);
+    errors++;
+  }
+
+  // Check forward 3D FFTs
+  max_error = 0.0;
+  number_of_tests = 0;
+  for (int nx = 0; nx < npts_global[0]; nx++) {
+    for (int ny = 0; ny < npts_global[1]; ny++) {
+      for (int nz = 0; nz < npts_global[2]; nz++) {
+        if (test_every > 0 && number_of_tests % test_every != 0) {
+          number_of_tests++;
+          continue;
+        }
+        number_of_tests++;
+
+        memset(grid_rs.data, 0, my_number_of_elements_rs * sizeof(double));
+
+        if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
+            ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
+            nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
+          grid_rs.data[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] *
+                           my_sizes_rs[1] +
+                       (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
+                       (nx - my_bounds_rs[0][0])] = 1.0;
+
+        fft_3d_fw_r2c(&grid_rs, &grid_gs);
+
+#pragma omp parallel for default(none)                                         \
+    shared(fft_grid_layout, my_bounds_gs, my_sizes_gs, grid_gs,                \
+               my_number_of_elements_gs, nx, ny, nz, scale, my_process,        \
+               npts_global) reduction(max : max_error)
+        for (int index = 0; index < my_number_of_elements_gs; index++) {
+          const int mx = fft_grid_layout->index_to_g[index][0];
+          const int my = fft_grid_layout->index_to_g[index][1];
+          const int mz = fft_grid_layout->index_to_g[index][2];
+          const double complex my_value = grid_gs.data[index];
+          const double complex ref_value =
+              scale * cexp(-2.0 * I * pi *
+                           (((double)mx) * nx / npts_global[0] +
+                            ((double)my) * ny / npts_global[1] +
+                            ((double)mz) * nz / npts_global[2]));
+          double current_error = cabs(my_value - ref_value);
+          if (current_error > 1e-12)
+            printf("ERROR %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny, nz, mx,
+                   my, mz, creal(my_value), cimag(my_value), creal(ref_value),
+                   cimag(ref_value));
+          max_error = fmax(max_error, current_error);
+        }
+      }
+    }
+  }
+  fflush(stdout);
+  grid_mpi_max_double(&max_error, 1, comm);
+
+  if (max_error > 1e-12) {
+    if (my_process == 0)
+      printf("The fw R2C 3D FFT (blocked) to ordered layout does not work "
+             "correctly (%i "
+             "%i %i): %f!\n",
+             npts_global[0], npts_global[1], npts_global[2], max_error);
+    errors++;
+  }
+
+  // Check backwards 3D FFTs
+  max_error = 0.0;
+  number_of_tests = 0;
+  for (int nx = 0; nx < npts_global[0]; nx++) {
+    for (int ny = 0; ny < npts_global[1]; ny++) {
+      for (int nz = 0; nz < npts_global[2]; nz++) {
+        if (test_every > 0 && number_of_tests % test_every != 0) {
+          number_of_tests++;
+          continue;
+        }
+        number_of_tests++;
+        memset(grid_gs.data, 0,
+               my_number_of_elements_gs * sizeof(double complex));
+
+        for (int index = 0; index < my_number_of_elements_gs; index++) {
+          if (nx == fft_grid_layout->index_to_g[index][0] &&
+              ny == fft_grid_layout->index_to_g[index][1] &&
+              nz == fft_grid_layout->index_to_g[index][2]) {
+            grid_gs.data[index] = 1.0;
+            break;
+          }
+        }
+
+        fft_3d_bw_c2r(&grid_gs, &grid_rs);
+
+#pragma omp parallel for default(none)                                         \
+    shared(grid_rs, my_bounds_rs, my_sizes_rs, nx, ny, nz, npts_global)        \
+    collapse(3) reduction(max : max_error)
+        for (int mx = 0; mx < my_sizes_rs[0]; mx++) {
+          for (int my = 0; my < my_sizes_rs[1]; my++) {
+            for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
               const double my_value =
                   grid_rs.data[mz * my_sizes_rs[0] * my_sizes_rs[1] +
                                my * my_sizes_rs[0] + mx];
@@ -229,7 +459,7 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
 
   if (max_error > 1e-12) {
     if (my_process == 0)
-      printf("The bw 3D FFT (blocked) to ordered layout does not work "
+      printf("The bw R2C 3D FFT (blocked) to ordered layout does not work "
              "correctly "
              "(%i %i %i): %f!\n",
              npts_global[0], npts_global[1], npts_global[2], max_error);
@@ -241,9 +471,10 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
   grid_free_fft_grid_layout(fft_grid_layout);
 
   if (errors == 0 && my_process == 0)
-    printf("The 3D FFT with blocked layout does work correctly (sizes %i %i "
-           "%i)!\n",
-           npts_global[0], npts_global[1], npts_global[2]);
+    printf(
+        "The 3D R2C FFT with blocked layout does work correctly (sizes %i %i "
+        "%i)!\n",
+        npts_global[0], npts_global[1], npts_global[2]);
   return errors;
 }
 
@@ -307,7 +538,7 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
                    (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
                    (nx - my_bounds_rs[0][0])] = 1.0;
 
-        fft_3d_fw_with_layout(buffer_1, buffer_2, fft_grid_layout);
+        fft_3d_fw_r2c_with_layout(buffer_1, buffer_2, fft_grid_layout);
 
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_layout, my_ray_offset, npts_global, my_sizes_rs,           \
@@ -376,7 +607,7 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
         }
       }
 
-      fft_3d_bw_with_layout(buffer_2, buffer_1, fft_grid_layout);
+      fft_3d_bw_c2r_with_layout(buffer_2, buffer_1, fft_grid_layout);
 
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_layout, buffer_1, my_sizes_rs, my_bounds_rs, npts_global,  \
@@ -444,14 +675,17 @@ int fft_test_3d() {
   errors += fft_test_3d_blocked(npts_global_reverse, 19);
   errors += fft_test_3d_blocked(npts_global_small_reverse, 11);
 
+  // Check the blocked layout
+  errors += fft_test_3d_r2c_blocked(npts_global, 13);
+  errors += fft_test_3d_r2c_blocked(npts_global_small, 17);
+  errors += fft_test_3d_r2c_blocked(npts_global_reverse, 19);
+  errors += fft_test_3d_r2c_blocked(npts_global_small_reverse, 11);
+
   // Check the ray layout with the same grid sizes
   errors += fft_test_3d_ray(npts_global, npts_global, 19);
   errors += fft_test_3d_ray(npts_global_small, npts_global_small, 11);
   errors += fft_test_3d_ray(npts_global_small, npts_global, 13);
   errors += fft_test_3d_ray(npts_global_reverse, npts_global_reverse, 17);
-  // errors +=
-  //     fft_test_3d_ray(npts_global_small_reverse, npts_global_small_reverse,
-  //     7);
 
   if (errors == 0 && my_process == 0)
     fprintf(stdout, "\n The 3D FFT routines work correctly!\n");
