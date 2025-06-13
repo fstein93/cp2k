@@ -168,8 +168,7 @@ void grid_free_fft_grid_layout(grid_fft_grid_layout *fft_grid) {
   }
 }
 
-void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
-                      const int npts_global[3]) {
+void setup_proc2local(grid_fft_grid_layout *my_fft_grid) {
   const int number_of_processes = grid_mpi_comm_size(my_fft_grid->comm);
   const int my_process = grid_mpi_comm_rank(my_fft_grid->comm);
 
@@ -192,37 +191,40 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
           my_bounds[3][2];
       // We need to pre-distribute the x-direction
       const int block_size_x_rs =
-          (npts_global[0] + my_fft_grid->proc_grid[1] - 1) /
+          (my_fft_grid->npts_global[0] + my_fft_grid->proc_grid[1] - 1) /
           my_fft_grid->proc_grid[1];
       // In the last step, z is distributed in the second direction
       const int block_size_z_gs =
-          (my_fft_grid->use_halfspace
-               ? (npts_global[2] / 2 + 1 + my_fft_grid->proc_grid[1] - 1)
-               : (npts_global[2] + my_fft_grid->proc_grid[1] - 1)) /
+          (my_fft_grid->use_halfspace ? (my_fft_grid->npts_global[2] / 2 + 1 +
+                                         my_fft_grid->proc_grid[1] - 1)
+                                      : (my_fft_grid->npts_global[2] +
+                                         my_fft_grid->proc_grid[1] - 1)) /
           my_fft_grid->proc_grid[1];
       // Determine a maximum buffer size
       if (my_fft_grid->use_halfspace) {
         my_fft_grid->buffer_size = fft_2d_distributed_sizes_r2c(
-            (const int[2]){npts_global[2], npts_global[1]}, block_size_x_rs,
-            my_fft_grid->sub_comm[0], &local_n2_rs, &local_n2_start_rs,
-            &local_n1_gs, &local_n1_start_gs);
+            (const int[2]){my_fft_grid->npts_global[2],
+                           my_fft_grid->npts_global[1]},
+            block_size_x_rs, my_fft_grid->sub_comm[0], &local_n2_rs,
+            &local_n2_start_rs, &local_n1_gs, &local_n1_start_gs);
       } else {
         my_fft_grid->buffer_size = fft_2d_distributed_sizes(
-            (const int[2]){npts_global[2], npts_global[1]}, block_size_x_rs,
-            my_fft_grid->sub_comm[0], &local_n2_rs, &local_n2_start_rs,
-            &local_n1_gs, &local_n1_start_gs);
+            (const int[2]){my_fft_grid->npts_global[2],
+                           my_fft_grid->npts_global[1]},
+            block_size_x_rs, my_fft_grid->sub_comm[0], &local_n2_rs,
+            &local_n2_start_rs, &local_n1_gs, &local_n1_start_gs);
       }
       // Setup the bounds in real space
       // In x-direction, we need to define them ourselves
-      my_bounds[0][0] =
-          imin(block_size_x_rs * my_fft_grid->proc_coords[1], npts_global[0]);
+      my_bounds[0][0] = imin(block_size_x_rs * my_fft_grid->proc_coords[1],
+                             my_fft_grid->npts_global[0]);
       my_bounds[0][1] =
           imin(block_size_x_rs * (my_fft_grid->proc_coords[1] + 1) - 1,
-               npts_global[0] - 1);
+               my_fft_grid->npts_global[0] - 1);
       // The distributions in y- and z-direction are provided by the FFT library
       // With y (second index) required to be locally available
       my_bounds[1][0] = 0;
-      my_bounds[1][1] = npts_global[1] - 1;
+      my_bounds[1][1] = my_fft_grid->npts_global[1] - 1;
       my_bounds[2][0] = local_n2_start_rs;
       my_bounds[2][1] = local_n2_start_rs + local_n2_rs - 1;
       // Exchange the distribution with the other processes
@@ -236,9 +238,9 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
       my_bounds[1][1] = local_n1_start_gs + local_n1_gs - 1;
       my_bounds[2][0] = 0;
       if (my_fft_grid->use_halfspace) {
-        my_bounds[2][1] = npts_global[2] / 2 + 1 - 1;
+        my_bounds[2][1] = my_fft_grid->npts_global[2] / 2 + 1 - 1;
       } else {
-        my_bounds[2][1] = npts_global[2] - 1;
+        my_bounds[2][1] = my_fft_grid->npts_global[2] - 1;
       }
       // Exchange the bounds
       grid_mpi_allgather_int((const int *)my_bounds, 6,
@@ -246,13 +248,14 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
                              my_fft_grid->comm);
 // The last FFT step is performed locally in x-direction
 #pragma omp parallel for default(none)                                         \
-    shared(my_fft_grid, npts_global, block_size_z_gs, number_of_processes)
+    shared(my_fft_grid, block_size_z_gs, number_of_processes)
       for (int process = 0; process < number_of_processes; process++) {
         int proc_coords[2];
         grid_mpi_cart_coords(my_fft_grid->comm, process, 2, proc_coords);
         // x needs to be available entirely
         my_fft_grid->proc2local_gs[process][0][0] = 0;
-        my_fft_grid->proc2local_gs[process][0][1] = npts_global[0] - 1;
+        my_fft_grid->proc2local_gs[process][0][1] =
+            my_fft_grid->npts_global[0] - 1;
         // y is taken from the preceding distribution
         my_fft_grid->proc2local_gs[process][1][0] =
             my_fft_grid->proc2local_ms[process][1][0];
@@ -261,15 +264,17 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
         // z is redistributed now
         if (my_fft_grid->use_halfspace) {
           my_fft_grid->proc2local_gs[process][2][0] =
-              imin(block_size_z_gs * proc_coords[1], npts_global[2] / 2 + 1);
+              imin(block_size_z_gs * proc_coords[1],
+                   my_fft_grid->npts_global[2] / 2 + 1);
           my_fft_grid->proc2local_gs[process][2][1] =
               imin(block_size_z_gs * (proc_coords[1] + 1) - 1,
-                   npts_global[2] / 2 + 1 - 1);
+                   my_fft_grid->npts_global[2] / 2 + 1 - 1);
         } else {
-          my_fft_grid->proc2local_gs[process][2][0] =
-              imin(block_size_z_gs * proc_coords[1], npts_global[2]);
-          my_fft_grid->proc2local_gs[process][2][1] = imin(
-              block_size_z_gs * (proc_coords[1] + 1) - 1, npts_global[2] - 1);
+          my_fft_grid->proc2local_gs[process][2][0] = imin(
+              block_size_z_gs * proc_coords[1], my_fft_grid->npts_global[2]);
+          my_fft_grid->proc2local_gs[process][2][1] =
+              imin(block_size_z_gs * (proc_coords[1] + 1) - 1,
+                   my_fft_grid->npts_global[2] - 1);
         }
       }
       // We need to consider the last transformation step for the buffer size
@@ -289,32 +294,36 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
           my_bounds[3][2];
       if (my_fft_grid->use_halfspace) {
         my_fft_grid->buffer_size = fft_3d_distributed_sizes_r2c(
-            (const int[3]){npts_global[2], npts_global[1], npts_global[0]},
+            (const int[3]){my_fft_grid->npts_global[2],
+                           my_fft_grid->npts_global[1],
+                           my_fft_grid->npts_global[0]},
             my_fft_grid->comm, &local_n2_rs, &local_n2_start_rs, &local_n1_gs,
             &local_n1_start_gs);
       } else {
         my_fft_grid->buffer_size = fft_3d_distributed_sizes(
-            (const int[3]){npts_global[2], npts_global[1], npts_global[0]},
+            (const int[3]){my_fft_grid->npts_global[2],
+                           my_fft_grid->npts_global[1],
+                           my_fft_grid->npts_global[0]},
             my_fft_grid->comm, &local_n2_rs, &local_n2_start_rs, &local_n1_gs,
             &local_n1_start_gs);
       }
       my_bounds[0][0] = 0;
-      my_bounds[0][1] = npts_global[0] - 1;
+      my_bounds[0][1] = my_fft_grid->npts_global[0] - 1;
       my_bounds[1][0] = 0;
-      my_bounds[1][1] = npts_global[1] - 1;
+      my_bounds[1][1] = my_fft_grid->npts_global[1] - 1;
       my_bounds[2][0] = local_n2_start_rs;
       my_bounds[2][1] = local_n2_start_rs + local_n2_rs - 1;
       grid_mpi_allgather_int((const int *)my_bounds, 6,
                              (int *)my_fft_grid->proc2local_rs,
                              my_fft_grid->comm);
       my_bounds[0][0] = 0;
-      my_bounds[0][1] = npts_global[0] - 1;
+      my_bounds[0][1] = my_fft_grid->npts_global[0] - 1;
       my_bounds[1][0] = local_n1_start_gs;
       my_bounds[1][1] = local_n1_start_gs + local_n1_gs - 1;
       my_bounds[2][0] = 0;
       my_bounds[2][1] = my_fft_grid->use_halfspace
-                            ? (npts_global[2] / 2 + 1 - 1)
-                            : (npts_global[2] - 1);
+                            ? (my_fft_grid->npts_global[2] / 2 + 1 - 1)
+                            : (my_fft_grid->npts_global[2] - 1);
       grid_mpi_allgather_int((const int *)my_bounds, 6,
                              (int *)my_fft_grid->proc2local_gs,
                              my_fft_grid->comm);
@@ -332,8 +341,9 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
             my_fft_grid->proc2local_gs[process][1][1];
         my_fft_grid->proc2local_ms[process][2][0] = 0;
         my_fft_grid->proc2local_ms[process][2][1] =
-            my_fft_grid->use_halfspace ? (npts_global[2] / 2 + 1 - 1)
-                                       : (npts_global[2] - 1);
+            my_fft_grid->use_halfspace
+                ? (my_fft_grid->npts_global[2] / 2 + 1 - 1)
+                : (my_fft_grid->npts_global[2] - 1);
       }
     }
   } else {
@@ -347,40 +357,43 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
     // 1D data distribution, the last two directions are locally available to
     // enable 2D FFT plans
     const int block_size_x_rs =
-        (npts_global[0] + my_fft_grid->proc_grid[0] - 1) /
+        (my_fft_grid->npts_global[0] + my_fft_grid->proc_grid[0] - 1) /
         my_fft_grid->proc_grid[0];
     const int block_size_y_rs =
-        (npts_global[1] + my_fft_grid->proc_grid[1] - 1) /
+        (my_fft_grid->npts_global[1] + my_fft_grid->proc_grid[1] - 1) /
         my_fft_grid->proc_grid[1];
     const int block_size_y_gs =
-        (npts_global[1] + my_fft_grid->proc_grid[0] - 1) /
+        (my_fft_grid->npts_global[1] + my_fft_grid->proc_grid[0] - 1) /
         my_fft_grid->proc_grid[0];
     const int block_size_z_gs =
         (my_fft_grid->use_halfspace
-             ? (npts_global[2] / 2 + 1 + my_fft_grid->proc_grid[1] - 1)
-             : (npts_global[2] + my_fft_grid->proc_grid[1] - 1)) /
+             ? (my_fft_grid->npts_global[2] / 2 + 1 +
+                my_fft_grid->proc_grid[1] - 1)
+             : (my_fft_grid->npts_global[2] + my_fft_grid->proc_grid[1] - 1)) /
         my_fft_grid->proc_grid[1];
     // OMP parallelization requires a multi-threaded MPI
 #pragma omp parallel for default(none) shared(                                 \
-        my_fft_grid, number_of_processes, npts_global, block_size_x_rs,        \
-            block_size_y_gs, block_size_y_rs,                                  \
+        my_fft_grid, number_of_processes, block_size_x_rs, block_size_y_gs,    \
+            block_size_y_rs,                                                   \
             block_size_z_gs) if (grid_mpi_query() >= grid_mpi_thread_multiple)
     for (int proc = 0; proc < number_of_processes; proc++) {
       int proc_coords[2];
       grid_mpi_cart_coords(my_fft_grid->comm, proc, 2, proc_coords);
       // Determine the bounds in real space
       my_fft_grid->proc2local_rs[proc][0][0] =
-          imin(block_size_x_rs * proc_coords[0], npts_global[0]);
+          imin(block_size_x_rs * proc_coords[0], my_fft_grid->npts_global[0]);
       my_fft_grid->proc2local_rs[proc][0][1] =
-          imin(block_size_x_rs * (proc_coords[0] + 1) - 1, npts_global[0] - 1);
+          imin(block_size_x_rs * (proc_coords[0] + 1) - 1,
+               my_fft_grid->npts_global[0] - 1);
       my_fft_grid->proc2local_rs[proc][1][0] =
-          imin(block_size_y_rs * proc_coords[1], npts_global[1]);
+          imin(block_size_y_rs * proc_coords[1], my_fft_grid->npts_global[1]);
       my_fft_grid->proc2local_rs[proc][1][1] =
-          imin(block_size_y_rs * (proc_coords[1] + 1) - 1, npts_global[1] - 1);
+          imin(block_size_y_rs * (proc_coords[1] + 1) - 1,
+               my_fft_grid->npts_global[1] - 1);
       my_fft_grid->proc2local_rs[proc][2][0] = 0;
       my_fft_grid->proc2local_rs[proc][2][1] =
-          my_fft_grid->use_halfspace ? (npts_global[2] / 2 + 1 - 1)
-                                     : (npts_global[2] - 1);
+          my_fft_grid->use_halfspace ? (my_fft_grid->npts_global[2] / 2 + 1 - 1)
+                                     : (my_fft_grid->npts_global[2] - 1);
       // Determine the bounds in mixed space: we keep the distribution in the
       // first direction to reduce communication
       my_fft_grid->proc2local_ms[proc][0][0] =
@@ -388,21 +401,22 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid,
       my_fft_grid->proc2local_ms[proc][0][1] =
           my_fft_grid->proc2local_rs[proc][0][1];
       my_fft_grid->proc2local_ms[proc][1][0] = 0;
-      my_fft_grid->proc2local_ms[proc][1][1] = npts_global[1] - 1;
+      my_fft_grid->proc2local_ms[proc][1][1] = my_fft_grid->npts_global[1] - 1;
       my_fft_grid->proc2local_ms[proc][2][0] =
-          imin(block_size_z_gs * proc_coords[1], npts_global[2]);
-      my_fft_grid->proc2local_ms[proc][2][1] =
-          imin(block_size_z_gs * (proc_coords[1] + 1) - 1,
-               my_fft_grid->use_halfspace ? (npts_global[2] / 2 + 1 - 1)
-                                          : (npts_global[2] - 1));
+          imin(block_size_z_gs * proc_coords[1], my_fft_grid->npts_global[2]);
+      my_fft_grid->proc2local_ms[proc][2][1] = imin(
+          block_size_z_gs * (proc_coords[1] + 1) - 1,
+          my_fft_grid->use_halfspace ? (my_fft_grid->npts_global[2] / 2 + 1 - 1)
+                                     : (my_fft_grid->npts_global[2] - 1));
       // Determine the bounds in mixed space: we keep the distribution in the
       // third direction to reduce communication
       my_fft_grid->proc2local_gs[proc][0][0] = 0;
-      my_fft_grid->proc2local_gs[proc][0][1] = npts_global[0] - 1;
+      my_fft_grid->proc2local_gs[proc][0][1] = my_fft_grid->npts_global[0] - 1;
       my_fft_grid->proc2local_gs[proc][1][0] =
-          imin(block_size_y_gs * proc_coords[0], npts_global[1]);
+          imin(block_size_y_gs * proc_coords[0], my_fft_grid->npts_global[1]);
       my_fft_grid->proc2local_gs[proc][1][1] =
-          imin(block_size_y_gs * (proc_coords[0] + 1) - 1, npts_global[1] - 1);
+          imin(block_size_y_gs * (proc_coords[0] + 1) - 1,
+               my_fft_grid->npts_global[1] - 1);
       my_fft_grid->proc2local_gs[proc][2][0] =
           my_fft_grid->proc2local_ms[proc][2][0];
       my_fft_grid->proc2local_gs[proc][2][1] =
@@ -503,7 +517,7 @@ void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
   grid_mpi_cart_sub(my_fft_grid->comm, (const int[2]){0, 1},
                     &my_fft_grid->sub_comm[1]);
 
-  setup_proc2local(my_fft_grid, npts_global);
+  setup_proc2local(my_fft_grid);
 
   my_fft_grid->npts_gs_local =
       (my_fft_grid->proc2local_gs[my_process][0][1] -
@@ -611,7 +625,7 @@ void grid_create_fft_grid_layout_from_reference(
   grid_mpi_cart_sub(my_fft_grid->comm, (const int[2]){0, 1},
                     &my_fft_grid->sub_comm[1]);
 
-  setup_proc2local(my_fft_grid, npts_global);
+  setup_proc2local(my_fft_grid);
 
   // Assign the (yz)-rays of the reference grid which are also on the current
   // grid to each process
