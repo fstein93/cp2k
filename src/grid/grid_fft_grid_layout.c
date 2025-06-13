@@ -1274,53 +1274,13 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
 }
 
 /*******************************************************************************
- * \brief Performs a forward 3D-FFT to the blocked format.
- * \param grid_rs real-valued data in real space.
- * \param grid_gs complex data in reciprocal space.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_3d_fw_blocked(const double *grid_rs, double complex *grid_gs,
-                       const grid_fft_grid_layout *grid_layout) {
-  assert(grid_rs != NULL);
-  assert(grid_gs != NULL);
-  assert(grid_layout != NULL);
-  assert(grid_layout->ref_counter > 0);
-
-  const int my_process = grid_mpi_comm_rank(grid_layout->comm);
-  int local_sizes_rs[3];
-  for (int dir = 0; dir < 3; dir++) {
-    local_sizes_rs[dir] = grid_layout->proc2local_rs[my_process][dir][1] -
-                          grid_layout->proc2local_rs[my_process][dir][0] + 1;
-  }
-#pragma omp parallel for default(none)                                         \
-    shared(grid_layout, grid_rs, local_sizes_rs)
-  for (int i = 0; i < local_sizes_rs[0] * local_sizes_rs[1] * local_sizes_rs[2];
-       i++) {
-    grid_layout->buffer_1[i] = grid_rs[i];
-  }
-  // Use the internal buffers to ensure the correct size of the buffers
-  fft_3d_fw_blocked_low(grid_layout->buffer_1, grid_layout->buffer_2,
-                        grid_layout->npts_global, grid_layout->proc2local_rs,
-                        grid_layout->proc2local_ms, grid_layout->proc2local_gs,
-                        grid_layout->comm, grid_layout->sub_comm);
-  int local_sizes_gs[3];
-  for (int dir = 0; dir < 3; dir++) {
-    local_sizes_gs[dir] = grid_layout->proc2local_gs[my_process][dir][1] -
-                          grid_layout->proc2local_gs[my_process][dir][0] + 1;
-  }
-  memcpy(grid_gs, grid_layout->buffer_2,
-         local_sizes_gs[0] * local_sizes_gs[1] * local_sizes_gs[2] *
-             sizeof(double complex));
-}
-
-/*******************************************************************************
  * \brief Performs a forward 3D-FFT to the sorted format.
  * \param grid_rs real-valued data in real space.
  * \param grid_gs complex data in reciprocal space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_sorted(const double *grid_rs, double complex *grid_gs,
-                      const grid_fft_grid_layout *grid_layout) {
+void fft_3d_fw_with_layout(const double *grid_rs, double complex *grid_gs,
+                           const grid_fft_grid_layout *grid_layout) {
   assert(grid_rs != NULL);
   assert(grid_gs != NULL);
   assert(grid_layout != NULL);
@@ -1386,53 +1346,14 @@ void fft_3d_fw_sorted(const double *grid_rs, double complex *grid_gs,
 }
 
 /*******************************************************************************
- * \brief Performs a forward 3D-FFT within a blocked layout.
- * \param grid_rs real-valued data in real space.
- * \param grid_gs complex data in reciprocal space.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_3d_bw_blocked(const double complex *grid_gs, double *grid_rs,
-                       const grid_fft_grid_layout *grid_layout) {
-  assert(grid_rs != NULL);
-  assert(grid_gs != NULL);
-  assert(grid_layout != NULL);
-  assert(grid_layout->ref_counter > 0);
-
-  const int my_process = grid_mpi_comm_rank(grid_layout->comm);
-  int local_sizes_gs[3];
-  for (int dir = 0; dir < 3; dir++) {
-    local_sizes_gs[dir] = grid_layout->proc2local_gs[my_process][dir][1] -
-                          grid_layout->proc2local_gs[my_process][dir][0] + 1;
-  }
-  memcpy(grid_layout->buffer_1, grid_gs,
-         local_sizes_gs[0] * local_sizes_gs[1] * local_sizes_gs[2] *
-             sizeof(double complex));
-  fft_3d_bw_blocked_low(grid_layout->buffer_1, grid_layout->buffer_2,
-                        grid_layout->npts_global, grid_layout->proc2local_rs,
-                        grid_layout->proc2local_ms, grid_layout->proc2local_gs,
-                        grid_layout->comm, grid_layout->sub_comm);
-  int local_sizes_rs[3];
-  for (int dir = 0; dir < 3; dir++) {
-    local_sizes_rs[dir] = grid_layout->proc2local_rs[my_process][dir][1] -
-                          grid_layout->proc2local_rs[my_process][dir][0] + 1;
-  }
-#pragma omp parallel for default(none)                                         \
-    shared(grid_layout, local_sizes_rs, grid_rs)
-  for (int i = 0; i < local_sizes_rs[0] * local_sizes_rs[1] * local_sizes_rs[2];
-       i++) {
-    grid_rs[i] = creal(grid_layout->buffer_2[i]);
-  }
-}
-
-/*******************************************************************************
  * \brief Performs a backward 3D-FFT from data sorted in g-space.
  * \param grid_layout FFT grid layout object.
  * \param grid_gs complex data in reciprocal space.
  * \param grid_rs real-valued data in real space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_sorted(const double complex *grid_gs, double *grid_rs,
-                      const grid_fft_grid_layout *grid_layout) {
+void fft_3d_bw_with_layout(const double complex *grid_gs, double *grid_rs,
+                           const grid_fft_grid_layout *grid_layout) {
   assert(grid_gs != NULL);
   assert(grid_rs != NULL);
   assert(grid_layout != NULL);

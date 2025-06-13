@@ -120,32 +120,13 @@ inline bool is_on_grid(const int shifted_index, const int npts) {
 }
 
 /*******************************************************************************
- * \brief Performs a forward 3D-FFT to the blocked format.
- * \param grid_rs real-valued data in real space.
- * \param grid_gs complex data in reciprocal space.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_3d_fw_blocked(const double *grid_rs, double complex *grid_gs,
-                       const grid_fft_grid_layout *grid_layout);
-
-/*******************************************************************************
  * \brief Performs a forward 3D-FFT and sorts the data in g-space.
  * \param grid_rs real-valued data in real space.
  * \param grid_gs complex data in reciprocal space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_sorted(const double *grid_rs, double complex *grid_gs,
-                      const grid_fft_grid_layout *grid_layout);
-
-/*******************************************************************************
- * \brief Performs a backward 3D-FFT from blocked data in g-space.
- * \param fft_grid FFT grid object.
- * \param grid_gs complex data in reciprocal space.
- * \param grid_rs real-valued data in real space.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_3d_bw_blocked(const double complex *grid_gs, double *grid_rs,
-                       const grid_fft_grid_layout *fft_grid);
+void fft_3d_fw_with_layout(const double *grid_rs, double complex *grid_gs,
+                           const grid_fft_grid_layout *grid_layout);
 
 /*******************************************************************************
  * \brief Performs a backward 3D-FFT from data sorted in g-space.
@@ -154,8 +135,8 @@ void fft_3d_bw_blocked(const double complex *grid_gs, double *grid_rs,
  * \param grid_rs real-valued data in real space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_sorted(const double complex *grid_gs, double *grid_rs,
-                      const grid_fft_grid_layout *fft_grid);
+void fft_3d_bw_with_layout(const double complex *grid_gs, double *grid_rs,
+                           const grid_fft_grid_layout *fft_grid);
 
 #endif
 

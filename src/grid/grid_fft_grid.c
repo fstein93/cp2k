@@ -135,7 +135,7 @@ void fft_3d_fw(const grid_fft_real_rs_grid *grid_rs,
   assert(grid_rs->fft_grid_layout->grid_id ==
          grid_gs->fft_grid_layout->grid_id);
   const grid_fft_grid_layout *grid_layout = grid_gs->fft_grid_layout;
-  fft_3d_fw_sorted(grid_rs->data, grid_gs->data, grid_layout);
+  fft_3d_fw_with_layout(grid_rs->data, grid_gs->data, grid_layout);
   const double scale =
       1.0 / (((double)grid_layout->npts_global[0]) *
              grid_layout->npts_global[1] * grid_layout->npts_global[2]);
@@ -156,7 +156,7 @@ void fft_3d_bw(const grid_fft_complex_gs_grid *grid_gs,
   assert(grid_rs->fft_grid_layout->grid_id ==
          grid_gs->fft_grid_layout->grid_id);
   const grid_fft_grid_layout *grid_layout = grid_rs->fft_grid_layout;
-  fft_3d_bw_sorted(grid_gs->data, grid_rs->data, grid_layout);
+  fft_3d_bw_with_layout(grid_gs->data, grid_rs->data, grid_layout);
 }
 
 // EOF

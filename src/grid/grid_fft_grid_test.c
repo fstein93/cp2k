@@ -78,7 +78,7 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
                       (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
                       (nx - my_bounds_rs[0][0])] = 1.0;
 
-        fft_3d_fw_sorted(buffer_real, grid_gs.data, fft_grid_layout);
+        fft_3d_fw_with_layout(buffer_real, grid_gs.data, fft_grid_layout);
 
 #pragma omp parallel for default(none)                                         \
     shared(grid_gs, my_bounds_gs, my_sizes_gs, fft_grid_layout, nx, ny, nz,    \
@@ -169,69 +169,6 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
       printf("The fw 3D FFT (blocked) to ordered layout does not work "
              "correctly (%i "
              "%i %i): %f!\n",
-             npts_global[0], npts_global[1], npts_global[2], max_error);
-    errors++;
-  }
-
-  double *buffer_1_real = (double *)grid_rs.data;
-
-  // Check backwards 3D FFTs
-  max_error = 0.0;
-  number_of_tests = 0;
-  for (int nx = 0; nx < npts_global[0]; nx++) {
-    for (int ny = 0; ny < npts_global[1]; ny++) {
-      for (int nz = 0; nz < npts_global[2]; nz++) {
-        if (test_every > 0 && number_of_tests % test_every != 0) {
-          number_of_tests++;
-          continue;
-        }
-        number_of_tests++;
-        memset(grid_gs.data, 0,
-               my_number_of_elements_gs * sizeof(double complex));
-
-        if (nx >= my_bounds_gs[0][0] && nx <= my_bounds_gs[0][1] &&
-            ny >= my_bounds_gs[1][0] && ny <= my_bounds_gs[1][1] &&
-            nz >= my_bounds_gs[2][0] && nz <= my_bounds_gs[2][1])
-          grid_gs.data[(nz - my_bounds_gs[2][0]) * my_sizes_gs[0] *
-                           my_sizes_gs[1] +
-                       (ny - my_bounds_gs[1][0]) * my_sizes_gs[0] +
-                       (nx - my_bounds_gs[0][0])] = 1.0;
-
-        fft_3d_bw_blocked(grid_gs.data, buffer_1_real, fft_grid_layout);
-
-#pragma omp parallel for default(none)                                         \
-    shared(fft_grid_layout, my_bounds_rs, my_sizes_rs, buffer_1_real, nx, ny,  \
-               nz, npts_global) collapse(3) reduction(max : max_error)
-        for (int mx = 0; mx < my_sizes_rs[0]; mx++) {
-          for (int my = 0; my < my_sizes_rs[1]; my++) {
-            for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
-              const double my_value =
-                  buffer_1_real[mz * my_sizes_rs[0] * my_sizes_rs[1] +
-                                my * my_sizes_rs[0] + mx];
-              const double ref_value = cos(
-                  2.0 * pi *
-                  (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +
-                   ((double)my + my_bounds_rs[1][0]) * ny / npts_global[1] +
-                   ((double)mz + my_bounds_rs[2][0]) * nz / npts_global[2]));
-              double current_error = fabs(my_value - ref_value);
-              if (current_error > 1e-12) {
-                printf("ERROR %i %i %i/%i %i %i: (%f) (%f)\n", nx, ny, nz, mx,
-                       my, mz, my_value, ref_value);
-              }
-              max_error = fmax(max_error, current_error);
-            }
-          }
-        }
-      }
-    }
-  }
-  fflush(stdout);
-  grid_mpi_max_double(&max_error, 1, comm);
-
-  if (max_error > 1e-12) {
-    if (my_process == 0)
-      printf("The bw 3D FFT with blocked layout does not work correctly "
-             "(%i %i %i): %f!\n",
              npts_global[0], npts_global[1], npts_global[2], max_error);
     errors++;
   }
@@ -370,7 +307,7 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
                    (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
                    (nx - my_bounds_rs[0][0])] = 1.0;
 
-        fft_3d_fw_sorted(buffer_1, buffer_2, fft_grid_layout);
+        fft_3d_fw_with_layout(buffer_1, buffer_2, fft_grid_layout);
 
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_layout, my_ray_offset, npts_global, my_sizes_rs,           \
@@ -439,7 +376,7 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
         }
       }
 
-      fft_3d_bw_sorted(buffer_2, buffer_1, fft_grid_layout);
+      fft_3d_bw_with_layout(buffer_2, buffer_1, fft_grid_layout);
 
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_layout, buffer_1, my_sizes_rs, my_bounds_rs, npts_global,  \
