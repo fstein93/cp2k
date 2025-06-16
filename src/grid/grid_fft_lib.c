@@ -496,9 +496,6 @@ void fft_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
   assert(fft_lib_use_mpi());
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_FFTW:
-    fprintf(stderr, "%i fft_2d_fw_distributed\n",
-            grid_mpi_comm_rank(grid_mpi_comm_world));
-    fflush(stderr);
     fft_fftw_2d_fw_distributed(npts_global, number_of_ffts, comm, grid_in,
                                grid_out);
     break;

@@ -702,10 +702,6 @@ int fft_test_3d_r2c_ray(const int npts_global[3], const int npts_global_ref[3],
   double complex *buffer_2 =
       calloc(my_number_of_elements_gs, sizeof(double complex));
 
-  printf("%i Done preparations\n", my_process);
-  fflush(stdout);
-  grid_mpi_barrier(comm);
-
   // Check forward 3D FFTs
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -875,7 +871,6 @@ int fft_test_3d() {
   errors += fft_test_3d_ray(npts_global, npts_global, 19);
   errors += fft_test_3d_ray(npts_global_small, npts_global_small, 11);
   errors += fft_test_3d_ray(npts_global_small, npts_global, 13);
-  // BUG: This single test does not work, the others do
   errors += fft_test_3d_ray(npts_global_reverse, npts_global_reverse, 17);
 
   // Check the ray layout with the same grid sizes

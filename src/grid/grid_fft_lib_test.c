@@ -1691,9 +1691,6 @@ int fft_test_distributed() {
 
   clock_t begin = clock();
   errors += fft_test_2d_distributed_low((const int[2]){15, 9}, 51);
-  // This is required for the other test ???
-  // errors += fft_test_2d_distributed_low((const int[2]){8, 4}, 2);
-  // errors += fft_test_2d_distributed_low((const int[2]){2, 4}, 8);
   errors += fft_test_2d_distributed_low((const int[2]){12, 14}, 23);
 
   errors += fft_test_2d_distributed_r2c_low((const int[2]){15, 9}, 51);
