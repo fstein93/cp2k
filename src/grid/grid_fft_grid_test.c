@@ -514,9 +514,196 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
   for (int process = 0; process < my_process; process++)
     my_ray_offset += fft_grid_layout->rays_per_process[process];
 
+  double complex *buffer_1 =
+      calloc(my_number_of_elements_rs, sizeof(double complex));
+  double complex *buffer_2 =
+      calloc(my_number_of_elements_gs, sizeof(double complex));
+
+  // Check forward 3D FFTs
+  double max_error = 0.0;
+  int number_of_tests = 0;
+  for (int nx = 0; nx < npts_global[0]; nx++) {
+    for (int ny = 0; ny < npts_global[1]; ny++) {
+      for (int nz = 0; nz < npts_global[2]; nz++) {
+        if (test_every > 0 && number_of_tests % test_every != 0) {
+          number_of_tests++;
+          continue;
+        }
+        number_of_tests++;
+        memset(buffer_1, 0, my_number_of_elements_rs * sizeof(double complex));
+
+        if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
+            ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
+            nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
+          buffer_1[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] * my_sizes_rs[1] +
+                   (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
+                   (nx - my_bounds_rs[0][0])] = 1.0;
+
+        fft_3d_fw_with_layout(buffer_1, buffer_2, fft_grid_layout);
+
+#pragma omp parallel for default(none)                                         \
+    shared(fft_grid_layout, my_ray_offset, npts_global, my_sizes_rs,           \
+               my_process, nx, ny, nz, buffer_2) reduction(max : max_error)
+        for (int index = 0; index < fft_grid_layout->npts_gs_local; index++) {
+          const int index_x = fft_grid_layout->index_to_g[index][0];
+          const int index_y = fft_grid_layout->index_to_g[index][1];
+          const int index_z = fft_grid_layout->index_to_g[index][2];
+          const double complex my_value = buffer_2[index];
+          const double complex ref_value =
+              cexp(-2.0 * I * pi *
+                   (((double)index_x) * nx / npts_global[0] +
+                    ((double)index_y) * ny / npts_global[1] +
+                    ((double)index_z) * nz / npts_global[2]));
+          double current_error = cabs(my_value - ref_value);
+          if (current_error > 1e-12)
+            printf("ERROR %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny, nz,
+                   index_x, index_y, index_z, creal(my_value), cimag(my_value),
+                   creal(ref_value), cimag(ref_value));
+          max_error = fmax(max_error, current_error);
+        }
+      }
+    }
+  }
+  fflush(stdout);
+  grid_mpi_max_double(&max_error, 1, comm);
+
+  if (max_error > 1e-12) {
+    if (my_process == 0)
+      printf("The fw 3D FFT with ray layout does not work correctly (%i %i "
+             "%i)/(%i %i %i): %f!\n",
+             npts_global[0], npts_global[1], npts_global[2], npts_global_ref[0],
+             npts_global_ref[1], npts_global_ref[2], max_error);
+    errors++;
+  }
+  fflush(stdout);
+
+  // Check backwards 3D FFTs
+  int total_number_of_rays = 0;
+  for (int process = 0; process < grid_mpi_comm_size(comm); process++)
+    total_number_of_rays += fft_grid_layout->rays_per_process[process];
+  max_error = 0.0;
+  number_of_tests = 0;
+  for (int nx = 0; nx < npts_global[0]; nx++) {
+    for (int nyz = 0; nyz < total_number_of_rays; nyz++) {
+      if (test_every > 0 && number_of_tests % test_every != 0) {
+        number_of_tests++;
+        continue;
+      }
+      number_of_tests++;
+      const int ny = fft_grid_layout->ray_to_yz[nyz][0];
+      const int nz = fft_grid_layout->ray_to_yz[nyz][1];
+
+      memset(buffer_2, 0,
+             fft_grid_layout->npts_gs_local * sizeof(double complex));
+
+      if (nyz >= my_ray_offset &&
+          nyz < my_ray_offset + fft_grid_layout->rays_per_process[my_process]) {
+        for (int index = 0; index < my_number_of_elements_gs; index++) {
+          if (fft_grid_layout->index_to_g[index][0] == nx &&
+              fft_grid_layout->index_to_g[index][1] == ny &&
+              fft_grid_layout->index_to_g[index][2] == nz) {
+            buffer_2[index] = 1.0;
+            break;
+          }
+        }
+      }
+
+      fft_3d_bw_with_layout(buffer_2, buffer_1, fft_grid_layout);
+
+#pragma omp parallel for default(none)                                         \
+    shared(fft_grid_layout, buffer_1, my_sizes_rs, my_bounds_rs, npts_global,  \
+               nx, ny, nz) reduction(max : max_error) collapse(3)
+      for (int mx = 0; mx < my_sizes_rs[0]; mx++) {
+        for (int my = 0; my < my_sizes_rs[1]; my++) {
+          for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
+            const double complex my_value =
+                buffer_1[mz * my_sizes_rs[0] * my_sizes_rs[1] +
+                         my * my_sizes_rs[0] + mx];
+            const double complex ref_value =
+                cexp(2.0 * I * pi *
+                     (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +
+                      ((double)my + my_bounds_rs[1][0]) * ny / npts_global[1] +
+                      ((double)mz + my_bounds_rs[2][0]) * nz / npts_global[2]));
+            double current_error = cabs(my_value - ref_value);
+            if (current_error > 1e-12)
+              printf("ERROR %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny, nz,
+                     mx, my, mz, creal(my_value), cimag(my_value),
+                     creal(ref_value), cimag(ref_value));
+            max_error = fmax(max_error, current_error);
+          }
+        }
+      }
+    }
+  }
+  fflush(stdout);
+  grid_mpi_max_double(&max_error, 1, comm);
+
+  if (max_error > 1e-12) {
+    if (my_process == 0)
+      printf("The bw 3D FFT with ray layout does not work correctly (%i "
+             "%i %i)/(%i %i %i): %f!\n",
+             npts_global[0], npts_global[1], npts_global[2], npts_global_ref[0],
+             npts_global_ref[1], npts_global_ref[2], max_error);
+    errors++;
+  }
+
+  grid_free_fft_grid_layout(fft_grid_layout);
+  grid_free_fft_grid_layout(ref_grid_layout);
+  free(buffer_1);
+  free(buffer_2);
+
+  if (errors == 0 && my_process == 0)
+    printf("The 3D FFT with ray layout does work correctly (%i %i %i)/(%i %i "
+           "%i)!\n",
+           npts_global[0], npts_global[1], npts_global[2], npts_global_ref[0],
+           npts_global_ref[1], npts_global_ref[2]);
+  return errors;
+}
+
+/*******************************************************************************
+ * \brief Function to test the parallel FFT backend.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_3d_r2c_ray(const int npts_global[3], const int npts_global_ref[3],
+                        const int test_every) {
+  const grid_mpi_comm comm = grid_mpi_comm_world;
+  const int my_process = grid_mpi_comm_rank(comm);
+
+  int errors = 0;
+
+  const double pi = acos(-1);
+  const double dh_inv[3][3] = {
+      {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
+
+  grid_fft_grid_layout *ref_grid_layout = NULL;
+  grid_create_fft_grid_layout(&ref_grid_layout, comm, npts_global_ref, dh_inv,
+                              false);
+  grid_mpi_barrier(comm);
+
+  grid_fft_grid_layout *fft_grid_layout = NULL;
+  grid_create_fft_grid_layout_from_reference(&fft_grid_layout, npts_global,
+                                             ref_grid_layout);
+
+  const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int my_sizes_rs[3];
+  for (int dir = 0; dir < 3; dir++)
+    my_sizes_rs[dir] = my_bounds_rs[dir][1] - my_bounds_rs[dir][0] + 1;
+  const int my_number_of_elements_rs = product3(my_sizes_rs);
+
+  const int my_number_of_elements_gs =
+      fft_grid_layout->rays_per_process[my_process] * npts_global[0];
+
+  int my_ray_offset = 0;
+  for (int process = 0; process < my_process; process++)
+    my_ray_offset += fft_grid_layout->rays_per_process[process];
+
   double *buffer_1 = calloc(my_number_of_elements_rs, sizeof(double));
   double complex *buffer_2 =
       calloc(my_number_of_elements_gs, sizeof(double complex));
+
+  printf("%i Done preparations\n", my_process);
+  fflush(stdout);
+  grid_mpi_barrier(comm);
 
   // Check forward 3D FFTs
   double max_error = 0.0;
@@ -568,7 +755,7 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
 
   if (max_error > 1e-12) {
     if (my_process == 0)
-      printf("The fw 3D FFT with ray layout does not work correctly (%i %i "
+      printf("The fw R2C-3D FFT with ray layout does not work correctly (%i %i "
              "%i)/(%i %i %i): %f!\n",
              npts_global[0], npts_global[1], npts_global[2], npts_global_ref[0],
              npts_global_ref[1], npts_global_ref[2], max_error);
@@ -638,7 +825,7 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
 
   if (max_error > 1e-12) {
     if (my_process == 0)
-      printf("The bw 3D FFT with ray layout does not work correctly (%i "
+      printf("The bw C2R-3D FFT with ray layout does not work correctly (%i "
              "%i %i)/(%i %i %i): %f!\n",
              npts_global[0], npts_global[1], npts_global[2], npts_global_ref[0],
              npts_global_ref[1], npts_global_ref[2], max_error);
@@ -651,10 +838,11 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
   free(buffer_2);
 
   if (errors == 0 && my_process == 0)
-    printf("The 3D FFT with ray layout does work correctly (%i %i %i)/(%i %i "
-           "%i)!\n",
-           npts_global[0], npts_global[1], npts_global[2], npts_global_ref[0],
-           npts_global_ref[1], npts_global_ref[2]);
+    printf(
+        "The R2C-3D FFT with ray layout does work correctly (%i %i %i)/(%i %i "
+        "%i)!\n",
+        npts_global[0], npts_global[1], npts_global[2], npts_global_ref[0],
+        npts_global_ref[1], npts_global_ref[2]);
   return errors;
 }
 
@@ -685,7 +873,16 @@ int fft_test_3d() {
   errors += fft_test_3d_ray(npts_global, npts_global, 19);
   errors += fft_test_3d_ray(npts_global_small, npts_global_small, 11);
   errors += fft_test_3d_ray(npts_global_small, npts_global, 13);
-  errors += fft_test_3d_ray(npts_global_reverse, npts_global_reverse, 17);
+  // BUG: This single test does not work, the others do
+   errors += fft_test_3d_ray(npts_global_reverse, npts_global_reverse, 17);
+
+  // Check the ray layout with the same grid sizes
+  errors += fft_test_3d_r2c_ray(npts_global, npts_global, 19);
+  errors += fft_test_3d_r2c_ray(npts_global_small, npts_global_small, 11);
+  errors += fft_test_3d_r2c_ray(npts_global_small, npts_global, 13);
+  errors += fft_test_3d_r2c_ray(npts_global_reverse, npts_global_reverse, 17);
+  errors +=
+      fft_test_3d_r2c_ray(npts_global_small_reverse, npts_global_reverse, 17);
 
   if (errors == 0 && my_process == 0)
     fprintf(stdout, "\n The 3D FFT routines work correctly!\n");
