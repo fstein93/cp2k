@@ -913,8 +913,6 @@ void collect_x_and_distribute_yz_ray_transpose(const double complex *grid,
                            my_bounds[2][1] - my_bounds[2][0] + 1};
   assert(my_sizes[2] == npts_global[2]);
 
-  printf("%i Requested sizes: %i %i\n", my_process, my_number_of_rays,
-         npts_global[0]);
   double complex *recv_buffer =
       malloc(my_number_of_rays * npts_global[0] * sizeof(double complex));
   double complex *send_buffer =

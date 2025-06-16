@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 /*******************************************************************************
  * \brief Function to test the parallel FFT backend.
@@ -857,6 +858,7 @@ int fft_test_3d() {
   const int npts_global_reverse[3] = {8, 4, 2};
   const int npts_global_small_reverse[3] = {5, 3, 2};
 
+  clock_t begin = clock();
   // Check the blocked layout
   errors += fft_test_3d_blocked(npts_global, 13);
   errors += fft_test_3d_blocked(npts_global_small, 17);
@@ -874,7 +876,7 @@ int fft_test_3d() {
   errors += fft_test_3d_ray(npts_global_small, npts_global_small, 11);
   errors += fft_test_3d_ray(npts_global_small, npts_global, 13);
   // BUG: This single test does not work, the others do
-   errors += fft_test_3d_ray(npts_global_reverse, npts_global_reverse, 17);
+  errors += fft_test_3d_ray(npts_global_reverse, npts_global_reverse, 17);
 
   // Check the ray layout with the same grid sizes
   errors += fft_test_3d_r2c_ray(npts_global, npts_global, 19);
@@ -883,9 +885,13 @@ int fft_test_3d() {
   errors += fft_test_3d_r2c_ray(npts_global_reverse, npts_global_reverse, 17);
   errors +=
       fft_test_3d_r2c_ray(npts_global_small_reverse, npts_global_reverse, 17);
+  clock_t end = clock();
 
   if (errors == 0 && my_process == 0)
     fprintf(stdout, "\n The 3D FFT routines work correctly!\n");
+  if (grid_mpi_comm_rank(grid_mpi_comm_world) == 0)
+    printf("Time to test high-level FFTs: %f\n",
+           (double)(end - begin) / CLOCKS_PER_SEC);
   return errors;
 }
 

@@ -501,6 +501,88 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid) {
   grid_mpi_barrier(my_fft_grid->comm);
 }
 
+void run_fft_once(const grid_fft_grid_layout *my_fft_grid) {
+  return;
+  const int my_process = grid_mpi_comm_rank(my_fft_grid->comm);
+
+  int fft_sizes_rs[3] = {my_fft_grid->proc2local_rs[my_process][0][1] -
+                             my_fft_grid->proc2local_rs[my_process][0][0] + 1,
+                         my_fft_grid->proc2local_rs[my_process][1][1] -
+                             my_fft_grid->proc2local_rs[my_process][1][0] + 1,
+                         my_fft_grid->proc2local_rs[my_process][2][1] -
+                             my_fft_grid->proc2local_rs[my_process][2][0] + 1};
+#if 0
+  int fft_sizes_ms[3] = {
+      proc2local_ms[my_process][0][1] - proc2local_ms[my_process][0][0] + 1,
+      proc2local_ms[my_process][1][1] - proc2local_ms[my_process][1][0] + 1,
+      proc2local_ms[my_process][2][1] - proc2local_ms[my_process][2][0] + 1};
+  int fft_sizes_gs[3] = {
+      proc2local_gs[my_process][0][1] - proc2local_gs[my_process][0][0] + 1,
+      proc2local_gs[my_process][1][1] - proc2local_gs[my_process][1][0] + 1,
+      proc2local_gs[my_process][2][1] - proc2local_gs[my_process][2][0] + 1};
+#endif
+
+  if (my_fft_grid->proc_grid[1] > 1) {
+    if (my_fft_grid->ray_distribution) {
+      if (my_fft_grid->use_halfspace) {
+        fft_2d_fw_distributed_r2c((const int[2]){my_fft_grid->npts_global[2],
+                                                 my_fft_grid->npts_global[1]},
+                                  fft_sizes_rs[0], my_fft_grid->sub_comm[0],
+                                  (double *)my_fft_grid->buffer_1,
+                                  my_fft_grid->buffer_2);
+      } else {
+        fft_2d_fw_distributed((const int[2]){my_fft_grid->npts_global[2],
+                                             my_fft_grid->npts_global[1]},
+                              fft_sizes_rs[0], my_fft_grid->sub_comm[0],
+                              my_fft_grid->buffer_1, my_fft_grid->buffer_2);
+      }
+    } else {
+      if (my_fft_grid->use_halfspace) {
+        fft_2d_fw_distributed_r2c((const int[2]){my_fft_grid->npts_global[2],
+                                                 my_fft_grid->npts_global[1]},
+                                  fft_sizes_rs[0], my_fft_grid->sub_comm[0],
+                                  (double *)my_fft_grid->buffer_1,
+                                  my_fft_grid->buffer_2);
+      } else {
+        fft_2d_fw_distributed((const int[2]){my_fft_grid->npts_global[2],
+                                             my_fft_grid->npts_global[1]},
+                              fft_sizes_rs[0], my_fft_grid->sub_comm[0],
+                              my_fft_grid->buffer_1, my_fft_grid->buffer_2);
+      }
+    }
+  } else {
+    if (my_fft_grid->ray_distribution) {
+      if (my_fft_grid->use_halfspace) {
+        fft_2d_fw_distributed_r2c((const int[2]){my_fft_grid->npts_global[2],
+                                                 my_fft_grid->npts_global[1]},
+                                  fft_sizes_rs[0], my_fft_grid->sub_comm[0],
+                                  (double *)my_fft_grid->buffer_1,
+                                  my_fft_grid->buffer_2);
+      } else {
+        fft_2d_fw_distributed((const int[2]){my_fft_grid->npts_global[2],
+                                             my_fft_grid->npts_global[1]},
+                              fft_sizes_rs[0], my_fft_grid->sub_comm[0],
+                              my_fft_grid->buffer_1, my_fft_grid->buffer_2);
+      }
+    } else {
+      if (my_fft_grid->use_halfspace) {
+        fft_3d_fw_distributed_r2c((const int[3]){my_fft_grid->npts_global[2],
+                                                 my_fft_grid->npts_global[1],
+                                                 my_fft_grid->npts_global[0]},
+                                  my_fft_grid->sub_comm[0],
+                                  (double *)my_fft_grid->buffer_1,
+                                  my_fft_grid->buffer_2);
+      } else {
+        fft_3d_fw_distributed((const int[3]){my_fft_grid->npts_global[2],
+                                             my_fft_grid->npts_global[1],
+                                             my_fft_grid->npts_global[0]},
+                              my_fft_grid->sub_comm[0], my_fft_grid->buffer_1,
+                              my_fft_grid->buffer_2);
+      }
+    }
+  }
+}
+
 void allocate_fft_buffers(grid_fft_grid_layout *my_fft_grid) {
   const int my_process = grid_mpi_comm_rank(my_fft_grid->comm);
   (void)my_process;
@@ -626,6 +708,8 @@ void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
   }
 
   sort_g_vectors(my_fft_grid);
+
+  run_fft_once(my_fft_grid);
 
   *fft_grid = my_fft_grid;
 }
@@ -1121,9 +1205,8 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
                        const grid_mpi_comm comm,
                        const grid_mpi_comm sub_comm[2]) {
   const int my_process = grid_mpi_comm_rank(comm);
-  printf("%i Enter fft_3d_fw_ray_low\n", my_process);
-  fflush(stdout);
-  grid_mpi_barrier(comm);
+  fprintf(stderr, "%i fft_3d_fw_ray_low\n", my_process);
+  fflush(stderr);
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {
@@ -1140,9 +1223,6 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
   int periods[2];
   int my_coord[2];
   grid_mpi_cart_get(comm, 2, proc_grid, periods, my_coord);
-  printf("%i After grid_mpi_cart_get\n", my_process);
-  fflush(stdout);
-  grid_mpi_barrier(comm);
 
   // We use different data distribution schemes depending on the availability of
   // a distributed FFT library because FFTW requires the data to the different
@@ -1151,23 +1231,21 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
   // the Guru interface which is not available with all implementations of the
   // FFTW interface
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
-    printf("%i 2D process grid\n", my_process);
-    fflush(stdout);
-    grid_mpi_barrier(comm);
     if (fft_lib_use_mpi()) {
       // Perform the first two FFTs in x- and y-direction
       // transpose the last two indices (is cheaper)
       // (z_d,y,x_d) -> (y_d,z,x_d)
-      printf("%i fft_3d_fw_ray_low FFT (MPI): %i %i %i/%i (comm size: %i)\n",
-             my_process, npts_global[0], npts_global[1], npts_global[2],
-             fft_sizes_rs[0], grid_mpi_comm_size(sub_comm[0]));
-      fflush(stdout);
+      fprintf(stderr,
+              "%i fft_3d_fw_ray_low FFT (MPI): %i %i %i/%i (comm size: %i)\n",
+              my_process, npts_global[0], npts_global[1], npts_global[2],
+              fft_sizes_rs[0], grid_mpi_comm_size(sub_comm[0]));
+      fflush(stderr);
       grid_mpi_barrier(comm);
       fft_2d_fw_distributed((const int[2]){npts_global[2], npts_global[1]},
                             fft_sizes_rs[0], sub_comm[0], grid_buffer_1,
                             grid_buffer_2);
-      printf("%i fft_3d_fw_ray_low FFT (MPI)\n", my_process);
-      fflush(stdout);
+      fprintf(stderr, "%i fft_3d_fw_ray_low FFT (MPI)\n", my_process);
+      fflush(stderr);
 
       // Perform second redistribution and transpose
       // (y_d,z,x_d) -> (x,z_d,y_d)
@@ -1179,9 +1257,12 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
       fft_1d_fw_local(npts_global[0], number_of_local_yz_rays, true, false,
                       grid_buffer_1, grid_buffer_2);
     } else {
-      printf("%i fft_3d_fw_ray_low FFT (manual): %i %i %i/%i\n", my_process,
-             npts_global[0], npts_global[1], npts_global[2], fft_sizes_rs[0]);
-      fflush(stdout);
+      fprintf(
+          stderr,
+          "%i fft_3d_fw_ray_low FFT (manual): %i %i %i/%i (comm size: %i)\n",
+          my_process, npts_global[0], npts_global[1], npts_global[2],
+          fft_sizes_rs[0], grid_mpi_comm_size(sub_comm[0]));
+      fflush(stderr);
       grid_mpi_barrier(comm);
       // Perform the first FFT
       fft_1d_fw_local(npts_global[2], fft_sizes_rs[0] * fft_sizes_rs[1], true,
@@ -1204,18 +1285,13 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
       // Perform the third FFT
       fft_1d_fw_local(npts_global[0], number_of_local_yz_rays, true, false,
                       grid_buffer_1, grid_buffer_2);
-      printf("%i fft_3d_fw_ray_low FFT (manual)\n", my_process);
-      fflush(stdout);
     }
   } else if (proc_grid[0] > 1) {
-    printf("%i 1D process grid\n", my_process);
-    fflush(stdout);
-    grid_mpi_barrier(comm);
     // Depending on the use of a distributed FFT library, we have different data
     // distributions
     if (fft_lib_use_mpi()) {
-      printf("%i MPI library\n", my_process);
-      fflush(stdout);
+      fprintf(stderr, "%i MPI library (1D)\n", my_process);
+      fflush(stderr);
       grid_mpi_barrier(comm);
       // Perform the first two FFTs in x- and y-direction
       // (z_d,y,x) -> (y_d,z,x)
@@ -1225,22 +1301,22 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
 
       // Perform second redistribution and transpose
       // (y_d,z,x) -> (x,zy_d)
-      printf("%i Transpose\n", my_process);
-      fflush(stdout);
+      fprintf(stderr, "%i Transpose\n", my_process);
+      fflush(stderr);
       grid_mpi_barrier(comm);
       collect_x_and_distribute_yz_ray_transpose(
           grid_buffer_2, grid_buffer_1, npts_global, proc2local_ms,
           rays_per_process, ray_to_yz, comm);
 
       // Perform the final FFT
-      printf("%i Final FFT\n", my_process);
-      fflush(stdout);
+      fprintf(stderr, "%i Final FFT\n", my_process);
+      fflush(stderr);
       grid_mpi_barrier(comm);
       fft_1d_fw_local(npts_global[0], number_of_local_yz_rays, true, false,
                       grid_buffer_1, grid_buffer_2);
     } else {
-      printf("%i own implementation\n", my_process);
-      fflush(stdout);
+      fprintf(stderr, "%i manual (1D)\n", my_process);
+      fflush(stderr);
       grid_mpi_barrier(comm);
       // Perform the first FFT (z_d,y,x)->(x,z_d,y)
       fft_2d_fw_local((const int[2]){npts_global[2], npts_global[1]},
@@ -1257,6 +1333,8 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
                       grid_buffer_1, grid_buffer_2);
     }
   } else {
+    fprintf(stderr, "%i fft_3d_fw_ray_low local\n", my_process);
+    fflush(stderr);
     fft_3d_fw_local(
         (const int[3]){npts_global[2], npts_global[1], npts_global[0]},
         grid_buffer_1, grid_buffer_2);
@@ -1278,6 +1356,8 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
            number_of_local_yz_rays * npts_global[0] *
                sizeof(double complex)); // Copy to the new format
   }
+  fprintf(stderr, "%i Done fft_3d_fw_ray_low\n", my_process);
+  fflush(stderr);
 }
 
 /*******************************************************************************
@@ -1330,13 +1410,14 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
       // Perform the first two FFTs in x- and y-direction
       // transpose the last two indices (is cheaper)
       // (y_d,z,x_d) -> (z_d,y,x_d)
-      printf("%i enters distributed 2D FFT (2D process grid)\n", my_process);
-      fflush(stdout);
+      fprintf(stderr, "%i enters distributed 2D FFT (2D process grid)\n",
+              my_process);
+      fflush(stderr);
       fft_2d_bw_distributed((const int[2]){npts_global[2], npts_global[1]},
                             fft_sizes_rs[0], sub_comm[0], grid_buffer_1,
                             grid_buffer_2);
-      printf("%i leaves distributed 2D FFT\n", my_process);
-      fflush(stdout);
+      fprintf(stderr, "%i leaves distributed 2D FFT\n", my_process);
+      fflush(stderr);
       grid_mpi_barrier(comm);
     } else {
       // Perform the first FFT
@@ -1376,13 +1457,14 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
       // Perform the first two FFTs in x- and y-direction
       // transpose the last two indices (is cheaper)
       // (y_d,z,x_d) -> (z_d,y,x_d)
-      printf("%i enters distributed 2D FFT (1D process grid)\n", my_process);
-      fflush(stdout);
+      fprintf(stderr, "%i enters distributed 2D FFT (1D process grid)\n",
+              my_process);
+      fflush(stderr);
       fft_2d_bw_distributed((const int[2]){npts_global[2], npts_global[1]},
                             fft_sizes_rs[0], sub_comm[0], grid_buffer_1,
                             grid_buffer_2);
-      printf("%i leaves distributed 2D FFT\n", my_process);
-      fflush(stdout);
+      fprintf(stderr, "%i leaves distributed 2D FFT\n", my_process);
+      fflush(stderr);
       grid_mpi_barrier(comm);
     } else {
       // Perform the first FFT

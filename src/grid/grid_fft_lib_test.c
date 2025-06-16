@@ -1050,8 +1050,9 @@ int fft_test_local() {
   errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 10);
   errors += fft_test_3d_local_r2c_low((const int[3]){7, 5, 3}, 10);
   clock_t end = clock();
-  printf("Time to test local FFTs with planning: %f\n",
-         (double)(end - begin) / CLOCKS_PER_SEC);
+  if (grid_mpi_comm_rank(grid_mpi_comm_world) == 0)
+    printf("Time to test local FFTs with planning: %f\n",
+           (double)(end - begin) / CLOCKS_PER_SEC);
 
   begin = clock();
   errors += fft_test_1d_local_low(15, 26, true, true);
@@ -1082,8 +1083,9 @@ int fft_test_local() {
   errors += fft_test_3d_local_r2c_low((const int[3]){8, 8, 8}, 10);
   errors += fft_test_3d_local_r2c_low((const int[3]){7, 5, 3}, 10);
   end = clock();
-  printf("Time to test local FFTs without planning: %f\n",
-         (double)(end - begin) / CLOCKS_PER_SEC);
+  if (grid_mpi_comm_rank(grid_mpi_comm_world) == 0)
+    printf("Time to test local FFTs without planning: %f\n",
+           (double)(end - begin) / CLOCKS_PER_SEC);
 
   return errors;
 }
@@ -1689,6 +1691,9 @@ int fft_test_distributed() {
 
   clock_t begin = clock();
   errors += fft_test_2d_distributed_low((const int[2]){15, 9}, 51);
+  // This is required for the other test ???
+  // errors += fft_test_2d_distributed_low((const int[2]){8, 4}, 2);
+  // errors += fft_test_2d_distributed_low((const int[2]){2, 4}, 8);
   errors += fft_test_2d_distributed_low((const int[2]){12, 14}, 23);
 
   errors += fft_test_2d_distributed_r2c_low((const int[2]){15, 9}, 51);
@@ -1700,8 +1705,9 @@ int fft_test_distributed() {
   errors += fft_test_3d_distributed_r2c_low((const int[3]){8, 8, 8}, 19);
   errors += fft_test_3d_distributed_r2c_low((const int[3]){7, 5, 3}, 11);
   clock_t end = clock();
-  printf("Time to test distributed FFTs with planning: %f\n",
-         (double)(end - begin) / CLOCKS_PER_SEC);
+  if (grid_mpi_comm_rank(grid_mpi_comm_world) == 0)
+    printf("Time to test distributed FFTs with planning: %f\n",
+           (double)(end - begin) / CLOCKS_PER_SEC);
 
   begin = clock();
   errors += fft_test_2d_distributed_low((const int[2]){15, 9}, 51);
@@ -1716,8 +1722,9 @@ int fft_test_distributed() {
   errors += fft_test_3d_distributed_r2c_low((const int[3]){8, 8, 8}, 19);
   errors += fft_test_3d_distributed_r2c_low((const int[3]){7, 5, 3}, 11);
   end = clock();
-  printf("Time to test distributed FFTs without planning: %f\n",
-         (double)(end - begin) / CLOCKS_PER_SEC);
+  if (grid_mpi_comm_rank(grid_mpi_comm_world) == 0)
+    printf("Time to test distributed FFTs without planning: %f\n",
+           (double)(end - begin) / CLOCKS_PER_SEC);
 
   return errors;
 }
