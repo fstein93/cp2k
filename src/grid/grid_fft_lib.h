@@ -26,13 +26,13 @@ static const grid_fft_lib GRID_FFT_LIB_DEFAULT = GRID_FFT_LIB_REF;
  * \author Frederick Stein
  ******************************************************************************/
 void fft_init_lib(const grid_fft_lib lib, const int fftw_planning_flag,
-                  const bool use_fft_mpi);
+                  const bool use_fft_mpi, const char *wisdom_file);
 
 /*******************************************************************************
  * \brief Finalize the FFT library (if not done externally).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_finalize_lib();
+void fft_finalize_lib(const char *wisdom_file);
 
 /*******************************************************************************
  * \brief Whether compound MPI implementations are available.

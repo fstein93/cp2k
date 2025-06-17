@@ -28,7 +28,7 @@
 typedef struct {
   // The key contains
   // 0: rank, transposition (see below)
-  // 1: associated communicator handle (from Fortran)
+  // 1: associated Fortran communicator handle (to store it as an integer)
   // 2: direction (forward/backward)
   // 3, 4, 5: FFT sizes (or FFT sizes and number of FFTs)
   int key[6];
@@ -47,7 +47,9 @@ static int fftw_planning_mode = -1;
 static bool use_fftw_mpi = false;
 
 // These constants encode transposition and MPI usage into the key to cache the
-// plans 1, 2, 3 is the rank of the transposition 4 == 2^2
+// plans
+// Modulo 4 encodes the rank (1, 2, 3)
+// 4 == 2^2
 #define FFTW_TRANSPOSE_RS 4
 // 8 == 2^3
 #define FFTW_TRANSPOSE_GS 8
@@ -98,7 +100,7 @@ static void add_plan_to_cache(const int key[6], fftw_plan *plan) {
  * \author Frederick Stein, Ole Schuett
  ******************************************************************************/
 void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
-                       const bool use_fft_mpi) {
+                       const bool use_fft_mpi, const char *wisdom_file) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   if (is_initialized) {
@@ -143,11 +145,20 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   (void)use_fft_mpi;
   use_fftw_mpi = false;
 #endif
+  // Export wisdom after intializing the library to ensure correct threading
+  // etc.
+  if (wisdom_file != NULL) {
+    const int error = fftw_import_wisdom_from_filename(wisdom_file);
+    if (error != 0 && grid_mpi_comm_rank(grid_mpi_comm_world))
+      fprintf(stderr,
+              "Importing wisdom failed! Maybe the file does not exist.");
+  }
   if (use_fftw_mpi)
     printf("Using FFTW MPI\n");
 #else
   (void)fftw_planning_flag;
   (void)use_fft_mpi;
+  (void)wisdom_file;
 #endif
 }
 
@@ -155,7 +166,7 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
  * \brief Finalize the FFT library (if not done externally).
  * \author Frederick Stein, Ole Schuett
  ******************************************************************************/
-void fft_fftw_finalize_lib() {
+void fft_fftw_finalize_lib(const char *wisdom_file) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   if (!is_initialized) {
@@ -167,6 +178,14 @@ void fft_fftw_finalize_lib() {
       free(cache[i].plan);
     }
   }
+  // Export wisdom before finalizing the library to ensure storing the correct
+  // threading etc.
+  if (wisdom_file != NULL) {
+    const int error = fftw_export_wisdom_to_filename(wisdom_file);
+    if (error != 0 && grid_mpi_comm_rank(grid_mpi_comm_world))
+      fprintf(stderr,
+              "Exporting wisdom failed! Maybe writing access is missing.");
+  }
   is_initialized = false;
   fftw_planning_mode = -1;
 #if defined(__parallel) && defined(__FFTW3_MPI)
@@ -174,6 +193,8 @@ void fft_fftw_finalize_lib() {
 #else
   fftw_cleanup();
 #endif
+#else
+  (void)wisdom_file;
 #endif
 }
 

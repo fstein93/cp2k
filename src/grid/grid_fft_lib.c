@@ -29,14 +29,14 @@ bool grid_fft_lib_initialized = false;
  * \author Frederick Stein
  ******************************************************************************/
 void fft_init_lib(const grid_fft_lib lib, const int fftw_planning_flag,
-                  const bool use_fft_mpi) {
+                  const bool use_fft_mpi, const char *wisdom_file) {
   if (grid_fft_lib_initialized) {
     return;
   }
   grid_fft_lib_initialized = true;
   grid_fft_lib_choice = lib;
   fft_ref_init_lib();
-  fft_fftw_init_lib(fftw_planning_flag, use_fft_mpi);
+  fft_fftw_init_lib(fftw_planning_flag, use_fft_mpi, wisdom_file);
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_REF:
     printf("Using reference FFT library.\n");
@@ -53,9 +53,9 @@ void fft_init_lib(const grid_fft_lib lib, const int fftw_planning_flag,
  * \brief Finalize the FFT library (if not done externally).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_finalize_lib() {
+void fft_finalize_lib(const char *wisdom_file) {
   fft_ref_finalize_lib();
-  fft_fftw_finalize_lib();
+  fft_fftw_finalize_lib(wisdom_file);
   grid_fft_lib_initialized = false;
 }
 
