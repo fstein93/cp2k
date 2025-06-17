@@ -216,27 +216,6 @@ void fft_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
 }
 
 /*******************************************************************************
- * \brief Local transposition.
- * \author Frederick Stein
- ******************************************************************************/
-void transpose_local(double complex *grid, double complex *grid_transposed,
-                     const int number_of_columns_grid,
-                     const int number_of_rows_grid) {
-  switch (grid_fft_lib_choice) {
-  case GRID_FFT_LIB_REF:
-    fft_ref_transpose_local(grid, grid_transposed, number_of_columns_grid,
-                            number_of_rows_grid);
-    break;
-  case GRID_FFT_LIB_FFTW:
-    fft_fftw_transpose_local(grid, grid_transposed, number_of_columns_grid,
-                             number_of_rows_grid);
-    break;
-  default:
-    assert(0 && "Unknown FFT library.");
-  }
-}
-
-/*******************************************************************************
  * \brief Naive implementation of 2D FFT (transposed format, no normalization).
  * \author Frederick Stein
  ******************************************************************************/

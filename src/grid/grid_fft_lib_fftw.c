@@ -868,25 +868,6 @@ void fft_fftw_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
 }
 
 /*******************************************************************************
- * \brief Local transposition.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_fftw_transpose_local(double complex *grid,
-                              double complex *grid_transposed,
-                              const int number_of_columns_grid,
-                              const int number_of_rows_grid) {
-#pragma omp parallel for collapse(2) default(none)                             \
-    shared(grid, grid_transposed, number_of_columns_grid, number_of_rows_grid)
-  for (int column_index = 0; column_index < number_of_columns_grid;
-       column_index++) {
-    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
-      grid_transposed[column_index * number_of_rows_grid + row_index] =
-          grid[row_index * number_of_columns_grid + column_index];
-    }
-  }
-}
-
-/*******************************************************************************
  * \brief Performs a local forward C2C 2D FFT
  * \author Frederick Stein
  ******************************************************************************/

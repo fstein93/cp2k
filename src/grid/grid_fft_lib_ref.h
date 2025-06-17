@@ -85,15 +85,6 @@ void fft_ref_1d_bw_local_c2r(double complex *grid_gs, double *grid_rs,
                              const bool transpose_rs, const bool transpose_gs);
 
 /*******************************************************************************
- * \brief Local transposition.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_ref_transpose_local(double complex *grid,
-                             double complex *grid_transposed,
-                             const int number_of_columns_grid,
-                             const int number_of_rows_grid);
-
-/*******************************************************************************
  * \brief Naive implementation of 2D FFT (transposed format, no normalization).
  * \author Frederick Stein
  ******************************************************************************/
