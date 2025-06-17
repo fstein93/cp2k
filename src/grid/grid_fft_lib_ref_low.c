@@ -1776,16 +1776,34 @@ void fft_ref_3d_fw_local_low(double complex *restrict grid_in,
 
   clock_t begin = clock();
 #endif
+  double *grid_in_real = (double *)grid_in;
+  double *grid_in_imag =
+      ((double *)grid_in) + fft_size[0] * fft_size[1] * fft_size[2];
+  double *grid_out_real = (double *)grid_out;
+  double *grid_out_imag =
+      ((double *)grid_out) + fft_size[0] * fft_size[1] * fft_size[2];
 
-  fft_ref_1d_fw_local_low(grid_in, grid_out, fft_size[0],
-                          fft_size[1] * fft_size[2], fft_size[1] * fft_size[2],
-                          1, 1, fft_size[0]);
-  fft_ref_1d_fw_local_low(grid_out, grid_in, fft_size[1],
-                          fft_size[0] * fft_size[2], fft_size[0] * fft_size[2],
-                          1, 1, fft_size[1]);
-  fft_ref_1d_fw_local_low(grid_in, grid_out, fft_size[2],
-                          fft_size[0] * fft_size[1], fft_size[0] * fft_size[1],
-                          1, 1, fft_size[2]);
+  reorder_input(grid_in, grid_out_real, grid_out_imag, fft_size[0],
+                fft_size[1] * fft_size[2], fft_size[1] * fft_size[2], 1);
+  fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[0],
+                               fft_size[1] * fft_size[2]);
+  reorder_output(grid_in_real, grid_in_imag, grid_out, fft_size[0],
+                 fft_size[1] * fft_size[2], 1, fft_size[0]);
+  reorder_input(grid_out, grid_in_real, grid_in_imag, fft_size[1],
+                fft_size[0] * fft_size[2], fft_size[0] * fft_size[2], 1);
+  fft_ref_1d_fw_local_internal(grid_in_real, grid_in_imag, grid_out_real,
+                               grid_out_imag, fft_size[1],
+                               fft_size[0] * fft_size[2]);
+  reorder_output(grid_out_real, grid_out_imag, grid_in, fft_size[1],
+                 fft_size[0] * fft_size[2], 1, fft_size[1]);
+  reorder_input(grid_in, grid_out_real, grid_out_imag, fft_size[2],
+                fft_size[0] * fft_size[1], fft_size[0] * fft_size[1], 1);
+  fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[2],
+                               fft_size[0] * fft_size[1]);
+  reorder_output(grid_in_real, grid_in_imag, grid_out, fft_size[2],
+                 fft_size[0] * fft_size[1], 1, fft_size[2]);
 
 #if PROFILE_CODE
   clock_t end = clock();
@@ -1935,16 +1953,34 @@ void fft_ref_3d_bw_local_low(double complex *restrict grid_in,
 
   clock_t begin = clock();
 #endif
+  double *grid_in_real = (double *)grid_in;
+  double *grid_in_imag =
+      ((double *)grid_in) + fft_size[0] * fft_size[1] * fft_size[2];
+  double *grid_out_real = (double *)grid_out;
+  double *grid_out_imag =
+      ((double *)grid_out) + fft_size[0] * fft_size[1] * fft_size[2];
 
-  fft_ref_1d_bw_local_low(grid_in, grid_out, fft_size[0],
-                          fft_size[1] * fft_size[2], fft_size[1] * fft_size[2],
-                          1, 1, fft_size[0]);
-  fft_ref_1d_bw_local_low(grid_out, grid_in, fft_size[1],
-                          fft_size[0] * fft_size[2], fft_size[0] * fft_size[2],
-                          1, 1, fft_size[1]);
-  fft_ref_1d_bw_local_low(grid_in, grid_out, fft_size[2],
-                          fft_size[0] * fft_size[1], fft_size[0] * fft_size[1],
-                          1, 1, fft_size[2]);
+  reorder_input(grid_in, grid_out_real, grid_out_imag, fft_size[0],
+                fft_size[1] * fft_size[2], fft_size[1] * fft_size[2], 1);
+  fft_ref_1d_bw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[0],
+                               fft_size[1] * fft_size[2]);
+  reorder_output(grid_in_real, grid_in_imag, grid_out, fft_size[0],
+                 fft_size[1] * fft_size[2], 1, fft_size[0]);
+  reorder_input(grid_out, grid_in_real, grid_in_imag, fft_size[1],
+                fft_size[0] * fft_size[2], fft_size[0] * fft_size[2], 1);
+  fft_ref_1d_bw_local_internal(grid_in_real, grid_in_imag, grid_out_real,
+                               grid_out_imag, fft_size[1],
+                               fft_size[0] * fft_size[2]);
+  reorder_output(grid_out_real, grid_out_imag, grid_in, fft_size[1],
+                 fft_size[0] * fft_size[2], 1, fft_size[1]);
+  reorder_input(grid_in, grid_out_real, grid_out_imag, fft_size[2],
+                fft_size[0] * fft_size[1], fft_size[0] * fft_size[1], 1);
+  fft_ref_1d_bw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
+                               grid_in_imag, fft_size[2],
+                               fft_size[0] * fft_size[1]);
+  reorder_output(grid_in_real, grid_in_imag, grid_out, fft_size[2],
+                 fft_size[0] * fft_size[1], 1, fft_size[2]);
 
 #if PROFILE_CODE
   clock_t end = clock();
