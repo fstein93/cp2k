@@ -83,6 +83,13 @@ void grid_create_fft_grid_layout(grid_fft_grid_layout **fft_grid,
                                  const bool use_halfspace);
 
 /*******************************************************************************
+ * \brief Print some information on a grid.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_print_grid_layout_info(const grid_fft_grid_layout *layout,
+                                 bool print_distribution);
+
+/*******************************************************************************
  * \brief Create a FFT grid using a reference grid to interact with this grid.
  * \note The reference grid has had to be created using
  *grid_create_fft_grid_layout \author Frederick Stein
