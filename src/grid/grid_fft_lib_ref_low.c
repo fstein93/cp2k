@@ -1486,56 +1486,26 @@ void fft_ref_2d_fw_local_r2c_low(double *restrict grid_in,
 #endif
 
   // We reorder the data to a format more suitable for vectorization
-  double *grid_in_real = (double *)grid_in;
+  double complex *grid_in_complex = (double complex *)grid_in;
   double *grid_out_real = (double *)grid_out;
-  double *grid_out_imag =
-      ((double *)grid_out) + fft_size[0] * fft_size[1] * number_of_ffts;
-  double *grid_in_imag =
-      grid_in_real + fft_size[0] * fft_size[1] * number_of_ffts;
-
-  // Perform the first FFT (R2C along the first dimension) and prepare for the
-  // second FFT
-  if (fft_size[0] % 2 == 0) {
-    // Perform two FFTs of half length
-    grid_in_imag =
-        grid_in_real + fft_size[0] / 2 * fft_size[1] * number_of_ffts;
-    grid_out_imag =
-        grid_out_real + fft_size[0] / 2 * fft_size[1] * number_of_ffts;
-    reorder_input_r2c_for_c2c(grid_in, grid_out_real, grid_out_imag, fft_size,
-                              number_of_ffts, stride_in, distance_in);
-    fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
-                                 grid_in_imag, fft_size[0] / 2,
-                                 number_of_ffts * fft_size[1]);
-    fft_twiddle_r2c_fw_for_c2c_2d(grid_in_real, grid_in_imag, grid_out_real,
-                                  fft_size, number_of_ffts);
-  } else {
-    reorder_input_r2c(grid_in, grid_out_real, fft_size[0] * fft_size[1],
-                      number_of_ffts, stride_in, distance_in);
-    fft_ref_1d_fw_local_r2c_naive(grid_out_real, grid_in_real, fft_size[0],
-                                  number_of_ffts * fft_size[1]);
-    grid_in_imag =
-        grid_in_real + (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts;
-    grid_out_imag =
-        grid_out_real + (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts;
-    // Transpose the data
-    fft_ref_transpose_local_double_block(grid_in_real, grid_out_real,
-                                         fft_size[1], fft_size[0] / 2 + 1,
-                                         number_of_ffts);
-    fft_ref_transpose_local_double_block(grid_in_imag, grid_out_imag,
-                                         fft_size[1], fft_size[0] / 2 + 1,
-                                         number_of_ffts);
+  
+  for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out_real[(index_0*number_of_ffts+fft)*fft_size[1]+index_1] = grid_in[(index_0*fft_size[1]+index_1)*stride_in+fft*distance_in];
+      }
+    }
   }
-  grid_out_imag =
-      grid_out_real + (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts;
-  grid_in_imag =
-      grid_in_real + (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts;
-
-  fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
-                               grid_in_imag, fft_size[1],
-                               number_of_ffts * (fft_size[0] / 2 + 1));
-  reorder_output_2d(grid_in_real, grid_in_imag, grid_out,
-                    (const int[2]){fft_size[0] / 2 + 1, fft_size[1]},
-                    number_of_ffts, stride_out, distance_out);
+  fft_ref_1d_fw_local_r2c_low(grid_out_real, grid_in_complex, fft_size[1], fft_size[0]*number_of_ffts, 1, 1, fft_size[1], fft_size[1]/2+1);
+  fft_ref_1d_fw_local_low(grid_in_complex, grid_out, fft_size[0], (fft_size[1]/2+1)*number_of_ffts, (fft_size[1]/2+1)*number_of_ffts, (fft_size[1]/2+1)*number_of_ffts, 1, 1);
+  for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[1]/2+1; index_1++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_in_complex[(index_0*(fft_size[1]/2+1)+index_1)*stride_out+fft*distance_out] = grid_out[(index_0*number_of_ffts+fft)*(fft_size[1]/2+1)+index_1] ;
+      }
+    }
+  }
+  memcpy(grid_out, grid_in_complex, fft_size[0]*(fft_size[1]/2+1)*number_of_ffts*sizeof(double complex));
 
 #if PROFILE_CODE
   clock_t end = clock();
@@ -1651,46 +1621,26 @@ void fft_ref_2d_bw_local_c2r_low(double complex *restrict grid_in,
 
   // We reorder the data to a format more suitable for vectorization
   double *grid_in_real = (double *)grid_in;
-  double *grid_in_imag = ((double *)grid_in) +
-                         (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts;
-  double *grid_out_real = (double *)grid_out;
-  double *grid_out_imag = ((double *)grid_out) +
-                          (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts;
+  double complex *grid_out_complex = ((double complex *)grid_out);
 
-  reorder_input_c2r_2d(grid_in, grid_out_real, grid_out_imag, fft_size,
-                       number_of_ffts, stride_in, distance_in);
-  fft_ref_1d_bw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
-                               grid_in_imag, fft_size[1],
-                               number_of_ffts * (fft_size[0] / 2 + 1));
-  // Transpose the data
-  if (fft_size[0] % 2 == 0) {
-    // Reorder the data and apply the twiddle factors
-    const int large_factor = fft_size[0] / 2;
-    double *grid_out_imag =
-        grid_out + large_factor * fft_size[1] * number_of_ffts;
-
-    reorder_input_c2r_for_c2c_2d(grid_in_real, grid_in_imag, grid_out_real,
-                                 grid_out_imag, fft_size, number_of_ffts);
-    // Now, we have FFTs of half size
-    grid_in_imag = grid_in_real + large_factor * fft_size[1] * number_of_ffts;
-    fft_ref_1d_bw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
-                                 grid_in_imag, large_factor,
-                                 number_of_ffts * fft_size[1]);
-    reorder_output_c2r_from_c2c_2d(grid_in_real, grid_in_imag, grid_out,
-                                   large_factor, fft_size[1], number_of_ffts,
-                                   stride_out, distance_out);
-  } else {
-    fft_ref_transpose_local_double_block(grid_in_real, grid_out_real,
-                                         fft_size[0] / 2 + 1, fft_size[1],
-                                         number_of_ffts);
-    fft_ref_transpose_local_double_block(grid_in_imag, grid_out_imag,
-                                         fft_size[0] / 2 + 1, fft_size[1],
-                                         number_of_ffts);
-    fft_ref_1d_bw_local_c2r_naive(grid_out_real, grid_in_real, fft_size[0],
-                                  number_of_ffts * fft_size[1]);
-    reorder_output_c2r(grid_in_real, grid_out, fft_size[0] * fft_size[1],
-                       number_of_ffts, stride_out, distance_out);
+  
+  for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[1]/2+1; index_1++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_out_complex[(index_0*number_of_ffts+fft)*(fft_size[1]/2+1)+index_1] = grid_in[(index_0*(fft_size[1]/2+1)+index_1)*stride_in+fft*distance_in];
+      }
+    }
   }
+  fft_ref_1d_bw_local_low(grid_out_complex, grid_in, fft_size[0], (fft_size[1]/2+1)*number_of_ffts, (fft_size[1]/2+1)*number_of_ffts, (fft_size[1]/2+1)*number_of_ffts, 1, 1);
+  fft_ref_1d_bw_local_c2r_low(grid_in, grid_out, fft_size[1], fft_size[0]*number_of_ffts, 1, 1, fft_size[1]/2+1, fft_size[1]);
+  for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+    for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
+      for (int fft = 0; fft < number_of_ffts; fft++) {
+        grid_in_real[(index_0*fft_size[1]+index_1)*stride_out+fft*distance_out] = grid_out[(index_0*number_of_ffts+fft)*fft_size[1]+index_1] ;
+      }
+    }
+  }
+  memcpy(grid_out, grid_in_real, fft_size[0]*fft_size[1]*number_of_ffts*sizeof(double));
 
 #if PROFILE_CODE
   clock_t end = clock();

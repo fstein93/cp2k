@@ -377,8 +377,8 @@ fftw_plan *fft_fftw_create_2d_plan(const int direction, const int fft_size[2],
                           FFTW_TRANSPOSE_GS * transpose_gs,
                       grid_mpi_comm_c2f(grid_mpi_comm_null),
                       direction,
-                      fft_size[1],
                       fft_size[0],
+                      fft_size[1],
                       number_of_ffts};
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -428,8 +428,8 @@ fftw_plan *fft_fftw_create_2d_plan_r2c(const int direction,
                           FFTW_TRANSPOSE_GS * transpose_gs + FFTW_R2C,
                       grid_mpi_comm_c2f(grid_mpi_comm_null),
                       direction,
-                      fft_size[1],
                       fft_size[0],
+                      fft_size[1],
                       number_of_ffts};
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -438,61 +438,27 @@ fftw_plan *fft_fftw_create_2d_plan_r2c(const int direction,
     // We need the guru interface here because cuts the last dimension in half
     // whereas we want the first dimension
     const int rank = 2;
-    fftw_iodim dims[2];
-    const int howmany_rank = 1;
-    fftw_iodim howmany_dims[1];
-    dims[0].n = fft_size[1];
-    dims[1].n = fft_size[0];
-    howmany_dims[0].n = number_of_ffts;
-    double *double_buffer = fftw_alloc_real(2 * (fft_size[0] / 2 + 1) *
-                                            fft_size[1] * number_of_ffts);
+    const int *n = fft_size;
+    const int howmany = number_of_ffts;
+    const int *inembed = NULL; // = fft_size;
+    const int *onembed = NULL; // = {fft_size[0],fft_size[1]/2+1};
+    const int idist = transpose_rs ? 1 : fft_size[0] * fft_size[1];
+    const int odist = transpose_gs ? 1 : fft_size[0] * (fft_size[1] / 2 + 1);
+    const int istride = transpose_rs ? number_of_ffts : 1;
+    const int ostride = transpose_gs ? number_of_ffts : 1;
+    double *double_buffer = fftw_alloc_real(
+        2 * fft_size[0] * (fft_size[1] / 2 + 1) * number_of_ffts);
     double complex *complex_buffer = fftw_alloc_complex(
-        (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts);
+        fft_size[0] * (fft_size[1] / 2 + 1) * number_of_ffts);
     plan = malloc(sizeof(fftw_plan));
     if (direction == FFTW_FORWARD) {
-      if (transpose_rs) {
-        dims[0].is = number_of_ffts;
-        dims[1].is = number_of_ffts * fft_size[1];
-        howmany_dims[0].is = 1;
-      } else {
-        dims[0].is = 1;
-        dims[1].is = fft_size[1];
-        howmany_dims[0].is = fft_size[0] * fft_size[1];
-      }
-      if (transpose_gs) {
-        dims[0].os = number_of_ffts;
-        dims[1].os = number_of_ffts * fft_size[1];
-        howmany_dims[0].os = 1;
-      } else {
-        dims[0].os = 1;
-        dims[1].os = fft_size[1];
-        howmany_dims[0].os = (fft_size[0] / 2 + 1) * fft_size[1];
-      }
-      *plan = fftw_plan_guru_dft_r2c(rank, dims, howmany_rank, howmany_dims,
-                                     double_buffer, complex_buffer,
-                                     fftw_planning_mode);
+      *plan = fftw_plan_many_dft_r2c(rank, n, howmany, double_buffer, inembed,
+                                     istride, idist, complex_buffer, onembed,
+                                     ostride, odist, fftw_planning_mode);
     } else {
-      if (transpose_rs) {
-        dims[0].os = number_of_ffts;
-        dims[1].os = number_of_ffts * fft_size[1];
-        howmany_dims[0].os = 1;
-      } else {
-        dims[0].os = 1;
-        dims[1].os = fft_size[1];
-        howmany_dims[0].os = fft_size[0] * fft_size[1];
-      }
-      if (transpose_gs) {
-        dims[0].is = number_of_ffts;
-        dims[1].is = number_of_ffts * fft_size[1];
-        howmany_dims[0].is = 1;
-      } else {
-        dims[0].is = 1;
-        dims[1].is = fft_size[1];
-        howmany_dims[0].is = (fft_size[0] / 2 + 1) * fft_size[1];
-      }
-      *plan = fftw_plan_guru_dft_c2r(rank, dims, howmany_rank, howmany_dims,
-                                     complex_buffer, double_buffer,
-                                     fftw_planning_mode);
+      *plan = fftw_plan_many_dft_c2r(rank, n, howmany, complex_buffer, onembed,
+                                     ostride, odist, double_buffer, inembed,
+                                     istride, idist, fftw_planning_mode);
     }
     assert(plan != NULL);
     add_plan_to_cache(key, plan);
@@ -537,8 +503,8 @@ fftw_plan *fft_fftw_create_3d_plan(const int direction, const int fft_size[3]) {
 fftw_plan *fft_fftw_create_3d_plan_r2c(const int direction,
                                        const int fft_size[3]) {
   const int key[6] = {3 + FFTW_R2C, grid_mpi_comm_c2f(grid_mpi_comm_null),
-                      direction,    fft_size[2],
-                      fft_size[1],  fft_size[0]};
+                      direction,    fft_size[0],
+                      fft_size[1],  fft_size[2]};
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     const int nthreads = omp_get_max_threads();
