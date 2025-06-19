@@ -584,14 +584,14 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      for (int index_1 = 0; index_1 < fft_size[0] / 2 + 1; index_1++) {
+      for (int index_0 = 0; index_0 < fft_size[0] / 2 + 1; index_0++) {
         for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
           const double complex my_value =
               output_array[number_of_fft +
-                           (index_1 * fft_size[1] + index_2) * number_of_ffts];
+                           (index_0 * fft_size[1] + index_2) * number_of_ffts];
           const double complex ref_value = cexp(
               -2.0 * I * pi *
-              ((double)(number_of_fft / fft_size[1]) * index_1 / fft_size[0] +
+              ((double)(number_of_fft / fft_size[1]) * index_0 / fft_size[0] +
                (double)(number_of_fft % fft_size[1]) * index_2 / fft_size[1]));
           double current_error = cabs(my_value - ref_value);
           max_error = fmax(max_error, current_error);
@@ -604,14 +604,14 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      for (int index_1 = 0; index_1 < fft_size[0] / 2 + 1; index_1++) {
+      for (int index_0 = 0; index_0 < fft_size[0] / 2 + 1; index_0++) {
         for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
           const double complex my_value =
               output_array[number_of_fft * (fft_size[0] / 2 + 1) * fft_size[1] +
-                           index_1 * fft_size[1] + index_2];
+                           index_0 * fft_size[1] + index_2];
           const double complex ref_value = cexp(
               -2.0 * I * pi *
-              ((double)(number_of_fft / fft_size[1]) * index_1 / fft_size[0] +
+              ((double)(number_of_fft / fft_size[1]) * index_0 / fft_size[0] +
                (double)(number_of_fft % fft_size[1]) * index_2 / fft_size[1]));
           double current_error = cabs(my_value - ref_value);
           max_error = fmax(max_error, current_error);
@@ -641,14 +641,14 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      for (int index_1 = 0; index_1 < fft_size[0] / 2 + 1; index_1++) {
-        for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
+      for (int index_0 = 0; index_0 < fft_size[0] / 2 + 1; index_0++) {
+        for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
           output_array[number_of_fft +
-                       (index_1 * fft_size[1] + index_2) * number_of_ffts] =
+                       (index_0 * fft_size[1] + index_1) * number_of_ffts] =
               cexp(-2.0 * I * pi *
-                   ((double)(number_of_fft / fft_size[1]) * index_1 /
+                   ((double)(number_of_fft / fft_size[1]) * index_0 /
                         fft_size[0] +
-                    (double)(number_of_fft % fft_size[1]) * index_2 /
+                    (double)(number_of_fft % fft_size[1]) * index_1 /
                         fft_size[1]));
         }
       }
@@ -659,14 +659,14 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      for (int index_1 = 0; index_1 < fft_size[0] / 2 + 1; index_1++) {
-        for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
+      for (int index_0 = 0; index_0 < fft_size[0] / 2 + 1; index_0++) {
+        for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
           output_array[number_of_fft * (fft_size[0] / 2 + 1) * fft_size[1] +
-                       index_1 * fft_size[1] + index_2] =
+                       index_0 * fft_size[1] + index_1] =
               cexp(-2.0 * I * pi *
-                   ((double)(number_of_fft / fft_size[1]) * index_1 /
+                   ((double)(number_of_fft / fft_size[1]) * index_0 /
                         fft_size[0] +
-                    (double)(number_of_fft % fft_size[1]) * index_2 /
+                    (double)(number_of_fft % fft_size[1]) * index_1 /
                         fft_size[1]));
         }
       }
@@ -681,21 +681,21 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, number_of_ffts, pi, my_process)              \
     reduction(max : max_error) collapse(3)
-    for (int index_1 = 0; index_1 < fft_size[0]; index_1++) {
-      for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
+    for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+      for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
         for (int number_of_fft = 0; number_of_fft < number_of_ffts;
              number_of_fft++) {
           const double my_value =
-              input_array[(index_1 * fft_size[1] + index_2) * number_of_ffts +
+              input_array[(index_0 * fft_size[1] + index_1) * number_of_ffts +
                           number_of_fft];
           const double ref_value =
-              index_1 == number_of_fft / fft_size[1] &&
-                      index_2 == number_of_fft % fft_size[1]
+              index_0 == number_of_fft / fft_size[1] &&
+                      index_1 == number_of_fft % fft_size[1]
                   ? (double)(fft_size[0] * fft_size[1])
                   : 0.0;
           const double current_error = fabs(my_value - ref_value);
           if (my_process == 0 && current_error > 1e-6)
-            printf("Error %i %i %i: %f %f\n", index_1, index_2, number_of_fft,
+            printf("Error %i %i %i: %f %f\n", index_0, index_1, number_of_fft,
                    my_value, ref_value);
           max_error = fmax(max_error, current_error);
         }
@@ -707,19 +707,19 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      for (int index_1 = 0; index_1 < fft_size[0]; index_1++) {
-        for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
+      for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+        for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
           const double my_value =
-              input_array[index_1 * fft_size[1] + index_2 +
+              input_array[index_0 * fft_size[1] + index_1 +
                           number_of_fft * fft_size[0] * fft_size[1]];
           const double ref_value =
-              index_1 == number_of_fft / fft_size[1] &&
-                      index_2 == number_of_fft % fft_size[1]
+              index_0 == number_of_fft / fft_size[1] &&
+                      index_1 == number_of_fft % fft_size[1]
                   ? (double)(fft_size[0] * fft_size[1])
                   : 0.0;
           double current_error = fabs(my_value - ref_value);
           if (my_process == 0 && current_error > 1e-8)
-            printf("Error %i %i %i: %f %f\n", index_1, index_2, number_of_fft,
+            printf("Error %i %i %i: %f %f\n", index_0, index_1, number_of_fft,
                    my_value, ref_value);
           max_error = fmax(max_error, current_error);
         }
