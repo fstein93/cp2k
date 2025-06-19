@@ -548,47 +548,47 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
 
   const double pi = acos(-1);
 
-  double *input_array = NULL;
-  double complex *output_array = NULL;
+  double *real_buffer = NULL;
+  double complex *complex_buffer = NULL;
   fft_allocate_double(2 * (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts,
-                      &input_array);
+                      &real_buffer);
   fft_allocate_complex((fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts,
-                       &output_array);
+                       &complex_buffer);
 
   double max_error = 0.0;
   // Check the forward FFT
   if (transpose_rs) {
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, number_of_ffts)
+    shared(real_buffer, fft_size, number_of_ffts)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      input_array[number_of_fft % (fft_size[0] * fft_size[1]) * number_of_ffts +
+      real_buffer[number_of_fft % (fft_size[0] * fft_size[1]) * number_of_ffts +
                   number_of_fft] = 1.0;
     }
   } else {
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, number_of_ffts)
+    shared(real_buffer, fft_size, number_of_ffts)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      input_array[number_of_fft % (fft_size[0] * fft_size[1]) +
+      real_buffer[number_of_fft % (fft_size[0] * fft_size[1]) +
                   number_of_fft * (fft_size[0] * fft_size[1])] = 1.0;
     }
   }
 
   fft_2d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-                      input_array, output_array);
+                      real_buffer, complex_buffer);
 
   if (transpose_gs) {
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, number_of_ffts, pi)                         \
+    shared(complex_buffer, fft_size, number_of_ffts, pi)                       \
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
       for (int index_0 = 0; index_0 < fft_size[0] / 2 + 1; index_0++) {
         for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
           const double complex my_value =
-              output_array[number_of_fft +
-                           (index_0 * fft_size[1] + index_2) * number_of_ffts];
+              complex_buffer[number_of_fft + (index_0 * fft_size[1] + index_2) *
+                                                 number_of_ffts];
           const double complex ref_value = cexp(
               -2.0 * I * pi *
               ((double)(number_of_fft / fft_size[1]) * index_0 / fft_size[0] +
@@ -600,15 +600,16 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
     }
   } else {
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, number_of_ffts, pi)                         \
+    shared(complex_buffer, fft_size, number_of_ffts, pi)                       \
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
       for (int index_0 = 0; index_0 < fft_size[0] / 2 + 1; index_0++) {
         for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
           const double complex my_value =
-              output_array[number_of_fft * (fft_size[0] / 2 + 1) * fft_size[1] +
-                           index_0 * fft_size[1] + index_2];
+              complex_buffer[number_of_fft * (fft_size[0] / 2 + 1) *
+                                 fft_size[1] +
+                             index_0 * fft_size[1] + index_2];
           const double complex ref_value = cexp(
               -2.0 * I * pi *
               ((double)(number_of_fft / fft_size[1]) * index_0 / fft_size[0] +
@@ -631,20 +632,20 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
   }
 
   // Check the backward FFT
-  memset(output_array, 0,
+  memset(complex_buffer, 0,
          (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts *
              sizeof(double complex));
 
   if (transpose_gs) {
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, number_of_ffts, pi)                         \
+    shared(complex_buffer, fft_size, number_of_ffts, pi)                       \
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
       for (int index_0 = 0; index_0 < fft_size[0] / 2 + 1; index_0++) {
         for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
-          output_array[number_of_fft +
-                       (index_0 * fft_size[1] + index_1) * number_of_ffts] =
+          complex_buffer[number_of_fft +
+                         (index_0 * fft_size[1] + index_1) * number_of_ffts] =
               cexp(-2.0 * I * pi *
                    ((double)(number_of_fft / fft_size[1]) * index_0 /
                         fft_size[0] +
@@ -655,14 +656,14 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
     }
   } else {
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, number_of_ffts, pi)                         \
+    shared(complex_buffer, fft_size, number_of_ffts, pi)                       \
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
       for (int index_0 = 0; index_0 < fft_size[0] / 2 + 1; index_0++) {
         for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
-          output_array[number_of_fft * (fft_size[0] / 2 + 1) * fft_size[1] +
-                       index_0 * fft_size[1] + index_1] =
+          complex_buffer[number_of_fft * (fft_size[0] / 2 + 1) * fft_size[1] +
+                         index_0 * fft_size[1] + index_1] =
               cexp(-2.0 * I * pi *
                    ((double)(number_of_fft / fft_size[1]) * index_0 /
                         fft_size[0] +
@@ -674,19 +675,19 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
   }
 
   fft_2d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-                      output_array, input_array);
+                      complex_buffer, real_buffer);
 
   max_error = 0.0;
   if (transpose_rs) {
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, number_of_ffts, pi, my_process)              \
+    shared(real_buffer, fft_size, number_of_ffts, pi, my_process)              \
     reduction(max : max_error) collapse(3)
     for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
       for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
         for (int number_of_fft = 0; number_of_fft < number_of_ffts;
              number_of_fft++) {
           const double my_value =
-              input_array[(index_0 * fft_size[1] + index_1) * number_of_ffts +
+              real_buffer[(index_0 * fft_size[1] + index_1) * number_of_ffts +
                           number_of_fft];
           const double ref_value =
               index_0 == number_of_fft / fft_size[1] &&
@@ -703,14 +704,14 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
     }
   } else {
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, number_of_ffts, pi, my_process)              \
+    shared(real_buffer, fft_size, number_of_ffts, pi, my_process)              \
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
       for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
         for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
           const double my_value =
-              input_array[index_0 * fft_size[1] + index_1 +
+              real_buffer[index_0 * fft_size[1] + index_1 +
                           number_of_fft * fft_size[0] * fft_size[1]];
           const double ref_value =
               index_0 == number_of_fft / fft_size[1] &&
@@ -728,8 +729,8 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
   }
   fflush(stdout);
 
-  fft_free_double(input_array);
-  fft_free_complex(output_array);
+  fft_free_double(real_buffer);
+  fft_free_complex(complex_buffer);
 
   if (max_error > 1e-8) {
     if (my_process == 0) {
@@ -883,12 +884,12 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
 
   const double pi = acos(-1);
 
-  double *input_array = NULL;
-  double complex *output_array = NULL;
+  double *double_buffer = NULL;
+  double complex *complex_buffer = NULL;
   fft_allocate_double(2 * fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1),
-                      &input_array);
+                      &double_buffer);
   fft_allocate_complex(fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1),
-                       &output_array);
+                       &complex_buffer);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -900,22 +901,22 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
           continue;
         }
         number_of_tests++;
-        memset(input_array, 0,
+        memset(double_buffer, 0,
                fft_size[0] * fft_size[1] * fft_size[2] *
                    sizeof(double complex));
-        input_array[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
+        double_buffer[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
             1.0;
-        fft_3d_fw_local_r2c(fft_size, input_array, output_array);
+        fft_3d_fw_local_r2c(fft_size, double_buffer, complex_buffer);
 
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, pi, mx, my, mz, my_process)                 \
+    shared(complex_buffer, fft_size, pi, mx, my, mz, my_process)               \
     reduction(max : max_error) collapse(3)
         for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nx = 0; nx < fft_size[0]; nx++) {
               const double complex my_value =
-                  output_array[nz * fft_size[0] * fft_size[1] +
-                               ny * fft_size[0] + nx];
+                  complex_buffer[nz * fft_size[0] * fft_size[1] +
+                                 ny * fft_size[0] + nx];
               const double complex ref_value =
                   cexp(-2.0 * I * pi *
                        (((double)mx) * nx / fft_size[0] +
@@ -957,29 +958,29 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
         number_of_tests++;
 
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, pi, mx, my, mz, my_process) collapse(3)
+    shared(complex_buffer, fft_size, pi, mx, my, mz, my_process) collapse(3)
         for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nx = 0; nx < fft_size[0]; nx++) {
-              output_array[nz * fft_size[0] * fft_size[1] + ny * fft_size[0] +
-                           nx] = cexp(-2.0 * I * pi *
-                                      (((double)mx) * nx / fft_size[0] +
-                                       ((double)my) * ny / fft_size[1] +
-                                       ((double)mz) * nz / fft_size[2]));
+              complex_buffer[nz * fft_size[0] * fft_size[1] + ny * fft_size[0] +
+                             nx] = cexp(-2.0 * I * pi *
+                                        (((double)mx) * nx / fft_size[0] +
+                                         ((double)my) * ny / fft_size[1] +
+                                         ((double)mz) * nz / fft_size[2]));
             }
           }
         }
-        fft_3d_bw_local_c2r(fft_size, output_array, input_array);
+        fft_3d_bw_local_c2r(fft_size, complex_buffer, double_buffer);
 
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, pi, mx, my, mz, my_process)                  \
+    shared(double_buffer, fft_size, pi, mx, my, mz, my_process)                \
     reduction(max : max_error) collapse(3)
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
               const double my_value =
-                  input_array[nz * fft_size[0] * fft_size[1] +
-                              ny * fft_size[0] + nx];
+                  double_buffer[nz * fft_size[0] * fft_size[1] +
+                                ny * fft_size[0] + nx];
               const double ref_value = (nx == mx && ny == my && nz == mz)
                                            ? (double)product3(fft_size)
                                            : 0.0;
@@ -997,8 +998,8 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
   }
   fflush(stdout);
 
-  fft_free_double(input_array);
-  fft_free_complex(output_array);
+  fft_free_double(double_buffer);
+  fft_free_complex(complex_buffer);
 
   if (max_error > 1e-6) {
     if (my_process == 0) {
