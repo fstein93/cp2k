@@ -924,19 +924,19 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
         memset(double_buffer, 0,
                fft_size[0] * fft_size[1] * fft_size[2] *
                    sizeof(double complex));
-        double_buffer[mz * fft_size[0] * fft_size[1] + my * fft_size[0] + mx] =
+        double_buffer[mx * fft_size[1] * fft_size[2] + my * fft_size[2] + mz] =
             1.0;
         fft_3d_fw_local_r2c(fft_size, double_buffer, complex_buffer);
 
 #pragma omp parallel for default(none)                                         \
     shared(complex_buffer, fft_size, pi, mx, my, mz, my_process)               \
     reduction(max : max_error) collapse(3)
-        for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
-          for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nx = 0; nx < fft_size[0]; nx++) {
+          for (int ny = 0; ny < fft_size[1]; ny++) {
+        for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
               const double complex my_value =
-                  complex_buffer[nz * fft_size[0] * fft_size[1] +
-                                 ny * fft_size[0] + nx];
+                  complex_buffer[nx * fft_size[1] * (fft_size[2]/2+1) +
+                                 ny * (fft_size[2]/2+1) + nz];
               const double complex ref_value =
                   cexp(-2.0 * I * pi *
                        (((double)mx) * nx / fft_size[0] +
@@ -982,8 +982,8 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
         for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nx = 0; nx < fft_size[0]; nx++) {
-              complex_buffer[nz * fft_size[0] * fft_size[1] + ny * fft_size[0] +
-                             nx] = cexp(-2.0 * I * pi *
+              complex_buffer[nx * fft_size[1] * (fft_size[2]/2+1) + ny * (fft_size[2]/2+1) +
+                             nz] = cexp(-2.0 * I * pi *
                                         (((double)mx) * nx / fft_size[0] +
                                          ((double)my) * ny / fft_size[1] +
                                          ((double)mz) * nz / fft_size[2]));
@@ -999,8 +999,8 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
               const double my_value =
-                  double_buffer[nz * fft_size[0] * fft_size[1] +
-                                ny * fft_size[0] + nx];
+                  double_buffer[nx * fft_size[1] * fft_size[2] +
+                                ny * fft_size[2] + nz];
               const double ref_value = (nx == mx && ny == my && nz == mz)
                                            ? (double)product3(fft_size)
                                            : 0.0;

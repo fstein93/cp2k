@@ -509,41 +509,18 @@ fftw_plan *fft_fftw_create_3d_plan_r2c(const int direction,
   if (plan == NULL) {
     const int nthreads = omp_get_max_threads();
     fftw_plan_with_nthreads(nthreads);
-    // We need the guru interface here because cuts the last dimension in half
-    // whereas we want the first dimension
-    const int rank = 3;
-    fftw_iodim dims[3];
-    // This indicates only a single FFT
-    const int howmany_rank = 0;
-    fftw_iodim howmany_dims[1];
-    dims[0].n = fft_size[0];
-    dims[1].n = fft_size[1];
-    dims[2].n = fft_size[2];
-    dims[0].is = 1;
-    dims[1].is = fft_size[0];
-    dims[2].is = fft_size[0] * fft_size[1];
-    dims[0].os = 1;
-    dims[1].os = fft_size[0];
-    dims[2].os = fft_size[0] * fft_size[1];
-    howmany_dims[0].n = 1;
-    howmany_dims[0].is = 1;
-    howmany_dims[0].os = 1;
     double *double_buffer =
-        fftw_alloc_real(2 * (fft_size[2] / 2 + 1) * fft_size[1] * fft_size[0]);
+        fftw_alloc_real(2*fft_size[0] * fft_size[1] * (fft_size[2]/2+1));
     double complex *complex_buffer =
-        fftw_alloc_complex((fft_size[2] / 2 + 1) * fft_size[1] * fft_size[0]);
+        fftw_alloc_complex(fft_size[0] * fft_size[1] * (fft_size[2]/2+1));
     plan = malloc(sizeof(fftw_plan));
-    if (direction == FFTW_FORWARD) {
-      *plan = fftw_plan_guru_dft_r2c(rank, dims, howmany_rank, howmany_dims,
-                                     double_buffer, complex_buffer,
-                                     fftw_planning_mode);
-    } else {
-      *plan = fftw_plan_guru_dft_c2r(rank, dims, howmany_rank, howmany_dims,
-                                     complex_buffer, double_buffer,
-                                     fftw_planning_mode);
-    }
-    assert(plan != NULL);
+    if (direction == FFTW_FORWARD){
+    *plan = fftw_plan_dft_r2c_3d(fft_size[0], fft_size[1], fft_size[2], double_buffer,
+                             complex_buffer, fftw_planning_mode);} else {
+    *plan = fftw_plan_dft_c2r_3d(fft_size[0], fft_size[1], fft_size[2], complex_buffer,
+                             double_buffer, fftw_planning_mode);}
     add_plan_to_cache(key, plan);
+    assert(plan != NULL);
     fftw_free(double_buffer);
     fftw_free(complex_buffer);
   }
