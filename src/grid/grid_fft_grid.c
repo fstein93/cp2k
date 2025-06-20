@@ -171,9 +171,7 @@ void fft_3d_fw(const grid_fft_complex_rs_grid *grid_rs,
          grid_gs->fft_grid_layout->grid_id);
   const grid_fft_grid_layout *grid_layout = grid_gs->fft_grid_layout;
   fft_3d_fw_with_layout(grid_rs->data, grid_gs->data, grid_layout);
-  const double scale =
-      1.0 / (((double)grid_layout->npts_global[0]) *
-             grid_layout->npts_global[1] * grid_layout->npts_global[2]);
+  const double scale = 1.0 / (((double)product3(grid_layout->npts_global)));
 #pragma omp parallel for default(none) shared(grid_gs, grid_layout, scale)
   for (int index = 0; index < grid_layout->npts_gs_local; index++) {
     grid_gs->data[index] *= scale;

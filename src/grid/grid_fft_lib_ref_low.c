@@ -1488,24 +1488,38 @@ void fft_ref_2d_fw_local_r2c_low(double *restrict grid_in,
   // We reorder the data to a format more suitable for vectorization
   double complex *grid_in_complex = (double complex *)grid_in;
   double *grid_out_real = (double *)grid_out;
-  
+
   for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
     for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
       for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_out_real[(index_0*number_of_ffts+fft)*fft_size[1]+index_1] = grid_in[(index_0*fft_size[1]+index_1)*stride_in+fft*distance_in];
+        grid_out_real[(index_0 * number_of_ffts + fft) * fft_size[1] +
+                      index_1] =
+            grid_in[(index_0 * fft_size[1] + index_1) * stride_in +
+                    fft * distance_in];
       }
     }
   }
-  fft_ref_1d_fw_local_r2c_low(grid_out_real, grid_in_complex, fft_size[1], fft_size[0]*number_of_ffts, 1, 1, fft_size[1], fft_size[1]/2+1);
-  fft_ref_1d_fw_local_low(grid_in_complex, grid_out, fft_size[0], (fft_size[1]/2+1)*number_of_ffts, (fft_size[1]/2+1)*number_of_ffts, (fft_size[1]/2+1)*number_of_ffts, 1, 1);
+  fft_ref_1d_fw_local_r2c_low(grid_out_real, grid_in_complex, fft_size[1],
+                              fft_size[0] * number_of_ffts, 1, 1, fft_size[1],
+                              fft_size[1] / 2 + 1);
+  fft_ref_1d_fw_local_low(grid_in_complex, grid_out, fft_size[0],
+                          (fft_size[1] / 2 + 1) * number_of_ffts,
+                          (fft_size[1] / 2 + 1) * number_of_ffts,
+                          (fft_size[1] / 2 + 1) * number_of_ffts, 1, 1);
   for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
-    for (int index_1 = 0; index_1 < fft_size[1]/2+1; index_1++) {
+    for (int index_1 = 0; index_1 < fft_size[1] / 2 + 1; index_1++) {
       for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_in_complex[(index_0*(fft_size[1]/2+1)+index_1)*stride_out+fft*distance_out] = grid_out[(index_0*number_of_ffts+fft)*(fft_size[1]/2+1)+index_1] ;
+        grid_in_complex[(index_0 * (fft_size[1] / 2 + 1) + index_1) *
+                            stride_out +
+                        fft * distance_out] =
+            grid_out[(index_0 * number_of_ffts + fft) * (fft_size[1] / 2 + 1) +
+                     index_1];
       }
     }
   }
-  memcpy(grid_out, grid_in_complex, fft_size[0]*(fft_size[1]/2+1)*number_of_ffts*sizeof(double complex));
+  memcpy(grid_out, grid_in_complex,
+         fft_size[0] * (fft_size[1] / 2 + 1) * number_of_ffts *
+             sizeof(double complex));
 
 #if PROFILE_CODE
   clock_t end = clock();
@@ -1623,24 +1637,35 @@ void fft_ref_2d_bw_local_c2r_low(double complex *restrict grid_in,
   double *grid_in_real = (double *)grid_in;
   double complex *grid_out_complex = ((double complex *)grid_out);
 
-  
   for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
-    for (int index_1 = 0; index_1 < fft_size[1]/2+1; index_1++) {
+    for (int index_1 = 0; index_1 < fft_size[1] / 2 + 1; index_1++) {
       for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_out_complex[(index_0*number_of_ffts+fft)*(fft_size[1]/2+1)+index_1] = grid_in[(index_0*(fft_size[1]/2+1)+index_1)*stride_in+fft*distance_in];
+        grid_out_complex[(index_0 * number_of_ffts + fft) *
+                             (fft_size[1] / 2 + 1) +
+                         index_1] =
+            grid_in[(index_0 * (fft_size[1] / 2 + 1) + index_1) * stride_in +
+                    fft * distance_in];
       }
     }
   }
-  fft_ref_1d_bw_local_low(grid_out_complex, grid_in, fft_size[0], (fft_size[1]/2+1)*number_of_ffts, (fft_size[1]/2+1)*number_of_ffts, (fft_size[1]/2+1)*number_of_ffts, 1, 1);
-  fft_ref_1d_bw_local_c2r_low(grid_in, grid_out, fft_size[1], fft_size[0]*number_of_ffts, 1, 1, fft_size[1]/2+1, fft_size[1]);
+  fft_ref_1d_bw_local_low(grid_out_complex, grid_in, fft_size[0],
+                          (fft_size[1] / 2 + 1) * number_of_ffts,
+                          (fft_size[1] / 2 + 1) * number_of_ffts,
+                          (fft_size[1] / 2 + 1) * number_of_ffts, 1, 1);
+  fft_ref_1d_bw_local_c2r_low(grid_in, grid_out, fft_size[1],
+                              fft_size[0] * number_of_ffts, 1, 1,
+                              fft_size[1] / 2 + 1, fft_size[1]);
   for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
     for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
       for (int fft = 0; fft < number_of_ffts; fft++) {
-        grid_in_real[(index_0*fft_size[1]+index_1)*stride_out+fft*distance_out] = grid_out[(index_0*number_of_ffts+fft)*fft_size[1]+index_1] ;
+        grid_in_real[(index_0 * fft_size[1] + index_1) * stride_out +
+                     fft * distance_out] =
+            grid_out[(index_0 * number_of_ffts + fft) * fft_size[1] + index_1];
       }
     }
   }
-  memcpy(grid_out, grid_in_real, fft_size[0]*fft_size[1]*number_of_ffts*sizeof(double));
+  memcpy(grid_out, grid_in_real,
+         fft_size[0] * fft_size[1] * number_of_ffts * sizeof(double));
 
 #if PROFILE_CODE
   clock_t end = clock();
@@ -1752,9 +1777,15 @@ void fft_ref_3d_fw_local_r2c_low(double *restrict grid_in,
   clock_t begin = clock();
 #endif
 
-  fft_ref_1d_fw_local_r2c_low(grid_in, grid_out, fft_size[2], fft_size[0]*fft_size[1], 1, fft_size[0]*fft_size[1], fft_size[2], 1);
-  fft_ref_1d_fw_local_low(grid_out, (double complex*) grid_in, fft_size[1], fft_size[0]*(fft_size[2]/2+1), 1, fft_size[0]*(fft_size[2]/2+1), fft_size[1], 1);
-  fft_ref_1d_fw_local_low((double complex*)grid_in,  grid_out, fft_size[0], fft_size[1]*(fft_size[2]/2+1), 1, fft_size[1]*(fft_size[2]/2+1), fft_size[0], 1);
+  fft_ref_1d_fw_local_r2c_low(grid_in, grid_out, fft_size[2],
+                              fft_size[0] * fft_size[1], 1,
+                              fft_size[0] * fft_size[1], fft_size[2], 1);
+  fft_ref_1d_fw_local_low(grid_out, (double complex *)grid_in, fft_size[1],
+                          fft_size[0] * (fft_size[2] / 2 + 1), 1,
+                          fft_size[0] * (fft_size[2] / 2 + 1), fft_size[1], 1);
+  fft_ref_1d_fw_local_low((double complex *)grid_in, grid_out, fft_size[0],
+                          fft_size[1] * (fft_size[2] / 2 + 1), 1,
+                          fft_size[1] * (fft_size[2] / 2 + 1), fft_size[0], 1);
 
 #if PROFILE_CODE
   clock_t end = clock();
@@ -1866,9 +1897,17 @@ void fft_ref_3d_bw_local_c2r_low(double complex *restrict grid_in,
   clock_t begin = clock();
 #endif
 
-fft_ref_1d_bw_local_low(grid_in, (double complex*)grid_out, fft_size[0], fft_size[1]*(fft_size[2]/2+1), fft_size[1]*(fft_size[2]/2+1), 1, 1, fft_size[0])  ;
-fft_ref_1d_bw_local_low((double complex*)grid_out, grid_in, fft_size[1], fft_size[0]*(fft_size[2]/2+1), fft_size[0]*(fft_size[2]/2+1), 1, 1, fft_size[1])  ;
-fft_ref_1d_bw_local_c2r_low(grid_in, grid_out, fft_size[2], fft_size[0]*fft_size[1], fft_size[0]*fft_size[1], 1, 1, fft_size[2])  ;
+  fft_ref_1d_bw_local_low(grid_in, (double complex *)grid_out, fft_size[0],
+                          fft_size[1] * (fft_size[2] / 2 + 1),
+                          fft_size[1] * (fft_size[2] / 2 + 1), 1, 1,
+                          fft_size[0]);
+  fft_ref_1d_bw_local_low((double complex *)grid_out, grid_in, fft_size[1],
+                          fft_size[0] * (fft_size[2] / 2 + 1),
+                          fft_size[0] * (fft_size[2] / 2 + 1), 1, 1,
+                          fft_size[1]);
+  fft_ref_1d_bw_local_c2r_low(grid_in, grid_out, fft_size[2],
+                              fft_size[0] * fft_size[1],
+                              fft_size[0] * fft_size[1], 1, 1, fft_size[2]);
 
 #if PROFILE_CODE
   clock_t end = clock();

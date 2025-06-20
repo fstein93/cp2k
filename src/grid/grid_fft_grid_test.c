@@ -74,10 +74,10 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
         if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
             ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
             nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
-          grid_rs.data[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] *
-                           my_sizes_rs[1] +
-                       (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
-                       (nx - my_bounds_rs[0][0])] = 1.0;
+          grid_rs.data[(nx - my_bounds_rs[0][0]) * my_sizes_rs[1] *
+                           my_sizes_rs[2] +
+                       (ny - my_bounds_rs[1][0]) * my_sizes_rs[2] +
+                       (nz - my_bounds_rs[2][0])] = 1.0;
 
         fft_3d_fw_with_layout(grid_rs.data, grid_gs.data, fft_grid_layout);
 
@@ -132,10 +132,10 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
         if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
             ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
             nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
-          grid_rs.data[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] *
-                           my_sizes_rs[1] +
-                       (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
-                       (nx - my_bounds_rs[0][0])] = 1.0;
+          grid_rs.data[(nx - my_bounds_rs[0][0]) * my_sizes_rs[1] *
+                           my_sizes_rs[2] +
+                       (ny - my_bounds_rs[1][0]) * my_sizes_rs[2] +
+                       (nz - my_bounds_rs[2][0])] = 1.0;
 
         fft_3d_fw(&grid_rs, &grid_gs);
 
@@ -207,8 +207,8 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
           for (int my = 0; my < my_sizes_rs[1]; my++) {
             for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
               const double complex my_value =
-                  grid_rs.data[mz * my_sizes_rs[0] * my_sizes_rs[1] +
-                               my * my_sizes_rs[0] + mx];
+                  grid_rs.data[mx * my_sizes_rs[1] * my_sizes_rs[2] +
+                               my * my_sizes_rs[2] + mz];
               const double complex ref_value = cexp(
                   2.0 * I * pi *
                   (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +
@@ -304,10 +304,10 @@ int fft_test_3d_r2c_blocked(const int npts_global[3], const int test_every) {
         if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
             ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
             nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
-          buffer_real[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] *
-                          my_sizes_rs[1] +
-                      (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
-                      (nx - my_bounds_rs[0][0])] = 1.0;
+          buffer_real[(nx - my_bounds_rs[0][0]) * my_sizes_rs[1] *
+                          my_sizes_rs[2] +
+                      (ny - my_bounds_rs[1][0]) * my_sizes_rs[2] +
+                      (nz - my_bounds_rs[2][0])] = 1.0;
 
         fft_3d_fw_r2c_with_layout(buffer_real, grid_gs.data, fft_grid_layout);
 
@@ -361,10 +361,10 @@ int fft_test_3d_r2c_blocked(const int npts_global[3], const int test_every) {
         if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
             ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
             nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
-          grid_rs.data[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] *
-                           my_sizes_rs[1] +
-                       (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
-                       (nx - my_bounds_rs[0][0])] = 1.0;
+          grid_rs.data[(nx - my_bounds_rs[0][0]) * my_sizes_rs[1] *
+                           my_sizes_rs[2] +
+                       (ny - my_bounds_rs[1][0]) * my_sizes_rs[2] +
+                       (nz - my_bounds_rs[2][0])] = 1.0;
 
         fft_3d_fw_r2c(&grid_rs, &grid_gs);
 
@@ -436,8 +436,8 @@ int fft_test_3d_r2c_blocked(const int npts_global[3], const int test_every) {
           for (int my = 0; my < my_sizes_rs[1]; my++) {
             for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
               const double my_value =
-                  grid_rs.data[mz * my_sizes_rs[0] * my_sizes_rs[1] +
-                               my * my_sizes_rs[0] + mx];
+                  grid_rs.data[mx * my_sizes_rs[1] * my_sizes_rs[2] +
+                               my * my_sizes_rs[2] + mz];
               const double ref_value = cos(
                   2.0 * pi *
                   (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +
@@ -536,10 +536,10 @@ int fft_test_3d_r2c_blocked_halfspace(const int npts_global[3],
         if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
             ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
             nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
-          buffer_real[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] *
-                          my_sizes_rs[1] +
-                      (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
-                      (nx - my_bounds_rs[0][0])] = 1.0;
+          buffer_real[(nx - my_bounds_rs[0][0]) * my_sizes_rs[1] *
+                          my_sizes_rs[2] +
+                      (ny - my_bounds_rs[1][0]) * my_sizes_rs[2] +
+                      (nz - my_bounds_rs[2][0])] = 1.0;
 
         fft_3d_fw_r2c_with_layout(buffer_real, grid_gs.data, fft_grid_layout);
 
@@ -594,10 +594,10 @@ int fft_test_3d_r2c_blocked_halfspace(const int npts_global[3],
         if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
             ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
             nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
-          grid_rs.data[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] *
-                           my_sizes_rs[1] +
-                       (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
-                       (nx - my_bounds_rs[0][0])] = 1.0;
+          grid_rs.data[(nx - my_bounds_rs[0][0]) * my_sizes_rs[1] *
+                           my_sizes_rs[2] +
+                       (ny - my_bounds_rs[1][0]) * my_sizes_rs[2] +
+                       (nz - my_bounds_rs[2][0])] = 1.0;
 
         fft_3d_fw_r2c(&grid_rs, &grid_gs);
 
@@ -670,8 +670,8 @@ int fft_test_3d_r2c_blocked_halfspace(const int npts_global[3],
           for (int my = 0; my < my_sizes_rs[1]; my++) {
             for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
               const double my_value =
-                  grid_rs.data[mz * my_sizes_rs[0] * my_sizes_rs[1] +
-                               my * my_sizes_rs[0] + mx];
+                  grid_rs.data[mx * my_sizes_rs[1] * my_sizes_rs[2] +
+                               my * my_sizes_rs[2] + mz];
               const double ref_value = cos(
                   2.0 * pi *
                   (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +
@@ -771,9 +771,9 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
         if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
             ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
             nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
-          buffer_1[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] * my_sizes_rs[1] +
-                   (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
-                   (nx - my_bounds_rs[0][0])] = 1.0;
+          buffer_1[(nx - my_bounds_rs[0][0]) * my_sizes_rs[1] * my_sizes_rs[2] +
+                   (ny - my_bounds_rs[1][0]) * my_sizes_rs[2] +
+                   (nz - my_bounds_rs[2][0])] = 1.0;
 
         fft_3d_fw_with_layout(buffer_1, buffer_2, fft_grid_layout);
 
@@ -853,8 +853,8 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
         for (int my = 0; my < my_sizes_rs[1]; my++) {
           for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
             const double complex my_value =
-                buffer_1[mz * my_sizes_rs[0] * my_sizes_rs[1] +
-                         my * my_sizes_rs[0] + mx];
+                buffer_1[mx * my_sizes_rs[1] * my_sizes_rs[2] +
+                         my * my_sizes_rs[2] + mz];
             const double complex ref_value =
                 cexp(2.0 * I * pi *
                      (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +
@@ -952,9 +952,9 @@ int fft_test_3d_r2c_ray(const int npts_global[3], const int npts_global_ref[3],
         if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
             ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
             nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
-          buffer_1[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] * my_sizes_rs[1] +
-                   (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
-                   (nx - my_bounds_rs[0][0])] = 1.0;
+          buffer_1[(nx - my_bounds_rs[0][0]) * my_sizes_rs[1] * my_sizes_rs[2] +
+                   (ny - my_bounds_rs[1][0]) * my_sizes_rs[2] +
+                   (nz - my_bounds_rs[2][0])] = 1.0;
 
         fft_3d_fw_r2c_with_layout(buffer_1, buffer_2, fft_grid_layout);
 
@@ -1034,8 +1034,8 @@ int fft_test_3d_r2c_ray(const int npts_global[3], const int npts_global_ref[3],
         for (int my = 0; my < my_sizes_rs[1]; my++) {
           for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
             const double my_value =
-                buffer_1[mz * my_sizes_rs[0] * my_sizes_rs[1] +
-                         my * my_sizes_rs[0] + mx];
+                buffer_1[mx * my_sizes_rs[1] * my_sizes_rs[2] +
+                         my * my_sizes_rs[2] + mz];
             const double ref_value =
                 cos(2.0 * pi *
                     (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +
@@ -1139,9 +1139,9 @@ int fft_test_3d_r2c_ray_halfspace(const int npts_global[3],
         if (nx >= my_bounds_rs[0][0] && nx <= my_bounds_rs[0][1] &&
             ny >= my_bounds_rs[1][0] && ny <= my_bounds_rs[1][1] &&
             nz >= my_bounds_rs[2][0] && nz <= my_bounds_rs[2][1])
-          buffer_1[(nz - my_bounds_rs[2][0]) * my_sizes_rs[0] * my_sizes_rs[1] +
-                   (ny - my_bounds_rs[1][0]) * my_sizes_rs[0] +
-                   (nx - my_bounds_rs[0][0])] = 1.0;
+          buffer_1[(nx - my_bounds_rs[0][0]) * my_sizes_rs[1] * my_sizes_rs[2] +
+                   (ny - my_bounds_rs[1][0]) * my_sizes_rs[2] +
+                   (nz - my_bounds_rs[2][0])] = 1.0;
 
         fft_3d_fw_r2c_with_layout(buffer_1, buffer_2, fft_grid_layout);
 
@@ -1221,8 +1221,8 @@ int fft_test_3d_r2c_ray_halfspace(const int npts_global[3],
         for (int my = 0; my < my_sizes_rs[1]; my++) {
           for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
             const double my_value =
-                buffer_1[mz * my_sizes_rs[0] * my_sizes_rs[1] +
-                         my * my_sizes_rs[0] + mx];
+                buffer_1[mx * my_sizes_rs[1] * my_sizes_rs[2] +
+                         my * my_sizes_rs[2] + mz];
             const double ref_value =
                 cos(2.0 * pi *
                     (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +

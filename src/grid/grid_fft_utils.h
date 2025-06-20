@@ -26,6 +26,25 @@ void transpose_local_double(double *grid, double *grid_transposed,
                             const int number_of_columns_grid,
                             const int number_of_rows_grid);
 
+/*******************************************************************************
+ * \brief Local transposition of blocks.
+ * \author Frederick Stein
+ ******************************************************************************/
+void transpose_local_complex_block(double complex *grid,
+                                   double complex *grid_transposed,
+                                   const int number_of_columns_grid,
+                                   const int number_of_rows_grid,
+                                   const int block_size);
+
+/*******************************************************************************
+ * \brief Local transposition of blocks.
+ * \author Frederick Stein
+ ******************************************************************************/
+void transpose_local_double_block(double *grid, double *grid_transposed,
+                                  const int number_of_columns_grid,
+                                  const int number_of_rows_grid,
+                                  const int block_size);
+
 #endif /* GRID_FFT_UTILS_H */
 
 // EOF

@@ -510,15 +510,19 @@ fftw_plan *fft_fftw_create_3d_plan_r2c(const int direction,
     const int nthreads = omp_get_max_threads();
     fftw_plan_with_nthreads(nthreads);
     double *double_buffer =
-        fftw_alloc_real(2*fft_size[0] * fft_size[1] * (fft_size[2]/2+1));
+        fftw_alloc_real(2 * fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1));
     double complex *complex_buffer =
-        fftw_alloc_complex(fft_size[0] * fft_size[1] * (fft_size[2]/2+1));
+        fftw_alloc_complex(fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1));
     plan = malloc(sizeof(fftw_plan));
-    if (direction == FFTW_FORWARD){
-    *plan = fftw_plan_dft_r2c_3d(fft_size[0], fft_size[1], fft_size[2], double_buffer,
-                             complex_buffer, fftw_planning_mode);} else {
-    *plan = fftw_plan_dft_c2r_3d(fft_size[0], fft_size[1], fft_size[2], complex_buffer,
-                             double_buffer, fftw_planning_mode);}
+    if (direction == FFTW_FORWARD) {
+      *plan = fftw_plan_dft_r2c_3d(fft_size[0], fft_size[1], fft_size[2],
+                                   double_buffer, complex_buffer,
+                                   fftw_planning_mode);
+    } else {
+      *plan = fftw_plan_dft_c2r_3d(fft_size[0], fft_size[1], fft_size[2],
+                                   complex_buffer, double_buffer,
+                                   fftw_planning_mode);
+    }
     add_plan_to_cache(key, plan);
     assert(plan != NULL);
     fftw_free(double_buffer);

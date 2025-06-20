@@ -708,7 +708,7 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
               real_buffer[(index_0 * fft_size[1] + index_1) * number_of_ffts +
                           number_of_fft];
           const double ref_value =
-              index_0 == number_of_fft / fft_size[1]%fft_size[0] &&
+              index_0 == number_of_fft / fft_size[1] % fft_size[0] &&
                       index_1 == number_of_fft % fft_size[1]
                   ? (double)(fft_size[0] * fft_size[1])
                   : 0.0;
@@ -733,7 +733,7 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
               real_buffer[index_0 * fft_size[1] + index_1 +
                           number_of_fft * fft_size[0] * fft_size[1]];
           const double ref_value =
-              index_0 == number_of_fft / fft_size[1]%fft_size[0] &&
+              index_0 == number_of_fft / fft_size[1] % fft_size[0] &&
                       index_1 == number_of_fft % fft_size[1]
                   ? (double)(fft_size[0] * fft_size[1])
                   : 0.0;
@@ -931,12 +931,12 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
 #pragma omp parallel for default(none)                                         \
     shared(complex_buffer, fft_size, pi, mx, my, mz, my_process)               \
     reduction(max : max_error) collapse(3)
-            for (int nx = 0; nx < fft_size[0]; nx++) {
+        for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
-        for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
+            for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
               const double complex my_value =
-                  complex_buffer[nx * fft_size[1] * (fft_size[2]/2+1) +
-                                 ny * (fft_size[2]/2+1) + nz];
+                  complex_buffer[nx * fft_size[1] * (fft_size[2] / 2 + 1) +
+                                 ny * (fft_size[2] / 2 + 1) + nz];
               const double complex ref_value =
                   cexp(-2.0 * I * pi *
                        (((double)mx) * nx / fft_size[0] +
@@ -982,11 +982,12 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
         for (int nz = 0; nz < fft_size[2] / 2 + 1; nz++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nx = 0; nx < fft_size[0]; nx++) {
-              complex_buffer[nx * fft_size[1] * (fft_size[2]/2+1) + ny * (fft_size[2]/2+1) +
-                             nz] = cexp(-2.0 * I * pi *
-                                        (((double)mx) * nx / fft_size[0] +
-                                         ((double)my) * ny / fft_size[1] +
-                                         ((double)mz) * nz / fft_size[2]));
+              complex_buffer[nx * fft_size[1] * (fft_size[2] / 2 + 1) +
+                             ny * (fft_size[2] / 2 + 1) + nz] =
+                  cexp(-2.0 * I * pi *
+                       (((double)mx) * nx / fft_size[0] +
+                        ((double)my) * ny / fft_size[1] +
+                        ((double)mz) * nz / fft_size[2]));
             }
           }
         }

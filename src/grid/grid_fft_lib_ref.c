@@ -213,7 +213,7 @@ void fft_ref_2d_fw_local_r2c(double *grid_rs, double complex *grid_gs,
     } else {
       fft_ref_2d_fw_local_r2c_low(grid_rs, grid_gs, fft_size, number_of_ffts,
                                   number_of_ffts, 1, 1,
-                                  fft_size[0] * (fft_size[1]/2+1));
+                                  fft_size[0] * (fft_size[1] / 2 + 1));
     }
   } else {
     if (transpose_gs) {
@@ -222,7 +222,7 @@ void fft_ref_2d_fw_local_r2c(double *grid_rs, double complex *grid_gs,
     } else {
       fft_ref_2d_fw_local_r2c_low(grid_rs, grid_gs, fft_size, number_of_ffts, 1,
                                   1, fft_size[0] * fft_size[1],
-                                  fft_size[0] * (fft_size[1]/2+1));
+                                  fft_size[0] * (fft_size[1] / 2 + 1));
     }
   }
 }
@@ -272,7 +272,7 @@ void fft_ref_2d_bw_local_c2r(double complex *grid_gs, double *grid_rs,
     } else {
       fft_ref_2d_bw_local_c2r_low(grid_gs, grid_rs, fft_size, number_of_ffts, 1,
                                   number_of_ffts,
-                                  fft_size[0] * (fft_size[1]/2+1), 1);
+                                  fft_size[0] * (fft_size[1] / 2 + 1), 1);
     }
   } else {
     if (transpose_gs) {
@@ -281,7 +281,7 @@ void fft_ref_2d_bw_local_c2r(double complex *grid_gs, double *grid_rs,
                                   fft_size[0] * fft_size[1]);
     } else {
       fft_ref_2d_bw_local_c2r_low(grid_gs, grid_rs, fft_size, number_of_ffts, 1,
-                                  1, fft_size[0] * (fft_size[1]/2+1),
+                                  1, fft_size[0] * (fft_size[1] / 2 + 1),
                                   fft_size[0] * fft_size[1]);
     }
   }

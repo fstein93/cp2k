@@ -67,7 +67,8 @@ double fft_test_transpose_ray(const int npts_global[3],
 
     collect_x_and_distribute_yz_ray_transpose(
         fft_grid_ray_layout->buffer_1, fft_grid_ray_layout->buffer_2,
-        fft_grid_ray_layout->npts_global, fft_grid_ray_layout->proc2local_ms,
+        fft_grid_ray_layout->npts_global_gspace,
+        fft_grid_ray_layout->proc2local_ms,
         fft_grid_ray_layout->rays_per_process, fft_grid_ray_layout->ray_to_yz,
         fft_grid_ray_layout->comm);
 
@@ -78,7 +79,7 @@ double fft_test_transpose_ray(const int npts_global[3],
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(fft_grid_ray_layout, my_sizes_ms_ray, npts_global,                  \
                ray_index_offset, my_process) reduction(max : max_error)
-    for (int index_x = 0; index_x < fft_grid_ray_layout->npts_global[0];
+    for (int index_x = 0; index_x < fft_grid_ray_layout->npts_global_gspace[0];
          index_x++) {
       for (int yz_ray = 0;
            yz_ray < fft_grid_ray_layout->rays_per_process[my_process];
@@ -117,7 +118,7 @@ double fft_test_transpose_ray(const int npts_global[3],
     }
 
     memset(fft_grid_ray_layout->buffer_1, 0,
-           fft_grid_ray_layout->npts_global[0] *
+           fft_grid_ray_layout->npts_global_gspace[0] *
                fft_grid_ray_layout->rays_per_process[my_process] *
                sizeof(double complex));
     memset(fft_grid_ray_layout->buffer_2, 0,
@@ -144,7 +145,8 @@ double fft_test_transpose_ray(const int npts_global[3],
     }
     collect_yz_and_distribute_x_ray_transpose(
         fft_grid_ray_layout->buffer_1, fft_grid_ray_layout->buffer_2,
-        fft_grid_ray_layout->npts_global, fft_grid_ray_layout->proc2local_ms,
+        fft_grid_ray_layout->npts_global_gspace,
+        fft_grid_ray_layout->proc2local_ms,
         fft_grid_ray_layout->rays_per_process, fft_grid_ray_layout->ray_to_yz,
         fft_grid_ray_layout->comm);
 
@@ -157,7 +159,7 @@ double fft_test_transpose_ray(const int npts_global[3],
         // Check whether there is a ray with the given index pair
         if (fft_grid_ray_layout
                 ->yz_to_process[(index_z + my_bounds_ms_ray[2][0]) *
-                                    fft_grid_ray_layout->npts_global[1] +
+                                    fft_grid_ray_layout->npts_global_gspace[1] +
                                 (index_y + my_bounds_ms_ray[1][0])] >= 0) {
           for (int index_x = 0; index_x < my_sizes_ms_ray[0]; index_x++) {
             const double complex my_value =
@@ -232,7 +234,8 @@ double fft_test_transpose_ray(const int npts_global[3],
 
     collect_x_and_distribute_yz_ray(
         fft_grid_ray_layout->buffer_1, fft_grid_ray_layout->buffer_2,
-        fft_grid_ray_layout->npts_global, fft_grid_ray_layout->proc2local_ms,
+        fft_grid_ray_layout->npts_global_gspace,
+        fft_grid_ray_layout->proc2local_ms,
         fft_grid_ray_layout->rays_per_process, fft_grid_ray_layout->ray_to_yz,
         fft_grid_ray_layout->comm);
 
@@ -243,7 +246,7 @@ double fft_test_transpose_ray(const int npts_global[3],
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(fft_grid_ray_layout, my_sizes_ms_ray, npts_global,                  \
                ray_index_offset, my_process) reduction(max : max_error)
-    for (int index_x = 0; index_x < fft_grid_ray_layout->npts_global[0];
+    for (int index_x = 0; index_x < fft_grid_ray_layout->npts_global_gspace[0];
          index_x++) {
       for (int yz_ray = 0;
            yz_ray < fft_grid_ray_layout->rays_per_process[my_process];
@@ -308,7 +311,8 @@ double fft_test_transpose_ray(const int npts_global[3],
     }
     collect_yz_and_distribute_x_ray(
         fft_grid_ray_layout->buffer_1, fft_grid_ray_layout->buffer_2,
-        fft_grid_ray_layout->npts_global, fft_grid_ray_layout->proc2local_ms,
+        fft_grid_ray_layout->npts_global_gspace,
+        fft_grid_ray_layout->proc2local_ms,
         fft_grid_ray_layout->rays_per_process, fft_grid_ray_layout->ray_to_yz,
         fft_grid_ray_layout->comm);
 
@@ -406,6 +410,8 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               false);
 
+  grid_print_grid_layout_info(fft_grid_layout, true);
+
   const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
@@ -434,8 +440,8 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
     for (int ny = 0; ny < my_sizes_ms[1]; ny++) {
       for (int nz = 0; nz < my_sizes_ms[2]; nz++) {
         for (int nx = 0; nx < my_sizes_ms[0]; nx++) {
-          fft_grid_layout->buffer_2[ny * my_sizes_ms[0] * my_sizes_ms[2] +
-                                    nz * my_sizes_ms[0] + nx] =
+          fft_grid_layout->buffer_2[nz * my_sizes_ms[0] * my_sizes_ms[1] +
+                                    ny * my_sizes_ms[0] + nx] =
               ((nx + my_bounds_ms[0][0]) * npts_global[1] +
                (ny + my_bounds_ms[1][0])) +
               I * (nz + my_bounds_ms[2][0]);
@@ -446,10 +452,11 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
            my_number_of_elements_gs * sizeof(double complex));
 
     // Check the reverse direction
-    collect_x_and_distribute_z_blocked_transpose(
-        fft_grid_layout->buffer_2, fft_grid_layout->buffer_1, npts_global,
-        fft_grid_layout->proc2local_ms, fft_grid_layout->proc2local_gs,
-        fft_grid_layout->comm, fft_grid_layout->sub_comm);
+    collect_x_and_distribute_y_blocked_transpose(
+        fft_grid_layout->buffer_2, fft_grid_layout->buffer_1,
+        fft_grid_layout->npts_global_gspace, fft_grid_layout->proc2local_ms,
+        fft_grid_layout->proc2local_gs, fft_grid_layout->comm,
+        fft_grid_layout->sub_comm);
 
     // Check forward RS->MS FFTs
     max_error = 0.0;
@@ -461,7 +468,7 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
         for (int ny = 0; ny < my_sizes_gs[1]; ny++) {
           const double complex my_value =
               fft_grid_layout->buffer_1[nx * my_sizes_gs[1] * my_sizes_gs[2] +
-                                        nz * my_sizes_gs[1] + ny];
+                                        ny * my_sizes_gs[2] + nz];
           const double complex ref_value =
               ((nx + my_bounds_gs[0][0]) * npts_global[1] +
                (ny + my_bounds_gs[1][0])) +
@@ -497,7 +504,7 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
       for (int nz = 0; nz < my_sizes_gs[2]; nz++) {
         for (int ny = 0; ny < my_sizes_gs[1]; ny++) {
           fft_grid_layout->buffer_2[nx * my_sizes_gs[1] * my_sizes_gs[2] +
-                                    nz * my_sizes_gs[1] + ny] =
+                                    ny * my_sizes_gs[2] + nz] =
               ((nx + my_bounds_gs[0][0]) * npts_global[1] +
                (ny + my_bounds_gs[1][0])) +
               I * (nz + my_bounds_gs[2][0]);
@@ -508,10 +515,11 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
            my_number_of_elements_ms * sizeof(double complex));
 
     // Check the reverse direction
-    collect_z_and_distribute_x_blocked_transpose(
-        fft_grid_layout->buffer_2, fft_grid_layout->buffer_1, npts_global,
-        fft_grid_layout->proc2local_gs, fft_grid_layout->proc2local_ms,
-        fft_grid_layout->comm, fft_grid_layout->sub_comm);
+    collect_y_and_distribute_x_blocked_transpose(
+        fft_grid_layout->buffer_2, fft_grid_layout->buffer_1,
+        fft_grid_layout->npts_global_gspace, fft_grid_layout->proc2local_gs,
+        fft_grid_layout->proc2local_ms, fft_grid_layout->comm,
+        fft_grid_layout->sub_comm);
 
     // Check forward RS->MS FFTs
     max_error = 0.0;
@@ -522,8 +530,8 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
       for (int nz = 0; nz < my_sizes_ms[2]; nz++) {
         for (int nx = 0; nx < my_sizes_ms[0]; nx++) {
           const double complex my_value =
-              fft_grid_layout->buffer_1[ny * my_sizes_ms[0] * my_sizes_ms[2] +
-                                        nz * my_sizes_ms[0] + nx];
+              fft_grid_layout->buffer_1[nz * my_sizes_ms[1] * my_sizes_ms[2] +
+                                        ny * my_sizes_ms[0] + nx];
           const double complex ref_value =
               ((nx + my_bounds_ms[0][0]) * npts_global[1] +
                (ny + my_bounds_ms[1][0])) +
@@ -558,8 +566,8 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
     for (int ny = 0; ny < my_sizes_rs[1]; ny++) {
       for (int nx = 0; nx < my_sizes_rs[0]; nx++) {
         for (int nz = 0; nz < my_sizes_rs[2]; nz++) {
-          fft_grid_layout->buffer_1[ny * my_sizes_rs[0] * my_sizes_rs[2] +
-                                    nx * my_sizes_rs[2] + nz] =
+          fft_grid_layout->buffer_1[nz * my_sizes_rs[0] * my_sizes_rs[1] +
+                                    nx * my_sizes_rs[1] + ny] =
               ((nx + my_bounds_rs[0][0]) * npts_global[1] +
                (ny + my_bounds_rs[1][0])) +
               I * (nz + my_bounds_rs[2][0]);
@@ -568,9 +576,10 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
     }
 
     collect_y_and_distribute_z_blocked(
-        fft_grid_layout->buffer_1, fft_grid_layout->buffer_2, npts_global,
-        fft_grid_layout->proc2local_rs, fft_grid_layout->proc2local_ms,
-        fft_grid_layout->comm, fft_grid_layout->sub_comm);
+        fft_grid_layout->buffer_1, fft_grid_layout->buffer_2,
+        fft_grid_layout->npts_global_gspace, fft_grid_layout->proc2local_rs,
+        fft_grid_layout->proc2local_ms, fft_grid_layout->comm,
+        fft_grid_layout->sub_comm);
 
     max_error = 0.0;
 #pragma omp parallel for default(none)                                         \
@@ -581,7 +590,7 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
         for (int nz = 0; nz < my_sizes_ms[2]; nz++) {
           const double complex my_value =
               fft_grid_layout->buffer_2[ny * my_sizes_ms[0] * my_sizes_ms[2] +
-                                        nx * my_sizes_ms[2] + nz];
+                                        nz * my_sizes_ms[0] + nx];
           const double complex ref_value =
               ((nx + my_bounds_ms[0][0]) * npts_global[1] +
                (ny + my_bounds_ms[1][0])) +
@@ -611,10 +620,10 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
     shared(fft_grid_layout, my_sizes_ms, my_bounds_ms, npts_global)            \
     collapse(3)
     for (int ny = 0; ny < my_sizes_ms[1]; ny++) {
-      for (int nx = 0; nx < my_sizes_ms[0]; nx++) {
-        for (int nz = 0; nz < my_sizes_ms[2]; nz++) {
+      for (int nz = 0; nz < my_sizes_ms[2]; nz++) {
+        for (int nx = 0; nx < my_sizes_ms[0]; nx++) {
           fft_grid_layout->buffer_2[ny * my_sizes_ms[0] * my_sizes_ms[2] +
-                                    nx * my_sizes_ms[2] + nz] =
+                                    nz * my_sizes_ms[0] + nx] =
               ((nx + my_bounds_ms[0][0]) * npts_global[1] +
                (ny + my_bounds_ms[1][0])) +
               I * (nz + my_bounds_ms[2][0]);
@@ -626,21 +635,22 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
 
     // Check the reverse direction
     collect_z_and_distribute_y_blocked(
-        fft_grid_layout->buffer_2, fft_grid_layout->buffer_1, npts_global,
-        fft_grid_layout->proc2local_ms, fft_grid_layout->proc2local_rs,
-        fft_grid_layout->comm, fft_grid_layout->sub_comm);
+        fft_grid_layout->buffer_2, fft_grid_layout->buffer_1,
+        fft_grid_layout->npts_global_gspace, fft_grid_layout->proc2local_ms,
+        fft_grid_layout->proc2local_rs, fft_grid_layout->comm,
+        fft_grid_layout->sub_comm);
 
     // Check forward RS->MS FFTs
     max_error = 0.0;
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_layout, my_sizes_rs, my_bounds_rs, npts_global)            \
     collapse(3) reduction(max : max_error)
-    for (int ny = 0; ny < my_sizes_rs[1]; ny++) {
+    for (int nz = 0; nz < my_sizes_rs[2]; nz++) {
       for (int nx = 0; nx < my_sizes_rs[0]; nx++) {
-        for (int nz = 0; nz < my_sizes_rs[2]; nz++) {
+        for (int ny = 0; ny < my_sizes_rs[1]; ny++) {
           const double complex my_value =
-              fft_grid_layout->buffer_1[ny * my_sizes_rs[0] * my_sizes_rs[2] +
-                                        nx * my_sizes_rs[2] + nz];
+              fft_grid_layout->buffer_1[nz * my_sizes_rs[0] * my_sizes_rs[1] +
+                                        nx * my_sizes_rs[1] + ny];
           const double complex ref_value =
               ((nx + my_bounds_rs[0][0]) * npts_global[1] +
                (ny + my_bounds_rs[1][0])) +
@@ -669,11 +679,11 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_layout, my_sizes_ms, my_bounds_ms, npts_global)            \
     collapse(3)
-    for (int nz = 0; nz < my_sizes_ms[2]; nz++) {
-      for (int nx = 0; nx < my_sizes_ms[0]; nx++) {
-        for (int ny = 0; ny < my_sizes_ms[1]; ny++) {
-          fft_grid_layout->buffer_1[nx * my_sizes_ms[1] * my_sizes_ms[2] +
-                                    nz * my_sizes_ms[1] + ny] =
+    for (int ny = 0; ny < my_sizes_ms[1]; ny++) {
+      for (int nz = 0; nz < my_sizes_ms[2]; nz++) {
+        for (int nx = 0; nx < my_sizes_ms[0]; nx++) {
+          fft_grid_layout->buffer_1[ny * my_sizes_ms[0] * my_sizes_ms[2] +
+                                    nz * my_sizes_ms[0] + nx] =
               ((nx + my_bounds_ms[0][0]) * npts_global[1] +
                (ny + my_bounds_ms[1][0])) +
               I * (nz + my_bounds_ms[2][0]);
@@ -685,9 +695,10 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
 
     // Check the MS/GS direction
     collect_x_and_distribute_y_blocked(
-        fft_grid_layout->buffer_1, fft_grid_layout->buffer_2, npts_global,
-        fft_grid_layout->proc2local_ms, fft_grid_layout->proc2local_gs,
-        fft_grid_layout->comm, fft_grid_layout->sub_comm);
+        fft_grid_layout->buffer_1, fft_grid_layout->buffer_2,
+        fft_grid_layout->npts_global_gspace, fft_grid_layout->proc2local_ms,
+        fft_grid_layout->proc2local_gs, fft_grid_layout->comm,
+        fft_grid_layout->sub_comm);
 
     // Check forward RS->MS FFTs
     max_error = 0.0;
@@ -695,11 +706,11 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
     shared(fft_grid_layout, my_sizes_gs, my_bounds_gs, npts_global)            \
     collapse(3) reduction(max : max_error)
     for (int nx = 0; nx < my_sizes_gs[0]; nx++) {
-      for (int nz = 0; nz < my_sizes_gs[2]; nz++) {
-        for (int ny = 0; ny < my_sizes_gs[1]; ny++) {
+      for (int ny = 0; ny < my_sizes_gs[1]; ny++) {
+        for (int nz = 0; nz < my_sizes_gs[2]; nz++) {
           const double complex my_value =
               fft_grid_layout->buffer_2[nx * my_sizes_gs[1] * my_sizes_gs[2] +
-                                        nz * my_sizes_gs[1] + ny];
+                                        ny * my_sizes_gs[2] + nz];
           const double complex ref_value =
               ((nx + my_bounds_gs[0][0]) * npts_global[1] +
                (ny + my_bounds_gs[1][0])) +
@@ -719,7 +730,7 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
 
     if (max_error > 1e-12) {
       if (my_process == 0)
-        printf("The transpose xz_to_xy_blocked does not work correctly (%i %i "
+        printf("The transpose xz_to_yz_blocked does not work correctly (%i %i "
                "%i): %f!\n",
                npts_global[0], npts_global[1], npts_global[2], max_error);
       errors++;
@@ -732,7 +743,7 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
       for (int nz = 0; nz < my_sizes_gs[2]; nz++) {
         for (int ny = 0; ny < my_sizes_gs[1]; ny++) {
           fft_grid_layout->buffer_1[nx * my_sizes_gs[1] * my_sizes_gs[2] +
-                                    nz * my_sizes_gs[1] + ny] =
+                                    ny * my_sizes_gs[2] + nz] =
               ((nx + my_bounds_gs[0][0]) * npts_global[1] +
                (ny + my_bounds_gs[1][0])) +
               I * (nz + my_bounds_gs[2][0]);
@@ -743,9 +754,10 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
 
     // Check the MS/GS direction
     collect_y_and_distribute_x_blocked(
-        fft_grid_layout->buffer_1, fft_grid_layout->buffer_2, npts_global,
-        fft_grid_layout->proc2local_gs, fft_grid_layout->proc2local_ms,
-        fft_grid_layout->comm, fft_grid_layout->sub_comm);
+        fft_grid_layout->buffer_1, fft_grid_layout->buffer_2,
+        fft_grid_layout->npts_global_gspace, fft_grid_layout->proc2local_gs,
+        fft_grid_layout->proc2local_ms, fft_grid_layout->comm,
+        fft_grid_layout->sub_comm);
 
     // Check forward RS->MS FFTs
     max_error = 0.0;
@@ -756,8 +768,8 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
       for (int nz = 0; nz < my_sizes_ms[2]; nz++) {
         for (int ny = 0; ny < my_sizes_ms[1]; ny++) {
           const double complex my_value =
-              fft_grid_layout->buffer_2[nx * my_sizes_ms[1] * my_sizes_ms[2] +
-                                        nz * my_sizes_ms[1] + ny];
+              fft_grid_layout->buffer_2[ny * my_sizes_ms[0] * my_sizes_ms[2] +
+                                        nz * my_sizes_ms[0] + nx];
           const double complex ref_value =
               ((nx + my_bounds_ms[0][0]) * npts_global[1] +
                (ny + my_bounds_ms[1][0])) +
@@ -777,7 +789,7 @@ int fft_test_transpose_blocked(const int npts_global[3]) {
 
     if (max_error > 1e-12) {
       if (my_process == 0)
-        printf("The transpose xy_to_xz_blocked does not work correctly (%i %i "
+        printf("The transpose yz_to_xz_blocked does not work correctly (%i %i "
                "%i): %f!\n",
                npts_global[0], npts_global[1], npts_global[2], max_error);
       errors++;
