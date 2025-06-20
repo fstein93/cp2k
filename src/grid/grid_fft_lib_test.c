@@ -14,6 +14,7 @@
 #include "grid_fft_grid_layout.h"
 #include "grid_fft_lib.h"
 #include "grid_fft_reorder.h"
+#include "grid_fft_utils.h"
 
 #include <assert.h>
 #include <math.h>
@@ -1777,12 +1778,21 @@ int fft_test_transpose() {
 
   double error = 0.0;
 
-#pragma omp parallel for default(none) shared(output_array, fft_sizes)         \
-    reduction(max : error) collapse(2)
+#pragma omp parallel for default(none)                                         \
+    shared(output_array, fft_sizes, my_process) reduction(max : error)         \
+    collapse(2)
   for (int index_1 = 0; index_1 < fft_sizes[0]; index_1++) {
     for (int index_2 = 0; index_2 < fft_sizes[1]; index_2++) {
-      error = fmax(error, cabs(output_array[index_2 * fft_sizes[0] + index_1] -
-                               (1.0 * index_1 - index_2 * I)));
+      const double complex my_value =
+          output_array[index_2 * fft_sizes[0] + index_1];
+      const double complex ref_value = 1.0 * index_1 - index_2 * I;
+      const double current_error = cabs(my_value - ref_value);
+      if (current_error > 1e-12 && my_process == 0) {
+        printf("Error %i %i/ %i %i: (%f %f) (%f %f)\n", index_1, index_2,
+               fft_sizes[0], fft_sizes[1], creal(my_value), cimag(my_value),
+               creal(ref_value), cimag(ref_value));
+      }
+      error = fmax(error, current_error);
     }
   }
 
