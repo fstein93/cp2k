@@ -16,6 +16,7 @@
 #include "grid_fft_lib.h"
 #include "grid_fft_lib_test.h"
 #include "grid_fft_reorder_test.h"
+#include "grid_fft_timer.h"
 #include "grid_multigrid_test.h"
 #include "grid_replay.h"
 
@@ -110,6 +111,7 @@ int main(int argc, char *argv[]) {
   errors += fft_test_3d();
   errors += fft_test_add_copy();
   //    errors += multigrid_test();
+  fft_print_timing_report(grid_mpi_comm_world);
 
   // Test also the reference backend and without distributed FFTs from the
   // library
@@ -123,6 +125,7 @@ int main(int argc, char *argv[]) {
     errors += fft_test_3d();
     errors += fft_test_add_copy();
     //      errors += multigrid_test();
+    fft_print_timing_report(grid_mpi_comm_world);
   }
 
   fft_finalize_lib(NULL);

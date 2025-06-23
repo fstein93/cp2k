@@ -8,6 +8,7 @@
 #include "grid_fft_lib.h"
 #include "grid_fft_lib_fftw.h"
 #include "grid_fft_lib_ref.h"
+#include "grid_fft_timer.h"
 
 #include <assert.h>
 #include <math.h>
@@ -47,6 +48,7 @@ void fft_init_lib(const grid_fft_lib lib, const int fftw_planning_flag,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_init_timer();
 }
 
 /*******************************************************************************
@@ -56,7 +58,9 @@ void fft_init_lib(const grid_fft_lib lib, const int fftw_planning_flag,
 void fft_finalize_lib(const char *wisdom_file) {
   fft_ref_finalize_lib();
   fft_fftw_finalize_lib(wisdom_file);
+  void fft_finalize_timer();
   grid_fft_lib_initialized = false;
+  fft_finalize_timer();
 }
 
 /*******************************************************************************
@@ -138,6 +142,11 @@ void fft_free_complex(double complex *buffer) {
 void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH + 1, "fft_1d_fw_local_%i_%i\n",
+           fft_size, number_of_ffts);
+  const int handle = fft_start_timer(routine_name);
   switch (grid_fft_lib_choice) {
   case GRID_FFT_LIB_REF:
     fft_ref_1d_fw_local(grid_in, grid_out, fft_size, number_of_ffts,
@@ -150,6 +159,7 @@ void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************

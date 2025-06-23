@@ -263,6 +263,20 @@ void grid_mpi_max_double(double *buffer, const int count,
                          const grid_mpi_comm comm);
 
 /*******************************************************************************
+ * \brief Sum doubles over all ranks of a communicator.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_mpi_sum_double_root(double *buffer, const int count, const int root,
+                              const grid_mpi_comm comm);
+
+/*******************************************************************************
+ * \brief Determine the maximum of doubles over ranks of a communicator.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_mpi_max_double_root(double *buffer, const int count, const int root,
+                              const grid_mpi_comm comm);
+
+/*******************************************************************************
  * \brief Perform an Alltoall of double complex.
  * \author Frederick Stein
  ******************************************************************************/
@@ -273,6 +287,20 @@ void grid_mpi_alltoallv_double_complex(const double complex *send_buffer,
                                        const int *recv_counts,
                                        const int *recv_displacements,
                                        const grid_mpi_comm comm);
+
+/*******************************************************************************
+ * \brief Broadcasts integers from a given root process.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_mpi_bcast_int(int *buffer, const int count, const int root,
+                        const grid_mpi_comm comm);
+
+/*******************************************************************************
+ * \brief Broadcasts integers from a given root process.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_mpi_bcast_char(char *buffer, const int count, const int root,
+                         const grid_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Determine good dimensions (wrapper to MPI_Dims_create).

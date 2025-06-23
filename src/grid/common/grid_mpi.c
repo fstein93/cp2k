@@ -628,6 +628,48 @@ void grid_mpi_max_double(double *buffer, const int count,
 }
 
 /*******************************************************************************
+ * \brief Sum doubles over all ranks of a communicator and collect at root.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_mpi_sum_double_root(double *buffer, const int count, const int root,
+                              const grid_mpi_comm comm) {
+#if defined(__parallel)
+  assert(buffer != NULL);
+  assert(count >= 0 && "Send count must be nonnegative!");
+  assert(root >= 0 && "Invalid root process!");
+  error_check(
+      MPI_Reduce(MPI_IN_PLACE, buffer, count, MPI_DOUBLE, MPI_SUM, root, comm));
+#else
+  assert(buffer != NULL);
+  (void)comm;
+  (void)buffer;
+  (void)root;
+  (void)count;
+#endif
+}
+
+/*******************************************************************************
+ * \brief Determine the maximum of doubles over ranks of a communicator and
+ *collect at root. \author Frederick Stein
+ ******************************************************************************/
+void grid_mpi_max_double_root(double *buffer, const int count, const int root,
+                              const grid_mpi_comm comm) {
+#if defined(__parallel)
+  assert(buffer != NULL);
+  assert(count >= 0 && "Send count must be nonnegative!");
+  assert(root >= 0 && "Invalid root process!");
+  error_check(
+      MPI_Reduce(MPI_IN_PLACE, buffer, count, MPI_DOUBLE, MPI_MAX, root, comm));
+#else
+  assert(buffer != NULL);
+  (void)comm;
+  (void)buffer;
+  (void)root;
+  (void)count;
+#endif
+}
+
+/*******************************************************************************
  * \brief Perform an Alltoall of double complex.
  * \author Frederick Stein
  ******************************************************************************/
@@ -655,6 +697,44 @@ void grid_mpi_alltoallv_double_complex(const double complex *send_buffer,
   memcpy(recv_buffer + (*recv_displacements),
          send_buffer + (*send_displacements),
          (*send_counts) * sizeof(double complex));
+#endif
+}
+
+/*******************************************************************************
+ * \brief Broadcasts integers from a given root process.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_mpi_bcast_int(int *buffer, const int count, const int root,
+                        const grid_mpi_comm comm) {
+  assert(buffer != NULL);
+  assert(count >= 0);
+  assert(root >= 0);
+#if defined(__parallel)
+  error_check(MPI_Bcast(buffer, count, MPI_INT, root, comm));
+#else
+  (void)buffer;
+  (void)count;
+  (void)root;
+  (void)comm;
+#endif
+}
+
+/*******************************************************************************
+ * \brief Broadcasts integers from a given root process.
+ * \author Frederick Stein
+ ******************************************************************************/
+void grid_mpi_bcast_char(char *buffer, const int count, const int root,
+                         const grid_mpi_comm comm) {
+  assert(buffer != NULL);
+  assert(count >= 0);
+  assert(root >= 0);
+#if defined(__parallel)
+  error_check(MPI_Bcast(buffer, count, MPI_CHAR, root, comm));
+#else
+  (void)buffer;
+  (void)count;
+  (void)root;
+  (void)comm;
 #endif
 }
 
