@@ -169,8 +169,7 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
   if (max_error > 1e-12) {
     if (my_process == 0)
       printf("The fw 3D FFT (blocked) to ordered layout does not work "
-             "correctly (%i "
-             "%i %i): %f!\n",
+             "correctly (%i %i %i): %f!\n",
              npts_global[0], npts_global[1], npts_global[2], max_error);
     errors++;
   }
@@ -233,8 +232,7 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
   if (max_error > 1e-12) {
     if (my_process == 0)
       printf("The bw 3D FFT (blocked) to ordered layout does not work "
-             "correctly "
-             "(%i %i %i): %f!\n",
+             "correctly (%i %i %i): %f!\n",
              npts_global[0], npts_global[1], npts_global[2], max_error);
     errors++;
   }
@@ -631,9 +629,7 @@ int fft_test_3d_r2c_blocked_halfspace(const int npts_global[3],
   if (max_error > 1e-12) {
     if (my_process == 0)
       printf("The fw R2C 3D FFT (blocked, halfspace) to ordered layout does "
-             "not work "
-             "correctly (%i "
-             "%i %i): %f!\n",
+             "not work correctly (%i %i %i): %f!\n",
              npts_global[0], npts_global[1], npts_global[2], max_error);
     errors++;
   }
@@ -653,12 +649,13 @@ int fft_test_3d_r2c_blocked_halfspace(const int npts_global[3],
                my_number_of_elements_gs * sizeof(double complex));
 
         for (int index = 0; index < my_number_of_elements_gs; index++) {
-          if (nx == fft_grid_layout->index_to_g[index][0] &&
-              ny == fft_grid_layout->index_to_g[index][1] &&
-              nz == fft_grid_layout->index_to_g[index][2]) {
-            grid_gs.data[index] = 1.0;
-            break;
-          }
+          const int mx = fft_grid_layout->index_to_g[index][0];
+          const int my = fft_grid_layout->index_to_g[index][1];
+          const int mz = fft_grid_layout->index_to_g[index][2];
+          grid_gs.data[index] = cexp(-2.0 * I * pi *
+                                     (((double)mx) * nx / npts_global[0] +
+                                      ((double)my) * ny / npts_global[1] +
+                                      ((double)mz) * nz / npts_global[2]));
         }
 
         fft_3d_bw_c2r(&grid_gs, &grid_rs);
@@ -672,11 +669,11 @@ int fft_test_3d_r2c_blocked_halfspace(const int npts_global[3],
               const double my_value =
                   grid_rs.data[mx * my_sizes_rs[1] * my_sizes_rs[2] +
                                my * my_sizes_rs[2] + mz];
-              const double ref_value = cos(
-                  2.0 * pi *
-                  (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +
-                   ((double)my + my_bounds_rs[1][0]) * ny / npts_global[1] +
-                   ((double)mz + my_bounds_rs[2][0]) * nz / npts_global[2]));
+              const double ref_value = ((mx + my_bounds_rs[0][0] == nx &&
+                                         my + my_bounds_rs[1][0] == ny &&
+                                         mz + my_bounds_rs[2][0] == nz)
+                                            ? (double)product3(npts_global)
+                                            : 0.0);
               double current_error = fabs(my_value - ref_value);
               if (current_error > 1e-12) {
                 printf("ERROR %i %i %i/%i %i %i: (%f) (%f)\n", mx, my, mz, nx,
@@ -695,9 +692,7 @@ int fft_test_3d_r2c_blocked_halfspace(const int npts_global[3],
   if (max_error > 1e-12) {
     if (my_process == 0)
       printf("The bw R2C 3D FFT (blocked, halfspace) to ordered layout does "
-             "not work "
-             "correctly "
-             "(%i %i %i): %f!\n",
+             "not work correctly (%i %i %i): %f!\n",
              npts_global[0], npts_global[1], npts_global[2], max_error);
     errors++;
   }
@@ -708,8 +703,7 @@ int fft_test_3d_r2c_blocked_halfspace(const int npts_global[3],
 
   if (errors == 0 && my_process == 0)
     printf("The 3D R2C FFT with blocked, halfsapce layout does work correctly "
-           "(sizes %i %i "
-           "%i)!\n",
+           "(sizes %i %i %i)!\n",
            npts_global[0], npts_global[1], npts_global[2]);
   return errors;
 }
@@ -1096,15 +1090,10 @@ int fft_test_3d_r2c_ray_halfspace(const int npts_global[3],
   grid_fft_grid_layout *ref_grid_layout = NULL;
   grid_create_fft_grid_layout(&ref_grid_layout, comm, npts_global_ref, dh_inv,
                               true);
-  grid_mpi_barrier(comm);
-
-  grid_print_grid_layout_info(ref_grid_layout, true);
 
   grid_fft_grid_layout *fft_grid_layout = NULL;
   grid_create_fft_grid_layout_from_reference(&fft_grid_layout, npts_global,
                                              ref_grid_layout);
-
-  grid_print_grid_layout_info(fft_grid_layout, true);
 
   const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
@@ -1188,51 +1177,49 @@ int fft_test_3d_r2c_ray_halfspace(const int npts_global[3],
   max_error = 0.0;
   number_of_tests = 0;
   for (int nx = 0; nx < npts_global[0]; nx++) {
-    for (int nyz = 0; nyz < total_number_of_rays; nyz++) {
-      if (test_every > 0 && number_of_tests % test_every != 0) {
-        number_of_tests++;
-        continue;
-      }
-      number_of_tests++;
-      const int ny = fft_grid_layout->ray_to_yz[nyz][0];
-      const int nz = fft_grid_layout->ray_to_yz[nyz][1];
-
-      memset(buffer_2, 0,
-             fft_grid_layout->npts_gs_local * sizeof(double complex));
-
-      if (nyz >= my_ray_offset &&
-          nyz < my_ray_offset + fft_grid_layout->rays_per_process[my_process]) {
-        for (int index = 0; index < my_number_of_elements_gs; index++) {
-          if (fft_grid_layout->index_to_g[index][0] == nx &&
-              fft_grid_layout->index_to_g[index][1] == ny &&
-              fft_grid_layout->index_to_g[index][2] == nz) {
-            buffer_2[index] = 1.0;
-            break;
-          }
+    for (int ny = 0; ny < npts_global[1]; ny++) {
+      for (int nz = 0; nz < npts_global[2]; nz++) {
+        if (test_every > 0 && number_of_tests % test_every != 0) {
+          number_of_tests++;
+          continue;
         }
-      }
+        number_of_tests++;
 
-      fft_3d_bw_c2r_with_layout(buffer_2, buffer_1, fft_grid_layout);
+        memset(buffer_2, 0,
+               fft_grid_layout->npts_gs_local * sizeof(double complex));
+
+        for (int index = 0; index < my_number_of_elements_gs; index++) {
+          const int mx = fft_grid_layout->index_to_g[index][0];
+          const int my = fft_grid_layout->index_to_g[index][1];
+          const int mz = fft_grid_layout->index_to_g[index][2];
+          buffer_2[index] = cexp(-2.0 * I * pi *
+                                 (((double)mx) * nx / npts_global[0] +
+                                  ((double)my) * ny / npts_global[1] +
+                                  ((double)mz) * nz / npts_global[2]));
+        }
+
+        fft_3d_bw_c2r_with_layout(buffer_2, buffer_1, fft_grid_layout);
 
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_layout, buffer_1, my_sizes_rs, my_bounds_rs, npts_global,  \
                nx, ny, nz) reduction(max : max_error) collapse(3)
-      for (int mx = 0; mx < my_sizes_rs[0]; mx++) {
-        for (int my = 0; my < my_sizes_rs[1]; my++) {
-          for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
-            const double my_value =
-                buffer_1[mx * my_sizes_rs[1] * my_sizes_rs[2] +
-                         my * my_sizes_rs[2] + mz];
-            const double ref_value =
-                cos(2.0 * pi *
-                    (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +
-                     ((double)my + my_bounds_rs[1][0]) * ny / npts_global[1] +
-                     ((double)mz + my_bounds_rs[2][0]) * nz / npts_global[2]));
-            double current_error = fabs(my_value - ref_value);
-            if (current_error > 1e-12)
-              printf("ERROR %i %i %i/%i %i %i: (%f) (%f)\n", mx, my, mz, nx, ny,
-                     nz, my_value, ref_value);
-            max_error = fmax(max_error, current_error);
+        for (int mx = 0; mx < my_sizes_rs[0]; mx++) {
+          for (int my = 0; my < my_sizes_rs[1]; my++) {
+            for (int mz = 0; mz < my_sizes_rs[2]; mz++) {
+              const double my_value =
+                  buffer_1[mx * my_sizes_rs[1] * my_sizes_rs[2] +
+                           my * my_sizes_rs[2] + mz];
+              const double ref_value = (mx + my_bounds_rs[0][0] == nx &&
+                                        my + my_bounds_rs[1][0] == ny &&
+                                        mz + my_bounds_rs[2][0] == nz)
+                                           ? (double)product3(npts_global)
+                                           : 0.0;
+              double current_error = fabs(my_value - ref_value);
+              if (current_error > 1e-12)
+                printf("ERROR %i %i %i/%i %i %i: (%f) (%f)\n", mx, my, mz, nx,
+                       ny, nz, my_value, ref_value);
+              max_error = fmax(max_error, current_error);
+            }
           }
         }
       }
@@ -1243,7 +1230,8 @@ int fft_test_3d_r2c_ray_halfspace(const int npts_global[3],
 
   if (max_error > 1e-12) {
     if (my_process == 0)
-      printf("The bw C2R-3D FFT with ray layout does not work correctly (%i "
+      printf("The bw C2R-3D FFT with ray layout (halfspace) does not work "
+             "correctly (%i "
              "%i %i)/(%i %i %i): %f!\n",
              npts_global[0], npts_global[1], npts_global[2], npts_global_ref[0],
              npts_global_ref[1], npts_global_ref[2], max_error);
@@ -1288,13 +1276,11 @@ int fft_test_3d() {
   errors += fft_test_3d_r2c_blocked(npts_global_reverse, 19);
   errors += fft_test_3d_r2c_blocked(npts_global_small_reverse, 11);
 
-// Check the blocked layout with the halfspace flavor
-#if 0
+  // Check the blocked layout with the halfspace flavor
   errors += fft_test_3d_r2c_blocked_halfspace(npts_global, 13);
   errors += fft_test_3d_r2c_blocked_halfspace(npts_global_small, 17);
   errors += fft_test_3d_r2c_blocked_halfspace(npts_global_reverse, 19);
   errors += fft_test_3d_r2c_blocked_halfspace(npts_global_small_reverse, 11);
-#endif
 
   // Check the ray layout with the same grid sizes
   errors += fft_test_3d_ray(npts_global, npts_global, 19);
@@ -1310,8 +1296,7 @@ int fft_test_3d() {
   errors +=
       fft_test_3d_r2c_ray(npts_global_small_reverse, npts_global_reverse, 17);
 
-// Check the ray layout with the same grid sizes in half space
-#if 0
+  // Check the ray layout with the same grid sizes in half space
   errors += fft_test_3d_r2c_ray_halfspace(npts_global, npts_global, 19);
   errors +=
       fft_test_3d_r2c_ray_halfspace(npts_global_small, npts_global_small, 11);
@@ -1320,7 +1305,6 @@ int fft_test_3d() {
                                           npts_global_reverse, 17);
   errors += fft_test_3d_r2c_ray_halfspace(npts_global_small_reverse,
                                           npts_global_reverse, 17);
-#endif
   clock_t end = clock();
 
   if (errors == 0 && my_process == 0)

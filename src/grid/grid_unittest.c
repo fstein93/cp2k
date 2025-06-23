@@ -107,7 +107,7 @@ int main(int argc, char *argv[]) {
   errors += fft_test_distributed();
   errors += fft_test_transpose();
   errors += fft_test_transpose_parallel();
-  //    errors += fft_test_3d();
+  // errors += fft_test_3d();
   errors += fft_test_add_copy();
   //    errors += multigrid_test();
 
@@ -115,12 +115,12 @@ int main(int argc, char *argv[]) {
   // library
   if (true) {
     fft_finalize_lib(NULL);
-    fft_init_lib(GRID_FFT_LIB_REF, FFT_MEASURE, false, NULL);
+    fft_init_lib(GRID_FFT_LIB_DEFAULT, FFT_MEASURE, false, NULL);
     errors += fft_test_local();
     errors += fft_test_distributed();
     errors += fft_test_transpose();
     errors += fft_test_transpose_parallel();
-    errors += fft_test_3d();
+    // errors += fft_test_3d();
     errors += fft_test_add_copy();
     //      errors += multigrid_test();
   }

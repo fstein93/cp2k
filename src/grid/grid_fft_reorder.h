@@ -13,15 +13,15 @@
 
 void collect_y_and_distribute_z_blocked(
     const double complex *grid, double complex *transposed,
-    const int npts_global[3], const int (*proc2local)[3][2],
-    const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm,
-    const grid_mpi_comm sub_comm[2]);
+    const int npts_global[3], const int npts_global_gspace_2,
+    const int (*proc2local)[3][2], const int (*proc2local_transposed)[3][2],
+    const grid_mpi_comm comm, const grid_mpi_comm sub_comm[2]);
 
 void collect_z_and_distribute_y_blocked(
     const double complex *grid, double complex *transposed,
-    const int npts_global[3], const int (*proc2local)[3][2],
-    const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm,
-    const grid_mpi_comm sub_comm[2]);
+    const int npts_global[3], const int npts_global_gspace_2,
+    const int (*proc2local)[3][2], const int (*proc2local_transposed)[3][2],
+    const grid_mpi_comm comm, const grid_mpi_comm sub_comm[2]);
 
 void collect_x_and_distribute_y_blocked_transpose(
     const double complex *grid, double complex *transposed,

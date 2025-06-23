@@ -22,9 +22,9 @@
  ******************************************************************************/
 void collect_y_and_distribute_z_blocked(
     const double complex *grid, double complex *transposed,
-    const int npts_global[3], const int (*proc2local)[3][2],
-    const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm,
-    const grid_mpi_comm sub_comm[2]) {
+    const int npts_global[3], const int npts_global_gspace_2,
+    const int (*proc2local)[3][2], const int (*proc2local_transposed)[3][2],
+    const grid_mpi_comm comm, const grid_mpi_comm sub_comm[2]) {
   const int my_process = grid_mpi_comm_rank(comm);
 
   int proc_coord[2];
@@ -51,8 +51,8 @@ void collect_y_and_distribute_z_blocked(
   int *recv_displacements = calloc(dims[1], sizeof(int));
   int *send_counts = calloc(dims[1], sizeof(int));
   int *recv_counts = calloc(dims[1], sizeof(int));
-  double complex *send_buffer =
-      calloc(product3(my_sizes), sizeof(double complex));
+  double complex *send_buffer = calloc(
+      my_sizes[0] * my_sizes[1] * npts_global_gspace_2, sizeof(double complex));
 
   // Reorder the input data to enable MPI_alltoall
   int send_offset = 0;
@@ -94,7 +94,9 @@ void collect_y_and_distribute_z_blocked(
       }
     }
   }
-  assert(send_offset == product3(my_sizes));
+  printf("%i DEBUG %i %i\n", my_process, send_offset,
+         my_sizes[0] * my_sizes[1] * npts_global_gspace_2);
+  assert(send_offset == my_sizes[0] * my_sizes[1] * npts_global_gspace_2);
   assert(recv_offset == product3(my_sizes_transposed));
 
   // Use collective MPI communication
@@ -115,9 +117,9 @@ void collect_y_and_distribute_z_blocked(
  ******************************************************************************/
 void collect_z_and_distribute_y_blocked(
     const double complex *grid, double complex *transposed,
-    const int npts_global[3], const int (*proc2local)[3][2],
-    const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm,
-    const grid_mpi_comm sub_comm[2]) {
+    const int npts_global[3], const int npts_global_gspace_2,
+    const int (*proc2local)[3][2], const int (*proc2local_transposed)[3][2],
+    const grid_mpi_comm comm, const grid_mpi_comm sub_comm[2]) {
   const int my_process = grid_mpi_comm_rank(comm);
 
   int proc_coord[2];
@@ -144,8 +146,9 @@ void collect_z_and_distribute_y_blocked(
   int *recv_displacements = calloc(dims[1], sizeof(int));
   int *send_counts = calloc(dims[1], sizeof(int));
   int *recv_counts = calloc(dims[1], sizeof(int));
-  double complex *recv_buffer =
-      calloc(product3(my_sizes_transposed), sizeof(double complex));
+  double complex *recv_buffer = calloc(
+      my_sizes_transposed[0] * my_sizes_transposed[1] * npts_global_gspace_2,
+      sizeof(double complex));
 
   int send_offset = 0;
   int recv_offset = 0;
@@ -169,7 +172,8 @@ void collect_z_and_distribute_y_blocked(
     recv_offset += current_recv_count;
   }
   assert(send_offset == product3(my_sizes));
-  assert(recv_offset == product3(my_sizes_transposed));
+  assert(recv_offset == my_sizes_transposed[0] * my_sizes_transposed[1] *
+                            npts_global_gspace_2);
 
   // Use collective MPI communication
   grid_mpi_alltoallv_double_complex(grid, send_counts, send_displacements,
