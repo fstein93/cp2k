@@ -129,7 +129,7 @@ GRID_HOST_DEVICE static inline int dmax(double x, double y) {
 }
 
 /*******************************************************************************
- * \brief Equivalent of Fortran's MODULO, which always return a positive number.
+ * \brief Equivalent of Fortran's MODULO which always returns a positive number.
  *        https://gcc.gnu.org/onlinedocs/gfortran/MODULO.html
  * \author Ole Schuett
  ******************************************************************************/

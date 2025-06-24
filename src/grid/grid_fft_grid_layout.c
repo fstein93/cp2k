@@ -302,18 +302,18 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid) {
                                      my_fft_grid->proc_grid[0] - 1) /
                                     my_fft_grid->proc_grid[0];
         // No distributed FFT necessary, communication only before the final FFT
-        local_n0_rs = imax(my_fft_grid->proc_coords[0] * block_size_x_rs,
-                           my_fft_grid->npts_global[0]);
-        local_n0_start_rs =
-            imin((my_fft_grid->proc_coords[0] + 1) * block_size_x_rs,
-                 my_fft_grid->npts_global[0] - 1);
+        local_n0_start_rs = imin(my_fft_grid->proc_coords[0] * block_size_x_rs,
+                                 my_fft_grid->npts_global[0]);
+        local_n0_rs =
+            imax(0, imin(block_size_x_rs,
+                         my_fft_grid->npts_global[0] - local_n0_start_rs));
         my_fft_grid->buffer_size = local_n0_rs * my_fft_grid->npts_global[1] *
                                    my_fft_grid->npts_global[2];
-        local_n1_gs = imax(my_fft_grid->proc_coords[0] * block_size_y_gs,
-                           my_fft_grid->npts_global[1]);
-        local_n1_start_gs =
-            imin((my_fft_grid->proc_coords[0] + 1) * block_size_y_gs,
-                 my_fft_grid->npts_global[1] - 1);
+        local_n1_start_gs = imin(my_fft_grid->proc_coords[0] * block_size_y_gs,
+                                 my_fft_grid->npts_global_gspace[1]);
+        local_n1_gs =
+            imax(0, imin(block_size_y_gs,
+                         my_fft_grid->npts_global[1] - local_n1_start_gs));
         my_fft_grid->buffer_size =
             imax(my_fft_grid->buffer_size, local_n1_gs *
                                                my_fft_grid->npts_global[0] *
@@ -1559,14 +1559,13 @@ void fft_3d_fw_r2c_ray_low(double complex *grid_buffer_1,
                       grid_buffer_1, grid_buffer_2);
     }
   } else if (proc_grid[0] > 1) {
-    // Depending on the use of a distributed FFT library, we have different data
-    // distributions
+    // The first two FFTs can be performed locally
     // Perform the first FFT (z_d,y,x)->(x,z_d_y)
     fft_2d_fw_local_r2c((const int[2]){npts_global[1], npts_global[2]},
                         fft_sizes_ms[0], false, true, (double *)grid_buffer_1,
                         grid_buffer_2);
 
-    // Perform second transpose
+    // but we need to redistribute to rays
     collect_x_and_distribute_yz_ray(grid_buffer_2, grid_buffer_1, npts_global,
                                     proc2local_ms, rays_per_process, ray_to_yz,
                                     comm);

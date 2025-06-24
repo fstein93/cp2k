@@ -634,7 +634,9 @@ int fft_test_transpose_ray(const int npts_global[3],
                max_error);
       errors++;
     }
-  } else if (!fft_lib_use_mpi()) {
+  }
+
+  if (fft_grid_ray_layout->proc_grid[1] == 1 || !fft_lib_use_mpi()) {
 #pragma omp parallel for default(none)                                         \
     shared(fft_grid_ray_layout, my_sizes_ms_ray, my_bounds_ms_ray) collapse(3)
     for (int index_x = 0; index_x < my_sizes_ms_ray[0]; index_x++) {
