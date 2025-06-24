@@ -264,8 +264,6 @@ int fft_test_transpose_blocked(const int npts_global[3],
            my_number_of_elements_rs * sizeof(double complex));
 
     // Check the reverse direction
-    printf("Test collect_z_and_distribute_y_blocked\n");
-    fflush(stdout);
     collect_z_and_distribute_y_blocked(
         fft_grid_layout->buffer_2, fft_grid_layout->buffer_1,
         fft_grid_layout->npts_global, fft_grid_layout->npts_global_gspace[2],

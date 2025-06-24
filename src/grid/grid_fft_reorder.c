@@ -94,8 +94,6 @@ void collect_y_and_distribute_z_blocked(
       }
     }
   }
-  printf("%i DEBUG %i %i\n", my_process, send_offset,
-         my_sizes[0] * my_sizes[1] * npts_global_gspace_2);
   assert(send_offset == my_sizes[0] * my_sizes[1] * npts_global_gspace_2);
   assert(recv_offset == product3(my_sizes_transposed));
 

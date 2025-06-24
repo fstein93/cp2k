@@ -1215,8 +1215,6 @@ void fft_3d_bw_blocked_low(
                       true, grid_buffer_1, grid_buffer_2);
 
       // Collect data in z-direction and distribute y-direction
-      printf("Run collect_z_and_distribute_y_blocked BW blocked\n");
-      fflush(stdout);
       collect_z_and_distribute_y_blocked(
           grid_buffer_2, grid_buffer_1, npts_global, npts_global[2],
           proc2local_ms, proc2local_rs, comm, sub_comm);
@@ -1323,8 +1321,6 @@ void fft_3d_bw_c2r_blocked_low(
                       true, grid_buffer_1, grid_buffer_2);
 
       // Collect data in z-direction and distribute y-direction
-      printf("Run collect_z_and_distribute_y_blocked BW C2R blocked\n");
-      fflush(stdout);
       collect_z_and_distribute_y_blocked(
           grid_buffer_2, grid_buffer_1, npts_global, npts_global[2] / 2 + 1,
           proc2local_ms, proc2local_rs, comm, sub_comm);
@@ -1674,8 +1670,6 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
                       true, grid_buffer_1, grid_buffer_2);
 
       // Perform second transpose
-      printf("Run collect_z_and_distribute_y_blocked BW ray\n");
-      fflush(stdout);
       collect_z_and_distribute_y_blocked(
           grid_buffer_2, grid_buffer_1, npts_global, npts_global[2],
           proc2local_ms, proc2local_rs, comm, sub_comm);
@@ -1794,8 +1788,6 @@ void fft_3d_bw_c2r_ray_low(double complex *grid_buffer_1,
                       true, grid_buffer_1, grid_buffer_2);
 
       // Perform second transpose
-      printf("Run collect_z_and_distribute_y_blocked BW C2R ray\n");
-      fflush(stdout);
       collect_z_and_distribute_y_blocked(
           grid_buffer_2, grid_buffer_1, npts_global, npts_global[2] / 2 + 1,
           proc2local_ms, proc2local_rs, comm, sub_comm);

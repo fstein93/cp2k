@@ -86,7 +86,7 @@ int main(int argc, char *argv[]) {
 
   offload_set_chosen_device(0);
   grid_library_init();
-  fft_init_lib(GRID_FFT_LIB_DEFAULT, FFT_MEASURE, false, NULL);
+  fft_init_lib(GRID_FFT_LIB_DEFAULT, FFT_MEASURE, true, NULL);
 
   int errors = 0;
   errors += run_test(argv[1], "ortho_density_l0000.task");
