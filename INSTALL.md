@@ -205,6 +205,7 @@ required.
 - Use `-D__NO_OFFLOAD_DBM` to disable the GPU backend of the sparse tensor library.
 - Use `-D__NO_OFFLOAD_PW` to disable the GPU backend of FFTs and associated gather/scatter
   operations.
+- If `-D__OFFLOAD_CUDA` is used without `-D__NO_OFFLOAD_PW`, the flag `-D__FFTW3_MPI` is ignored.
 
 ### 2j. LIBXC (optional, wider choice of xc functionals)
 

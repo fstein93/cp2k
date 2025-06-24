@@ -55,7 +55,7 @@ ALL_OBJECTS := ../offload/offload_buffer.o \
 # Enable Cuda when nvcc compiler is present.
 NVCC := $(shell which nvcc)
 ifneq ($(NVCC),)
-LIBS += -lcudart -lcuda -lcublas -L${CUDA_PATH}/lib64
+LIBS += -lcudart -lcuda -lcublas -lcufftw -lcufft -L${CUDA_PATH}/lib64
 CFLAGS += -I${CUDA_PATH}/include -D__OFFLOAD_CUDA
 ALL_OBJECTS += gpu/grid_gpu_task_list.o \
         gpu/grid_gpu_collocate.o \
