@@ -361,10 +361,9 @@ void setup_proc2local(grid_fft_grid_layout *my_fft_grid) {
             my_fft_grid->proc2local_rs[process][0][0];
         my_fft_grid->proc2local_ms[process][0][1] =
             my_fft_grid->proc2local_rs[process][0][1];
-        my_fft_grid->proc2local_ms[process][1][0] =
-            my_fft_grid->proc2local_gs[process][1][0];
+        my_fft_grid->proc2local_ms[process][1][0] = 0;
         my_fft_grid->proc2local_ms[process][1][1] =
-            my_fft_grid->proc2local_gs[process][1][1];
+            my_fft_grid->npts_global_gspace[1] - 1;
         my_fft_grid->proc2local_ms[process][2][0] =
             my_fft_grid->proc2local_gs[process][2][0];
         my_fft_grid->proc2local_ms[process][2][1] =
@@ -1974,7 +1973,7 @@ void fft_3d_fw_r2c_with_layout(const double *grid_rs, double complex *grid_gs,
 #pragma omp parallel for default(none)                                         \
     shared(grid_layout, local_sizes_rs, grid_rs)
     for (int i = 0; i < product3(local_sizes_rs); i++) {
-      grid_layout->buffer_1[i] = grid_rs[i];
+      grid_layout->buffer_1[i] = CMPLX(grid_rs[i], 0.0);
     }
     if (grid_layout->ray_distribution) {
       fft_3d_fw_ray_low(grid_layout->buffer_1, grid_layout->buffer_2,
@@ -2233,7 +2232,7 @@ void fft_3d_bw_c2r_with_layout(const double complex *grid_gs, double *grid_rs,
 #pragma omp parallel for default(none)                                         \
     shared(grid_layout, local_sizes_rs, grid_rs)
     for (int i = 0; i < product3(local_sizes_rs); i++) {
-      grid_rs[i] = grid_layout->buffer_2[i];
+      grid_rs[i] = creal(grid_layout->buffer_2[i]);
     }
   }
 }
