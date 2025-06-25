@@ -637,8 +637,11 @@ void grid_mpi_sum_double_root(double *buffer, const int count, const int root,
   assert(buffer != NULL);
   assert(count >= 0 && "Send count must be nonnegative!");
   assert(root >= 0 && "Invalid root process!");
+  double *result = malloc(count * sizeof(double));
   error_check(
-      MPI_Reduce(MPI_IN_PLACE, buffer, count, MPI_DOUBLE, MPI_SUM, root, comm));
+      MPI_Reduce(buffer, result, count, MPI_DOUBLE, MPI_SUM, root, comm));
+  memcpy(buffer, result, count * sizeof(double));
+  free(result);
 #else
   assert(buffer != NULL);
   (void)comm;
@@ -658,8 +661,12 @@ void grid_mpi_max_double_root(double *buffer, const int count, const int root,
   assert(buffer != NULL);
   assert(count >= 0 && "Send count must be nonnegative!");
   assert(root >= 0 && "Invalid root process!");
+  double *result = malloc(count * sizeof(double));
   error_check(
-      MPI_Reduce(MPI_IN_PLACE, buffer, count, MPI_DOUBLE, MPI_MAX, root, comm));
+      MPI_Reduce(buffer, result, count, MPI_DOUBLE, MPI_MAX, root, comm));
+  if (root == grid_mpi_comm_rank(comm))
+    memcpy(buffer, result, count * sizeof(double));
+  free(result);
 #else
   assert(buffer != NULL);
   (void)comm;

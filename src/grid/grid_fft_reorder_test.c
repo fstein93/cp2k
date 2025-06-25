@@ -36,8 +36,6 @@ int fft_test_transpose_blocked(const int npts_global[3],
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               use_halfspace);
 
-  grid_print_grid_layout_info(fft_grid_layout, true);
-
   const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)

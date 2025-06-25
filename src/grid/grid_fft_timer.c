@@ -12,7 +12,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 typedef struct {
   char *routine_name;
@@ -33,7 +32,7 @@ typedef struct {
 
 struct fft_stack_type {
   int handle;
-  clock_t start_time;
+  double start_time;
   double time_of_called_routines;
   struct fft_stack_type *next;
 };
@@ -142,7 +141,7 @@ void push_on_stack(const int handle) {
   new_stack->handle = handle;
   new_stack->next = stack;
   new_stack->time_of_called_routines = 0.0;
-  new_stack->start_time = clock();
+  new_stack->start_time = omp_get_wtime();
   stack = new_stack;
 }
 
@@ -154,8 +153,8 @@ void push_on_stack(const int handle) {
  * \author Frederick Stein
  ******************************************************************************/
 void pop_from_stack(int *handle, double *run_time, double *self_time) {
-  clock_t end = clock();
-  double my_run_time = (end - stack->start_time) / CLOCKS_PER_SEC;
+  const double end = omp_get_wtime();
+  const double my_run_time = end - stack->start_time;
   *handle = stack->handle;
   *run_time = my_run_time;
   *self_time = my_run_time - stack->time_of_called_routines;
@@ -187,9 +186,11 @@ int compare_fft_timing_statistics(const void *a, const void *b) {
  ******************************************************************************/
 void fft_init_timer() {
   assert(omp_get_num_threads() == 1);
-  timed_routines = calloc(16, sizeof(fft_timed_routine));
-  buffer_size_timed_routines = 16;
-  timers_initialized = true;
+  if (!timers_initialized) {
+    timed_routines = calloc(16, sizeof(fft_timed_routine));
+    buffer_size_timed_routines = 16;
+    timers_initialized = true;
+  }
 }
 
 /*******************************************************************************
@@ -198,9 +199,6 @@ void fft_init_timer() {
  * \author Frederick Stein
  ******************************************************************************/
 void fft_print_timing_report(const grid_mpi_comm comm) {
-  printf("%i Enter fft_print_timing_report\n",
-         grid_mpi_comm_rank(grid_mpi_comm_world));
-  fflush(stdout);
   assert(omp_get_num_threads() == 1);
   if (timers_initialized) {
     // We restrict ourselves to the routines from rank 0
@@ -271,10 +269,10 @@ void fft_print_timing_report(const grid_mpi_comm comm) {
                       " TIME         TIME   "
                       "      TIME        TIME   \n");
       for (int routine = 0; routine < size_of_timing_statistics; routine++) {
-        if (timing_statistics[size_of_timing_statistics].number_of_calls > 0)
-          fprintf(stdout, " %s %7i    %7.3f    %7.3f    %7.3f    %7.3f\n",
+        if (timing_statistics[routine].number_of_calls > 0)
+          fprintf(stdout, " %-43s %7i      %7.3f    %7.3f    %7.3f    %7.3f\n",
                   timing_statistics[routine].routine_name,
-                  timing_statistics[size_of_timing_statistics].number_of_calls,
+                  timing_statistics[routine].number_of_calls,
                   timing_statistics[routine].avg_total_time,
                   timing_statistics[routine].max_total_time,
                   timing_statistics[routine].avg_self_time,
@@ -303,6 +301,9 @@ void fft_print_timing_report(const grid_mpi_comm comm) {
         function_info[1] = self_time;
         function_info[2] = (double)number_of_calls;
         grid_mpi_sum_double_root(function_info, 3, 0, comm);
+        function_info[0] = total_time;
+        function_info[1] = self_time;
+        function_info[2] = (double)number_of_calls;
         grid_mpi_max_double_root(function_info, 2, 0, comm);
         free(routine_name);
       }
@@ -314,9 +315,6 @@ void fft_print_timing_report(const grid_mpi_comm comm) {
       printf("Timing module is not initialized. Timing report is not "
              "available!\n");
   }
-  printf("%i fft_print_timing_report\n",
-         grid_mpi_comm_rank(grid_mpi_comm_world));
-  fflush(stdout);
 }
 
 /*******************************************************************************
@@ -326,17 +324,15 @@ void fft_print_timing_report(const grid_mpi_comm comm) {
  ******************************************************************************/
 void fft_finalize_timer() {
   assert(omp_get_num_threads() == 1);
-  printf("%i Enter fft_finalize_timer\n",
-         grid_mpi_comm_rank(grid_mpi_comm_world));
-  fflush(stdout);
-  assert(stack == NULL);
-  for (int routine = 0; routine < number_of_timed_routines; routine++) {
-    free(timed_routines[routine].routine_name);
+  if (timers_initialized) {
+    assert(stack == NULL);
+    for (int routine = 0; routine < number_of_timed_routines; routine++) {
+      free(timed_routines[routine].routine_name);
+    }
+    free(timed_routines);
+    number_of_timed_routines = 0;
+    timers_initialized = false;
   }
-  free(timed_routines);
-  printf("%i Leave fft_finalize_timer\n",
-         grid_mpi_comm_rank(grid_mpi_comm_world));
-  fflush(stdout);
 }
 
 /*******************************************************************************

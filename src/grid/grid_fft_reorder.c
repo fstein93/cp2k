@@ -8,6 +8,7 @@
 #include "grid_fft_reorder.h"
 #include "common/grid_common.h"
 #include "common/grid_mpi.h"
+#include "grid_fft_timer.h"
 
 #include <assert.h>
 #include <complex.h>
@@ -25,6 +26,12 @@ void collect_y_and_distribute_z_blocked(
     const int npts_global[3], const int npts_global_gspace_2,
     const int (*proc2local)[3][2], const int (*proc2local_transposed)[3][2],
     const grid_mpi_comm comm, const grid_mpi_comm sub_comm[2]) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_y_distr_z_b_%i_%i_%i_%i",
+           npts_global[0], npts_global[1], npts_global[2],
+           grid_mpi_comm_size(comm));
+  const int handle = fft_start_timer(routine_name);
   const int my_process = grid_mpi_comm_rank(comm);
 
   int proc_coord[2];
@@ -107,6 +114,7 @@ void collect_y_and_distribute_z_blocked(
   free(send_displacements);
   free(recv_counts);
   free(recv_displacements);
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************
@@ -118,6 +126,12 @@ void collect_z_and_distribute_y_blocked(
     const int npts_global[3], const int npts_global_gspace_2,
     const int (*proc2local)[3][2], const int (*proc2local_transposed)[3][2],
     const grid_mpi_comm comm, const grid_mpi_comm sub_comm[2]) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_z_dist_y_b_%i_%i_%i_%i",
+           npts_global[0], npts_global[1], npts_global[2],
+           grid_mpi_comm_size(comm));
+  const int handle = fft_start_timer(routine_name);
   const int my_process = grid_mpi_comm_rank(comm);
 
   int proc_coord[2];
@@ -209,6 +223,7 @@ void collect_z_and_distribute_y_blocked(
   free(send_displacements);
   free(recv_counts);
   free(recv_displacements);
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************
@@ -220,6 +235,12 @@ void collect_x_and_distribute_y_blocked_transpose(
     const int npts_global[3], const int (*proc2local)[3][2],
     const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm,
     const grid_mpi_comm sub_comm[2]) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_x_dist_y_bt_%i_%i_%i_%i",
+           npts_global[0], npts_global[1], npts_global[2],
+           grid_mpi_comm_size(comm));
+  const int handle = fft_start_timer(routine_name);
   const int my_process = grid_mpi_comm_rank(comm);
 
   int proc_coord[2];
@@ -298,6 +319,7 @@ void collect_x_and_distribute_y_blocked_transpose(
   free(send_displacements);
   free(recv_counts);
   free(recv_displacements);
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************
@@ -309,6 +331,12 @@ void collect_y_and_distribute_x_blocked_transpose(
     const int npts_global[3], const int (*proc2local)[3][2],
     const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm,
     const grid_mpi_comm sub_comm[2]) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_y_dist_x_bt_%i_%i_%i_%i",
+           npts_global[0], npts_global[1], npts_global[2],
+           grid_mpi_comm_size(comm));
+  const int handle = fft_start_timer(routine_name);
   const int my_process = grid_mpi_comm_rank(comm);
 
   int proc_coord[2];
@@ -397,6 +425,7 @@ void collect_y_and_distribute_x_blocked_transpose(
   free(send_displacements);
   free(recv_counts);
   free(recv_displacements);
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************
@@ -408,6 +437,12 @@ void collect_x_and_distribute_y_blocked(
     const int npts_global[3], const int (*proc2local)[3][2],
     const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm,
     const grid_mpi_comm sub_comm[2]) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_x_dist_y_b_%i_%i_%i_%i",
+           npts_global[0], npts_global[1], npts_global[2],
+           grid_mpi_comm_size(comm));
+  const int handle = fft_start_timer(routine_name);
   const int my_process = grid_mpi_comm_rank(comm);
 
   int proc_coord[2];
@@ -489,6 +524,7 @@ void collect_x_and_distribute_y_blocked(
   free(send_displacements);
   free(recv_counts);
   free(recv_displacements);
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************
@@ -500,6 +536,12 @@ void collect_y_and_distribute_x_blocked(
     const int npts_global[3], const int (*proc2local)[3][2],
     const int (*proc2local_transposed)[3][2], const grid_mpi_comm comm,
     const grid_mpi_comm sub_comm[2]) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_y_dist_x_b_%i_%i_%i_%i",
+           npts_global[0], npts_global[1], npts_global[2],
+           grid_mpi_comm_size(comm));
+  const int handle = fft_start_timer(routine_name);
   const int my_process = grid_mpi_comm_rank(comm);
 
   int proc_coord[2];
@@ -585,6 +627,7 @@ void collect_y_and_distribute_x_blocked(
   free(send_displacements);
   free(recv_counts);
   free(recv_displacements);
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************
@@ -598,6 +641,12 @@ void collect_x_and_distribute_yz_ray(const double complex *grid,
                                      const int *number_of_rays,
                                      const int (*ray_to_yz)[2],
                                      const grid_mpi_comm comm) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_x_dist_yz_r_%i_%i_%i_%i",
+           npts_global[0], npts_global[1], npts_global[2],
+           grid_mpi_comm_size(comm));
+  const int handle = fft_start_timer(routine_name);
   const int number_of_processes = grid_mpi_comm_size(comm);
   const int my_process = grid_mpi_comm_rank(comm);
 
@@ -767,6 +816,7 @@ void collect_x_and_distribute_yz_ray(const double complex *grid,
 
   free(recv_buffer);
   free(send_buffer);
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************
@@ -780,6 +830,12 @@ void collect_yz_and_distribute_x_ray(const double complex *grid,
                                      const int *number_of_rays,
                                      const int (*ray_to_yz)[2],
                                      const grid_mpi_comm comm) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_yz_dist_x_r_%i_%i_%i_%i",
+           npts_global[0], npts_global[1], npts_global[2],
+           grid_mpi_comm_size(comm));
+  const int handle = fft_start_timer(routine_name);
   const int number_of_processes = grid_mpi_comm_size(comm);
   const int my_process = grid_mpi_comm_rank(comm);
 
@@ -927,6 +983,7 @@ void collect_yz_and_distribute_x_ray(const double complex *grid,
 
   free(recv_buffer);
   free(send_buffer);
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************
@@ -940,6 +997,12 @@ void collect_x_and_distribute_yz_ray_transpose(const double complex *grid,
                                                const int *number_of_rays,
                                                const int (*ray_to_yz)[2],
                                                const grid_mpi_comm comm) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_x_dist_yz_rt_%i_%i_%i_%i",
+           npts_global[0], npts_global[1], npts_global[2],
+           grid_mpi_comm_size(comm));
+  const int handle = fft_start_timer(routine_name);
   const int number_of_processes = grid_mpi_comm_size(comm);
   const int my_process = grid_mpi_comm_rank(comm);
 
@@ -1078,6 +1141,7 @@ void collect_x_and_distribute_yz_ray_transpose(const double complex *grid,
 
   free(recv_buffer);
   free(send_buffer);
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************
@@ -1089,6 +1153,12 @@ void collect_yz_and_distribute_x_ray_transpose(
     const int npts_global[3], const int (*proc2local_transposed)[3][2],
     const int *number_of_rays, const int (*ray_to_yz)[2],
     const grid_mpi_comm comm) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_yz_dist_x_rt_%i_%i_%i_%i",
+           npts_global[0], npts_global[1], npts_global[2],
+           grid_mpi_comm_size(comm));
+  const int handle = fft_start_timer(routine_name);
   const int number_of_processes = grid_mpi_comm_size(comm);
   const int my_process = grid_mpi_comm_rank(comm);
 
@@ -1237,6 +1307,7 @@ void collect_yz_and_distribute_x_ray_transpose(
 
   free(recv_buffer);
   free(send_buffer);
+  fft_stop_timer(handle);
 }
 
 // EOF

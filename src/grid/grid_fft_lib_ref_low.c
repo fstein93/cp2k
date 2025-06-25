@@ -15,21 +15,6 @@
 #include <stdlib.h>
 #include <string.h>
 
-#define PROFILE_CODE 0
-
-#if PROFILE_CODE
-#include <time.h>
-
-static double time_reorder_input = 0.0;
-static double time_reorder_output = 0.0;
-static double time_transpose = 0.0;
-static double time_2 = 0.0;
-static double time_3 = 0.0;
-static double time_4 = 0.0;
-static double time_naive = 0.0;
-static double time_twiddle = 0.0;
-#endif
-
 // We need these definitions for the recursion within this module
 void fft_ref_1d_fw_local_internal(double *restrict grid_in_real,
                                   double *restrict grid_in_imag,
@@ -48,9 +33,6 @@ void fft_ref_transpose_local_double_block(double *grid, double *grid_transposed,
                                           const int number_of_columns_grid,
                                           const int number_of_rows_grid,
                                           const int block_size) {
-#if PROFILE_CODE
-  time_t begin = clock();
-#endif
   for (int column_index = 0; column_index < number_of_columns_grid;
        column_index++) {
     for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
@@ -61,9 +43,6 @@ void fft_ref_transpose_local_double_block(double *grid, double *grid_transposed,
              block_size * sizeof(double));
     }
   }
-#if PROFILE_CODE
-  time_transpose += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void reorder_input(const double complex *restrict grid_in,
@@ -71,9 +50,6 @@ void reorder_input(const double complex *restrict grid_in,
                    double *restrict grid_out_imag, const int fft_size,
                    const int number_of_ffts, const int stride_in,
                    const int distance_in) {
-#if PROFILE_CODE
-  time_t begin = clock();
-#endif
   if (distance_in == 1 && stride_in == number_of_ffts) {
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_in, grid_out_real, grid_out_imag, number_of_ffts, fft_size)
@@ -110,18 +86,12 @@ void reorder_input(const double complex *restrict grid_in,
       }
     }
   }
-#if PROFILE_CODE
-  time_reorder_input += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void reorder_input_r2c(const double *restrict grid_in,
                        double *restrict grid_out, const int fft_size,
                        const int number_of_ffts, const int stride_in,
                        const int distance_in) {
-#if PROFILE_CODE
-  time_t begin = clock();
-#endif
   if (distance_in == 1 && stride_in == number_of_ffts) {
     memcpy(grid_out, grid_in, number_of_ffts * fft_size * sizeof(double));
   } else if (distance_in == fft_size && stride_in == 1) {
@@ -143,9 +113,6 @@ void reorder_input_r2c(const double *restrict grid_in,
       }
     }
   }
-#if PROFILE_CODE
-  time_reorder_input += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void reorder_input_r2c_for_c2c(const double *restrict grid_in,
@@ -153,9 +120,6 @@ void reorder_input_r2c_for_c2c(const double *restrict grid_in,
                                double *restrict grid_out_imag,
                                const int fft_size[2], const int number_of_ffts,
                                const int stride_in, const int distance_in) {
-#if PROFILE_CODE
-  time_t begin = clock();
-#endif
 #pragma omp parallel for default(none) collapse(3)                             \
     shared(grid_in, grid_out_real, grid_out_imag, number_of_ffts, stride_in,   \
                distance_in, fft_size)
@@ -174,9 +138,6 @@ void reorder_input_r2c_for_c2c(const double *restrict grid_in,
       }
     }
   }
-#if PROFILE_CODE
-  time_reorder_input += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void reorder_input_c2r_2d(const double complex *restrict grid_in,
@@ -184,9 +145,6 @@ void reorder_input_c2r_2d(const double complex *restrict grid_in,
                           double *restrict grid_out_imag, const int fft_size[2],
                           const int number_of_ffts, const int stride_in,
                           const int distance_in) {
-#if PROFILE_CODE
-  time_t begin = clock();
-#endif
   // If the distance is 1, we can use a simple copy
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_in, grid_out_real, grid_out_imag, number_of_ffts, stride_in,   \
@@ -205,9 +163,6 @@ void reorder_input_c2r_2d(const double complex *restrict grid_in,
       }
     }
   }
-#if PROFILE_CODE
-  time_reorder_input += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void reorder_input_c2r_for_c2c(const double complex *restrict grid_in,
@@ -215,9 +170,6 @@ void reorder_input_c2r_for_c2c(const double complex *restrict grid_in,
                                double *restrict grid_out_imag,
                                const int large_factor, const int number_of_ffts,
                                const int stride_in, const int distance_in) {
-#if PROFILE_CODE
-  time_t begin = clock();
-#endif
   const double pi = acos(-1);
 #pragma omp parallel for default(none)                                         \
     shared(grid_in, grid_out_real, grid_out_imag, number_of_ffts, stride_in,   \
@@ -254,9 +206,6 @@ void reorder_input_c2r_for_c2c(const double complex *restrict grid_in,
                             fft * distance_in]);
     }
   }
-#if PROFILE_CODE
-  time_twiddle += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void reorder_input_c2r_for_c2c_2d(const double *restrict grid_in_real,
@@ -265,9 +214,6 @@ void reorder_input_c2r_for_c2c_2d(const double *restrict grid_in_real,
                                   double *restrict grid_out_imag,
                                   const int fft_size[2],
                                   const int number_of_ffts) {
-#if PROFILE_CODE
-  time_t begin = clock();
-#endif
   assert(fft_size[0] % 2 == 0);
   const double pi = acos(-1);
   const int large_factor = fft_size[0] / 2;
@@ -322,18 +268,12 @@ void reorder_input_c2r_for_c2c_2d(const double *restrict grid_in_real,
       }
     }
   }
-#if PROFILE_CODE
-  time_twiddle += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void reorder_output(const double *grid_in_real, const double *grid_in_imag,
                     double complex *grid_out, const int fft_size,
                     const int number_of_ffts, const int stride_out,
                     const int distance_out) {
-#if PROFILE_CODE
-  time_t begin = clock();
-#endif
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_in_real, grid_in_imag, grid_out, number_of_ffts, stride_out,   \
                distance_out, fft_size)
@@ -344,18 +284,12 @@ void reorder_output(const double *grid_in_real, const double *grid_in_imag,
                 grid_in_imag[fft + index * number_of_ffts]);
     }
   }
-#if PROFILE_CODE
-  time_reorder_output += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void reorder_output_2d(const double *grid_in_real, const double *grid_in_imag,
                        double complex *grid_out, const int fft_size[2],
                        const int number_of_ffts, const int stride_out,
                        const int distance_out) {
-#if PROFILE_CODE
-  time_t begin = clock();
-#endif
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_in_real, grid_in_imag, grid_out, number_of_ffts, stride_out,   \
                distance_out, fft_size)
@@ -371,17 +305,11 @@ void reorder_output_2d(const double *grid_in_real, const double *grid_in_imag,
       }
     }
   }
-#if PROFILE_CODE
-  time_reorder_output += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void reorder_output_c2r(const double *grid_in, double *grid_out,
                         const int fft_size, const int number_of_ffts,
                         const int stride_out, const int distance_out) {
-#if PROFILE_CODE
-  time_t begin = clock();
-#endif
 #pragma omp parallel for default(none) collapse(2) shared(                     \
         grid_in, grid_out, number_of_ffts, stride_out, distance_out, fft_size)
   for (int index = 0; index < fft_size; index++) {
@@ -390,9 +318,6 @@ void reorder_output_c2r(const double *grid_in, double *grid_out,
           grid_in[fft + index * number_of_ffts];
     }
   }
-#if PROFILE_CODE
-  time_reorder_output += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void reorder_output_c2r_from_c2c(const double *grid_in_real,
@@ -400,9 +325,6 @@ void reorder_output_c2r_from_c2c(const double *grid_in_real,
                                  const int large_factor,
                                  const int number_of_ffts, const int stride_out,
                                  const int distance_out) {
-#if PROFILE_CODE
-  time_t begin = clock();
-#endif
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_in_real, grid_in_imag, grid_out, number_of_ffts, stride_out,   \
                distance_out, large_factor)
@@ -414,18 +336,12 @@ void reorder_output_c2r_from_c2c(const double *grid_in_real,
           grid_in_imag[index_large * number_of_ffts + fft];
     }
   }
-#if PROFILE_CODE
-  time_reorder_output += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void reorder_output_c2r_from_c2c_2d(
     const double *grid_in_real, const double *grid_in_imag, double *grid_out,
     const int large_factor, const int fft_size_2, const int number_of_ffts,
     const int stride_out, const int distance_out) {
-#if PROFILE_CODE
-  time_t begin = clock();
-#endif
 #pragma omp parallel for default(none) collapse(3)                             \
     shared(grid_in_real, grid_in_imag, grid_out, number_of_ffts, stride_out,   \
                distance_out, large_factor, fft_size_2)
@@ -443,9 +359,6 @@ void reorder_output_c2r_from_c2c_2d(
       }
     }
   }
-#if PROFILE_CODE
-  time_reorder_output += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 /*******************************************************************************
@@ -457,9 +370,6 @@ void fft_ref_1d_fw_local_naive(const double *restrict grid_in_real,
                                double *restrict grid_out_real,
                                double *restrict grid_out_imag,
                                const int fft_size, const int number_of_ffts) {
-#if PROFILE_CODE
-  clock_t begin = clock();
-#endif
   // Perform FFTs along the first dimension
   if (fft_size == 1) {
     // If the FFT size is 1, we can use a simple copy
@@ -478,9 +388,6 @@ void fft_ref_1d_fw_local_naive(const double *restrict grid_in_real,
       grid_out_imag[number_of_ffts + fft] =
           grid_in_imag[fft] - grid_in_imag[number_of_ffts + fft];
     }
-#if PROFILE_CODE
-    time_2 += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
   } else if (fft_size == 4) {
 #pragma omp parallel for default(none)                                         \
     shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag,           \
@@ -511,9 +418,6 @@ void fft_ref_1d_fw_local_naive(const double *restrict grid_in_real,
       grid_out_imag[fft + 2 * number_of_ffts] = imag_sum1 - imag_sum2;
       grid_out_imag[fft + 3 * number_of_ffts] = imag_diff1 + real_diff2;
     }
-#if PROFILE_CODE
-    time_4 += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
   } else if (fft_size == 3) {
     const double half_sqrt3 = 0.5 * sqrt(3.0);
 #pragma omp parallel for default(none)                                         \
@@ -539,9 +443,6 @@ void fft_ref_1d_fw_local_naive(const double *restrict grid_in_real,
       grid_out_imag[fft + 2 * number_of_ffts] =
           grid_in_imag[fft] + half_sqrt3 * real_diff - 0.5 * imag_sum;
     }
-#if PROFILE_CODE
-    time_3 += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
   } else {
     const double pi = acos(-1.0);
     memset(grid_out_real, 0, fft_size * number_of_ffts * sizeof(double));
@@ -567,9 +468,6 @@ void fft_ref_1d_fw_local_naive(const double *restrict grid_in_real,
         }
       }
     }
-#if PROFILE_CODE
-    time_naive += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
   }
 }
 
@@ -581,9 +479,6 @@ void fft_ref_1d_fw_local_r2c_naive(const double *restrict grid_in,
                                    double *restrict grid_out,
                                    const int fft_size,
                                    const int number_of_ffts) {
-#if PROFILE_CODE
-  clock_t begin = clock();
-#endif
   double *grid_out_real = grid_out;
   double *grid_out_imag = grid_out_real + (fft_size / 2 + 1) * number_of_ffts;
   // Perform FFTs along the first dimension
@@ -606,9 +501,6 @@ void fft_ref_1d_fw_local_r2c_naive(const double *restrict grid_in,
       }
     }
   }
-#if PROFILE_CODE
-  time_naive += 0.0 * (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 /*******************************************************************************
@@ -620,9 +512,6 @@ void fft_ref_1d_bw_local_naive(const double *restrict grid_in_real,
                                double *restrict grid_out_real,
                                double *restrict grid_out_imag,
                                const int fft_size, const int number_of_ffts) {
-#if PROFILE_CODE
-  clock_t begin = clock();
-#endif
   if (fft_size == 1) {
     // If the FFT size is 1, we can use a simple copy
     memcpy(grid_out_real, grid_in_real, number_of_ffts * sizeof(double));
@@ -638,9 +527,6 @@ void fft_ref_1d_bw_local_naive(const double *restrict grid_in_real,
       grid_out_imag[fft + number_of_ffts] =
           grid_in_imag[fft] - grid_in_imag[fft + number_of_ffts];
     }
-#if PROFILE_CODE
-    time_2 += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
   } else if (fft_size == 4) {
 #pragma omp parallel for default(none)                                         \
     shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag,           \
@@ -671,9 +557,6 @@ void fft_ref_1d_bw_local_naive(const double *restrict grid_in_real,
       grid_out_imag[fft + 2 * number_of_ffts] = imag_sum1 - imag_sum2;
       grid_out_imag[fft + 3 * number_of_ffts] = imag_diff1 - real_diff2;
     }
-#if PROFILE_CODE
-    time_4 += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
   } else if (fft_size == 3) {
     const double half_sqrt3 = 0.5 * sqrt(3.0);
 #pragma omp parallel for default(none)                                         \
@@ -699,9 +582,6 @@ void fft_ref_1d_bw_local_naive(const double *restrict grid_in_real,
       grid_out_imag[fft + 2 * number_of_ffts] =
           grid_in_imag[fft] - half_sqrt3 * real_diff - 0.5 * imag_sum;
     }
-#if PROFILE_CODE
-    time_3 += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
   } else {
     const double pi = acos(-1.0);
     memset(grid_out_real, 0, fft_size * number_of_ffts * sizeof(double));
@@ -727,9 +607,6 @@ void fft_ref_1d_bw_local_naive(const double *restrict grid_in_real,
         }
       }
     }
-#if PROFILE_CODE
-    time_naive += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
   }
 }
 
@@ -741,9 +618,6 @@ void fft_ref_1d_bw_local_c2r_naive(double *restrict grid_in,
                                    double *restrict grid_out,
                                    const int fft_size,
                                    const int number_of_ffts) {
-#if PROFILE_CODE
-  clock_t begin = clock();
-#endif
 
   double *grid_in_real = grid_in;
   double *grid_in_imag = grid_in + (fft_size / 2 + 1) * number_of_ffts;
@@ -774,9 +648,6 @@ void fft_ref_1d_bw_local_c2r_naive(double *restrict grid_in,
       }
     }
   }
-#if PROFILE_CODE
-  time_naive += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void fft_twiddle_r2c_fw_for_c2c(const double *grid_in_real,
@@ -784,9 +655,6 @@ void fft_twiddle_r2c_fw_for_c2c(const double *grid_in_real,
                                 const int fft_size, const int number_of_ffts,
                                 const int stride_out, const int distance_out,
                                 const int imag_shift) {
-#if PROFILE_CODE
-  clock_t begin = clock();
-#endif
   const int large_factor = fft_size / 2;
   for (int index_large = 0; index_large < large_factor + 1; index_large++) {
     const double complex phase_factor =
@@ -821,18 +689,12 @@ void fft_twiddle_r2c_fw_for_c2c(const double *grid_in_real,
                                           fft];
     }
   }
-#if PROFILE_CODE
-  time_twiddle += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 void fft_twiddle_r2c_fw_for_c2c_2d(const double *grid_in_real,
                                    const double *grid_in_imag, double *grid_out,
                                    const int fft_size[2],
                                    const int number_of_ffts) {
-#if PROFILE_CODE
-  clock_t begin = clock();
-#endif
   const int large_factor = fft_size[0] / 2;
   for (int index_large = 0; index_large < large_factor + 1; index_large++) {
     const double complex phase_factor =
@@ -891,9 +753,6 @@ void fft_twiddle_r2c_fw_for_c2c_2d(const double *grid_in_real,
       }
     }
   }
-#if PROFILE_CODE
-  time_twiddle += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
 }
 
 /*******************************************************************************
@@ -931,9 +790,6 @@ void fft_ref_1d_fw_local_internal(double *restrict grid_in_real,
                               grid_out_imag, small_factor,
                               number_of_ffts * large_factor);
 // Transpose and multiply with twiddle factors
-#if PROFILE_CODE
-    clock_t begin = clock();
-#endif
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag, fft_size, \
                number_of_ffts, pi, small_factor, large_factor)
@@ -961,9 +817,6 @@ void fft_ref_1d_fw_local_internal(double *restrict grid_in_real,
         }
       }
     }
-#if PROFILE_CODE
-    time_twiddle += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
     fft_ref_1d_fw_local_internal(grid_in_real, grid_in_imag, grid_out_real,
                                  grid_out_imag, large_factor,
                                  number_of_ffts * small_factor);
@@ -1005,9 +858,6 @@ void fft_ref_1d_bw_local_internal(double *restrict grid_in_real,
                               grid_out_imag, small_factor,
                               number_of_ffts * large_factor);
 // Transpose and multiply with twiddle factors
-#if PROFILE_CODE
-    clock_t begin = clock();
-#endif
 #pragma omp parallel for default(none) collapse(2)                             \
     shared(grid_in_real, grid_in_imag, grid_out_real, grid_out_imag, fft_size, \
                number_of_ffts, pi, small_factor, large_factor)
@@ -1035,9 +885,6 @@ void fft_ref_1d_bw_local_internal(double *restrict grid_in_real,
         }
       }
     }
-#if PROFILE_CODE
-    time_twiddle += (double)(clock() - begin) / CLOCKS_PER_SEC;
-#endif
     fft_ref_1d_bw_local_internal(grid_in_real, grid_in_imag, grid_out_real,
                                  grid_out_imag, large_factor,
                                  number_of_ffts * small_factor);
@@ -1054,19 +901,6 @@ void fft_ref_1d_fw_local_low(double complex *restrict grid_in,
                              const int stride_in, const int stride_out,
                              const int distance_in, const int distance_out) {
 
-#if PROFILE_CODE
-  time_reorder_input = 0.0;
-  time_reorder_output = 0.0;
-  time_transpose = 0.0;
-  time_2 = 0.0;
-  time_3 = 0.0;
-  time_4 = 0.0;
-  time_naive = 0.0;
-  time_twiddle = 0.0;
-
-  clock_t begin = clock();
-#endif
-
   // We reorder the data to a format more suitable for vectorization
   double *grid_in_real = (double *)grid_in;
   double *grid_in_imag = ((double *)grid_in) + fft_size * number_of_ffts;
@@ -1079,24 +913,6 @@ void fft_ref_1d_fw_local_low(double complex *restrict grid_in,
                                grid_in_imag, fft_size, number_of_ffts);
   reorder_output(grid_in_real, grid_in_imag, grid_out, fft_size, number_of_ffts,
                  stride_out, distance_out);
-
-#if PROFILE_CODE
-  clock_t end = clock();
-  double time_total = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time Reorder input: %f\n", time_reorder_input);
-  printf("Time Reorder output: %f\n", time_reorder_output);
-  printf("Time transpose: %f\n", time_transpose);
-  printf("Time 2: %f\n", time_2);
-  printf("Time 3: %f\n", time_3);
-  printf("Time 4: %f\n", time_4);
-  printf("Time naive: %f\n", time_naive);
-  printf("Time twiddle: %f\n", time_twiddle);
-  printf("Time rest: %f\n", time_total - time_naive - time_twiddle -
-                                time_reorder_input - time_reorder_output -
-                                time_transpose - time_2 - time_3 - time_4);
-  printf("Total Time 1D FW %i %i: %f\n", fft_size, number_of_ffts, time_total);
-  fflush(stdout);
-#endif
 }
 
 /*******************************************************************************
@@ -1109,19 +925,6 @@ void fft_ref_1d_fw_local_r2c_low(double *restrict grid_in,
                                  const int stride_in, const int stride_out,
                                  const int distance_in,
                                  const int distance_out) {
-
-#if PROFILE_CODE
-  time_reorder_input = 0.0;
-  time_reorder_output = 0.0;
-  time_transpose = 0.0;
-  time_2 = 0.0;
-  time_3 = 0.0;
-  time_4 = 0.0;
-  time_naive = 0.0;
-  time_twiddle = 0.0;
-
-  clock_t begin = clock();
-#endif
 
   double *grid_in_real = grid_in;
   double *grid_out_real = (double *)grid_out;
@@ -1199,25 +1002,6 @@ void fft_ref_1d_fw_local_r2c_low(double *restrict grid_in,
       }
     }
   }
-
-#if PROFILE_CODE
-  clock_t end = clock();
-  double time_total = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time Reorder input: %f\n", time_reorder_input);
-  printf("Time Reorder output: %f\n", time_reorder_output);
-  printf("Time transpose: %f\n", time_transpose);
-  printf("Time 2: %f\n", time_2);
-  printf("Time 3: %f\n", time_3);
-  printf("Time 4: %f\n", time_4);
-  printf("Time naive: %f\n", time_naive);
-  printf("Time twiddle: %f\n", time_twiddle);
-  printf("Time rest: %f\n", time_total - time_naive - time_twiddle -
-                                time_reorder_input - time_reorder_output -
-                                time_transpose - time_2 - time_3 - time_4);
-  printf("Total Time 1D R2C FW %i %i: %f\n", fft_size, number_of_ffts,
-         time_total);
-  fflush(stdout);
-#endif
 }
 
 /*******************************************************************************
@@ -1229,19 +1013,6 @@ void fft_ref_1d_bw_local_low(double complex *restrict grid_in,
                              const int fft_size, const int number_of_ffts,
                              const int stride_in, const int stride_out,
                              const int distance_in, const int distance_out) {
-
-#if PROFILE_CODE
-  time_reorder_input = 0.0;
-  time_reorder_output = 0.0;
-  time_transpose = 0.0;
-  time_2 = 0.0;
-  time_3 = 0.0;
-  time_4 = 0.0;
-  time_naive = 0.0;
-  time_twiddle = 0.0;
-
-  clock_t begin = clock();
-#endif
 
   // We reorder the data to a format more suitable for vectorization
   double *grid_in_real = (double *)grid_in;
@@ -1255,24 +1026,6 @@ void fft_ref_1d_bw_local_low(double complex *restrict grid_in,
                                grid_in_imag, fft_size, number_of_ffts);
   reorder_output(grid_in_real, grid_in_imag, grid_out, fft_size, number_of_ffts,
                  stride_out, distance_out);
-
-#if PROFILE_CODE
-  clock_t end = clock();
-  double time_total = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time Reorder input: %f\n", time_reorder_input);
-  printf("Time Reorder output: %f\n", time_reorder_output);
-  printf("Time transpose: %f\n", time_transpose);
-  printf("Time 2: %f\n", time_2);
-  printf("Time 3: %f\n", time_3);
-  printf("Time 4: %f\n", time_4);
-  printf("Time naive: %f\n", time_naive);
-  printf("Time twiddle: %f\n", time_twiddle);
-  printf("Time rest: %f\n", time_total - time_naive - time_twiddle -
-                                time_reorder_input - time_reorder_output -
-                                time_transpose - time_2 - time_3 - time_4);
-  printf("Total Time 1D BW %i %i: %f\n", fft_size, number_of_ffts, time_total);
-  fflush(stdout);
-#endif
 }
 
 /*******************************************************************************
@@ -1284,19 +1037,6 @@ void fft_ref_1d_bw_local_c2r_low(double complex *restrict grid_in,
                                  const int number_of_ffts, const int stride_in,
                                  const int stride_out, const int distance_in,
                                  const int distance_out) {
-
-#if PROFILE_CODE
-  time_reorder_input = 0.0;
-  time_reorder_output = 0.0;
-  time_transpose = 0.0;
-  time_2 = 0.0;
-  time_3 = 0.0;
-  time_4 = 0.0;
-  time_naive = 0.0;
-  time_twiddle = 0.0;
-
-  clock_t begin = clock();
-#endif
 
   if (fft_size % 2 == 0) {
     const int large_factor = fft_size / 2;
@@ -1372,25 +1112,6 @@ void fft_ref_1d_bw_local_c2r_low(double complex *restrict grid_in,
       }
     }
   }
-
-#if PROFILE_CODE
-  clock_t end = clock();
-  double time_total = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time Reorder input: %f\n", time_reorder_input);
-  printf("Time Reorder output: %f\n", time_reorder_output);
-  printf("Time transpose: %f\n", time_transpose);
-  printf("Time 2: %f\n", time_2);
-  printf("Time 3: %f\n", time_3);
-  printf("Time 4: %f\n", time_4);
-  printf("Time naive: %f\n", time_naive);
-  printf("Time twiddle: %f\n", time_twiddle);
-  printf("Time rest: %f\n", time_total - time_naive - time_twiddle -
-                                time_reorder_input - time_reorder_output -
-                                time_transpose - time_2 - time_3 - time_4);
-  printf("Total Time 1D C2R BW %i %i: %f\n", fft_size, number_of_ffts,
-         time_total);
-  fflush(stdout);
-#endif
 }
 
 /*******************************************************************************
@@ -1402,19 +1123,6 @@ void fft_ref_2d_fw_local_low(double complex *restrict grid_in,
                              const int fft_size[2], const int number_of_ffts,
                              const int stride_in, const int stride_out,
                              const int distance_in, const int distance_out) {
-
-#if PROFILE_CODE
-  time_reorder_input = 0.0;
-  time_reorder_output = 0.0;
-  time_transpose = 0.0;
-  time_2 = 0.0;
-  time_3 = 0.0;
-  time_4 = 0.0;
-  time_naive = 0.0;
-  time_twiddle = 0.0;
-
-  clock_t begin = clock();
-#endif
 
   // We reorder the data to a format more suitable for vectorization
   double *grid_in_real = (double *)grid_in;
@@ -1440,25 +1148,6 @@ void fft_ref_2d_fw_local_low(double complex *restrict grid_in,
                                number_of_ffts * fft_size[0]);
   reorder_output_2d(grid_in_real, grid_in_imag, grid_out, fft_size,
                     number_of_ffts, stride_out, distance_out);
-
-#if PROFILE_CODE
-  clock_t end = clock();
-  double time_total = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time Reorder input: %f\n", time_reorder_input);
-  printf("Time Reorder output: %f\n", time_reorder_output);
-  printf("Time transpose: %f\n", time_transpose);
-  printf("Time 2: %f\n", time_2);
-  printf("Time 3: %f\n", time_3);
-  printf("Time 4: %f\n", time_4);
-  printf("Time naive: %f\n", time_naive);
-  printf("Time twiddle: %f\n", time_twiddle);
-  printf("Time rest: %f\n", time_total - time_naive - time_twiddle -
-                                time_reorder_input - time_reorder_output -
-                                time_transpose - time_2 - time_3 - time_4);
-  printf("Total Time 2D FW %i %i %i: %f\n", fft_size[0], fft_size[1],
-         number_of_ffts, time_total);
-  fflush(stdout);
-#endif
 }
 
 /*******************************************************************************
@@ -1471,19 +1160,6 @@ void fft_ref_2d_fw_local_r2c_low(double *restrict grid_in,
                                  const int number_of_ffts, const int stride_in,
                                  const int stride_out, const int distance_in,
                                  const int distance_out) {
-
-#if PROFILE_CODE
-  time_reorder_input = 0.0;
-  time_reorder_output = 0.0;
-  time_transpose = 0.0;
-  time_2 = 0.0;
-  time_3 = 0.0;
-  time_4 = 0.0;
-  time_naive = 0.0;
-  time_twiddle = 0.0;
-
-  clock_t begin = clock();
-#endif
 
   // We reorder the data to a format more suitable for vectorization
   double complex *grid_in_complex = (double complex *)grid_in;
@@ -1520,25 +1196,6 @@ void fft_ref_2d_fw_local_r2c_low(double *restrict grid_in,
   memcpy(grid_out, grid_in_complex,
          fft_size[0] * (fft_size[1] / 2 + 1) * number_of_ffts *
              sizeof(double complex));
-
-#if PROFILE_CODE
-  clock_t end = clock();
-  double time_total = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time Reorder input: %f\n", time_reorder_input);
-  printf("Time Reorder output: %f\n", time_reorder_output);
-  printf("Time transpose: %f\n", time_transpose);
-  printf("Time 2: %f\n", time_2);
-  printf("Time 3: %f\n", time_3);
-  printf("Time 4: %f\n", time_4);
-  printf("Time naive: %f\n", time_naive);
-  printf("Time twiddle: %f\n", time_twiddle);
-  printf("Time rest: %f\n", time_total - time_naive - time_twiddle -
-                                time_reorder_input - time_reorder_output -
-                                time_transpose - time_2 - time_3 - time_4);
-  printf("Total Time 2D R2C FW %i %i %i: %f\n", fft_size[0], fft_size[1],
-         number_of_ffts, time_total);
-  fflush(stdout);
-#endif
 }
 
 /*******************************************************************************
@@ -1550,19 +1207,6 @@ void fft_ref_2d_bw_local_low(double complex *restrict grid_in,
                              const int fft_size[2], const int number_of_ffts,
                              const int stride_in, const int stride_out,
                              const int distance_in, const int distance_out) {
-
-#if PROFILE_CODE
-  time_reorder_input = 0.0;
-  time_reorder_output = 0.0;
-  time_transpose = 0.0;
-  time_2 = 0.0;
-  time_3 = 0.0;
-  time_4 = 0.0;
-  time_naive = 0.0;
-  time_twiddle = 0.0;
-
-  clock_t begin = clock();
-#endif
 
   // We reorder the data to a format more suitable for vectorization
   double *grid_in_real = (double *)grid_in;
@@ -1588,25 +1232,6 @@ void fft_ref_2d_bw_local_low(double complex *restrict grid_in,
                                number_of_ffts * fft_size[0]);
   reorder_output_2d(grid_in_real, grid_in_imag, grid_out, fft_size,
                     number_of_ffts, stride_out, distance_out);
-
-#if PROFILE_CODE
-  clock_t end = clock();
-  double time_total = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time Reorder input: %f\n", time_reorder_input);
-  printf("Time Reorder output: %f\n", time_reorder_output);
-  printf("Time transpose: %f\n", time_transpose);
-  printf("Time 2: %f\n", time_2);
-  printf("Time 3: %f\n", time_3);
-  printf("Time 4: %f\n", time_4);
-  printf("Time naive: %f\n", time_naive);
-  printf("Time twiddle: %f\n", time_twiddle);
-  printf("Time rest: %f\n", time_total - time_naive - time_twiddle -
-                                time_reorder_input - time_reorder_output -
-                                time_transpose - time_2 - time_3 - time_4);
-  printf("Total Time 2D BW %i %i %i: %f\n", fft_size[0], fft_size[1],
-         number_of_ffts, time_total);
-  fflush(stdout);
-#endif
 }
 
 /*******************************************************************************
@@ -1619,19 +1244,6 @@ void fft_ref_2d_bw_local_c2r_low(double complex *restrict grid_in,
                                  const int number_of_ffts, const int stride_in,
                                  const int stride_out, const int distance_in,
                                  const int distance_out) {
-
-#if PROFILE_CODE
-  time_reorder_input = 0.0;
-  time_reorder_output = 0.0;
-  time_transpose = 0.0;
-  time_2 = 0.0;
-  time_3 = 0.0;
-  time_4 = 0.0;
-  time_naive = 0.0;
-  time_twiddle = 0.0;
-
-  clock_t begin = clock();
-#endif
 
   // We reorder the data to a format more suitable for vectorization
   double *grid_in_real = (double *)grid_in;
@@ -1666,25 +1278,6 @@ void fft_ref_2d_bw_local_c2r_low(double complex *restrict grid_in,
   }
   memcpy(grid_out, grid_in_real,
          fft_size[0] * fft_size[1] * number_of_ffts * sizeof(double));
-
-#if PROFILE_CODE
-  clock_t end = clock();
-  double time_total = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time Reorder input: %f\n", time_reorder_input);
-  printf("Time Reorder output: %f\n", time_reorder_output);
-  printf("Time transpose: %f\n", time_transpose);
-  printf("Time 2: %f\n", time_2);
-  printf("Time 3: %f\n", time_3);
-  printf("Time 4: %f\n", time_4);
-  printf("Time naive: %f\n", time_naive);
-  printf("Time twiddle: %f\n", time_twiddle);
-  printf("Time rest: %f\n", time_total - time_naive - time_twiddle -
-                                time_reorder_input - time_reorder_output -
-                                time_transpose - time_2 - time_3 - time_4);
-  printf("Total Time 2D C2R BW %i %i %i: %f\n", fft_size[0], fft_size[1],
-         number_of_ffts, time_total);
-  fflush(stdout);
-#endif
 }
 
 /*******************************************************************************
@@ -1694,19 +1287,6 @@ void fft_ref_2d_bw_local_c2r_low(double complex *restrict grid_in,
 void fft_ref_3d_fw_local_low(double complex *restrict grid_in,
                              double complex *restrict grid_out,
                              const int fft_size[3]) {
-
-#if PROFILE_CODE
-  time_reorder_input = 0.0;
-  time_reorder_output = 0.0;
-  time_transpose = 0.0;
-  time_2 = 0.0;
-  time_3 = 0.0;
-  time_4 = 0.0;
-  time_naive = 0.0;
-  time_twiddle = 0.0;
-
-  clock_t begin = clock();
-#endif
   double *grid_in_real = (double *)grid_in;
   double *grid_in_imag =
       ((double *)grid_in) + fft_size[0] * fft_size[1] * fft_size[2];
@@ -1735,25 +1315,6 @@ void fft_ref_3d_fw_local_low(double complex *restrict grid_in,
                                fft_size[0] * fft_size[1]);
   reorder_output(grid_in_real, grid_in_imag, grid_out, fft_size[2],
                  fft_size[0] * fft_size[1], 1, fft_size[2]);
-
-#if PROFILE_CODE
-  clock_t end = clock();
-  double time_total = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time Reorder input: %f\n", time_reorder_input);
-  printf("Time Reorder output: %f\n", time_reorder_output);
-  printf("Time transpose: %f\n", time_transpose);
-  printf("Time 2: %f\n", time_2);
-  printf("Time 3: %f\n", time_3);
-  printf("Time 4: %f\n", time_4);
-  printf("Time naive: %f\n", time_naive);
-  printf("Time twiddle: %f\n", time_twiddle);
-  printf("Time rest: %f\n", time_total - time_naive - time_twiddle -
-                                time_reorder_input - time_reorder_output -
-                                time_transpose - time_2 - time_3 - time_4);
-  printf("Total Time 3D FW %i %i %i: %f\n", fft_size[0], fft_size[1],
-         fft_size[2], time_total);
-  fflush(stdout);
-#endif
 }
 
 /*******************************************************************************
@@ -1764,19 +1325,6 @@ void fft_ref_3d_fw_local_r2c_low(double *restrict grid_in,
                                  double complex *restrict grid_out,
                                  const int fft_size[3]) {
 
-#if PROFILE_CODE
-  time_reorder_input = 0.0;
-  time_reorder_output = 0.0;
-  time_transpose = 0.0;
-  time_2 = 0.0;
-  time_3 = 0.0;
-  time_4 = 0.0;
-  time_naive = 0.0;
-  time_twiddle = 0.0;
-
-  clock_t begin = clock();
-#endif
-
   fft_ref_1d_fw_local_r2c_low(grid_in, grid_out, fft_size[2],
                               fft_size[0] * fft_size[1], 1,
                               fft_size[0] * fft_size[1], fft_size[2], 1);
@@ -1786,25 +1334,6 @@ void fft_ref_3d_fw_local_r2c_low(double *restrict grid_in,
   fft_ref_1d_fw_local_low((double complex *)grid_in, grid_out, fft_size[0],
                           fft_size[1] * (fft_size[2] / 2 + 1), 1,
                           fft_size[1] * (fft_size[2] / 2 + 1), fft_size[0], 1);
-
-#if PROFILE_CODE
-  clock_t end = clock();
-  double time_total = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time Reorder input: %f\n", time_reorder_input);
-  printf("Time Reorder output: %f\n", time_reorder_output);
-  printf("Time transpose: %f\n", time_transpose);
-  printf("Time 2: %f\n", time_2);
-  printf("Time 3: %f\n", time_3);
-  printf("Time 4: %f\n", time_4);
-  printf("Time naive: %f\n", time_naive);
-  printf("Time twiddle: %f\n", time_twiddle);
-  printf("Time rest: %f\n", time_total - time_naive - time_twiddle -
-                                time_reorder_input - time_reorder_output -
-                                time_transpose - time_2 - time_3 - time_4);
-  printf("Total Time 3D R2C FW %i %i %i: %f\n", fft_size[0], fft_size[1],
-         fft_size[2], time_total);
-  fflush(stdout);
-#endif
 }
 
 /*******************************************************************************
@@ -1814,19 +1343,6 @@ void fft_ref_3d_fw_local_r2c_low(double *restrict grid_in,
 void fft_ref_3d_bw_local_low(double complex *restrict grid_in,
                              double complex *restrict grid_out,
                              const int fft_size[3]) {
-
-#if PROFILE_CODE
-  time_reorder_input = 0.0;
-  time_reorder_output = 0.0;
-  time_transpose = 0.0;
-  time_2 = 0.0;
-  time_3 = 0.0;
-  time_4 = 0.0;
-  time_naive = 0.0;
-  time_twiddle = 0.0;
-
-  clock_t begin = clock();
-#endif
   double *grid_in_real = (double *)grid_in;
   double *grid_in_imag =
       ((double *)grid_in) + fft_size[0] * fft_size[1] * fft_size[2];
@@ -1855,25 +1371,6 @@ void fft_ref_3d_bw_local_low(double complex *restrict grid_in,
                                fft_size[0] * fft_size[1]);
   reorder_output(grid_in_real, grid_in_imag, grid_out, fft_size[2],
                  fft_size[0] * fft_size[1], 1, fft_size[2]);
-
-#if PROFILE_CODE
-  clock_t end = clock();
-  double time_total = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time Reorder input: %f\n", time_reorder_input);
-  printf("Time Reorder output: %f\n", time_reorder_output);
-  printf("Time transpose: %f\n", time_transpose);
-  printf("Time 2: %f\n", time_2);
-  printf("Time 3: %f\n", time_3);
-  printf("Time 4: %f\n", time_4);
-  printf("Time naive: %f\n", time_naive);
-  printf("Time twiddle: %f\n", time_twiddle);
-  printf("Time rest: %f\n", time_total - time_naive - time_twiddle -
-                                time_reorder_input - time_reorder_output -
-                                time_transpose - time_2 - time_3 - time_4);
-  printf("Total Time 3D BW %i %i %i: %f\n", fft_size[0], fft_size[1],
-         fft_size[2], time_total);
-  fflush(stdout);
-#endif
 }
 
 /*******************************************************************************
@@ -1883,19 +1380,6 @@ void fft_ref_3d_bw_local_low(double complex *restrict grid_in,
 void fft_ref_3d_bw_local_c2r_low(double complex *restrict grid_in,
                                  double *restrict grid_out,
                                  const int fft_size[3]) {
-
-#if PROFILE_CODE
-  time_reorder_input = 0.0;
-  time_reorder_output = 0.0;
-  time_transpose = 0.0;
-  time_2 = 0.0;
-  time_3 = 0.0;
-  time_4 = 0.0;
-  time_naive = 0.0;
-  time_twiddle = 0.0;
-
-  clock_t begin = clock();
-#endif
 
   fft_ref_1d_bw_local_low(grid_in, (double complex *)grid_out, fft_size[0],
                           fft_size[1] * (fft_size[2] / 2 + 1),
@@ -1908,25 +1392,6 @@ void fft_ref_3d_bw_local_c2r_low(double complex *restrict grid_in,
   fft_ref_1d_bw_local_c2r_low(grid_in, grid_out, fft_size[2],
                               fft_size[0] * fft_size[1],
                               fft_size[0] * fft_size[1], 1, 1, fft_size[2]);
-
-#if PROFILE_CODE
-  clock_t end = clock();
-  double time_total = (double)(end - begin) / CLOCKS_PER_SEC;
-  printf("Time Reorder input: %f\n", time_reorder_input);
-  printf("Time Reorder output: %f\n", time_reorder_output);
-  printf("Time transpose: %f\n", time_transpose);
-  printf("Time 2: %f\n", time_2);
-  printf("Time 3: %f\n", time_3);
-  printf("Time 4: %f\n", time_4);
-  printf("Time naive: %f\n", time_naive);
-  printf("Time twiddle: %f\n", time_twiddle);
-  printf("Time rest: %f\n", time_total - time_naive - time_twiddle -
-                                time_reorder_input - time_reorder_output -
-                                time_transpose - time_2 - time_3 - time_4);
-  printf("Total Time 3D C2R BW %i %i %i: %f\n", fft_size[0], fft_size[1],
-         fft_size[2], time_total);
-  fflush(stdout);
-#endif
 }
 
 // EOF
