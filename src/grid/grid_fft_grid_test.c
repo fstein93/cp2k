@@ -38,6 +38,8 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               false);
 
+  grid_print_grid_layout_info(fft_grid_layout, true);
+
   const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
@@ -189,12 +191,13 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
                my_number_of_elements_gs * sizeof(double complex));
 
         for (int index = 0; index < my_number_of_elements_gs; index++) {
-          if (nx == fft_grid_layout->index_to_g[index][0] &&
-              ny == fft_grid_layout->index_to_g[index][1] &&
-              nz == fft_grid_layout->index_to_g[index][2]) {
-            grid_gs.data[index] = 1.0;
-            break;
-          }
+          const int mx = fft_grid_layout->index_to_g[index][0];
+          const int my = fft_grid_layout->index_to_g[index][1];
+          const int mz = fft_grid_layout->index_to_g[index][2];
+          grid_gs.data[index] = cexp(-2.0 * I * pi *
+                                     (((double)mx) * nx / npts_global[0] +
+                                      ((double)my) * ny / npts_global[1] +
+                                      ((double)mz) * nz / npts_global[2]));
         }
 
         fft_3d_bw(&grid_gs, &grid_rs);
@@ -208,16 +211,18 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
               const double complex my_value =
                   grid_rs.data[mx * my_sizes_rs[1] * my_sizes_rs[2] +
                                my * my_sizes_rs[2] + mz];
-              const double complex ref_value = cexp(
-                  2.0 * I * pi *
-                  (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +
-                   ((double)my + my_bounds_rs[1][0]) * ny / npts_global[1] +
-                   ((double)mz + my_bounds_rs[2][0]) * nz / npts_global[2]));
+              const double complex ref_value =
+                  (mx + my_bounds_rs[0][0] == nx &&
+                   my + my_bounds_rs[1][0] == ny &&
+                   mz + my_bounds_rs[2][0] == nz)
+                      ? (double)product3(npts_global)
+                      : 0.0;
               double current_error = cabs(my_value - ref_value);
               if (current_error > 1e-12) {
-                printf("ERROR %i %i %i/%i %i %i: (%f %f) (%f $´%f)\n", mx, my,
-                       mz, nx, ny, nz, creal(my_value), cimag(my_value),
-                       creal(ref_value), cimag(ref_value));
+                printf("ERROR %i %i %i/%i %i %i: (%f %f) (%f %f)\n",
+                       mx + my_bounds_rs[0][0], my + my_bounds_rs[1][0],
+                       mz + my_bounds_rs[2][0], nx, ny, nz, creal(my_value),
+                       cimag(my_value), creal(ref_value), cimag(ref_value));
               }
               max_error = fmax(max_error, current_error);
             }
@@ -265,6 +270,8 @@ int fft_test_3d_r2c_blocked(const int npts_global[3], const int test_every) {
   grid_fft_grid_layout *fft_grid_layout = NULL;
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               false);
+
+  grid_print_grid_layout_info(fft_grid_layout, true);
 
   const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
@@ -417,12 +424,13 @@ int fft_test_3d_r2c_blocked(const int npts_global[3], const int test_every) {
                my_number_of_elements_gs * sizeof(double complex));
 
         for (int index = 0; index < my_number_of_elements_gs; index++) {
-          if (nx == fft_grid_layout->index_to_g[index][0] &&
-              ny == fft_grid_layout->index_to_g[index][1] &&
-              nz == fft_grid_layout->index_to_g[index][2]) {
-            grid_gs.data[index] = 1.0;
-            break;
-          }
+          const int mx = fft_grid_layout->index_to_g[index][0];
+          const int my = fft_grid_layout->index_to_g[index][1];
+          const int mz = fft_grid_layout->index_to_g[index][2];
+          grid_gs.data[index] = cexp(-2.0 * I * pi *
+                                     (((double)mx) * nx / npts_global[0] +
+                                      ((double)my) * ny / npts_global[1] +
+                                      ((double)mz) * nz / npts_global[2]));
         }
 
         fft_3d_bw_c2r(&grid_gs, &grid_rs);
@@ -436,15 +444,17 @@ int fft_test_3d_r2c_blocked(const int npts_global[3], const int test_every) {
               const double my_value =
                   grid_rs.data[mx * my_sizes_rs[1] * my_sizes_rs[2] +
                                my * my_sizes_rs[2] + mz];
-              const double ref_value = cos(
-                  2.0 * pi *
-                  (((double)mx + my_bounds_rs[0][0]) * nx / npts_global[0] +
-                   ((double)my + my_bounds_rs[1][0]) * ny / npts_global[1] +
-                   ((double)mz + my_bounds_rs[2][0]) * nz / npts_global[2]));
+              const double ref_value = (mx + my_bounds_rs[0][0] == nx &&
+                                        my + my_bounds_rs[1][0] == ny &&
+                                        mz + my_bounds_rs[2][0] == nz)
+                                           ? (double)product3(npts_global)
+                                           : 0.0;
               double current_error = fabs(my_value - ref_value);
               if (current_error > 1e-12) {
-                printf("ERROR %i %i %i/%i %i %i: (%f) (%f)\n", mx, my, mz, nx,
-                       ny, nz, my_value, ref_value);
+                printf("ERROR %i %i %i/%i %i %i: (%f) (%f)\n",
+                       mx + my_bounds_rs[0][0], my + my_bounds_rs[1][0],
+                       mz + my_bounds_rs[2][0], nx, ny, nz, my_value,
+                       ref_value);
               }
               max_error = fmax(max_error, current_error);
             }
@@ -1265,10 +1275,10 @@ int fft_test_3d() {
 
   clock_t begin = clock();
   // Check the blocked layout
-  errors += fft_test_3d_blocked(npts_global, 13);
-  errors += fft_test_3d_blocked(npts_global_small, 17);
-  errors += fft_test_3d_blocked(npts_global_reverse, 19);
-  errors += fft_test_3d_blocked(npts_global_small_reverse, 11);
+  errors += fft_test_3d_blocked(npts_global, 5);
+  errors += fft_test_3d_blocked(npts_global_small, 13);
+  errors += fft_test_3d_blocked(npts_global_reverse, 11);
+  errors += fft_test_3d_blocked(npts_global_small_reverse, 7);
 
   // Check the blocked layout
   errors += fft_test_3d_r2c_blocked(npts_global, 13);

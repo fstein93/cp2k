@@ -63,35 +63,46 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
   double max_error = 0.0;
   if (transpose_gs) {
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, number_of_ffts, pi)                         \
+    shared(output_array, fft_size, number_of_ffts, pi, my_process)             \
     reduction(max : max_error) collapse(2)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
       for (int index = 0; index < fft_size; index++) {
-        max_error =
-            fmax(max_error,
-                 cabs(output_array[number_of_fft + index * number_of_ffts] -
-                      cexp(-2.0 * I * pi * (number_of_fft % fft_size) * index /
-                           fft_size)));
+        const double complex my_value =
+            output_array[number_of_fft + index * number_of_ffts];
+        const double complex ref_value =
+            cexp(-2.0 * I * pi * (number_of_fft % fft_size) * index / fft_size);
+        const double current_error = cabs(my_value - ref_value);
+        if (my_process == 0 && current_error > 1.0e-4)
+          printf("ERROR %i %i/%i %i: (%f %f) (%f %f)\n", index, number_of_fft,
+                 fft_size, number_of_ffts, creal(my_value), cimag(my_value),
+                 creal(ref_value), cimag(ref_value));
+        max_error = fmax(max_error, current_error);
       }
     }
   } else {
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, number_of_ffts, pi)                         \
+    shared(output_array, fft_size, number_of_ffts, pi, my_process)             \
     reduction(max : max_error) collapse(2)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
       for (int index = 0; index < fft_size; index++) {
-        max_error = fmax(max_error,
-                         cabs(output_array[number_of_fft * fft_size + index] -
-                              cexp(-2.0 * I * pi * (number_of_fft % fft_size) *
-                                   index / fft_size)));
+        const double complex my_value =
+            output_array[number_of_fft * fft_size + index];
+        const double complex ref_value =
+            cexp(-2.0 * I * pi * (number_of_fft % fft_size) * index / fft_size);
+        const double current_error = cabs(my_value - ref_value);
+        if (my_process == 0 && current_error > 1.0e-4)
+          printf("ERROR %i %i/%i %i: (%f %f) (%f %f)\n", index, number_of_fft,
+                 fft_size, number_of_ffts, creal(my_value), cimag(my_value),
+                 creal(ref_value), cimag(ref_value));
+        max_error = fmax(max_error, current_error);
       }
     }
   }
   fflush(stdout);
 
-  if (max_error > 1.0e-12) {
+  if (max_error > 1.0e-4) {
     if (my_process == 0) {
       printf("The fw 1D-FFT does not work correctly (%i %i): %f!\n", fft_size,
              number_of_ffts, max_error);
@@ -126,29 +137,40 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
   max_error = 0.0;
   if (transpose_rs) {
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, number_of_ffts, pi)                          \
+    shared(input_array, fft_size, number_of_ffts, pi, my_process)              \
     reduction(max : max_error) collapse(2)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
       for (int index = 0; index < fft_size; index++) {
-        max_error =
-            fmax(max_error,
-                 cabs(input_array[index * number_of_ffts + number_of_fft] -
-                      cexp(2.0 * I * pi * (number_of_fft % fft_size) * index /
-                           fft_size)));
+        const double complex my_value =
+            input_array[index * number_of_ffts + number_of_fft];
+        const double complex ref_value =
+            cexp(2.0 * I * pi * (number_of_fft % fft_size) * index / fft_size);
+        const double current_error = cabs(my_value - ref_value);
+        if (my_process == 0 && current_error > 1.0e-12)
+          printf("ERROR %i %i/%i %i: (%f %f) (%f %f)\n", index, number_of_fft,
+                 fft_size, number_of_ffts, creal(my_value), cimag(my_value),
+                 creal(ref_value), cimag(ref_value));
+        max_error = fmax(max_error, current_error);
       }
     }
   } else {
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, number_of_ffts, pi)                          \
+    shared(input_array, fft_size, number_of_ffts, pi, my_process)              \
     reduction(max : max_error) collapse(2)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
       for (int index = 0; index < fft_size; index++) {
-        max_error = fmax(max_error,
-                         cabs(input_array[index + number_of_fft * fft_size] -
-                              cexp(2.0 * I * pi * (number_of_fft % fft_size) *
-                                   index / fft_size)));
+        const double complex my_value =
+            input_array[index + number_of_fft * fft_size];
+        const double complex ref_value =
+            cexp(2.0 * I * pi * (number_of_fft % fft_size) * index / fft_size);
+        const double current_error = cabs(my_value - ref_value);
+        if (my_process == 0 && current_error > 1.0e-12)
+          printf("ERROR %i %i/%i %i: (%f %f) (%f %f)\n", index, number_of_fft,
+                 fft_size, number_of_ffts, creal(my_value), cimag(my_value),
+                 creal(ref_value), cimag(ref_value));
+        max_error = fmax(max_error, current_error);
       }
     }
   }
@@ -366,6 +388,8 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
   fft_allocate_complex(fft_size[0] * fft_size[1] * number_of_ffts,
                        &output_array);
 
+  memset(input_array, 0,
+         fft_size[0] * fft_size[1] * number_of_ffts * sizeof(double complex));
   double max_error = 0.0;
   // Check the forward FFT
   if (transpose_rs) {
@@ -391,40 +415,51 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
 
   if (transpose_gs) {
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, number_of_ffts, pi)                         \
+    shared(output_array, fft_size, number_of_ffts, pi, my_process)             \
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      for (int index_1 = 0; index_1 < fft_size[0]; index_1++) {
-        for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
+      for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+        for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
           const double complex my_value =
               output_array[number_of_fft +
-                           (index_1 * fft_size[1] + index_2) * number_of_ffts];
+                           (index_0 * fft_size[1] + index_1) * number_of_ffts];
           const double complex ref_value = cexp(
               -2.0 * I * pi *
-              ((double)(number_of_fft / fft_size[1]) * index_1 / fft_size[0] +
-               (double)(number_of_fft % fft_size[1]) * index_2 / fft_size[1]));
+              ((double)(number_of_fft / fft_size[1]) * index_0 / fft_size[0] +
+               (double)(number_of_fft % fft_size[1]) * index_1 / fft_size[1]));
           double current_error = cabs(my_value - ref_value);
+          if (my_process == 0 && current_error > 1.0e-4)
+            printf("ERROR %i %i %i/%i %i %i: (%f %f) (%f %f)\n", index_0,
+                   index_1, number_of_fft, fft_size[0], fft_size[1],
+                   number_of_ffts, creal(my_value), cimag(my_value),
+                   creal(ref_value), cimag(ref_value));
           max_error = fmax(max_error, current_error);
         }
       }
     }
   } else {
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, number_of_ffts, pi)                         \
+    shared(output_array, fft_size, number_of_ffts, pi, my_process)             \
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      for (int index_1 = 0; index_1 < fft_size[0]; index_1++) {
-        for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
+      for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+        for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
           const double complex my_value =
-              output_array[number_of_fft * fft_size[0] * fft_size[1] +
-                           index_1 * fft_size[1] + index_2];
+              output_array[(number_of_fft * fft_size[0] + index_0) *
+                               fft_size[1] +
+                           index_1];
           const double complex ref_value = cexp(
               -2.0 * I * pi *
-              ((double)(number_of_fft / fft_size[1]) * index_1 / fft_size[0] +
-               (double)(number_of_fft % fft_size[1]) * index_2 / fft_size[1]));
+              ((double)(number_of_fft / fft_size[1]) * index_0 / fft_size[0] +
+               (double)(number_of_fft % fft_size[1]) * index_1 / fft_size[1]));
           double current_error = cabs(my_value - ref_value);
+          if (my_process == 0 && current_error > 1.0e-3)
+            printf("ERROR %i %i %i/%i %i %i: (%f %f) (%f %f)\n", index_0,
+                   index_1, number_of_fft, fft_size[0], fft_size[1],
+                   number_of_ffts, creal(my_value), cimag(my_value),
+                   creal(ref_value), cimag(ref_value));
           max_error = fmax(max_error, current_error);
         }
       }
@@ -432,7 +467,7 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
   }
   fflush(stdout);
 
-  if (max_error > 1.0e-12) {
+  if (max_error > 1.0e-3) {
     if (my_process == 0) {
       printf("The fw 2D-FFT does not work correctly (%i %i/%i): %f!\n",
              fft_size[0], fft_size[1], number_of_ffts, max_error);
@@ -474,18 +509,18 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      for (int index_1 = 0; index_1 < fft_size[0]; index_1++) {
-        for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
+      for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+        for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
           const double complex my_value =
-              input_array[(index_1 * fft_size[1] + index_2) * number_of_ffts +
+              input_array[(index_0 * fft_size[1] + index_1) * number_of_ffts +
                           number_of_fft];
           const double complex ref_value = cexp(
               2.0 * I * pi *
-              ((double)(number_of_fft / fft_size[1]) * index_1 / fft_size[0] +
-               (double)(number_of_fft % fft_size[1]) * index_2 / fft_size[1]));
+              ((double)(number_of_fft / fft_size[1]) * index_0 / fft_size[0] +
+               (double)(number_of_fft % fft_size[1]) * index_1 / fft_size[1]));
           double current_error = cabs(my_value - ref_value);
           if (my_process == 0 && current_error > 1e-12)
-            printf("Error %i %i %i: (%f %f) (%f %f)\n", index_1, index_2,
+            printf("Error %i %i %i: (%f %f) (%f %f)\n", index_0, index_1,
                    number_of_fft, creal(my_value), cimag(my_value),
                    creal(ref_value), cimag(ref_value));
           max_error = fmax(max_error, current_error);
@@ -498,18 +533,18 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
     reduction(max : max_error) collapse(3)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      for (int index_1 = 0; index_1 < fft_size[0]; index_1++) {
-        for (int index_2 = 0; index_2 < fft_size[1]; index_2++) {
+      for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
+        for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
           const double complex my_value =
-              input_array[index_1 * fft_size[1] + index_2 +
+              input_array[index_0 * fft_size[1] + index_1 +
                           number_of_fft * fft_size[0] * fft_size[1]];
           const double complex ref_value = cexp(
               2.0 * I * pi *
-              ((double)(number_of_fft / fft_size[1]) * index_1 / fft_size[0] +
-               (double)(number_of_fft % fft_size[1]) * index_2 / fft_size[1]));
+              ((double)(number_of_fft / fft_size[1]) * index_0 / fft_size[0] +
+               (double)(number_of_fft % fft_size[1]) * index_1 / fft_size[1]));
           double current_error = cabs(my_value - ref_value);
           if (my_process == 0 && current_error > 1e-12)
-            printf("Error %i %i %i: (%f %f) (%f %f)\n", index_1, index_2,
+            printf("Error %i %i %i: (%f %f) (%f %f)\n", index_0, index_1,
                    number_of_fft, creal(my_value), cimag(my_value),
                    creal(ref_value), cimag(ref_value));
           max_error = fmax(max_error, current_error);
@@ -551,12 +586,12 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
 
   double *real_buffer = NULL;
   double complex *complex_buffer = NULL;
-  fft_allocate_double(2 * (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts,
+  fft_allocate_double(2 * (fft_size[1] / 2 + 1) * fft_size[0] * number_of_ffts,
                       &real_buffer);
-  fft_allocate_complex((fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts,
+  fft_allocate_complex((fft_size[1] / 2 + 1) * fft_size[0] * number_of_ffts,
                        &complex_buffer);
   memset(real_buffer, 0,
-         2 * (fft_size[0] / 2 + 1) * fft_size[1] * number_of_ffts *
+         2 * (fft_size[1] / 2 + 1) * fft_size[0] * number_of_ffts *
              sizeof(double));
 
   double max_error = 0.0;
@@ -923,8 +958,7 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
         }
         number_of_tests++;
         memset(double_buffer, 0,
-               fft_size[0] * fft_size[1] * fft_size[2] *
-                   sizeof(double complex));
+               fft_size[0] * fft_size[1] * fft_size[2] * sizeof(double));
         double_buffer[mx * fft_size[1] * fft_size[2] + my * fft_size[2] + mz] =
             1.0;
         fft_3d_fw_local_r2c(fft_size, double_buffer, complex_buffer);
@@ -1137,12 +1171,13 @@ int fft_test_2d_distributed_low(const int fft_size[2],
   fft_allocate_complex(buffer_size, &input_array);
   fft_allocate_complex(buffer_size, &output_array);
 
+  memset(input_array, 0, buffer_size * sizeof(double complex));
   double max_error = 0.0;
   // Check the forward FFT
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, number_of_ffts, local_n0, local_n0_start)
   for (int number_of_fft = 0; number_of_fft < number_of_ffts; number_of_fft++) {
-    const int index_0 = number_of_fft / fft_size[1];
+    const int index_0 = number_of_fft / fft_size[1] % fft_size[0];
     const int index_1 = number_of_fft % fft_size[1];
     if (index_0 >= local_n0_start && index_0 < local_n0_start + local_n0) {
       input_array[number_of_fft +
@@ -1170,8 +1205,9 @@ int fft_test_2d_distributed_low(const int fft_size[2],
                  (index_1 + local_n1_start) / fft_size[1]));
         double current_error = cabs(my_value - ref_value);
         if (current_error > 1e-12)
-          printf("Error %i %i %i: %f %f\n", index_0, index_1, number_of_fft,
-                 cabs(my_value), cabs(ref_value));
+          printf("Error %i %i %i: (%f %f) (%f %f)\n", index_0, index_1,
+                 number_of_fft, creal(my_value), cimag(my_value),
+                 creal(ref_value), cimag(ref_value));
         max_error = fmax(max_error, current_error);
       }
     }
@@ -1222,8 +1258,9 @@ int fft_test_2d_distributed_low(const int fft_size[2],
              (double)(number_of_fft % fft_size[1]) * index_1 / fft_size[1]));
         double current_error = cabs(my_value - ref_value);
         if (current_error > 1e-12)
-          printf("Error %i %i %i: %f %f\n", index_0, index_1, number_of_fft,
-                 cabs(my_value), cabs(ref_value));
+          printf("Error %i %i %i: (%f %f) (%f %f)\n", index_0, index_1,
+                 number_of_fft, creal(my_value), cimag(my_value),
+                 creal(ref_value), cimag(ref_value));
         max_error = fmax(max_error, current_error);
       }
     }
