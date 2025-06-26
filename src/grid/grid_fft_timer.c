@@ -43,6 +43,7 @@ struct fft_stack_type *stack = NULL;
 bool timers_initialized = false;
 int number_of_timed_routines = 0;
 int buffer_size_timed_routines = 0;
+bool debug_mode = false;
 
 /*******************************************************************************
  * \brief Tring duplication. Can be removed with migration to C23.
@@ -87,6 +88,21 @@ int get_routine_handle(const char *routine_name) {
   timed_routines[number_of_timed_routines].number_of_calls = 0;
   // Update the counter and return its OLD value
   return number_of_timed_routines++;
+}
+
+/*******************************************************************************
+ * \brief Get a routine handle to a given routine name.
+ * \param handle Handle of the pushed function
+ * \author Frederick Stein
+ ******************************************************************************/
+char *get_routine_name(const int handle) {
+  // Check whether we ever used a routine with this name
+  for (int routine = 0; routine < number_of_timed_routines; routine++) {
+    if (timed_routines[routine].handle == handle) {
+      return timed_routines[routine].routine_name;
+    }
+  }
+  return NULL;
 }
 
 /*******************************************************************************
@@ -170,9 +186,9 @@ int compare_fft_timing_statistics(const void *a, const void *b) {
       ((const fft_timing_statistics *)a)->max_total_time;
   const double max_total_time_b =
       ((const fft_timing_statistics *)b)->max_total_time;
-  if (max_total_time_a > max_total_time_b) {
+  if (max_total_time_a < max_total_time_b) {
     return 1;
-  } else if (max_total_time_a < max_total_time_b) {
+  } else if (max_total_time_a > max_total_time_b) {
     return -1;
   } else {
     return 0;
@@ -184,12 +200,13 @@ int compare_fft_timing_statistics(const void *a, const void *b) {
  * \note To be called by all threads or outside of a parallel region.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_init_timer() {
+void fft_init_timer(const bool use_debug_mode) {
   assert(omp_get_num_threads() == 1);
   if (!timers_initialized) {
     timed_routines = calloc(16, sizeof(fft_timed_routine));
     buffer_size_timed_routines = 16;
     timers_initialized = true;
+    debug_mode = use_debug_mode;
   }
 }
 
@@ -239,6 +256,8 @@ void fft_print_timing_report(const grid_mpi_comm comm) {
             summed_info[1] / summed_info[2];
         timing_statistics[size_of_timing_statistics].max_total_time =
             max_info[0];
+        timing_statistics[size_of_timing_statistics].max_self_time =
+            max_info[1];
         timing_statistics[size_of_timing_statistics].number_of_calls =
             number_of_calls;
         size_of_timing_statistics++;
@@ -262,15 +281,17 @@ void fft_print_timing_report(const grid_mpi_comm comm) {
       fprintf(stdout, " -------------------------------------------------------"
                       "----------------------"
                       "------------------------\n");
-      fprintf(stdout, " ROUTINE                                      CALLS    "
+      fprintf(stdout, " ROUTINE                                       CALLS    "
                       "AVG TOTAL    MAX TOTAL "
                       "   AVG SELF    MAX SELF \n");
-      fprintf(stdout, "                                                        "
-                      " TIME         TIME   "
-                      "      TIME        TIME   \n");
+      fprintf(stdout,
+              "                                                          "
+              " TIME         TIME   "
+              "      TIME        TIME   \n");
       for (int routine = 0; routine < size_of_timing_statistics; routine++) {
         if (timing_statistics[routine].number_of_calls > 0)
-          fprintf(stdout, " %-43s %7i      %7.3f    %7.3f    %7.3f    %7.3f\n",
+          fprintf(stdout,
+                  " %-43s %7i      %7.3f      %7.3f     %7.3f     %7.3f\n",
                   timing_statistics[routine].routine_name,
                   timing_statistics[routine].number_of_calls,
                   timing_statistics[routine].avg_total_time,
@@ -342,7 +363,6 @@ void fft_finalize_timer() {
  ******************************************************************************/
 int fft_start_timer(const char *routine_name) {
   if (omp_get_thread_num() == 0) {
-    assert(stack == NULL);
     const int handle = get_routine_handle(routine_name);
     push_on_stack(handle);
     return handle;
@@ -364,6 +384,12 @@ void fft_stop_timer(const int handle) {
     pop_from_stack(&stack_handle, &total_time, &self_time);
     assert(stack_handle == handle && "Incorrect order of timing regions!\n");
     // Merge with the list of routines
+    if (debug_mode && grid_mpi_comm_rank(grid_mpi_comm_world) == 0) {
+      printf("FFT_PROFILE (%i) %s %f %f\n",
+             grid_mpi_comm_rank(grid_mpi_comm_world),
+             get_routine_name(stack_handle), total_time, self_time);
+      fflush(stdout);
+    }
     update_routine(handle, total_time, self_time);
   }
 }

@@ -15,7 +15,7 @@
  * \brief Initializes the internal timer.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_init_timer();
+void fft_init_timer(const bool use_debug_mode);
 
 /*******************************************************************************
  * \brief Prints the timing report.

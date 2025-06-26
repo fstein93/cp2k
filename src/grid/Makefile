@@ -1,6 +1,6 @@
 .PHONY : all clean
 
-all: grid_miniapp.x grid_unittest.x
+all: grid_miniapp.x grid_unittest.x fft_perftest.x
 
 clean:
 	rm -fv *.o */*.o *.x ../offload/*.o
@@ -12,6 +12,7 @@ LIBS := -lm -lblas
 ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h")
 ALL_OBJECTS := ../offload/offload_buffer.o \
         ../offload/offload_library.o \
+        fft_perftest.o \
         grid_replay.o \
         grid_task_list.o \
         grid_collocate.o \
@@ -73,6 +74,9 @@ grid_miniapp.x: grid_miniapp.o $(ALL_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 grid_unittest.x: grid_unittest.o $(ALL_OBJECTS)
+	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
+
+fft_perftest.x: fft_perftest.o $(ALL_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 #EOF

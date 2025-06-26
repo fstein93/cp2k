@@ -9,6 +9,7 @@
 #include "common/grid_common.h"
 #include "grid_fft_grid_layout.h"
 #include "grid_fft_lib.h"
+#include "grid_fft_timer.h"
 
 #include <assert.h>
 #include <stddef.h>
@@ -165,6 +166,14 @@ void grid_free_complex_gs_grid(grid_fft_complex_gs_grid *grid) {
  ******************************************************************************/
 void fft_3d_fw(const grid_fft_complex_rs_grid *grid_rs,
                const grid_fft_complex_gs_grid *grid_gs) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_c2c_%i_%i_%i_%i",
+           grid_mpi_comm_size(grid_rs->fft_grid_layout->comm),
+           grid_rs->fft_grid_layout->npts_global[0],
+           grid_rs->fft_grid_layout->npts_global[1],
+           grid_rs->fft_grid_layout->npts_global[2]);
+  const int handle = fft_start_timer(routine_name);
   assert(grid_rs != NULL);
   assert(grid_gs != NULL);
   assert(grid_rs->fft_grid_layout->grid_id ==
@@ -176,6 +185,7 @@ void fft_3d_fw(const grid_fft_complex_rs_grid *grid_rs,
   for (int index = 0; index < grid_layout->npts_gs_local; index++) {
     grid_gs->data[index] *= scale;
   }
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************
@@ -186,6 +196,14 @@ void fft_3d_fw(const grid_fft_complex_rs_grid *grid_rs,
  ******************************************************************************/
 void fft_3d_fw_r2c(const grid_fft_real_rs_grid *grid_rs,
                    const grid_fft_complex_gs_grid *grid_gs) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_r2c_%i_%i_%i_%i",
+           grid_mpi_comm_size(grid_rs->fft_grid_layout->comm),
+           grid_rs->fft_grid_layout->npts_global[0],
+           grid_rs->fft_grid_layout->npts_global[1],
+           grid_rs->fft_grid_layout->npts_global[2]);
+  const int handle = fft_start_timer(routine_name);
   assert(grid_rs != NULL);
   assert(grid_gs != NULL);
   assert(grid_rs->fft_grid_layout->grid_id ==
@@ -199,6 +217,7 @@ void fft_3d_fw_r2c(const grid_fft_real_rs_grid *grid_rs,
   for (int index = 0; index < grid_layout->npts_gs_local; index++) {
     grid_gs->data[index] *= scale;
   }
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************
@@ -209,10 +228,19 @@ void fft_3d_fw_r2c(const grid_fft_real_rs_grid *grid_rs,
  ******************************************************************************/
 void fft_3d_bw(const grid_fft_complex_gs_grid *grid_gs,
                const grid_fft_complex_rs_grid *grid_rs) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_c2c_%i_%i_%i_%i",
+           grid_mpi_comm_size(grid_rs->fft_grid_layout->comm),
+           grid_rs->fft_grid_layout->npts_global[0],
+           grid_rs->fft_grid_layout->npts_global[1],
+           grid_rs->fft_grid_layout->npts_global[2]);
+  const int handle = fft_start_timer(routine_name);
   assert(grid_rs->fft_grid_layout->grid_id ==
          grid_gs->fft_grid_layout->grid_id);
   const grid_fft_grid_layout *grid_layout = grid_rs->fft_grid_layout;
   fft_3d_bw_with_layout(grid_gs->data, grid_rs->data, grid_layout);
+  fft_stop_timer(handle);
 }
 
 /*******************************************************************************
@@ -223,10 +251,19 @@ void fft_3d_bw(const grid_fft_complex_gs_grid *grid_gs,
  ******************************************************************************/
 void fft_3d_bw_c2r(const grid_fft_complex_gs_grid *grid_gs,
                    const grid_fft_real_rs_grid *grid_rs) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_r2c_%i_%i_%i_%i",
+           grid_mpi_comm_size(grid_rs->fft_grid_layout->comm),
+           grid_rs->fft_grid_layout->npts_global[0],
+           grid_rs->fft_grid_layout->npts_global[1],
+           grid_rs->fft_grid_layout->npts_global[2]);
+  const int handle = fft_start_timer(routine_name);
   assert(grid_rs->fft_grid_layout->grid_id ==
          grid_gs->fft_grid_layout->grid_id);
   const grid_fft_grid_layout *grid_layout = grid_rs->fft_grid_layout;
   fft_3d_bw_c2r_with_layout(grid_gs->data, grid_rs->data, grid_layout);
+  fft_stop_timer(handle);
 }
 
 // EOF

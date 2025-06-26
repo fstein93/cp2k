@@ -87,6 +87,7 @@ int main(int argc, char *argv[]) {
 
   offload_set_chosen_device(0);
   grid_library_init();
+  fft_init_timer(true);
   fft_init_lib(GRID_FFT_LIB_DEFAULT, FFT_MEASURE, true, NULL);
 
   int errors = 0;
@@ -116,7 +117,9 @@ int main(int argc, char *argv[]) {
   // Test also the reference backend and without distributed FFTs from the
   // library
   if (true) {
+    fft_finalize_timer();
     fft_finalize_lib(NULL);
+    fft_init_timer(true);
     fft_init_lib(GRID_FFT_LIB_REF, FFT_MEASURE, false, NULL);
     errors += fft_test_local();
     errors += fft_test_distributed();
@@ -129,6 +132,7 @@ int main(int argc, char *argv[]) {
   }
 
   fft_finalize_lib(NULL);
+  fft_finalize_timer();
   grid_library_print_stats(&mpi_sum_func, 0, &print_func, 0);
   grid_library_finalize();
 

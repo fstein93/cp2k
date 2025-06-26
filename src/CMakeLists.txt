@@ -1448,7 +1448,7 @@ set(CP2K_DBM_SRCS_OPENCL dbm/dbm_multiply_opencl.cl)
 set(CP2K_PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
 
 set(CP2K_PROGS_C
-    grid/grid_miniapp.c;grid/grid_unittest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c
+    grid/grid_miniapp.c;grid/grid_unittest.c;grid/fft_perftest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c
 )
 set(CP2K_PROGS_F
     dbt/dbt_unittest.F
@@ -1794,7 +1794,7 @@ else()
   target_compile_definitions(dbm_miniapp PRIVATE ${CP2K_GPU_DFLAGS})
 endif()
 
-foreach(__app grid_miniapp grid_unittest)
+foreach(__app grid_miniapp grid_unittest fft_perftest)
   add_executable(
     ${__app}
     "grid/${__app}.c"
@@ -1820,7 +1820,7 @@ endforeach()
 # list of all targets that share the same properties. simplify code as most
 # cmake function can work on list of targets
 
-foreach(__app grid_miniapp grid_unittest dbm_miniapp)
+foreach(__app grid_miniapp grid_unittest fft_perftest dbm_miniapp)
   set_target_properties(
     ${__app}
     PROPERTIES POSITION_INDEPENDENT_CODE ON
@@ -1859,7 +1859,8 @@ endforeach()
 # installation
 # ##############################################################################
 install(
-  TARGETS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest dbm_miniapp
+  TARGETS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest fft_perftest
+          dbm_miniapp
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
   INCLUDES

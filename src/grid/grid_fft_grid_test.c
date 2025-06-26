@@ -38,8 +38,6 @@ int fft_test_3d_blocked(const int npts_global[3], const int test_every) {
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               false);
 
-  grid_print_grid_layout_info(fft_grid_layout, true);
-
   const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
@@ -270,8 +268,6 @@ int fft_test_3d_r2c_blocked(const int npts_global[3], const int test_every) {
   grid_fft_grid_layout *fft_grid_layout = NULL;
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               false);
-
-  grid_print_grid_layout_info(fft_grid_layout, true);
 
   const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
@@ -505,8 +501,6 @@ int fft_test_3d_r2c_blocked_halfspace(const int npts_global[3],
   grid_fft_grid_layout *fft_grid_layout = NULL;
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               true);
-
-  grid_print_grid_layout_info(fft_grid_layout, true);
 
   const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
