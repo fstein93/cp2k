@@ -96,6 +96,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'get_minimax_grid'
       INTEGER, PARAMETER                                 :: num_points_per_magnitude = 200
+      REAL(KIND=dp), PARAMETER                           :: eps_threshold = 1e-5_dp
 
       INTEGER                                            :: dimen, handle, ierr, ispin, jquad, &
                                                             nspins
@@ -132,7 +133,8 @@ CONTAINS
             Emin = HUGE(dp)
             Emax = 0.0_dp
             DO ispin = 1, nspins
-               IF (homo(ispin) > 0 .AND. virtual(ispin) > 0) THEN
+               IF (homo(ispin) > 0 .AND. virtual(ispin) > 0 .AND. &
+                   Eigenval(homo(ispin) + 1, 1, ispin) - Eigenval(homo(ispin), 1, ispin) > eps_threshold) THEN
                   Emin = MIN(Emin, Eigenval(homo(ispin) + 1, 1, ispin) - Eigenval(homo(ispin), 1, ispin))
                   Emax = MAX(Emax, MAXVAL(Eigenval(:, 1, ispin)) - MINVAL(Eigenval(:, 1, ispin)))
                END IF
