@@ -1187,7 +1187,7 @@ CONTAINS
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
       extrapolation_order = mp2_env%ri_rpa%extrapolation_order
 
-CALL get_qs_env(qs_env, scf_control=scf_control)
+      CALL get_qs_env(qs_env, scf_control=scf_control)
 
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
@@ -1565,7 +1565,8 @@ CALL get_qs_env(qs_env, scf_control=scf_control)
                                                         fm_mat_W, fm_mat_RI_global_work, mat_MinvVMinv, &
                                                         fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv)
                ELSE
-                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA, Erpa, wj(jquad))
+                  CALL compute_Erpa_by_freq_int(dimen_RI_red, trace_Qomega, fm_mat_Q(1), para_env_RPA, &
+                                                Erpa, wj(jquad))
                END IF
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
