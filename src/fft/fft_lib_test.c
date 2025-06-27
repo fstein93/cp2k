@@ -8,7 +8,6 @@
 #include "fft_lib_test.h"
 #include "fft_utils.h"
 
-#include "fft_utils.h"
 #include "../mpiwrap/mp_mpi.h"
 #include "fft_grid.h"
 #include "fft_grid_layout.h"
@@ -38,7 +37,7 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
   double complex *input_array = NULL, *output_array = NULL;
   fft_allocate_complex(fft_size * number_of_ffts, &input_array);
   fft_allocate_complex(fft_size * number_of_ffts, &output_array);
-  
+
   memset(input_array, 0, fft_size * number_of_ffts * sizeof(double complex));
 
   // Check the forward FFT

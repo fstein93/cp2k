@@ -7,11 +7,11 @@
 #ifndef GRID_MULTIGRID_H
 #define GRID_MULTIGRID_H
 
-#include "../offload/offload_buffer.h"
-#include "../mpiwrap/mp_mpi.h"
-#include "cpu/grid_cpu_multigrid.h"
 #include "../fft/fft_grid.h"
 #include "../fft/fft_grid_layout.h"
+#include "../mpiwrap/mp_mpi.h"
+#include "../offload/offload_buffer.h"
+#include "cpu/grid_cpu_multigrid.h"
 #include "ref/grid_ref_multigrid.h"
 
 #include <complex.h>
@@ -144,8 +144,7 @@ void grid_copy_from_multigrid_single(const grid_multigrid *multigrid,
                                      const int (*proc2local)[3][2]);
 
 void grid_copy_to_multigrid_single_f(const grid_multigrid *multigrid,
-                                     const double *grid,
-                                     const mp_mpi_fint comm,
+                                     const double *grid, const mp_mpi_fint comm,
                                      const int (*proc2local)[3][2]);
 
 void grid_copy_from_multigrid_single_f(const grid_multigrid *multigrid,
@@ -158,14 +157,14 @@ void grid_copy_to_multigrid_local_single_f(const grid_multigrid *multigrid,
 void grid_copy_from_multigrid_local_single_f(const grid_multigrid *multigrid,
                                              double *grid, const int level);
 
-void grid_copy_to_multigrid_general(
-    const grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
-    const mp_mpi_comm comm[multigrid->nlevels], const int *proc2local);
+void grid_copy_to_multigrid_general(const grid_multigrid *multigrid,
+                                    const double *grids[multigrid->nlevels],
+                                    const mp_mpi_comm comm[multigrid->nlevels],
+                                    const int *proc2local);
 
 void grid_copy_to_multigrid_general_f(
     const grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
-    const mp_mpi_fint fortran_comm[multigrid->nlevels],
-    const int *proc2local);
+    const mp_mpi_fint fortran_comm[multigrid->nlevels], const int *proc2local);
 
 void grid_copy_from_multigrid_general(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
@@ -173,8 +172,7 @@ void grid_copy_from_multigrid_general(
 
 void grid_copy_from_multigrid_general_f(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
-    const mp_mpi_fint fortran_comm[multigrid->nlevels],
-    const int *proc2local);
+    const mp_mpi_fint fortran_comm[multigrid->nlevels], const int *proc2local);
 
 void grid_copy_to_multigrid_general_single(const grid_multigrid *multigrid,
                                            const int level, const double *grids,

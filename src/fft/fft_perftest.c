@@ -89,8 +89,7 @@ int main(int argc, char *argv[]) {
   mp_mpi_init(&argc, &argv);
 
   if (mp_mpi_comm_rank(mp_mpi_comm_world) == 0) {
-    printf("Number of processes: %i\n",
-           mp_mpi_comm_size(mp_mpi_comm_world));
+    printf("Number of processes: %i\n", mp_mpi_comm_size(mp_mpi_comm_world));
     printf("Number of threads per process: %i\n", omp_get_max_threads());
     fflush(stdout);
   }

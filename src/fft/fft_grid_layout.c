@@ -6,7 +6,6 @@
 /*----------------------------------------------------------------------------*/
 
 #include "fft_grid_layout.h"
-#include "fft_utils.h"
 #include "fft_grid.h"
 #include "fft_lib.h"
 #include "fft_reorder.h"
@@ -241,8 +240,8 @@ void setup_proc2local(fft_grid_layout *my_fft_grid) {
       my_bounds[2][1] = my_fft_grid->npts_global[2] - 1;
       // Exchange the distribution with the other processes
       mp_mpi_allgather_int((const int *)my_bounds, 6,
-                             (int *)my_fft_grid->proc2local_rs,
-                             my_fft_grid->comm);
+                           (int *)my_fft_grid->proc2local_rs,
+                           my_fft_grid->comm);
       // The result has the same data distribution but with y now being
       // distributed as first index and z locally (the original distribution is
       // possible but requires more communication by the library)
@@ -252,8 +251,8 @@ void setup_proc2local(fft_grid_layout *my_fft_grid) {
       my_bounds[2][1] = local_n2_start_gs + local_n2_gs - 1;
       // Exchange the bounds
       mp_mpi_allgather_int((const int *)my_bounds, 6,
-                             (int *)my_fft_grid->proc2local_ms,
-                             my_fft_grid->comm);
+                           (int *)my_fft_grid->proc2local_ms,
+                           my_fft_grid->comm);
 // The last FFT step is performed locally in x-direction
 #pragma omp parallel for default(none)                                         \
     shared(my_fft_grid, block_size_y_gs, number_of_processes)
@@ -342,8 +341,8 @@ void setup_proc2local(fft_grid_layout *my_fft_grid) {
       my_bounds[2][0] = 0;
       my_bounds[2][1] = my_fft_grid->npts_global[2] - 1;
       mp_mpi_allgather_int((const int *)my_bounds, 6,
-                             (int *)my_fft_grid->proc2local_rs,
-                             my_fft_grid->comm);
+                           (int *)my_fft_grid->proc2local_rs,
+                           my_fft_grid->comm);
       my_bounds[0][0] = 0;
       my_bounds[0][1] = my_fft_grid->npts_global[0] - 1;
       my_bounds[1][0] = local_n1_start_gs;
@@ -351,8 +350,8 @@ void setup_proc2local(fft_grid_layout *my_fft_grid) {
       my_bounds[2][0] = 0;
       my_bounds[2][1] = my_fft_grid->npts_global_gspace[2] - 1;
       mp_mpi_allgather_int((const int *)my_bounds, 6,
-                             (int *)my_fft_grid->proc2local_gs,
-                             my_fft_grid->comm);
+                           (int *)my_fft_grid->proc2local_gs,
+                           my_fft_grid->comm);
       // For tests
       for (int process = 0; process < number_of_processes; process++) {
         int proc_coords[2];
@@ -393,10 +392,10 @@ void setup_proc2local(fft_grid_layout *my_fft_grid) {
         (my_fft_grid->npts_global_gspace[2] + my_fft_grid->proc_grid[1] - 1) /
         my_fft_grid->proc_grid[1];
     // OMP parallelization requires a multi-threaded MPI
-#pragma omp parallel for default(none) shared(                                 \
-        my_fft_grid, number_of_processes, block_size_x_rs, block_size_y_gs,    \
-            block_size_y_rs,                                                   \
-            block_size_z_gs) if (mp_mpi_query() >= mp_mpi_thread_multiple)
+#pragma omp parallel for default(none)                                         \
+    shared(my_fft_grid, number_of_processes, block_size_x_rs, block_size_y_gs, \
+               block_size_y_rs,                                                \
+               block_size_z_gs) if (mp_mpi_query() >= mp_mpi_thread_multiple)
     for (int proc = 0; proc < number_of_processes; proc++) {
       int proc_coords[2];
       mp_mpi_cart_coords(my_fft_grid->comm, proc, 2, proc_coords);
@@ -535,15 +534,15 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
   my_fft_grid->periodic[0] = 1;
   my_fft_grid->periodic[1] = 1;
   mp_mpi_cart_create(comm, 2, my_fft_grid->proc_grid, my_fft_grid->periodic,
-                       true, &my_fft_grid->comm);
+                     true, &my_fft_grid->comm);
 
   mp_mpi_cart_get(my_fft_grid->comm, 2, my_fft_grid->proc_grid,
-                    my_fft_grid->periodic, my_fft_grid->proc_coords);
+                  my_fft_grid->periodic, my_fft_grid->proc_coords);
 
   mp_mpi_cart_sub(my_fft_grid->comm, (const int[2]){1, 0},
-                    &my_fft_grid->sub_comm[0]);
+                  &my_fft_grid->sub_comm[0]);
   mp_mpi_cart_sub(my_fft_grid->comm, (const int[2]){0, 1},
-                    &my_fft_grid->sub_comm[1]);
+                  &my_fft_grid->sub_comm[1]);
   assert(mp_mpi_comm_size(my_fft_grid->sub_comm[0]) ==
          my_fft_grid->proc_grid[0]);
   assert(mp_mpi_comm_size(my_fft_grid->sub_comm[1]) ==
@@ -664,15 +663,15 @@ void grid_create_fft_grid_layout_from_reference(
   my_fft_grid->periodic[0] = 1;
   my_fft_grid->periodic[1] = 1;
   mp_mpi_cart_create(fft_grid_ref->comm, 2, my_fft_grid->proc_grid,
-                       my_fft_grid->periodic, false, &my_fft_grid->comm);
+                     my_fft_grid->periodic, false, &my_fft_grid->comm);
 
   mp_mpi_cart_get(my_fft_grid->comm, 2, my_fft_grid->proc_grid,
-                    my_fft_grid->periodic, my_fft_grid->proc_coords);
+                  my_fft_grid->periodic, my_fft_grid->proc_coords);
 
   mp_mpi_cart_sub(my_fft_grid->comm, (const int[2]){1, 0},
-                    &my_fft_grid->sub_comm[0]);
+                  &my_fft_grid->sub_comm[0]);
   mp_mpi_cart_sub(my_fft_grid->comm, (const int[2]){0, 1},
-                    &my_fft_grid->sub_comm[1]);
+                  &my_fft_grid->sub_comm[1]);
   assert(mp_mpi_comm_size(my_fft_grid->sub_comm[0]) ==
          my_fft_grid->proc_grid[0]);
   assert(mp_mpi_comm_size(my_fft_grid->sub_comm[1]) ==
@@ -1415,8 +1414,7 @@ void fft_3d_fw_ray_low(double complex *grid_buffer_1,
                        const int (*proc2local_rs)[3][2],
                        const int (*proc2local_ms)[3][2],
                        const int *rays_per_process, const int (*ray_to_yz)[2],
-                       const mp_mpi_comm comm,
-                       const mp_mpi_comm sub_comm[2]) {
+                       const mp_mpi_comm comm, const mp_mpi_comm sub_comm[2]) {
   const int my_process = mp_mpi_comm_rank(comm);
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
@@ -1665,8 +1663,7 @@ void fft_3d_bw_ray_low(double complex *grid_buffer_1,
                        const int (*proc2local_rs)[3][2],
                        const int (*proc2local_ms)[3][2],
                        const int *rays_per_process, const int (*ray_to_yz)[2],
-                       const mp_mpi_comm comm,
-                       const mp_mpi_comm sub_comm[2]) {
+                       const mp_mpi_comm comm, const mp_mpi_comm sub_comm[2]) {
   const int my_process = mp_mpi_comm_rank(comm);
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)

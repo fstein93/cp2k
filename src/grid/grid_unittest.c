@@ -9,9 +9,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../mpiwrap/mp_mpi.h"
 #include "../offload/offload_library.h"
 #include "common/grid_library.h"
-#include "../mpiwrap/mp_mpi.h"
 #include "grid_multigrid_test.h"
 #include "grid_replay.h"
 

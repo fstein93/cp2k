@@ -568,9 +568,8 @@ void fft_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_fw_distributed_r2c(const int npts_global[2],
-                               const int number_of_ffts,
-                               const mp_mpi_comm comm, double *grid_in,
-                               double complex *grid_out) {
+                               const int number_of_ffts, const mp_mpi_comm comm,
+                               double *grid_in, double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -619,8 +618,7 @@ void fft_2d_bw_distributed(const int npts_global[2], const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_bw_distributed_c2r(const int npts_global[2],
-                               const int number_of_ffts,
-                               const mp_mpi_comm comm,
+                               const int number_of_ffts, const mp_mpi_comm comm,
                                double complex *grid_in, double *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
@@ -667,9 +665,8 @@ void fft_3d_fw_distributed(const int npts_global[3], const mp_mpi_comm comm,
  * \brief Performs a distributed 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_distributed_r2c(const int npts_global[3],
-                               const mp_mpi_comm comm, double *grid_in,
-                               double complex *grid_out) {
+void fft_3d_fw_distributed_r2c(const int npts_global[3], const mp_mpi_comm comm,
+                               double *grid_in, double complex *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -714,8 +711,7 @@ void fft_3d_bw_distributed(const int npts_global[3], const mp_mpi_comm comm,
  * \brief Performs a distributed 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_distributed_c2r(const int npts_global[3],
-                               const mp_mpi_comm comm,
+void fft_3d_bw_distributed_c2r(const int npts_global[3], const mp_mpi_comm comm,
                                double complex *grid_in, double *grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);

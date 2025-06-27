@@ -16,9 +16,9 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "../mpiwrap/mp_mpi.h"
 #include "../offload/offload_buffer.h"
 #include "common/grid_common.h"
-#include "../mpiwrap/mp_mpi.h"
 #include "grid_replay.h"
 
 #include "grid_collocate.h"

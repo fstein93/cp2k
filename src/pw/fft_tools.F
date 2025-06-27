@@ -33,7 +33,7 @@ MODULE fft_tools
                                               C_SIZE_T
    USE cp_array_utils,                  ONLY: cp_1d_i_a_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE fft_lib_old,                         ONLY: &
+   USE fft_lib_old,                     ONLY: &
         BWFFT, FWFFT, fft_1d, fft_2d, fft_3d, fft_alloc, fft_arbitrary_lengths_available, &
         fft_create_plan_1d, fft_create_plan_2d, fft_create_plan_3d, fft_dealloc, fft_destroy_plan, &
         fft_do_cleanup, fft_do_init, fft_gather, fft_get_lengths, fft_scatter

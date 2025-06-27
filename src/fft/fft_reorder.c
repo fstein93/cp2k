@@ -6,9 +6,9 @@
 /*----------------------------------------------------------------------------*/
 
 #include "fft_reorder.h"
-#include "fft_utils.h"
 #include "../mpiwrap/mp_mpi.h"
 #include "fft_timer.h"
+#include "fft_utils.h"
 
 #include <assert.h>
 #include <complex.h>
@@ -105,9 +105,9 @@ void collect_y_and_distribute_z_blocked(
   assert(recv_offset == product3(my_sizes_transposed));
 
   // Use collective MPI communication
-  mp_mpi_alltoallv_double_complex(send_buffer, send_counts,
-                                    send_displacements, transposed, recv_counts,
-                                    recv_displacements, sub_comm[1]);
+  mp_mpi_alltoallv_double_complex(send_buffer, send_counts, send_displacements,
+                                  transposed, recv_counts, recv_displacements,
+                                  sub_comm[1]);
 
   free(send_buffer);
   free(send_counts);
@@ -189,8 +189,8 @@ void collect_z_and_distribute_y_blocked(
 
   // Use collective MPI communication
   mp_mpi_alltoallv_double_complex(grid, send_counts, send_displacements,
-                                    recv_buffer, recv_counts,
-                                    recv_displacements, sub_comm[1]);
+                                  recv_buffer, recv_counts, recv_displacements,
+                                  sub_comm[1]);
 
   for (int process = 0; process < dims[1]; process++) {
     int rank;
@@ -310,9 +310,9 @@ void collect_x_and_distribute_y_blocked_transpose(
   assert(recv_offset == product3(my_sizes_transposed));
 
   // Use collective MPI communication
-  mp_mpi_alltoallv_double_complex(send_buffer, send_counts,
-                                    send_displacements, transposed, recv_counts,
-                                    recv_displacements, sub_comm[0]);
+  mp_mpi_alltoallv_double_complex(send_buffer, send_counts, send_displacements,
+                                  transposed, recv_counts, recv_displacements,
+                                  sub_comm[0]);
 
   free(send_buffer);
   free(send_counts);
@@ -390,8 +390,8 @@ void collect_y_and_distribute_x_blocked_transpose(
 
   // Use collective MPI communication
   mp_mpi_alltoallv_double_complex(grid, send_counts, send_displacements,
-                                    recv_buffer, recv_counts,
-                                    recv_displacements, sub_comm[0]);
+                                  recv_buffer, recv_counts, recv_displacements,
+                                  sub_comm[0]);
 
   for (int process = 0; process < dims[0]; process++) {
     int rank;
@@ -515,9 +515,9 @@ void collect_x_and_distribute_y_blocked(
   assert(recv_offset == product3(my_sizes_transposed));
 
   // Use collective MPI communication
-  mp_mpi_alltoallv_double_complex(send_buffer, send_counts,
-                                    send_displacements, transposed, recv_counts,
-                                    recv_displacements, sub_comm[0]);
+  mp_mpi_alltoallv_double_complex(send_buffer, send_counts, send_displacements,
+                                  transposed, recv_counts, recv_displacements,
+                                  sub_comm[0]);
 
   free(send_buffer);
   free(send_counts);
@@ -595,8 +595,8 @@ void collect_y_and_distribute_x_blocked(
 
   // Use collective MPI communication
   mp_mpi_alltoallv_double_complex(grid, send_counts, send_displacements,
-                                    recv_buffer, recv_counts,
-                                    recv_displacements, sub_comm[0]);
+                                  recv_buffer, recv_counts, recv_displacements,
+                                  sub_comm[0]);
 
   for (int process = 0; process < dims[0]; process++) {
     int rank;
@@ -665,7 +665,7 @@ void collect_x_and_distribute_yz_ray(const double complex *grid,
   double complex *send_buffer =
       malloc(product3(my_sizes) * sizeof(double complex));
   mp_mpi_request recv_request = mp_mpi_request_null,
-                   send_request = mp_mpi_request_null;
+                 send_request = mp_mpi_request_null;
   const int(*my_rays)[2] = ray_to_yz;
   for (int process = 0; process < my_process; process++)
     my_rays += number_of_rays[process];
@@ -740,7 +740,7 @@ void collect_x_and_distribute_yz_ray(const double complex *grid,
 
     // Post receive request
     mp_mpi_irecv_double_complex(recv_buffer, number_of_elements_to_recv,
-                                  recv_process, 1, comm, &recv_request);
+                                recv_process, 1, comm, &recv_request);
 
     // Determine the number of rays to send to the given process
     const int number_of_rays_send = number_of_rays[send_process];
@@ -777,7 +777,7 @@ void collect_x_and_distribute_yz_ray(const double complex *grid,
 
     // Post send request
     mp_mpi_isend_double_complex(send_buffer, number_of_elements_to_send,
-                                  send_process, 1, comm, &send_request);
+                                send_process, 1, comm, &send_request);
 
     // Wait for the receive process and copy the data
     mp_mpi_wait(&recv_request);
@@ -857,7 +857,7 @@ void collect_yz_and_distribute_x_ray(const double complex *grid,
   double complex *send_buffer =
       malloc(max_number_of_elements * sizeof(double complex));
   mp_mpi_request recv_request = mp_mpi_request_null,
-                   send_request = mp_mpi_request_null;
+                 send_request = mp_mpi_request_null;
 
   memset(transposed, 0, product3(my_transposed_sizes) * sizeof(double complex));
 
@@ -912,9 +912,9 @@ void collect_yz_and_distribute_x_ray(const double complex *grid,
     memset(recv_buffer, 0, max_number_of_elements * sizeof(double complex));
 
     // Post receive request
-    mp_mpi_irecv_double_complex(
-        recv_buffer, my_transposed_sizes[0] * number_of_rays_to_recv,
-        recv_process, 1, comm, &recv_request);
+    mp_mpi_irecv_double_complex(recv_buffer,
+                                my_transposed_sizes[0] * number_of_rays_to_recv,
+                                recv_process, 1, comm, &recv_request);
 
     memset(send_buffer, 0, max_number_of_elements * sizeof(double complex));
     const int(*proc2local_send)[2] = proc2local_transposed[send_process];
@@ -1021,7 +1021,7 @@ void collect_x_and_distribute_yz_ray_transpose(const double complex *grid,
   double complex *send_buffer =
       malloc(product3(my_sizes) * sizeof(double complex));
   mp_mpi_request recv_request = mp_mpi_request_null,
-                   send_request = mp_mpi_request_null;
+                 send_request = mp_mpi_request_null;
 
   memset(transposed, 0,
          my_number_of_rays * npts_global[0] * sizeof(double complex));
@@ -1074,7 +1074,7 @@ void collect_x_and_distribute_yz_ray_transpose(const double complex *grid,
 
     // Post receive request
     mp_mpi_irecv_double_complex(recv_buffer, number_of_elements_to_recv,
-                                  recv_process, 1, comm, &recv_request);
+                                recv_process, 1, comm, &recv_request);
 
     const int number_of_rays_send = number_of_rays[send_process];
     const int(*send_rays)[2] = ray_to_yz;
@@ -1109,7 +1109,7 @@ void collect_x_and_distribute_yz_ray_transpose(const double complex *grid,
 
     // Post send request
     mp_mpi_isend_double_complex(send_buffer, number_of_elements_to_send,
-                                  send_process, 1, comm, &send_request);
+                                send_process, 1, comm, &send_request);
 
     // Wait for the receive process and copy the data
     mp_mpi_wait(&recv_request);
@@ -1180,7 +1180,7 @@ void collect_yz_and_distribute_x_ray_transpose(
   double complex *send_buffer =
       malloc(max_number_of_elements * sizeof(double complex));
   mp_mpi_request recv_request = mp_mpi_request_null,
-                   send_request = mp_mpi_request_null;
+                 send_request = mp_mpi_request_null;
 
   memset(transposed, 0, product3(my_transposed_sizes) * sizeof(double complex));
 
@@ -1235,9 +1235,9 @@ void collect_yz_and_distribute_x_ray_transpose(
     memset(recv_buffer, 0, max_number_of_elements * sizeof(double complex));
 
     // Post receive request
-    mp_mpi_irecv_double_complex(
-        recv_buffer, my_transposed_sizes[0] * number_of_rays_to_recv,
-        recv_process, 1, comm, &recv_request);
+    mp_mpi_irecv_double_complex(recv_buffer,
+                                my_transposed_sizes[0] * number_of_rays_to_recv,
+                                recv_process, 1, comm, &recv_request);
 
     memset(send_buffer, 0, max_number_of_elements * sizeof(double complex));
     const int(*proc2local_send)[2] = proc2local_transposed[send_process];
