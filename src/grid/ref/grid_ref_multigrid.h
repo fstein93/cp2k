@@ -7,7 +7,7 @@
 #ifndef GRID_REF_MULTIGRID_H
 #define GRID_REF_MULTIGRID_H
 
-#include "../common/grid_mpi.h"
+#include "../../mpiwrap/mp_mpi.h"
 
 #include <stdbool.h>
 
@@ -31,7 +31,7 @@ typedef struct {
  ******************************************************************************/
 typedef struct {
   grid_ref_layout layout;
-  grid_mpi_comm comm;
+  mp_mpi_comm comm;
   // more backends to be added here
 } grid_ref_singlegrid;
 
@@ -70,7 +70,7 @@ void grid_ref_create_multigrid(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_mpi_comm comm, grid_ref_multigrid **multigrid_out);
+    const mp_mpi_comm comm, grid_ref_multigrid **multigrid_out);
 
 /*******************************************************************************
  * \brief Deallocates given multigrid.

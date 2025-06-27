@@ -11,19 +11,9 @@
 
 #include "../offload/offload_library.h"
 #include "common/grid_library.h"
-#include "common/grid_mpi.h"
-#include "grid_fft_grid_test.h"
-#include "grid_fft_lib.h"
-#include "grid_fft_lib_test.h"
-#include "grid_fft_reorder_test.h"
-#include "grid_fft_timer.h"
+#include "../mpiwrap/mp_mpi.h"
 #include "grid_multigrid_test.h"
 #include "grid_replay.h"
-
-// Only used to call MPI_Init and MPI_Finalize to avoid spurious MPI error.
-#if defined(__parallel)
-#include <mpi.h>
-#endif
 
 /*******************************************************************************
  * \brief Standin for mpi_sum, passed to grid_library_print_stats.
@@ -78,7 +68,7 @@ static int run_test(const char cp2k_root_dir[], const char task_file[]) {
 }
 
 int main(int argc, char *argv[]) {
-  grid_mpi_init(&argc, &argv);
+  mp_mpi_init(&argc, &argv);
 
   if (argc != 2) {
     printf("Usage: grid_unittest.x <cp2k-root-dir>\n");
@@ -87,8 +77,6 @@ int main(int argc, char *argv[]) {
 
   offload_set_chosen_device(0);
   grid_library_init();
-  fft_init_timer(true);
-  fft_init_lib(GRID_FFT_LIB_DEFAULT, FFT_MEASURE, true, NULL);
 
   int errors = 0;
   errors += run_test(argv[1], "ortho_density_l0000.task");
@@ -105,34 +93,6 @@ int main(int argc, char *argv[]) {
   errors += run_test(argv[1], "general_subpatch16.task");
   errors += run_test(argv[1], "general_overflow.task");
 
-  errors += fft_test_local();
-  errors += fft_test_distributed();
-  errors += fft_test_transpose();
-  errors += fft_test_transpose_parallel();
-  errors += fft_test_3d();
-  errors += fft_test_add_copy();
-  //    errors += multigrid_test();
-  fft_print_timing_report(grid_mpi_comm_world);
-
-  // Test also the reference backend and without distributed FFTs from the
-  // library
-  if (true) {
-    fft_finalize_timer();
-    fft_finalize_lib(NULL);
-    fft_init_timer(true);
-    fft_init_lib(GRID_FFT_LIB_REF, FFT_MEASURE, false, NULL);
-    errors += fft_test_local();
-    errors += fft_test_distributed();
-    errors += fft_test_transpose();
-    errors += fft_test_transpose_parallel();
-    errors += fft_test_3d();
-    errors += fft_test_add_copy();
-    //      errors += multigrid_test();
-    fft_print_timing_report(grid_mpi_comm_world);
-  }
-
-  fft_finalize_lib(NULL);
-  fft_finalize_timer();
   grid_library_print_stats(&mpi_sum_func, 0, &print_func, 0);
   grid_library_finalize();
 
@@ -142,7 +102,7 @@ int main(int argc, char *argv[]) {
     printf("\nFound %i errors :-(\n", errors);
   }
 
-  grid_mpi_finalize();
+  mp_mpi_finalize();
 
   return errors;
 }

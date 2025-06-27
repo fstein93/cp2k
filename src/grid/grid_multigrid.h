@@ -8,10 +8,10 @@
 #define GRID_MULTIGRID_H
 
 #include "../offload/offload_buffer.h"
-#include "common/grid_mpi.h"
+#include "../mpiwrap/mp_mpi.h"
 #include "cpu/grid_cpu_multigrid.h"
-#include "grid_fft_grid.h"
-#include "grid_fft_grid_layout.h"
+#include "../fft/fft_grid.h"
+#include "../fft/fft_grid_layout.h"
 #include "ref/grid_ref_multigrid.h"
 
 #include <complex.h>
@@ -69,13 +69,13 @@ typedef struct {
   double (*dh)[3][3];
   double (*dh_inv)[3][3];
   offload_buffer **grids;
-  grid_mpi_comm comm;
+  mp_mpi_comm comm;
   int (*pgrid_dims)[3];
   int *proc2local;
   grid_redistribute *redistribute;
-  grid_fft_grid_layout **fft_grid_layouts;
-  grid_fft_real_rs_grid *fft_rs_grids;
-  grid_fft_complex_gs_grid *fft_gs_grids;
+  fft_grid_layout **fft_grid_layouts;
+  fft_real_rs_grid *fft_rs_grids;
+  fft_complex_gs_grid *fft_gs_grids;
   grid_ref_multigrid *ref;
   grid_cpu_multigrid *cpu;
   // more backends to be added here
@@ -94,7 +94,7 @@ void grid_create_multigrid_f(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const int pgrid_dims[nlevels][3], const grid_mpi_fint fortran_comm,
+    const int pgrid_dims[nlevels][3], const mp_mpi_fint fortran_comm,
     grid_multigrid **multigrid_out);
 
 bool grid_get_multigrid_orthorhombic(const grid_multigrid *multigrid);
@@ -119,9 +119,9 @@ void grid_get_multigrid_dh(const grid_multigrid *multigrid, int *nlevel,
 void grid_get_multigrid_dh_inv(const grid_multigrid *multigrid, int *nlevel,
                                double **dh_inv);
 
-grid_mpi_fint grid_get_multigrid_fortran_comm(const grid_multigrid *multigrid);
+mp_mpi_fint grid_get_multigrid_fortran_comm(const grid_multigrid *multigrid);
 
-grid_mpi_comm grid_get_multigrid_comm(const grid_multigrid *multigrid);
+mp_mpi_comm grid_get_multigrid_comm(const grid_multigrid *multigrid);
 
 void grid_copy_to_multigrid_local(const grid_multigrid *multigrid,
                                   const offload_buffer **grids);
@@ -136,20 +136,20 @@ void grid_copy_from_multigrid_local_single(const grid_multigrid *multigrid,
                                            double *grid, const int level);
 
 void grid_copy_to_multigrid_single(const grid_multigrid *multigrid,
-                                   const double *grid, const grid_mpi_comm comm,
+                                   const double *grid, const mp_mpi_comm comm,
                                    const int (*proc2local)[3][2]);
 
 void grid_copy_from_multigrid_single(const grid_multigrid *multigrid,
-                                     double *grid, const grid_mpi_comm comm,
+                                     double *grid, const mp_mpi_comm comm,
                                      const int (*proc2local)[3][2]);
 
 void grid_copy_to_multigrid_single_f(const grid_multigrid *multigrid,
                                      const double *grid,
-                                     const grid_mpi_fint comm,
+                                     const mp_mpi_fint comm,
                                      const int (*proc2local)[3][2]);
 
 void grid_copy_from_multigrid_single_f(const grid_multigrid *multigrid,
-                                       double *grid, const grid_mpi_fint comm,
+                                       double *grid, const mp_mpi_fint comm,
                                        const int (*proc2local)[3][2]);
 
 void grid_copy_to_multigrid_local_single_f(const grid_multigrid *multigrid,
@@ -160,41 +160,41 @@ void grid_copy_from_multigrid_local_single_f(const grid_multigrid *multigrid,
 
 void grid_copy_to_multigrid_general(
     const grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
-    const grid_mpi_comm comm[multigrid->nlevels], const int *proc2local);
+    const mp_mpi_comm comm[multigrid->nlevels], const int *proc2local);
 
 void grid_copy_to_multigrid_general_f(
     const grid_multigrid *multigrid, const double *grids[multigrid->nlevels],
-    const grid_mpi_fint fortran_comm[multigrid->nlevels],
+    const mp_mpi_fint fortran_comm[multigrid->nlevels],
     const int *proc2local);
 
 void grid_copy_from_multigrid_general(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
-    const grid_mpi_comm comm[multigrid->nlevels], const int *proc2local);
+    const mp_mpi_comm comm[multigrid->nlevels], const int *proc2local);
 
 void grid_copy_from_multigrid_general_f(
     const grid_multigrid *multigrid, double *grids[multigrid->nlevels],
-    const grid_mpi_fint fortran_comm[multigrid->nlevels],
+    const mp_mpi_fint fortran_comm[multigrid->nlevels],
     const int *proc2local);
 
 void grid_copy_to_multigrid_general_single(const grid_multigrid *multigrid,
                                            const int level, const double *grids,
-                                           const grid_mpi_comm comm,
+                                           const mp_mpi_comm comm,
                                            const int *proc2local);
 
 void grid_copy_to_multigrid_general_single_f(const grid_multigrid *multigrid,
                                              const int level,
                                              const double *grid,
-                                             const grid_mpi_fint fortran_comm,
+                                             const mp_mpi_fint fortran_comm,
                                              const int *proc2local);
 
 void grid_copy_from_multigrid_general_single(const grid_multigrid *multigrid,
                                              const int level, double *grid,
-                                             const grid_mpi_comm comm,
+                                             const mp_mpi_comm comm,
                                              const int *proc2local);
 
 void grid_copy_from_multigrid_general_f_single(const grid_multigrid *multigrid,
                                                const int level, double *grid,
-                                               const grid_mpi_fint fortran_comm,
+                                               const mp_mpi_fint fortran_comm,
                                                const int *proc2local);
 
 /*******************************************************************************
@@ -222,7 +222,7 @@ void grid_create_multigrid(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const int pgrid_dims[nlevels][3], const grid_mpi_comm comm,
+    const int pgrid_dims[nlevels][3], const mp_mpi_comm comm,
     grid_multigrid **multigrid_out);
 
 /*******************************************************************************
@@ -236,10 +236,10 @@ void grid_free_multigrid(grid_multigrid *multigrid);
  *same order of global indices. \author Frederick Stein
  ******************************************************************************/
 void redistribute_grids(
-    const double *grid_in, double *grid_out, const grid_mpi_comm comm_in,
-    const grid_mpi_comm comm_out, const int npts_global[3],
-    const int proc2local_in[grid_mpi_comm_size(comm_in)][3][2],
-    const int proc2local_out[grid_mpi_comm_size(comm_out)][3][2]);
+    const double *grid_in, double *grid_out, const mp_mpi_comm comm_in,
+    const mp_mpi_comm comm_out, const int npts_global[3],
+    const int proc2local_in[mp_mpi_comm_size(comm_in)][3][2],
+    const int proc2local_out[mp_mpi_comm_size(comm_out)][3][2]);
 
 #endif
 

@@ -7,8 +7,8 @@
 
 #include "grid_multigrid_test.h"
 #include "common/grid_common.h"
-#include "common/grid_mpi.h"
-#include "grid_fft_grid.h"
+#include "../mpiwrap/mp_mpi.h"
+#include "../fft/fft_grid.h"
 #include "grid_multigrid.h"
 
 #include <assert.h>
@@ -19,9 +19,9 @@
 
 int multigrid_reorder_grids_test_low(const int npts_global[3]) {
   //
-  const grid_mpi_comm comm = grid_mpi_comm_world;
-  const int number_of_processes = grid_mpi_comm_size(comm);
-  const int my_process = grid_mpi_comm_rank(comm);
+  const mp_mpi_comm comm = mp_mpi_comm_world;
+  const int number_of_processes = mp_mpi_comm_size(comm);
+  const int my_process = mp_mpi_comm_rank(comm);
 
   int errors = 0;
 
@@ -96,7 +96,7 @@ int multigrid_reorder_grids_test_low(const int npts_global[3]) {
       max_error = fmax(max_error, current_error);
     }
   }
-  grid_mpi_max_double(&max_error, 1, comm);
+  mp_mpi_max_double(&max_error, 1, comm);
   if (max_error > 1.0e-12) {
     if (my_process == 0)
       printf("Redistribution x->y does not work properly (sizes: %i %i %i, "
@@ -147,8 +147,8 @@ int multigrid_gather_scatter_halo_test() {
  ******************************************************************************/
 int multigrid_test() {
 
-  const int number_of_processes = grid_mpi_comm_size(grid_mpi_comm_world);
-  const int my_process = grid_mpi_comm_rank(grid_mpi_comm_world);
+  const int number_of_processes = mp_mpi_comm_size(mp_mpi_comm_world);
+  const int my_process = mp_mpi_comm_rank(mp_mpi_comm_world);
   const int npts_global[2][3] = {{4 * number_of_processes, 4, 4},
                                  {2 * number_of_processes, 2, 2}};
   const int npts_local[2][3] = {{8, 8, 8}, {4, 4, 4}};
@@ -166,17 +166,17 @@ int multigrid_test() {
   grid_multigrid *multigrid = NULL;
   grid_create_multigrid(true, 2, npts_global, npts_local, shift_local,
                         border_width, dh, dh_inv, pgrid_dims,
-                        grid_mpi_comm_world, &multigrid);
+                        mp_mpi_comm_world, &multigrid);
   for (int level = 0; level < multigrid->nlevels; level++) {
     assert(multigrid->fft_grid_layouts[level]->grid_id > 0);
   }
 
-  grid_fft_grid_layout *fft_grid_layout = NULL;
-  grid_create_fft_grid_layout(&fft_grid_layout, grid_mpi_comm_world,
+  fft_grid_layout *fft_grid_layout = NULL;
+  grid_create_fft_grid_layout(&fft_grid_layout, mp_mpi_comm_world,
                               npts_global[0], dh_inv[0], false);
 
-  grid_fft_real_rs_grid rs_grid;
-  memset(&rs_grid, 0, sizeof(grid_fft_real_rs_grid));
+  fft_real_rs_grid rs_grid;
+  memset(&rs_grid, 0, sizeof(fft_real_rs_grid));
   grid_create_real_rs_grid(&rs_grid, fft_grid_layout);
 
   grid_copy_to_multigrid_single(multigrid, rs_grid.data,

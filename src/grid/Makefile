@@ -1,6 +1,6 @@
 .PHONY : all clean
 
-all: grid_miniapp.x grid_unittest.x fft_perftest.x
+all: grid_miniapp.x grid_unittest.x
 
 clean:
 	rm -fv *.o */*.o *.x ../offload/*.o
@@ -12,27 +12,13 @@ LIBS := -lm -lblas
 ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h")
 ALL_OBJECTS := ../offload/offload_buffer.o \
         ../offload/offload_library.o \
-        fft_perftest.o \
         grid_replay.o \
         grid_task_list.o \
         grid_collocate.o \
         grid_integrate.o \
         grid_multigrid.o \
         grid_multigrid_test.o \
-        grid_fft_reorder.o \
-        grid_fft_reorder_test.o \
-        grid_fft_grid_test.o \
-        grid_fft_grid.o \
-        grid_fft_grid_layout.o \
-        grid_fft_lib.o \
-        grid_fft_lib_ref.o \
-        grid_fft_lib_ref_low.o \
-        grid_fft_lib_fftw.o \
-        grid_fft_lib_test.o \
-        grid_fft_timer.o \
-        grid_fft_utils.o \
         common/grid_library.o \
-        common/grid_mpi.o \
         common/grid_basis_set.o \
         common/grid_sphere_cache.o \
         ref/grid_ref_task_list.o \
@@ -57,7 +43,7 @@ ALL_OBJECTS := ../offload/offload_buffer.o \
 # Enable Cuda when nvcc compiler is present.
 NVCC := $(shell which nvcc)
 ifneq ($(NVCC),)
-LIBS += -lcudart -lcuda -lcublas -lcufftw -lcufft -L${CUDA_PATH}/lib64
+LIBS += -lcudart -lcuda -lcublas -L${CUDA_PATH}/lib64
 CFLAGS += -I${CUDA_PATH}/include -D__OFFLOAD_CUDA
 ALL_OBJECTS += gpu/grid_gpu_task_list.o \
         gpu/grid_gpu_collocate.o \
@@ -74,9 +60,5 @@ grid_miniapp.x: grid_miniapp.o $(ALL_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 grid_unittest.x: grid_unittest.o $(ALL_OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
-
-fft_perftest.x: fft_perftest.o $(ALL_OBJECTS)
-	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 #EOF

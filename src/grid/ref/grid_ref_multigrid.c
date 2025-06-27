@@ -32,7 +32,7 @@
 void grid_ref_create_singlegrid(
     const bool orthorhombic, const int npts_global[3], const int npts_local[3],
     const int shift_local[3], const int border_width[3], const double dh[3][3],
-    const double dh_inv[3][3], const grid_mpi_comm comm,
+    const double dh_inv[3][3], const mp_mpi_comm comm,
     grid_ref_singlegrid **singlegrid_out) {
   grid_ref_singlegrid *singlegrid = NULL;
 
@@ -41,7 +41,7 @@ void grid_ref_create_singlegrid(
   if (*singlegrid_out != NULL) {
     singlegrid = *singlegrid_out;
     // Always free the old communicator
-    grid_mpi_comm_free(&singlegrid->comm);
+    mp_mpi_comm_free(&singlegrid->comm);
   } else {
     singlegrid = calloc(1, sizeof(grid_ref_singlegrid));
   }
@@ -53,7 +53,7 @@ void grid_ref_create_singlegrid(
   memcpy(singlegrid->layout.border_width, border_width, 3 * sizeof(int));
   memcpy(singlegrid->layout.dh, dh, 9 * sizeof(double));
   memcpy(singlegrid->layout.dh_inv, dh_inv, 9 * sizeof(double));
-  grid_mpi_comm_dup(comm, &singlegrid->comm);
+  mp_mpi_comm_dup(comm, &singlegrid->comm);
 
   *singlegrid_out = singlegrid;
 }
@@ -64,7 +64,7 @@ void grid_ref_create_singlegrid(
  ******************************************************************************/
 void grid_ref_free_singlegrid(grid_ref_singlegrid *singlegrid) {
   if (singlegrid != NULL) {
-    grid_mpi_comm_free(&singlegrid->comm);
+    mp_mpi_comm_free(&singlegrid->comm);
     free(singlegrid);
   }
 }
@@ -91,7 +91,7 @@ void grid_ref_create_multigrid(
     const int npts_global[nlevels][3], const int npts_local[nlevels][3],
     const int shift_local[nlevels][3], const int border_width[nlevels][3],
     const double dh[nlevels][3][3], const double dh_inv[nlevels][3][3],
-    const grid_mpi_comm comm, grid_ref_multigrid **multigrid_out) {
+    const mp_mpi_comm comm, grid_ref_multigrid **multigrid_out) {
   grid_ref_multigrid *multigrid = NULL;
 
   assert(multigrid_out != NULL);

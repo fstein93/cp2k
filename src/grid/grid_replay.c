@@ -18,7 +18,7 @@
 
 #include "../offload/offload_buffer.h"
 #include "common/grid_common.h"
-#include "common/grid_mpi.h"
+#include "../mpiwrap/mp_mpi.h"
 #include "grid_replay.h"
 
 #include "grid_collocate.h"
@@ -271,7 +271,7 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
   parse_int3("npts_local", fp, npts_local);
   parse_int3("shift_local", fp, shift_local);
   parse_int3("border_width", fp, border_width);
-  pgrid_dims[0] = grid_mpi_comm_size(grid_mpi_comm_world);
+  pgrid_dims[0] = mp_mpi_comm_size(mp_mpi_comm_world);
   pgrid_dims[1] = 1;
   pgrid_dims[2] = 1;
 
@@ -281,7 +281,7 @@ bool grid_replay(const char *filename, const int cycles, const bool collocate,
       (const int(*)[3])npts_local, (const int(*)[3])shift_local,
       (const int(*)[3])border_width, (const double(*)[3][3])dh,
       (const double(*)[3][3])dh_inv, (const int(*)[3])pgrid_dims,
-      grid_mpi_comm_world, &multigrid);
+      mp_mpi_comm_world, &multigrid);
 
   const double radius = parse_double("radius", fp);
   const int o1 = parse_int("o1", fp);

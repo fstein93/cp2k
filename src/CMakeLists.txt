@@ -1061,7 +1061,7 @@ list(
   input/input_val_types.F)
 
 list(APPEND CP2K_SRCS_F mpiwrap/mp_perf_env.F mpiwrap/message_passing.F
-     mpiwrap/mp_perf_test.F)
+     mpiwrap/mp_perf_test.F mpiwrap/mp_mpi.c)
 
 list(
   APPEND
@@ -1195,7 +1195,7 @@ list(
   pw_env/pw_env_types.F
   pw_env/rs_pw_interface.F
   pw/fft/fft_kinds.F
-  pw/fft/fft_lib.F
+  pw/fft/fft_lib_old.F
   pw/fft/fft_plan.F
   pw/fft/fftsg_lib.F
   pw/fft/fftw3_lib.F
@@ -1380,10 +1380,25 @@ set(CP2K_DBM_SRCS_C
     dbm/dbm_multiply_cpu.c
     dbm/dbm_shard.c)
 
+set(CP2K_FFT_SRCS_C
+    fft/fft_grid_layout.c
+    fft/fft_grid.c
+    fft/fft_grid_test.c
+    fft/fft_lib.c
+    fft/fft_lib_ref.c
+    fft/fft_lib_fftw.c
+    fft/fft_lib_test.c
+    fft/fft_reorder.c
+    fft/fft_reorder_test.c
+    fft/fft_lib_ref_low.c
+    fft/fft_timer.c
+    fft/fft_utils.c
+    fft/fft_api_F.c
+    fft/fft_api.F)
+
 set(CP2K_GRID_SRCS_C
     grid/common/grid_basis_set.c
     grid/common/grid_library.c
-    grid/common/grid_mpi.c
     grid/common/grid_sphere_cache.c
     grid/dgemm/grid_dgemm_coefficients.c
     grid/dgemm/grid_dgemm_collocation_integration.c
@@ -1448,7 +1463,7 @@ set(CP2K_DBM_SRCS_OPENCL dbm/dbm_multiply_opencl.cl)
 set(CP2K_PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
 
 set(CP2K_PROGS_C
-    grid/grid_miniapp.c;grid/grid_unittest.c;grid/fft_perftest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c
+    grid/grid_miniapp.c;grid/grid_unittest.c;fft/fft_unittest.c;fft/fft_perftest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c
 )
 set(CP2K_PROGS_F
     dbt/dbt_unittest.F
@@ -1820,7 +1835,7 @@ endforeach()
 # list of all targets that share the same properties. simplify code as most
 # cmake function can work on list of targets
 
-foreach(__app grid_miniapp grid_unittest fft_perftest dbm_miniapp)
+foreach(__app grid_miniapp grid_unittest fft_unittest fft_perftest dbm_miniapp)
   set_target_properties(
     ${__app}
     PROPERTIES POSITION_INDEPENDENT_CODE ON
@@ -1859,7 +1874,7 @@ endforeach()
 # installation
 # ##############################################################################
 install(
-  TARGETS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest fft_perftest
+  TARGETS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest fft_unittest fft_perftest
           dbm_miniapp
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
