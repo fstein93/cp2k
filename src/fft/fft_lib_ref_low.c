@@ -17,6 +17,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+void determine_factorization(const int n, int *m1, int *m2) {
+  *m1 = 1;
+  for (int candidate = 2; candidate * candidate <= n; candidate++) {
+    if (n % candidate == 0) {
+      *m1 = candidate;
+      break;
+    }
+  }
+  *m2 = n / *m1;
+}
+
 /*******************************************************************************
  * \brief Naive implementation of FFT from transposed format (for easier
  *transposition). \author Frederick Stein
@@ -83,14 +94,8 @@ void fft_ref_1d_fw_local_low(double complex *restrict grid_in,
                              const int stride_in, const int stride_out,
                              const int distance_in, const int distance_out) {
 
-  int small_divisor = 1;
-  for (int candidate = 2; candidate * candidate <= fft_size; candidate++) {
-    if (fft_size % candidate == 0) {
-      small_divisor = candidate;
-      break;
-    }
-  }
-  int large_divisor = fft_size / small_divisor;
+  int small_divisor, large_divisor;
+  determine_factorization(fft_size, &small_divisor, &large_divisor);
 
   if (small_divisor == 1) {
     fft_ref_1d_fw_local_naive(grid_in, grid_out, fft_size, number_of_ffts,
@@ -165,14 +170,8 @@ void fft_ref_1d_bw_local_low(double complex *restrict grid_in,
                              const int stride_in, const int stride_out,
                              const int distance_in, const int distance_out) {
 
-  int small_divisor = 1;
-  for (int candidate = 2; candidate * candidate <= fft_size; candidate++) {
-    if (fft_size % candidate == 0) {
-      small_divisor = candidate;
-      break;
-    }
-  }
-  int large_divisor = fft_size / small_divisor;
+  int small_divisor, large_divisor;
+  determine_factorization(fft_size, &small_divisor, &large_divisor);
 
   if (small_divisor == 1) {
     fft_ref_1d_bw_local_naive(grid_in, grid_out, fft_size, number_of_ffts,
