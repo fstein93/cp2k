@@ -254,8 +254,9 @@ void setup_proc2local(fft_grid_layout *my_fft_grid) {
                            (int *)my_fft_grid->proc2local_ms,
                            my_fft_grid->comm);
 // The last FFT step is performed locally in x-direction
-#pragma omp parallel for default(none)                                         \
-    shared(my_fft_grid, block_size_y_gs, number_of_processes)
+#pragma omp parallel for default(none) shared(                                 \
+        my_fft_grid, block_size_y_gs,                                          \
+            number_of_processes) if (mp_mpi_query() >= mp_mpi_thread_multiple)
       for (int process = 0; process < number_of_processes; process++) {
         int proc_coords[2];
         mp_mpi_cart_coords(my_fft_grid->comm, process, 2, proc_coords);

@@ -5,11 +5,13 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include "../mpiwrap/mp_mpi.h"
 #include "fft_lib_ref.h"
 #include "fft_utils.h"
 
 #include <assert.h>
 #include <math.h>
+#include <omp.h>
 #include <stddef.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -27,6 +29,10 @@ void fft_ref_1d_fw_local_naive(double complex *restrict grid_in,
 
   const double pi = acos(-1);
 
+#pragma omp parallel for default(none)                                         \
+    shared(number_of_ffts, grid_in, grid_out, fft_size, stride_in, stride_out, \
+               distance_in, distance_out, pi)                                  \
+    collapse(2) if (!omp_in_parallel())
   for (int fft = 0; fft < number_of_ffts; fft++) {
     for (int index_out = 0; index_out < fft_size; index_out++) {
       grid_out[index_out * stride_out + fft * distance_out] = 0.0;
@@ -51,6 +57,10 @@ void fft_ref_1d_bw_local_naive(double complex *restrict grid_in,
 
   const double pi = acos(-1);
 
+#pragma omp parallel for default(none)                                         \
+    shared(number_of_ffts, grid_in, grid_out, fft_size, stride_in, stride_out, \
+               distance_in, distance_out, pi)                                  \
+    collapse(2) if (!omp_in_parallel())
   for (int fft = 0; fft < number_of_ffts; fft++) {
     for (int index_out = 0; index_out < fft_size; index_out++) {
       grid_out[index_out * stride_out + fft * distance_out] = 0.0;
@@ -88,6 +98,11 @@ void fft_ref_1d_fw_local_low(double complex *restrict grid_in,
   } else {
     const double pi = acos(-1);
 
+#pragma omp parallel for default(none)                                         \
+    shared(number_of_ffts, small_divisor, large_divisor, stride_in,            \
+               stride_out, distance_in, distance_out, fft_size, grid_in,       \
+               grid_out) if (number_of_ffts >= omp_get_max_threads() &&        \
+                                 !omp_in_parallel())
     for (int fft = 0; fft < number_of_ffts; fft++) {
       fft_ref_1d_fw_local_low(
           grid_in + fft * distance_in, grid_out + fft * distance_out,
@@ -124,6 +139,10 @@ void fft_ref_1d_fw_local_r2c_low(double *restrict grid_in,
 
   const double pi = acos(-1);
 
+#pragma omp parallel for default(none)                                         \
+    shared(number_of_ffts, grid_in, grid_out, fft_size, stride_in, stride_out, \
+               distance_in, distance_out, pi)                                  \
+    collapse(2) if (!omp_in_parallel())
   for (int fft = 0; fft < number_of_ffts; fft++) {
     for (int index_out = 0; index_out < fft_size / 2 + 1; index_out++) {
       grid_out[index_out * stride_out + fft * distance_out] = 0.0;
@@ -161,6 +180,11 @@ void fft_ref_1d_bw_local_low(double complex *restrict grid_in,
   } else {
     const double pi = acos(-1);
 
+#pragma omp parallel for default(none)                                         \
+    shared(number_of_ffts, small_divisor, large_divisor, stride_in,            \
+               stride_out, distance_in, distance_out, fft_size, grid_in,       \
+               grid_out) if (number_of_ffts >= omp_get_max_threads() &&        \
+                                 !omp_in_parallel())
     for (int fft = 0; fft < number_of_ffts; fft++) {
       fft_ref_1d_bw_local_low(
           grid_in + fft * distance_in, grid_out + fft * distance_out,
@@ -196,6 +220,10 @@ void fft_ref_1d_bw_local_c2r_low(double complex *restrict grid_in,
 
   const double pi = acos(-1);
 
+#pragma omp parallel for default(none)                                         \
+    shared(number_of_ffts, grid_in, grid_out, fft_size, stride_in, stride_out, \
+               distance_in, distance_out, pi)                                  \
+    collapse(2) if (!omp_in_parallel())
   for (int fft = 0; fft < number_of_ffts; fft++) {
     for (int index_out = 0; index_out < fft_size; index_out++) {
       grid_out[index_out * stride_out + fft * distance_out] = 0.0;
@@ -226,12 +254,20 @@ void fft_ref_2d_fw_local_low(double complex *restrict grid_in,
 
   double complex *buffer = malloc(fft_size[0] * fft_size[1] * number_of_ffts *
                                   sizeof(double complex));
+#pragma omp parallel for default(none)                                         \
+    shared(grid_in, grid_out, fft_size, number_of_ffts, stride_in, stride_out, \
+               distance_in, distance_out,                                      \
+               buffer) if (number_of_ffts > omp_get_max_threads())
   for (int fft = 0; fft < number_of_ffts; fft++) {
     fft_ref_1d_fw_local_low(grid_in + distance_in * fft, buffer + fft,
                             fft_size[0], fft_size[1], fft_size[1] * stride_in,
                             fft_size[1] * number_of_ffts, stride_in,
                             number_of_ffts);
   }
+#pragma omp parallel for default(none)                                         \
+    shared(grid_in, grid_out, fft_size, number_of_ffts, stride_in, stride_out, \
+               distance_in, distance_out,                                      \
+               buffer) if (number_of_ffts > omp_get_max_threads())
   for (int fft = 0; fft < number_of_ffts; fft++) {
     fft_ref_1d_fw_local_low(buffer + fft, grid_out + distance_out * fft,
                             fft_size[1], fft_size[0], number_of_ffts,
@@ -254,12 +290,20 @@ void fft_ref_2d_fw_local_r2c_low(double *restrict grid_in,
 
   double complex *buffer = malloc(fft_size[0] * (fft_size[1] / 2 + 1) *
                                   number_of_ffts * sizeof(double complex));
+#pragma omp parallel for default(none)                                         \
+    shared(grid_in, grid_out, fft_size, number_of_ffts, stride_in, stride_out, \
+               distance_in, distance_out,                                      \
+               buffer) if (number_of_ffts > omp_get_max_threads())
   for (int fft = 0; fft < number_of_ffts; fft++) {
     fft_ref_1d_fw_local_r2c_low(grid_in + distance_in * fft, buffer + fft,
                                 fft_size[1], fft_size[0], stride_in,
                                 number_of_ffts, stride_in * fft_size[1],
                                 number_of_ffts * (fft_size[1] / 2 + 1));
   }
+#pragma omp parallel for default(none)                                         \
+    shared(grid_in, grid_out, fft_size, number_of_ffts, stride_in, stride_out, \
+               distance_in, distance_out,                                      \
+               buffer) if (number_of_ffts > omp_get_max_threads())
   for (int fft = 0; fft < number_of_ffts; fft++) {
     fft_ref_1d_fw_local_low(
         buffer + fft, grid_out + distance_out * fft, fft_size[0],
@@ -281,12 +325,20 @@ void fft_ref_2d_bw_local_low(double complex *restrict grid_in,
 
   double complex *buffer = malloc(fft_size[0] * fft_size[1] * number_of_ffts *
                                   sizeof(double complex));
+#pragma omp parallel for default(none)                                         \
+    shared(grid_in, grid_out, fft_size, number_of_ffts, stride_in, stride_out, \
+               distance_in, distance_out,                                      \
+               buffer) if (number_of_ffts > omp_get_max_threads())
   for (int fft = 0; fft < number_of_ffts; fft++) {
     fft_ref_1d_bw_local_low(grid_in + distance_in * fft, buffer + fft,
                             fft_size[0], fft_size[1], fft_size[1] * stride_in,
                             fft_size[1] * number_of_ffts, stride_in,
                             number_of_ffts);
   }
+#pragma omp parallel for default(none)                                         \
+    shared(grid_in, grid_out, fft_size, number_of_ffts, stride_in, stride_out, \
+               distance_in, distance_out,                                      \
+               buffer) if (number_of_ffts > omp_get_max_threads())
   for (int fft = 0; fft < number_of_ffts; fft++) {
     fft_ref_1d_bw_local_low(buffer + fft, grid_out + distance_out * fft,
                             fft_size[1], fft_size[0], number_of_ffts,
@@ -309,12 +361,20 @@ void fft_ref_2d_bw_local_c2r_low(double complex *restrict grid_in,
 
   double complex *buffer = malloc(fft_size[0] * (fft_size[1] / 2 + 1) *
                                   number_of_ffts * sizeof(double complex));
+#pragma omp parallel for default(none)                                         \
+    shared(grid_in, grid_out, fft_size, number_of_ffts, stride_in, stride_out, \
+               distance_in, distance_out,                                      \
+               buffer) if (number_of_ffts > omp_get_max_threads())
   for (int fft = 0; fft < number_of_ffts; fft++) {
     fft_ref_1d_bw_local_low(
         grid_in + distance_in * fft, buffer + fft, fft_size[0],
         (fft_size[1] / 2 + 1), (fft_size[1] / 2 + 1) * stride_in,
         (fft_size[1] / 2 + 1) * number_of_ffts, stride_in, number_of_ffts);
   }
+#pragma omp parallel for default(none)                                         \
+    shared(grid_in, grid_out, fft_size, number_of_ffts, stride_in, stride_out, \
+               distance_in, distance_out,                                      \
+               buffer) if (number_of_ffts > omp_get_max_threads())
   for (int fft = 0; fft < number_of_ffts; fft++) {
     fft_ref_1d_bw_local_c2r_low(
         buffer + fft, grid_out + distance_out * fft, fft_size[1], fft_size[0],
