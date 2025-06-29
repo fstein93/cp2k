@@ -57,6 +57,35 @@ void fft_ref_1d_fw_local_naive(double complex *restrict grid_in,
 }
 
 /*******************************************************************************
+ * \brief Naive implementation of FFT from transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_1d_fw_local_r2c_naive(double *restrict grid_in,
+                                   double complex *restrict grid_out,
+                                   const int fft_size, const int number_of_ffts,
+                                   const int stride_in, const int stride_out,
+                                   const int distance_in,
+                                   const int distance_out) {
+
+  const double pi = acos(-1);
+
+#pragma omp parallel for default(none)                                         \
+    shared(number_of_ffts, grid_in, grid_out, fft_size, stride_in, stride_out, \
+               distance_in, distance_out, pi)                                  \
+    collapse(2) if (!omp_in_parallel())
+  for (int fft = 0; fft < number_of_ffts; fft++) {
+    for (int index_out = 0; index_out < fft_size / 2 + 1; index_out++) {
+      grid_out[index_out * stride_out + fft * distance_out] = 0.0;
+      for (int index_in = 0; index_in < fft_size; index_in++) {
+        grid_out[index_out * stride_out + fft * distance_out] +=
+            cexp(-2.0 * pi * I * index_in * index_out / fft_size) *
+            grid_in[index_in * stride_in + fft * distance_in];
+      }
+    }
+  }
+}
+
+/*******************************************************************************
  * \brief Naive implementation of backwards FFT to transposed format (for
  *easier transposition). \author Frederick Stein
  ******************************************************************************/
@@ -79,6 +108,49 @@ void fft_ref_1d_bw_local_naive(double complex *restrict grid_in,
         grid_out[index_out * stride_out + fft * distance_out] +=
             cexp(2.0 * pi * I * index_in * index_out / fft_size) *
             grid_in[index_in * stride_in + fft * distance_in];
+      }
+    }
+  }
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of FFT from transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_ref_1d_fw_local_r2c_driver(
+    double *restrict grid_in_1, double *restrict grid_in_2,
+    double *restrict grid_out_real, double *restrict grid_out_imag,
+    const int fft_size, const int number_of_ffts, const int stride_in,
+    const int stride_out, const int distance_in, const int distance_out) {
+
+  const double pi = acos(-1);
+
+#pragma omp parallel for default(none)                                         \
+    shared(number_of_ffts, grid_in_1, grid_in_2, grid_out_real, grid_out_imag, \
+               fft_size, stride_in, stride_out, distance_in, distance_out, pi) \
+    collapse(2) if (!omp_in_parallel())
+  for (int fft = 0; fft < number_of_ffts; fft++) {
+    for (int index_out = 0; index_out < fft_size / 2 + 1; index_out++) {
+      grid_out_real[index_out * stride_out + fft * distance_out] = 0.0;
+      grid_out_imag[index_out * stride_out + fft * distance_out] = 0.0;
+      for (int index_in = 0; index_in < (fft_size + 1) / 2; index_in++) {
+        const double complex tmp =
+            cexp(-2.0 * pi * I * index_in * index_out / fft_size) *
+            grid_in_1[index_in * stride_in + fft * distance_in];
+        grid_out_real[index_out * stride_out + fft * distance_out] +=
+            creal(tmp);
+        grid_out_imag[index_out * stride_out + fft * distance_out] +=
+            cimag(tmp);
+      }
+      for (int index_in = 0; index_in < fft_size / 2; index_in++) {
+        const double complex tmp =
+            cexp(-2.0 * pi * I * (index_in + (fft_size + 1) / 2) * index_out /
+                 fft_size) *
+            grid_in_2[index_in * stride_in + fft * distance_in];
+        grid_out_real[index_out * stride_out + fft * distance_out] +=
+            creal(tmp);
+        grid_out_imag[index_out * stride_out + fft * distance_out] +=
+            cimag(tmp);
       }
     }
   }
@@ -142,22 +214,10 @@ void fft_ref_1d_fw_local_r2c_low(double *restrict grid_in,
                                  const int distance_in,
                                  const int distance_out) {
 
-  const double pi = acos(-1);
-
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_ffts, grid_in, grid_out, fft_size, stride_in, stride_out, \
-               distance_in, distance_out, pi)                                  \
-    collapse(2) if (!omp_in_parallel())
-  for (int fft = 0; fft < number_of_ffts; fft++) {
-    for (int index_out = 0; index_out < fft_size / 2 + 1; index_out++) {
-      grid_out[index_out * stride_out + fft * distance_out] = 0.0;
-      for (int index_in = 0; index_in < fft_size; index_in++) {
-        grid_out[index_out * stride_out + fft * distance_out] +=
-            cexp(-2.0 * pi * I * index_in * index_out / fft_size) *
-            grid_in[index_in * stride_in + fft * distance_in];
-      }
-    }
-  }
+  fft_ref_1d_fw_local_r2c_driver(
+      grid_in, grid_in + (fft_size + 1) / 2 * stride_in, (double *)grid_out,
+      (double *)grid_out + 1, fft_size, number_of_ffts, stride_in,
+      2 * stride_out, distance_in, 2 * distance_out);
 }
 
 /*******************************************************************************
