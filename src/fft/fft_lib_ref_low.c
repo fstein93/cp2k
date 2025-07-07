@@ -25,26 +25,6 @@ void fft_ref_1d_bw_local_internal(double *grid_in_real, double *grid_in_imag,
                                   double *grid_out_real, double *grid_out_imag,
                                   const int fft_size, const int number_of_ffts);
 
-/*******************************************************************************
- * \brief Local transposition.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_ref_transpose_local_double_block(double *grid, double *grid_transposed,
-                                          const int number_of_columns_grid,
-                                          const int number_of_rows_grid,
-                                          const int block_size) {
-  for (int column_index = 0; column_index < number_of_columns_grid;
-       column_index++) {
-    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
-      memcpy(grid_transposed +
-                 (column_index * number_of_rows_grid + row_index) * block_size,
-             grid + (row_index * number_of_columns_grid + column_index) *
-                        block_size,
-             block_size * sizeof(double));
-    }
-  }
-}
-
 void reorder_input(const double complex *restrict grid_in,
                    double *restrict grid_out_real,
                    double *restrict grid_out_imag, const int fft_size,
@@ -1139,10 +1119,10 @@ void fft_ref_2d_fw_local_low(double complex *restrict grid_in,
                                grid_in_imag, fft_size[0],
                                number_of_ffts * fft_size[1]);
   // Transpose the data
-  fft_ref_transpose_local_double_block(grid_in_real, grid_out_real, fft_size[1],
-                                       fft_size[0], number_of_ffts);
-  fft_ref_transpose_local_double_block(grid_in_imag, grid_out_imag, fft_size[1],
-                                       fft_size[0], number_of_ffts);
+  transpose_local_double_block(grid_in_real, grid_out_real, fft_size[1],
+                               fft_size[0], number_of_ffts);
+  transpose_local_double_block(grid_in_imag, grid_out_imag, fft_size[1],
+                               fft_size[0], number_of_ffts);
   fft_ref_1d_fw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
                                grid_in_imag, fft_size[1],
                                number_of_ffts * fft_size[0]);
@@ -1223,10 +1203,10 @@ void fft_ref_2d_bw_local_low(double complex *restrict grid_in,
                                grid_in_imag, fft_size[0],
                                number_of_ffts * fft_size[1]);
   // Transpose the data
-  fft_ref_transpose_local_double_block(grid_in_real, grid_out_real, fft_size[1],
-                                       fft_size[0], number_of_ffts);
-  fft_ref_transpose_local_double_block(grid_in_imag, grid_out_imag, fft_size[1],
-                                       fft_size[0], number_of_ffts);
+  transpose_local_double_block(grid_in_real, grid_out_real, fft_size[1],
+                               fft_size[0], number_of_ffts);
+  transpose_local_double_block(grid_in_imag, grid_out_imag, fft_size[1],
+                               fft_size[0], number_of_ffts);
   fft_ref_1d_bw_local_internal(grid_out_real, grid_out_imag, grid_in_real,
                                grid_in_imag, fft_size[1],
                                number_of_ffts * fft_size[0]);

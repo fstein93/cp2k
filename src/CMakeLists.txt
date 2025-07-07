@@ -1392,7 +1392,6 @@ set(CP2K_FFT_SRCS_C
     fft/fft_reorder_test.c
     fft/fft_lib_ref_low.c
     fft/fft_timer.c
-    fft/fft_utils.c
     fft/fft_api_F.c
     fft/fft_api.F)
 

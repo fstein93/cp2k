@@ -24,7 +24,6 @@ ALL_OBJECTS := ../offload/offload_buffer.o \
         fft_lib_fftw.o \
         fft_lib_test.o \
         fft_timer.o \
-        fft_utils.o \
         ../mpiwrap/mp_mpi.o
 
 # Enable Cuda when nvcc compiler is present.

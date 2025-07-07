@@ -8,42 +8,91 @@
 #define FFT_UTILS_H
 
 #include <complex.h>
+#include <string.h>
 
 /*******************************************************************************
  * \brief Local transposition.
  * \author Frederick Stein
  ******************************************************************************/
-void transpose_local_complex(double complex *grid,
-                             double complex *grid_transposed,
-                             const int number_of_columns_grid,
-                             const int number_of_rows_grid);
+static inline void transpose_local_complex(double complex *grid,
+                                           double complex *grid_transposed,
+                                           const int number_of_columns_grid,
+                                           const int number_of_rows_grid) {
+#pragma omp parallel for default(none)                                         \
+    shared(grid, grid_transposed, number_of_columns_grid, number_of_rows_grid) \
+    collapse(2)
+  for (int column_index = 0; column_index < number_of_columns_grid;
+       column_index++) {
+    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
+      grid_transposed[column_index * number_of_rows_grid + row_index] =
+          grid[row_index * number_of_columns_grid + column_index];
+    }
+  }
+}
 
 /*******************************************************************************
  * \brief Local transposition.
  * \author Frederick Stein
  ******************************************************************************/
-void transpose_local_double(double *grid, double *grid_transposed,
-                            const int number_of_columns_grid,
-                            const int number_of_rows_grid);
+static inline void transpose_local_double(double *grid, double *grid_transposed,
+                                          const int number_of_columns_grid,
+                                          const int number_of_rows_grid) {
+#pragma omp parallel for default(none)                                         \
+    shared(grid, grid_transposed, number_of_columns_grid, number_of_rows_grid) \
+    collapse(2)
+  for (int column_index = 0; column_index < number_of_columns_grid;
+       column_index++) {
+    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
+      grid_transposed[column_index * number_of_rows_grid + row_index] =
+          grid[row_index * number_of_columns_grid + column_index];
+    }
+  }
+}
 
 /*******************************************************************************
  * \brief Local transposition of blocks.
  * \author Frederick Stein
  ******************************************************************************/
-void transpose_local_complex_block(double complex *grid,
-                                   double complex *grid_transposed,
-                                   const int number_of_columns_grid,
-                                   const int number_of_rows_grid,
-                                   const int block_size);
+static inline void transpose_local_complex_block(
+    double complex *grid, double complex *grid_transposed,
+    const int number_of_columns_grid, const int number_of_rows_grid,
+    const int block_size) {
+#pragma omp parallel for default(none)                                         \
+    shared(grid, grid_transposed, number_of_columns_grid, number_of_rows_grid, \
+               block_size) collapse(2)
+  for (int column_index = 0; column_index < number_of_columns_grid;
+       column_index++) {
+    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
+      memcpy(&grid_transposed[(column_index * number_of_rows_grid + row_index) *
+                              block_size],
+             &grid[(row_index * number_of_columns_grid + column_index) *
+                   block_size],
+             block_size * sizeof(double complex));
+    }
+  }
+}
 
 /*******************************************************************************
  * \brief Local transposition of blocks.
  * \author Frederick Stein
  ******************************************************************************/
-void transpose_local_double_block(double *grid, double *grid_transposed,
-                                  const int number_of_columns_grid,
-                                  const int number_of_rows_grid,
-                                  const int block_size);
+static inline void transpose_local_double_block(
+    double *grid, double *grid_transposed, const int number_of_columns_grid,
+    const int number_of_rows_grid, const int block_size) {
+#pragma omp parallel for default(none)                                         \
+    shared(grid, grid_transposed, number_of_columns_grid, number_of_rows_grid, \
+               block_size) collapse(2)
+  for (int column_index = 0; column_index < number_of_columns_grid;
+       column_index++) {
+    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
+      memcpy(&grid_transposed[(column_index * number_of_rows_grid + row_index) *
+                              block_size],
+             &grid[(row_index * number_of_columns_grid + column_index) *
+                   block_size],
+             block_size * sizeof(double));
+    }
+  }
+}
 
 /*******************************************************************************
  * \brief Returns the smaller of two given integer (missing from the C standard)
@@ -83,6 +132,9 @@ static inline int modulo(int a, int m) { return ((a % m + m) % m); }
 static inline int product3(const int array3[3]) {
   return array3[0] * array3[1] * array3[2];
 }
+
+void zdscal_(const int *n, const double *da, double complex *za,
+             const int *incx);
 
 #endif /* FFT_UTILS_H */
 

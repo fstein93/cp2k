@@ -169,6 +169,48 @@ void fft_3d_bw_with_layout(const double complex *grid_gs,
 void fft_3d_bw_c2r_with_layout(const double complex *grid_gs, double *grid_rs,
                                const fft_grid_layout *fft_grid);
 
+/*******************************************************************************
+ * \brief Performs a forward 3D-FFT and sorts the data in g-space.
+ * \param grid_rs real-valued data in real space.
+ * \param grid_gs complex-valued data in reciprocal space.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_fw_with_layout_to_cart(const double complex *grid_rs,
+                                   double complex *grid_gs,
+                                   const fft_grid_layout *grid_layout);
+
+/*******************************************************************************
+ * \brief Performs a forward 3D-FFT and sorts the data in g-space.
+ * \param grid_rs real-valued data in real space.
+ * \param grid_gs complex-valued data in reciprocal space.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_fw_r2c_with_layout_to_cart(const double *grid_rs,
+                                       double complex *grid_gs,
+                                       const fft_grid_layout *grid_layout);
+
+/*******************************************************************************
+ * \brief Performs a backward 3D-FFT from data sorted in g-space.
+ * \param fft_grid FFT grid object.
+ * \param grid_gs complex-valued data in reciprocal space.
+ * \param grid_rs complex-valued data in real space.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_bw_with_layout_from_cart(const double complex *grid_gs,
+                                     double complex *grid_rs,
+                                     const fft_grid_layout *fft_grid);
+
+/*******************************************************************************
+ * \brief Performs a backward 3D-FFT from data sorted in g-space.
+ * \param fft_grid FFT grid object.
+ * \param grid_gs complex-valued data in reciprocal space.
+ * \param grid_rs real-valued data in real space.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_3d_bw_c2r_with_layout_from_cart(const double complex *grid_gs,
+                                         double *grid_rs,
+                                         const fft_grid_layout *fft_grid);
+
 #endif
 
 // EOF

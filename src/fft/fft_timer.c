@@ -237,12 +237,11 @@ void fft_print_timing_report(const mp_mpi_comm comm) {
         int number_of_calls;
         get_routine_infos(timed_routines[routine].routine_name, &total_time,
                           &self_time, &number_of_calls);
-        double summed_info[3];
+        double summed_info[2];
         summed_info[0] = total_time;
         summed_info[1] = self_time;
-        summed_info[2] = (double)number_of_calls;
         // ... and exchange them
-        mp_mpi_sum_double_root(summed_info, 3, 0, comm);
+        mp_mpi_sum_double_root(summed_info, 2, 0, comm);
         double max_info[2];
         max_info[0] = total_time;
         max_info[1] = self_time;
@@ -251,9 +250,9 @@ void fft_print_timing_report(const mp_mpi_comm comm) {
         timing_statistics[size_of_timing_statistics].routine_name =
             strdup(timed_routines[routine].routine_name);
         timing_statistics[size_of_timing_statistics].avg_total_time =
-            summed_info[0] / summed_info[2];
+            summed_info[0] / number_of_calls;
         timing_statistics[size_of_timing_statistics].avg_self_time =
-            summed_info[1] / summed_info[2];
+            summed_info[1] / number_of_calls;
         timing_statistics[size_of_timing_statistics].max_total_time =
             max_info[0];
         timing_statistics[size_of_timing_statistics].max_self_time =
@@ -317,14 +316,12 @@ void fft_print_timing_report(const mp_mpi_comm comm) {
         int number_of_calls;
         get_routine_infos(routine_name, &total_time, &self_time,
                           &number_of_calls);
-        double function_info[3];
+        double function_info[2];
         function_info[0] = total_time;
         function_info[1] = self_time;
-        function_info[2] = (double)number_of_calls;
-        mp_mpi_sum_double_root(function_info, 3, 0, comm);
+        mp_mpi_sum_double_root(function_info, 2, 0, comm);
         function_info[0] = total_time;
         function_info[1] = self_time;
-        function_info[2] = (double)number_of_calls;
         mp_mpi_max_double_root(function_info, 2, 0, comm);
         free(routine_name);
       }

@@ -1257,7 +1257,7 @@ void fft_fftw_2d_fw_distributed(const int npts_global[2],
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
   fftw_plan *plan = fft_fftw_create_distributed_2d_plan(
-      FFTW_FORWARD, npts_global, number_of_ffts, comm);
+      FFTW_FORWARD, npts_global, number_of_ffts, comm, grid_out);
   assert(plan != NULL);
   fftw_mpi_execute_dft(*plan, grid_in, grid_out);
 #else
@@ -1282,7 +1282,7 @@ void fft_fftw_2d_fw_distributed_r2c(const int npts_global[2],
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
   fftw_plan *plan = fft_fftw_create_distributed_2d_plan_r2c(
-      FFTW_FORWARD, npts_global, number_of_ffts, comm);
+      FFTW_FORWARD, npts_global, number_of_ffts, comm, grid_out);
   assert(plan != NULL);
   fftw_mpi_execute_dft_r2c(*plan, grid_in, grid_out);
 #else
@@ -1307,7 +1307,7 @@ void fft_fftw_2d_bw_distributed(const int npts_global[2],
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
   fftw_plan *plan = fft_fftw_create_distributed_2d_plan(
-      FFTW_BACKWARD, npts_global, number_of_ffts, comm);
+      FFTW_BACKWARD, npts_global, number_of_ffts, comm, grid_out);
   assert(plan != NULL);
   fftw_mpi_execute_dft(*plan, grid_in, grid_out);
 #else
@@ -1332,7 +1332,8 @@ void fft_fftw_2d_bw_distributed_c2r(const int npts_global[2],
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
   fftw_plan *plan = fft_fftw_create_distributed_2d_plan_r2c(
-      FFTW_BACKWARD, npts_global, number_of_ffts, comm);
+      FFTW_BACKWARD, npts_global, number_of_ffts, comm,
+      (double complex *)grid_out);
   assert(plan != NULL);
   fftw_mpi_execute_dft_c2r(*plan, grid_in, grid_out);
 #else
@@ -1355,8 +1356,8 @@ void fft_fftw_3d_fw_distributed(const int npts_global[3],
 #if defined(__USE_FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
-  fftw_plan *plan =
-      fft_fftw_create_distributed_3d_plan(FFTW_FORWARD, npts_global, comm);
+  fftw_plan *plan = fft_fftw_create_distributed_3d_plan(
+      FFTW_FORWARD, npts_global, comm, grid_out);
   assert(plan != NULL);
   fftw_mpi_execute_dft(*plan, grid_in, grid_out);
 #else
@@ -1378,8 +1379,8 @@ void fft_fftw_3d_fw_distributed_r2c(const int npts_global[3],
 #if defined(__USE_FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
-  fftw_plan *plan =
-      fft_fftw_create_distributed_3d_plan_r2c(FFTW_FORWARD, npts_global, comm);
+  fftw_plan *plan = fft_fftw_create_distributed_3d_plan_r2c(
+      FFTW_FORWARD, npts_global, comm, grid_out);
   assert(plan != NULL);
   fftw_mpi_execute_dft_r2c(*plan, grid_in, grid_out);
 #else
@@ -1401,8 +1402,8 @@ void fft_fftw_3d_bw_distributed(const int npts_global[3],
 #if defined(__USE_FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
-  fftw_plan *plan =
-      fft_fftw_create_distributed_3d_plan(FFTW_BACKWARD, npts_global, comm);
+  fftw_plan *plan = fft_fftw_create_distributed_3d_plan(
+      FFTW_BACKWARD, npts_global, comm, grid_out);
   assert(plan != NULL);
   fftw_mpi_execute_dft(*plan, grid_in, grid_out);
 #else
@@ -1424,8 +1425,8 @@ void fft_fftw_3d_bw_distributed_c2r(const int npts_global[3],
 #if defined(__USE_FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(use_fftw_mpi);
-  fftw_plan *plan =
-      fft_fftw_create_distributed_3d_plan_r2c(FFTW_BACKWARD, npts_global, comm);
+  fftw_plan *plan = fft_fftw_create_distributed_3d_plan_r2c(
+      FFTW_BACKWARD, npts_global, comm, (double complex *)grid_out);
   assert(plan != NULL);
   fftw_mpi_execute_dft_c2r(*plan, grid_in, grid_out);
 #else
