@@ -1,7 +1,7 @@
 # fft: FFT wrapper for CP2K
 
-This package hosts the FFT operations  required by cp2k. The code is entirely written in
-C and can be built stand-alone in order to provide be reusable by other projects.
+This package hosts the FFT operations required by cp2k. The code is entirely written in C and can be
+built stand-alone in order to provide be reusable by other projects.
 
 This package offers the following main features:
 
@@ -9,11 +9,13 @@ This package offers the following main features:
 - Local and distributed FFTs using MPI
 - Complex-to-complex, Real-to-complex and complex-to-real FFTs
 
-Currently, this package has its own tiny reference backend (not well-performing) and a FFTW-based backends. This package currently supports FFTW-based backend by FFTW3, MKL and CUDA.
+Currently, this package has its own tiny reference backend (not well-performing) and a FFTW-based
+backends. This package currently supports FFTW-based backend by FFTW3, MKL and CUDA.
 
 ## Unit Test
 
-The `fft_unittest.x` binary runs tests for the different components of this backend (local FFTs, MPI backends if supported by the library, redistribution routines, compound FFTs, additional features).
+The `fft_unittest.x` binary runs tests for the different components of this backend (local FFTs, MPI
+backends if supported by the library, redistribution routines, compound FFTs, additional features).
 
 ```shell
 $ cd cp2k/src/fft

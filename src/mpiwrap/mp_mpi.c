@@ -112,7 +112,7 @@ int mp_mpi_comm_rank(const mp_mpi_comm comm) {
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_cart_get(const mp_mpi_comm comm, int maxdims, int *dims,
-                       int *periods, int *coords) {
+                     int *periods, int *coords) {
 #if defined(__parallel)
   error_check(MPI_Cart_get(comm, maxdims, dims, periods, coords));
 #else
@@ -129,8 +129,7 @@ void mp_mpi_cart_get(const mp_mpi_comm comm, int maxdims, int *dims,
  * \brief Return the rank of a process at a given coordinate.
  * \author Frederick Stein
  ******************************************************************************/
-void mp_mpi_cart_rank(const mp_mpi_comm comm, const int *coords,
-                        int *rank) {
+void mp_mpi_cart_rank(const mp_mpi_comm comm, const int *coords, int *rank) {
 #if defined(__parallel)
   error_check(MPI_Cart_rank(comm, coords, rank));
 #else
@@ -205,8 +204,7 @@ void mp_mpi_barrier(const mp_mpi_comm comm) {
  * \brief Check whether two communicators are unequal.
  * \author Frederick Stein
  ******************************************************************************/
-bool mp_mpi_comm_is_unequal(const mp_mpi_comm comm1,
-                              const mp_mpi_comm comm2) {
+bool mp_mpi_comm_is_unequal(const mp_mpi_comm comm1, const mp_mpi_comm comm2) {
 #if defined(__parallel)
   int result = -1;
   error_check(MPI_Comm_compare(comm1, comm2, &result));
@@ -221,8 +219,7 @@ bool mp_mpi_comm_is_unequal(const mp_mpi_comm comm1,
  * \brief Check whether two communicators are similar.
  * \author Frederick Stein
  ******************************************************************************/
-bool mp_mpi_comm_is_similar(const mp_mpi_comm comm1,
-                              const mp_mpi_comm comm2) {
+bool mp_mpi_comm_is_similar(const mp_mpi_comm comm1, const mp_mpi_comm comm2) {
 #if defined(__parallel)
   int result = -1;
   error_check(MPI_Comm_compare(comm1, comm2, &result));
@@ -239,7 +236,7 @@ bool mp_mpi_comm_is_similar(const mp_mpi_comm comm1,
  * \author Frederick Stein
  ******************************************************************************/
 bool mp_mpi_comm_is_congruent(const mp_mpi_comm comm1,
-                                const mp_mpi_comm comm2) {
+                              const mp_mpi_comm comm2) {
 #if defined(__parallel)
   int result = -1;
   error_check(MPI_Comm_compare(comm1, comm2, &result));
@@ -254,8 +251,7 @@ bool mp_mpi_comm_is_congruent(const mp_mpi_comm comm1,
  * \brief Check whether two communicators are identical.
  * \author Frederick Stein
  ******************************************************************************/
-bool mp_mpi_comm_is_ident(const mp_mpi_comm comm1,
-                            const mp_mpi_comm comm2) {
+bool mp_mpi_comm_is_ident(const mp_mpi_comm comm1, const mp_mpi_comm comm2) {
 #if defined(__parallel)
   int result = -1;
   error_check(MPI_Comm_compare(comm1, comm2, &result));
@@ -271,9 +267,9 @@ bool mp_mpi_comm_is_ident(const mp_mpi_comm comm1,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_sendrecv_int(const int *sendbuffer, const int sendcount,
-                           const int dest, const int sendtag, int *recvbuffer,
-                           const int recvcount, const int source,
-                           const int recvtag, const mp_mpi_comm comm) {
+                         const int dest, const int sendtag, int *recvbuffer,
+                         const int recvcount, const int source,
+                         const int recvtag, const mp_mpi_comm comm) {
 #if defined(__parallel)
   error_check(MPI_Sendrecv(sendbuffer, sendcount, MPI_DOUBLE, dest, sendtag,
                            recvbuffer, recvcount, MPI_DOUBLE, source, recvtag,
@@ -291,11 +287,9 @@ void mp_mpi_sendrecv_int(const int *sendbuffer, const int sendcount,
   // Check the input for reasonable values in serial case
   assert(sendbuffer != NULL);
   assert(recvbuffer != NULL);
-  assert((dest == 0 || dest == mp_mpi_any_source ||
-          dest == mp_mpi_proc_null) &&
+  assert((dest == 0 || dest == mp_mpi_any_source || dest == mp_mpi_proc_null) &&
          "Invalid receive process");
-  assert((source == 0 || source == mp_mpi_proc_null) &&
-         "Invalid sent process");
+  assert((source == 0 || source == mp_mpi_proc_null) && "Invalid sent process");
   assert((recvtag == sendtag || recvtag == mp_mpi_any_tag) &&
          "Invalid send or receive tag");
   if (dest != mp_mpi_proc_null && source != mp_mpi_proc_null) {
@@ -309,10 +303,10 @@ void mp_mpi_sendrecv_int(const int *sendbuffer, const int sendcount,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_sendrecv_double(const double *sendbuffer, const int sendcount,
-                              const int dest, const int sendtag,
-                              double *recvbuffer, const int recvcount,
-                              const int source, const int recvtag,
-                              const mp_mpi_comm comm) {
+                            const int dest, const int sendtag,
+                            double *recvbuffer, const int recvcount,
+                            const int source, const int recvtag,
+                            const mp_mpi_comm comm) {
 #if defined(__parallel)
   error_check(MPI_Sendrecv(sendbuffer, sendcount, MPI_DOUBLE, dest, sendtag,
                            recvbuffer, recvcount, MPI_DOUBLE, source, recvtag,
@@ -330,11 +324,9 @@ void mp_mpi_sendrecv_double(const double *sendbuffer, const int sendcount,
   // Check the input for reasonable values in serial case
   assert(sendbuffer != NULL);
   assert(recvbuffer != NULL);
-  assert((dest == 0 || dest == mp_mpi_any_source ||
-          dest == mp_mpi_proc_null) &&
+  assert((dest == 0 || dest == mp_mpi_any_source || dest == mp_mpi_proc_null) &&
          "Invalid receive process");
-  assert((source == 0 || source == mp_mpi_proc_null) &&
-         "Invalid sent process");
+  assert((source == 0 || source == mp_mpi_proc_null) && "Invalid sent process");
   assert((recvtag == sendtag || recvtag == mp_mpi_any_tag) &&
          "Invalid send or receive tag");
   if (dest != mp_mpi_proc_null && source != mp_mpi_proc_null) {
@@ -347,9 +339,8 @@ void mp_mpi_sendrecv_double(const double *sendbuffer, const int sendcount,
  * \brief Perform a non-blocing send of doubles.
  * \author Frederick Stein
  ******************************************************************************/
-void mp_mpi_send_int(const int *sendbuffer, const int sendcount,
-                       const int dest, const int sendtag,
-                       const mp_mpi_comm comm) {
+void mp_mpi_send_int(const int *sendbuffer, const int sendcount, const int dest,
+                     const int sendtag, const mp_mpi_comm comm) {
 #if defined(__parallel)
   assert(sendbuffer != NULL);
   assert(sendcount >= 0 && "Send count must be nonnegative!");
@@ -373,7 +364,7 @@ void mp_mpi_send_int(const int *sendbuffer, const int sendcount,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_recv_int(int *recvbuffer, const int recvcount, const int source,
-                       const int recvtag, const mp_mpi_comm comm) {
+                     const int recvtag, const mp_mpi_comm comm) {
 #if defined(__parallel)
   assert(recvbuffer != NULL);
   assert(recvcount >= 0 && "Receive count must be nonnegative!");
@@ -398,9 +389,8 @@ void mp_mpi_recv_int(int *recvbuffer, const int recvcount, const int source,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_isend_double(const double *sendbuffer, const int sendcount,
-                           const int dest, const int sendtag,
-                           const mp_mpi_comm comm,
-                           mp_mpi_request *request) {
+                         const int dest, const int sendtag,
+                         const mp_mpi_comm comm, mp_mpi_request *request) {
 #if defined(__parallel)
   assert(sendbuffer != NULL);
   assert(sendcount >= 0 && "Send count must be nonnegative!");
@@ -426,9 +416,8 @@ void mp_mpi_isend_double(const double *sendbuffer, const int sendcount,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_irecv_double(double *recvbuffer, const int recvcount,
-                           const int source, const int recvtag,
-                           const mp_mpi_comm comm,
-                           mp_mpi_request *request) {
+                         const int source, const int recvtag,
+                         const mp_mpi_comm comm, mp_mpi_request *request) {
 #if defined(__parallel)
   assert(recvbuffer != NULL);
   assert(recvcount >= 0 && "Receive count must be nonnegative!");
@@ -454,9 +443,9 @@ void mp_mpi_irecv_double(double *recvbuffer, const int recvcount,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_isend_double_complex(const double complex *sendbuffer,
-                                   const int sendcount, const int dest,
-                                   const int sendtag, const mp_mpi_comm comm,
-                                   mp_mpi_request *request) {
+                                 const int sendcount, const int dest,
+                                 const int sendtag, const mp_mpi_comm comm,
+                                 mp_mpi_request *request) {
 #if defined(__parallel)
   assert(sendbuffer != NULL);
   assert(sendcount >= 0 && "Send count must be nonnegative!");
@@ -482,9 +471,9 @@ void mp_mpi_isend_double_complex(const double complex *sendbuffer,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_irecv_double_complex(double complex *recvbuffer,
-                                   const int recvcount, const int source,
-                                   const int recvtag, const mp_mpi_comm comm,
-                                   mp_mpi_request *request) {
+                                 const int recvcount, const int source,
+                                 const int recvtag, const mp_mpi_comm comm,
+                                 mp_mpi_request *request) {
 #if defined(__parallel)
   assert(recvbuffer != NULL);
   assert(recvcount >= 0 && "Receive count must be nonnegative!");
@@ -523,7 +512,7 @@ void mp_mpi_wait(mp_mpi_request *request) {
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_waitany(const int number_of_requests,
-                      mp_mpi_request request[number_of_requests], int *idx) {
+                    mp_mpi_request request[number_of_requests], int *idx) {
   assert(idx != NULL);
 #if defined(__parallel)
   error_check(MPI_Waitany(number_of_requests, request, idx, MPI_STATUS_IGNORE));
@@ -543,7 +532,7 @@ void mp_mpi_waitany(const int number_of_requests,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_waitall(const int number_of_requests,
-                      mp_mpi_request request[number_of_requests]) {
+                    mp_mpi_request request[number_of_requests]) {
 #if defined(__parallel)
   error_check(MPI_Waitall(number_of_requests, request, MPI_STATUSES_IGNORE));
 #else
@@ -557,8 +546,8 @@ void mp_mpi_waitall(const int number_of_requests,
  * \brief Gather integers from all processes.
  * \author Frederick Stein
  ******************************************************************************/
-void mp_mpi_allgather_int(const int *sendbuffer, int sendcount,
-                            int *recvbuffer, mp_mpi_comm comm) {
+void mp_mpi_allgather_int(const int *sendbuffer, int sendcount, int *recvbuffer,
+                          mp_mpi_comm comm) {
 #if defined(__parallel)
   assert(sendbuffer != NULL);
   assert(recvbuffer != NULL);
@@ -576,7 +565,7 @@ void mp_mpi_allgather_int(const int *sendbuffer, int sendcount,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_sum_double(double *buffer, const int count,
-                         const mp_mpi_comm comm) {
+                       const mp_mpi_comm comm) {
 #if defined(__parallel)
   assert(buffer != NULL);
   assert(count >= 0 && "Send count must be nonnegative!");
@@ -613,7 +602,7 @@ void mp_mpi_sum_int(int *buffer, const int count, const mp_mpi_comm comm) {
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_max_double(double *buffer, const int count,
-                         const mp_mpi_comm comm) {
+                       const mp_mpi_comm comm) {
 #if defined(__parallel)
   assert(buffer != NULL);
   assert(count >= 0 && "Send count must be nonnegative!");
@@ -632,7 +621,7 @@ void mp_mpi_max_double(double *buffer, const int count,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_sum_double_root(double *buffer, const int count, const int root,
-                              const mp_mpi_comm comm) {
+                            const mp_mpi_comm comm) {
 #if defined(__parallel)
   assert(buffer != NULL);
   assert(count >= 0 && "Send count must be nonnegative!");
@@ -656,7 +645,7 @@ void mp_mpi_sum_double_root(double *buffer, const int count, const int root,
  *collect at root. \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_max_double_root(double *buffer, const int count, const int root,
-                              const mp_mpi_comm comm) {
+                            const mp_mpi_comm comm) {
 #if defined(__parallel)
   assert(buffer != NULL);
   assert(count >= 0 && "Send count must be nonnegative!");
@@ -681,12 +670,12 @@ void mp_mpi_max_double_root(double *buffer, const int count, const int root,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_alltoallv_double_complex(const double complex *send_buffer,
-                                       const int *send_counts,
-                                       const int *send_displacements,
-                                       double complex *recv_buffer,
-                                       const int *recv_counts,
-                                       const int *recv_displacements,
-                                       const mp_mpi_comm comm) {
+                                     const int *send_counts,
+                                     const int *send_displacements,
+                                     double complex *recv_buffer,
+                                     const int *recv_counts,
+                                     const int *recv_displacements,
+                                     const mp_mpi_comm comm) {
   assert(send_buffer != NULL);
   assert(recv_buffer != NULL);
   assert(send_counts != NULL);
@@ -712,7 +701,7 @@ void mp_mpi_alltoallv_double_complex(const double complex *send_buffer,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_bcast_int(int *buffer, const int count, const int root,
-                        const mp_mpi_comm comm) {
+                      const mp_mpi_comm comm) {
   assert(buffer != NULL);
   assert(count >= 0);
   assert(root >= 0);
@@ -731,7 +720,7 @@ void mp_mpi_bcast_int(int *buffer, const int count, const int root,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_bcast_char(char *buffer, const int count, const int root,
-                         const mp_mpi_comm comm) {
+                       const mp_mpi_comm comm) {
   assert(buffer != NULL);
   assert(count >= 0);
   assert(root >= 0);
@@ -750,7 +739,7 @@ void mp_mpi_bcast_char(char *buffer, const int count, const int root,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_dims_create(int number_of_processes, int number_of_dimensions,
-                          int *dimensions) {
+                        int *dimensions) {
 #if defined(__parallel)
   assert(number_of_processes > 0 &&
          "The number of processes needs to be positive");
@@ -770,8 +759,8 @@ void mp_mpi_dims_create(int number_of_processes, int number_of_dimensions,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_cart_create(mp_mpi_comm comm_old, int ndims, const int dims[],
-                          const int periods[], int reorder,
-                          mp_mpi_comm *comm_cart) {
+                        const int periods[], int reorder,
+                        mp_mpi_comm *comm_cart) {
 #if defined(__parallel)
   assert(ndims > 0 && "The number of processes needs to be positive");
   error_check(
@@ -790,7 +779,7 @@ void mp_mpi_cart_create(mp_mpi_comm comm_old, int ndims, const int dims[],
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_cart_sub(const mp_mpi_comm comm_old, const int *remain_dims,
-                       mp_mpi_comm *sub_comm) {
+                     mp_mpi_comm *sub_comm) {
 #if defined(__parallel)
   assert(remain_dims != NULL);
   assert(sub_comm != NULL);
@@ -807,7 +796,7 @@ void mp_mpi_cart_sub(const mp_mpi_comm comm_old, const int *remain_dims,
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_cart_coords(const mp_mpi_comm comm, const int rank, int maxdims,
-                          int coords[]) {
+                        int coords[]) {
 #if defined(__parallel)
   assert(maxdims > 0 && "The number of processes needs to be positive");
   error_check(MPI_Cart_coords(comm, rank, maxdims, coords));

@@ -231,7 +231,7 @@ void fft_print_timing_report(const mp_mpi_comm comm) {
         mp_mpi_bcast_int(&length, 1, 0, comm);
         // Exchange the actual routine name
         mp_mpi_bcast_char(timed_routines[routine].routine_name, length, 0,
-                            comm);
+                          comm);
         // Fetch the times and counts ...
         double total_time, self_time;
         int number_of_calls;
@@ -385,8 +385,7 @@ void fft_stop_timer(const int handle) {
     assert(stack_handle == handle && "Incorrect order of timing regions!\n");
     // Merge with the list of routines
     if (debug_mode && mp_mpi_comm_rank(mp_mpi_comm_world) == 0) {
-      printf("FFT_PROFILE (%i) %s %f %f\n",
-             mp_mpi_comm_rank(mp_mpi_comm_world),
+      printf("FFT_PROFILE (%i) %s %f %f\n", mp_mpi_comm_rank(mp_mpi_comm_world),
              get_routine_name(stack_handle), total_time, self_time);
       fflush(stdout);
     }

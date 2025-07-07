@@ -6,5 +6,11 @@
         "../mpiwrap",
         "../offload",
     ],
-    "public": ["fft_api.F", "fft_grid.h", "fft_grid_layout.h", "fft_lib.h", "fft_lib_fftw.h"],
+    "public": [
+        "fft_api.F",
+        "fft_grid.h",
+        "fft_grid_layout.h",
+        "fft_lib.h",
+        "fft_lib_fftw.h",
+    ],
 }

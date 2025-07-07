@@ -6,9 +6,9 @@
 /*----------------------------------------------------------------------------*/
 
 #include "grid_multigrid_test.h"
-#include "common/grid_common.h"
-#include "../mpiwrap/mp_mpi.h"
 #include "../fft/fft_grid.h"
+#include "../mpiwrap/mp_mpi.h"
+#include "common/grid_common.h"
 #include "grid_multigrid.h"
 
 #include <assert.h>
@@ -165,8 +165,8 @@ int multigrid_test() {
                                 {number_of_processes, 1, 1}};
   grid_multigrid *multigrid = NULL;
   grid_create_multigrid(true, 2, npts_global, npts_local, shift_local,
-                        border_width, dh, dh_inv, pgrid_dims,
-                        mp_mpi_comm_world, &multigrid);
+                        border_width, dh, dh_inv, pgrid_dims, mp_mpi_comm_world,
+                        &multigrid);
   for (int level = 0; level < multigrid->nlevels; level++) {
     assert(multigrid->fft_grid_layouts[level]->grid_id > 0);
   }

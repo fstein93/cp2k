@@ -9,8 +9,8 @@
 #include <stdlib.h>
 #include <string.h>
 
-#include "../offload/offload_library.h"
 #include "../mpiwrap/mp_mpi.h"
+#include "../offload/offload_library.h"
 #include "fft_grid_test.h"
 #include "fft_lib.h"
 #include "fft_lib_test.h"

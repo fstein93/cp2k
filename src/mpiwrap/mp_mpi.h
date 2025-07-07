@@ -4,8 +4,8 @@
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
-#ifndef mp_mpi_H
-#define mp_mpi_H
+#ifndef MP_MPI_H
+#define MP_MPI_H
 
 #include <complex.h>
 #include <stdbool.h>
@@ -81,7 +81,7 @@ int mp_mpi_comm_rank(const mp_mpi_comm comm);
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_cart_get(const mp_mpi_comm comm, int maxdims, int *dims,
-                       int *periods, int *coords);
+                     int *periods, int *coords);
 
 /*******************************************************************************
  * \brief Return the rank of a process at a given coordinate.
@@ -123,97 +123,92 @@ void mp_mpi_barrier(const mp_mpi_comm comm);
  * \brief Check whether two communicators are unequal.
  * \author Frederick Stein
  ******************************************************************************/
-bool mp_mpi_comm_is_unequal(const mp_mpi_comm comm1,
-                              const mp_mpi_comm comm2);
+bool mp_mpi_comm_is_unequal(const mp_mpi_comm comm1, const mp_mpi_comm comm2);
 
 /*******************************************************************************
  * \brief Check whether two communicators are similar.
  * \author Frederick Stein
  ******************************************************************************/
-bool mp_mpi_comm_is_similar(const mp_mpi_comm comm1,
-                              const mp_mpi_comm comm2);
+bool mp_mpi_comm_is_similar(const mp_mpi_comm comm1, const mp_mpi_comm comm2);
 
 /*******************************************************************************
  * \brief Check whether two communicators are congruent.
  * \author Frederick Stein
  ******************************************************************************/
-bool mp_mpi_comm_is_congruent(const mp_mpi_comm comm1,
-                                const mp_mpi_comm comm2);
+bool mp_mpi_comm_is_congruent(const mp_mpi_comm comm1, const mp_mpi_comm comm2);
 
 /*******************************************************************************
  * \brief Check whether two communicators are identical.
  * \author Frederick Stein
  ******************************************************************************/
-bool mp_mpi_comm_is_ident(const mp_mpi_comm comm1,
-                            const mp_mpi_comm comm2);
+bool mp_mpi_comm_is_ident(const mp_mpi_comm comm1, const mp_mpi_comm comm2);
 
 /*******************************************************************************
  * \brief Perform a blocking sendrecv of integers.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_sendrecv_int(const int *sendbuffer, const int sendcount,
-                           const int dest, const int sendtag, int *recvbuffer,
-                           const int recvcount, const int source,
-                           const int recvtag, const mp_mpi_comm comm);
+                         const int dest, const int sendtag, int *recvbuffer,
+                         const int recvcount, const int source,
+                         const int recvtag, const mp_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Perform a blocking sendrecv of doubles.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_sendrecv_double(const double *sendbuffer, const int sendcount,
-                              const int dest, const int sendtag,
-                              double *recvbuffer, const int recvcount,
-                              const int source, const int recvtag,
-                              const mp_mpi_comm comm);
+                            const int dest, const int sendtag,
+                            double *recvbuffer, const int recvcount,
+                            const int source, const int recvtag,
+                            const mp_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Perform a blocing send of int.
  * \author Frederick Stein
  ******************************************************************************/
-void mp_mpi_send_int(const int *sendbuffer, const int sendcount,
-                       const int dest, const int sendtag,
-                       const mp_mpi_comm comm);
+void mp_mpi_send_int(const int *sendbuffer, const int sendcount, const int dest,
+                     const int sendtag, const mp_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Perform a blocking recv of int.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_recv_int(int *recvbuffer, const int recvcount, const int source,
-                       const int recvtag, const mp_mpi_comm comm);
+                     const int recvtag, const mp_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Perform a non-blocing send of doubles.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_isend_double(const double *sendbuffer, const int sendcount,
-                           const int dest, const int sendtag,
-                           const mp_mpi_comm comm, mp_mpi_request *request);
+                         const int dest, const int sendtag,
+                         const mp_mpi_comm comm, mp_mpi_request *request);
 
 /*******************************************************************************
  * \brief Perform a non-blocking recv of doubles.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_irecv_double(double *recvbuffer, const int recvcount,
-                           const int source, const int recvtag,
-                           const mp_mpi_comm comm, mp_mpi_request *request);
+                         const int source, const int recvtag,
+                         const mp_mpi_comm comm, mp_mpi_request *request);
 
 /*******************************************************************************
  * \brief Perform a non-blocking send of double complex.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_isend_double_complex(const double complex *sendbuffer,
-                                   const int sendcount, const int dest,
-                                   const int sendtag, const mp_mpi_comm comm,
-                                   mp_mpi_request *request);
+                                 const int sendcount, const int dest,
+                                 const int sendtag, const mp_mpi_comm comm,
+                                 mp_mpi_request *request);
 
 /*******************************************************************************
  * \brief Perform a non-blocking recv of double complex.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_irecv_double_complex(double complex *recvbuffer,
-                                   const int recvcount, const int source,
-                                   const int recvtag, const mp_mpi_comm comm,
-                                   mp_mpi_request *request);
+                                 const int recvcount, const int source,
+                                 const int recvtag, const mp_mpi_comm comm,
+                                 mp_mpi_request *request);
 
 /*******************************************************************************
  * \brief Wait for a request to finish.
@@ -226,28 +221,27 @@ void mp_mpi_wait(mp_mpi_request *request);
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_waitany(const int number_of_requests,
-                      mp_mpi_request request[number_of_requests], int *idx);
+                    mp_mpi_request request[number_of_requests], int *idx);
 
 /*******************************************************************************
  * \brief Wait for all requests to finish.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_waitall(const int number_of_requests,
-                      mp_mpi_request request[number_of_requests]);
+                    mp_mpi_request request[number_of_requests]);
 
 /*******************************************************************************
  * \brief Gather integers from all processes.
  * \author Frederick Stein
  ******************************************************************************/
-void mp_mpi_allgather_int(const int *sendbuffer, int sendcount,
-                            int *recvbuffer, mp_mpi_comm comm);
+void mp_mpi_allgather_int(const int *sendbuffer, int sendcount, int *recvbuffer,
+                          mp_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Sum doubles over all ranks of a communicator.
  * \author Frederick Stein
  ******************************************************************************/
-void mp_mpi_sum_double(double *buffer, const int count,
-                         const mp_mpi_comm comm);
+void mp_mpi_sum_double(double *buffer, const int count, const mp_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Sum integers over all ranks of a communicator.
@@ -259,77 +253,76 @@ void mp_mpi_sum_int(int *buffer, const int count, const mp_mpi_comm comm);
  * \brief Determine the maximum of doubles over ranks of a communicator.
  * \author Frederick Stein
  ******************************************************************************/
-void mp_mpi_max_double(double *buffer, const int count,
-                         const mp_mpi_comm comm);
+void mp_mpi_max_double(double *buffer, const int count, const mp_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Sum doubles over all ranks of a communicator.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_sum_double_root(double *buffer, const int count, const int root,
-                              const mp_mpi_comm comm);
+                            const mp_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Determine the maximum of doubles over ranks of a communicator.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_max_double_root(double *buffer, const int count, const int root,
-                              const mp_mpi_comm comm);
+                            const mp_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Perform an Alltoall of double complex.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_alltoallv_double_complex(const double complex *send_buffer,
-                                       const int *send_counts,
-                                       const int *send_displacements,
-                                       double complex *recv_buffer,
-                                       const int *recv_counts,
-                                       const int *recv_displacements,
-                                       const mp_mpi_comm comm);
+                                     const int *send_counts,
+                                     const int *send_displacements,
+                                     double complex *recv_buffer,
+                                     const int *recv_counts,
+                                     const int *recv_displacements,
+                                     const mp_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Broadcasts integers from a given root process.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_bcast_int(int *buffer, const int count, const int root,
-                        const mp_mpi_comm comm);
+                      const mp_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Broadcasts integers from a given root process.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_bcast_char(char *buffer, const int count, const int root,
-                         const mp_mpi_comm comm);
+                       const mp_mpi_comm comm);
 
 /*******************************************************************************
  * \brief Determine good dimensions (wrapper to MPI_Dims_create).
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_dims_create(int number_of_processes, int number_of_dimensions,
-                          int *dimensions);
+                        int *dimensions);
 
 /*******************************************************************************
  * \brief Create a Cartesian communicator.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_cart_create(mp_mpi_comm comm_old, int ndims, const int dims[],
-                          const int periods[], int reorder,
-                          mp_mpi_comm *comm_cart);
+                        const int periods[], int reorder,
+                        mp_mpi_comm *comm_cart);
 
 /*******************************************************************************
  * \brief Create sub communicators to a Cartesian communicator.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_cart_sub(const mp_mpi_comm comm_old, const int *remain_dims,
-                       mp_mpi_comm *sub_comm);
+                     mp_mpi_comm *sub_comm);
 
 /*******************************************************************************
  * \brief Determine the process coordinates of a rank in a Cartesian topology.
  * \author Frederick Stein
  ******************************************************************************/
 void mp_mpi_cart_coords(const mp_mpi_comm comm, const int rank, int maxdims,
-                          int coords[]);
+                        int coords[]);
 
 #endif
 

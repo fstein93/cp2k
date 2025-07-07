@@ -21,8 +21,74 @@
  * \brief Performance test for the FFT code.
  * \author Frederick Stein
  ******************************************************************************/
-static void run_test(const int fft_size[3], const int number_of_runs,
-                     const bool use_halfspace) {
+static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
+  const double dh_inv[3][3] = {
+      {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
+
+  fft_grid_layout *fft_grid_layout = NULL;
+  grid_create_fft_grid_layout(&fft_grid_layout, mp_mpi_comm_world, fft_size,
+                              dh_inv, false);
+
+  fft_complex_rs_grid grid_rs;
+  grid_create_complex_rs_grid(&grid_rs, fft_grid_layout);
+  fft_complex_gs_grid grid_gs;
+  grid_create_complex_gs_grid(&grid_gs, fft_grid_layout);
+
+  const int(*my_bound)[2] =
+      fft_grid_layout->proc2local_rs[mp_mpi_comm_rank(mp_mpi_comm_world)];
+  memset(grid_rs.data, 0,
+         (my_bound[0][1] - my_bound[0][0] + 1) *
+             (my_bound[1][1] - my_bound[1][0] + 1) *
+             (my_bound[2][1] - my_bound[2][0] + 1) * sizeof(double));
+  mp_mpi_barrier(mp_mpi_comm_world);
+
+  clock_t begin = clock();
+  fft_3d_fw(&grid_rs, &grid_gs);
+  fft_3d_bw(&grid_gs, &grid_rs);
+  mp_mpi_barrier(mp_mpi_comm_world);
+  clock_t end = clock();
+
+  if (mp_mpi_comm_rank(mp_mpi_comm_world) == 0) {
+    printf("Planning time for FW and BW C2C FFTs of size %i %i %i : %f\n",
+           fft_size[0], fft_size[1], fft_size[2],
+           (double)(end - begin) / CLOCKS_PER_SEC);
+    fflush(stdout);
+  }
+
+  double min_time = -1.0;
+  double max_time = -1.0;
+  double sum_time = 0.0;
+  for (int run = 0; run < number_of_runs; run++) {
+    mp_mpi_barrier(mp_mpi_comm_world);
+    begin = clock();
+    fft_3d_fw(&grid_rs, &grid_gs);
+    fft_3d_bw(&grid_gs, &grid_rs);
+    mp_mpi_barrier(mp_mpi_comm_world);
+    end = clock();
+    const double current_time = (double)(end - begin) / CLOCKS_PER_SEC;
+    min_time = min_time < 0.0 ? current_time : fmin(min_time, current_time);
+    max_time = fmax(max_time, current_time);
+    sum_time += current_time;
+  }
+
+  grid_free_complex_rs_grid(&grid_rs);
+  grid_free_complex_gs_grid(&grid_gs);
+  grid_free_fft_grid_layout(fft_grid_layout);
+
+  if (mp_mpi_comm_rank(mp_mpi_comm_world) == 0) {
+    printf("Time for %i FW and BW C2C FFTs of size %i %i %i : min %f, max %f, "
+           "avg %f\n",
+           number_of_runs, fft_size[0], fft_size[1], fft_size[2], min_time,
+           max_time, sum_time / number_of_runs);
+  }
+}
+
+/*******************************************************************************
+ * \brief Performance test for the FFT code.
+ * \author Frederick Stein
+ ******************************************************************************/
+static void run_test_r2c(const int fft_size[3], const int number_of_runs,
+                         const bool use_halfspace) {
   const double dh_inv[3][3] = {
       {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
@@ -89,41 +155,53 @@ int main(int argc, char *argv[]) {
   mp_mpi_init(&argc, &argv);
 
   if (mp_mpi_comm_rank(mp_mpi_comm_world) == 0) {
-    printf("Number of processes: %i\n",
-           mp_mpi_comm_size(mp_mpi_comm_world));
+    printf("Number of processes: %i\n", mp_mpi_comm_size(mp_mpi_comm_world));
     printf("Number of threads per process: %i\n", omp_get_max_threads());
     fflush(stdout);
   }
 
   fft_init_timer(true);
-  fft_init_lib(FFT_LIB_REF, FFT_PATIENT, true, NULL);
+  fft_init_lib(FFT_LIB_FFTW, FFT_ESTIMATE, true, NULL);
 
   // These are approximate grid sizes of the finest grid level for the standard
   // benchmark systems in benchmarks/QS
-  run_test((const int[3]){100, 100, 100}, 10, false);
-  run_test((const int[3]){125, 125, 125}, 10, false);
-  run_test((const int[3]){160, 160, 160}, 10, false);
-  run_test((const int[3]){200, 200, 200}, 10, false);
-  run_test((const int[3]){250, 250, 250}, 10, false);
-  // run_test((const int[3]){315, 315, 315}, 10, false);
-  // run_test((const int[3]){400, 400, 400}, 10, false);
-  // run_test((const int[3]){500, 500, 500}, 10, false);
-  // run_test((const int[3]){630, 630, 630}, 10, false);
+  run_test_c2c((const int[3]){100, 100, 100}, 10);
+  run_test_c2c((const int[3]){125, 125, 125}, 10);
+  run_test_c2c((const int[3]){160, 160, 160}, 10);
+  run_test_c2c((const int[3]){200, 200, 200}, 10);
+  run_test_c2c((const int[3]){250, 250, 250}, 10);
+  // run_test_c2c((const int[3]){315, 315, 315}, 10);
+  // run_test_c2c((const int[3]){400, 400, 400}, 10);
+  // run_test_c2c((const int[3]){500, 500, 500}, 10);
+  // run_test_c2c((const int[3]){630, 630, 630}, 10);
   //  QS_low_scaling_GW
-  run_test((const int[3]){600, 180, 120}, 10, false);
+  run_test_c2c((const int[3]){600, 180, 120}, 10);
 
   // Repeat using the half-space formalism (R2C/C2R FFTs)
-  run_test((const int[3]){100, 100, 100}, 10, true);
-  run_test((const int[3]){125, 125, 125}, 10, true);
-  run_test((const int[3]){160, 160, 160}, 10, true);
-  run_test((const int[3]){200, 200, 200}, 10, true);
-  run_test((const int[3]){250, 250, 250}, 10, true);
-  // run_test((const int[3]){315, 315, 315}, 10, true);
-  // run_test((const int[3]){400, 400, 400}, 10, true);
-  // run_test((const int[3]){500, 500, 500}, 10, true);
-  // run_test((const int[3]){630, 630, 630}, 10, true);
+  run_test_r2c((const int[3]){100, 100, 100}, 10, false);
+  run_test_r2c((const int[3]){125, 125, 125}, 10, false);
+  run_test_r2c((const int[3]){160, 160, 160}, 10, false);
+  run_test_r2c((const int[3]){200, 200, 200}, 10, false);
+  run_test_r2c((const int[3]){250, 250, 250}, 10, false);
+  // run_test_r2c((const int[3]){315, 315, 315}, 10, false);
+  // run_test_r2c((const int[3]){400, 400, 400}, 10, false);
+  // run_test_r2c((const int[3]){500, 500, 500}, 10, false);
+  // run_test_r2c((const int[3]){630, 630, 630}, 10, false);
   //  QS_low_scaling_GW
-  run_test((const int[3]){600, 180, 120}, 10, true);
+  run_test_r2c((const int[3]){600, 180, 120}, 10, false);
+
+  // Repeat using the half-space formalism (R2C/C2R FFTs)
+  run_test_r2c((const int[3]){100, 100, 100}, 10, true);
+  run_test_r2c((const int[3]){125, 125, 125}, 10, true);
+  run_test_r2c((const int[3]){160, 160, 160}, 10, true);
+  run_test_r2c((const int[3]){200, 200, 200}, 10, true);
+  run_test_r2c((const int[3]){250, 250, 250}, 10, true);
+  // run_test_r2c((const int[3]){315, 315, 315}, 10, true);
+  // run_test_r2c((const int[3]){400, 400, 400}, 10, true);
+  // run_test_r2c((const int[3]){500, 500, 500}, 10, true);
+  // run_test_r2c((const int[3]){630, 630, 630}, 10, true);
+  //  QS_low_scaling_GW
+  run_test_r2c((const int[3]){600, 180, 120}, 10, true);
 
   fft_print_timing_report(mp_mpi_comm_world);
 
@@ -137,30 +215,43 @@ int main(int argc, char *argv[]) {
 
     // These are approximate grid sizes of the finest grid level for the
     // standard benchmark systems in benchmarks/QS
-    run_test((const int[3]){100, 100, 100}, 10, false);
-    run_test((const int[3]){125, 125, 125}, 10, false);
-    run_test((const int[3]){160, 160, 160}, 10, false);
-    run_test((const int[3]){200, 200, 200}, 10, false);
-    run_test((const int[3]){250, 250, 250}, 10, false);
-    // run_test((const int[3]){315, 315, 315}, 10, false);
-    // run_test((const int[3]){400, 400, 400}, 10, false);
-    // run_test((const int[3]){500, 500, 500}, 10, false);
-    // run_test((const int[3]){630, 630, 630}, 10, false);
+    run_test_c2c((const int[3]){100, 100, 100}, 10);
+    run_test_c2c((const int[3]){125, 125, 125}, 10);
+    run_test_c2c((const int[3]){160, 160, 160}, 10);
+    run_test_c2c((const int[3]){200, 200, 200}, 10);
+    run_test_c2c((const int[3]){250, 250, 250}, 10);
+    // run_test_c2c((const int[3]){315, 315, 315}, 10);
+    // run_test_c2c((const int[3]){400, 400, 400}, 10);
+    // run_test_c2c((const int[3]){500, 500, 500}, 10);
+    // run_test_c2c((const int[3]){630, 630, 630}, 10);
     //  QS_low_scaling_GW
-    run_test((const int[3]){600, 180, 120}, 10, false);
+    run_test_c2c((const int[3]){600, 180, 120}, 10);
 
     // Repeat using the half-space formalism (R2C/C2R FFTs)
-    run_test((const int[3]){100, 100, 100}, 10, true);
-    run_test((const int[3]){125, 125, 125}, 10, true);
-    run_test((const int[3]){160, 160, 160}, 10, true);
-    run_test((const int[3]){200, 200, 200}, 10, true);
-    run_test((const int[3]){250, 250, 250}, 10, true);
-    // run_test((const int[3]){315, 315, 315}, 10, true);
-    // run_test((const int[3]){400, 400, 400}, 10, true);
-    // run_test((const int[3]){500, 500, 500}, 10, true);
-    // run_test((const int[3]){630, 630, 630}, 10, true);
+    run_test_r2c((const int[3]){100, 100, 100}, 10, false);
+    run_test_r2c((const int[3]){125, 125, 125}, 10, false);
+    run_test_r2c((const int[3]){160, 160, 160}, 10, false);
+    run_test_r2c((const int[3]){200, 200, 200}, 10, false);
+    run_test_r2c((const int[3]){250, 250, 250}, 10, false);
+    // run_test_r2c((const int[3]){315, 315, 315}, 10, false);
+    // run_test_r2c((const int[3]){400, 400, 400}, 10, false);
+    // run_test_r2c((const int[3]){500, 500, 500}, 10, false);
+    // run_test_r2c((const int[3]){630, 630, 630}, 10, false);
     //  QS_low_scaling_GW
-    run_test((const int[3]){600, 180, 120}, 10, true);
+    run_test_r2c((const int[3]){600, 180, 120}, 10, false);
+
+    // Repeat using the half-space formalism (R2C/C2R FFTs)
+    run_test_r2c((const int[3]){100, 100, 100}, 10, true);
+    run_test_r2c((const int[3]){125, 125, 125}, 10, true);
+    run_test_r2c((const int[3]){160, 160, 160}, 10, true);
+    run_test_r2c((const int[3]){200, 200, 200}, 10, true);
+    run_test_r2c((const int[3]){250, 250, 250}, 10, true);
+    // run_test_r2c((const int[3]){315, 315, 315}, 10, true);
+    // run_test_r2c((const int[3]){400, 400, 400}, 10, true);
+    // run_test_r2c((const int[3]){500, 500, 500}, 10, true);
+    // run_test_r2c((const int[3]){630, 630, 630}, 10, true);
+    //  QS_low_scaling_GW
+    run_test_r2c((const int[3]){600, 180, 120}, 10, true);
 
     fft_print_timing_report(mp_mpi_comm_world);
   }

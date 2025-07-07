@@ -6,10 +6,10 @@
 /*----------------------------------------------------------------------------*/
 
 #include "fft_grid.h"
-#include "fft_utils.h"
 #include "fft_grid_layout.h"
 #include "fft_lib.h"
 #include "fft_timer.h"
+#include "fft_utils.h"
 
 #include <assert.h>
 #include <stddef.h>
