@@ -11,6 +11,45 @@
 #include <string.h>
 
 /*******************************************************************************
+ * \brief Returns the smaller of two given integer (missing from the C standard)
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline int imin(int x, int y) { return (x < y ? x : y); }
+
+/*******************************************************************************
+ * \brief Returns the larger of two given integer (missing from the C standard)
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline int imax(int x, int y) { return (x > y ? x : y); }
+
+/*******************************************************************************
+ * \brief Returns the smaller of two given integer (missing from the C standard)
+ * \author Frederick Stein
+ ******************************************************************************/
+static inline int dmin(double x, double y) { return (x < y ? x : y); }
+
+/*******************************************************************************
+ * \brief Returns the larger of two given integer (missing from the C standard)
+ * \author Frederick Stein
+ ******************************************************************************/
+static inline int dmax(double x, double y) { return (x > y ? x : y); }
+
+/*******************************************************************************
+ * \brief Equivalent of Fortran's MODULO which always returns a positive number.
+ *        https://gcc.gnu.org/onlinedocs/gfortran/MODULO.html
+ * \author Ole Schuett
+ ******************************************************************************/
+static inline int modulo(int a, int m) { return ((a % m + m) % m); }
+
+/*******************************************************************************
+ * \brief Calculates the product of three numbers.
+ * \author Frederick Stein
+ ******************************************************************************/
+static inline int product3(const int array3[3]) {
+  return array3[0] * array3[1] * array3[2];
+}
+
+/*******************************************************************************
  * \brief Local transposition.
  * \author Frederick Stein
  ******************************************************************************/
@@ -19,16 +58,32 @@ static inline void transpose_local_complex(
     const int number_of_columns_grid, const int number_of_rows_grid,
     const int total_number_of_columns_grid,
     const int total_number_of_columns_transposed) {
-#pragma omp parallel for default(none)                                         \
-    shared(grid, grid_transposed, number_of_columns_grid, number_of_rows_grid, \
-               total_number_of_columns_grid,                                   \
-               total_number_of_columns_transposed) collapse(2)
-  for (int column_index = 0; column_index < number_of_columns_grid;
-       column_index++) {
-    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
-      grid_transposed[column_index * total_number_of_columns_transposed +
-                      row_index] =
-          grid[row_index * total_number_of_columns_grid + column_index];
+
+  const int number_of_doubles_per_cache_line = 8;
+
+#pragma omp parallel for default(none) shared(                                 \
+        grid, grid_transposed, number_of_columns_grid, number_of_rows_grid,    \
+            total_number_of_columns_grid, total_number_of_columns_transposed,  \
+            number_of_doubles_per_cache_line) collapse(2)
+  for (int column_index_start = 0; column_index_start < number_of_columns_grid;
+       column_index_start += number_of_doubles_per_cache_line) {
+    for (int row_index_start = 0; row_index_start < number_of_rows_grid;
+         row_index_start += number_of_doubles_per_cache_line) {
+      for (int column_index = column_index_start;
+           column_index <
+           imin(column_index_start + number_of_doubles_per_cache_line,
+                number_of_columns_grid);
+           column_index++) {
+        for (int row_index = row_index_start;
+             row_index <
+             imin(row_index_start + number_of_doubles_per_cache_line,
+                  number_of_rows_grid);
+             row_index++) {
+          grid_transposed[column_index * total_number_of_columns_transposed +
+                          row_index] =
+              grid[row_index * total_number_of_columns_grid + column_index];
+        }
+      }
     }
   }
 }
@@ -43,16 +98,32 @@ transpose_local_double(double *restrict grid, double *restrict grid_transposed,
                        const int number_of_rows_grid,
                        const int total_number_of_columns_grid,
                        const int total_number_of_columns_transposed) {
-#pragma omp parallel for default(none)                                         \
-    shared(grid, grid_transposed, number_of_columns_grid, number_of_rows_grid, \
-               total_number_of_columns_grid,                                   \
-               total_number_of_columns_transposed) collapse(2)
-  for (int column_index = 0; column_index < number_of_columns_grid;
-       column_index++) {
-    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
-      grid_transposed[column_index * total_number_of_columns_transposed +
-                      row_index] =
-          grid[row_index * total_number_of_columns_grid + column_index];
+
+  const int number_of_doubles_per_cache_line = 8;
+
+#pragma omp parallel for default(none) shared(                                 \
+        grid, grid_transposed, number_of_columns_grid, number_of_rows_grid,    \
+            total_number_of_columns_grid, total_number_of_columns_transposed,  \
+            number_of_doubles_per_cache_line) collapse(2)
+  for (int column_index_start = 0; column_index_start < number_of_columns_grid;
+       column_index_start += number_of_doubles_per_cache_line) {
+    for (int row_index_start = 0; row_index_start < number_of_rows_grid;
+         row_index_start += number_of_doubles_per_cache_line) {
+      for (int column_index = column_index_start;
+           column_index <
+           imin(column_index_start + number_of_doubles_per_cache_line,
+                number_of_columns_grid);
+           column_index++) {
+        for (int row_index = row_index_start;
+             row_index <
+             imin(row_index_start + number_of_doubles_per_cache_line,
+                  number_of_rows_grid);
+             row_index++) {
+          grid_transposed[column_index * total_number_of_columns_transposed +
+                          row_index] =
+              grid[row_index * total_number_of_columns_grid + column_index];
+        }
+      }
     }
   }
 }
@@ -101,45 +172,6 @@ static inline void transpose_local_double_block(
              block_size * sizeof(double));
     }
   }
-}
-
-/*******************************************************************************
- * \brief Returns the smaller of two given integer (missing from the C standard)
- * \author Ole Schuett
- ******************************************************************************/
-static inline int imin(int x, int y) { return (x < y ? x : y); }
-
-/*******************************************************************************
- * \brief Returns the larger of two given integer (missing from the C standard)
- * \author Ole Schuett
- ******************************************************************************/
-static inline int imax(int x, int y) { return (x > y ? x : y); }
-
-/*******************************************************************************
- * \brief Returns the smaller of two given integer (missing from the C standard)
- * \author Frederick Stein
- ******************************************************************************/
-static inline int dmin(double x, double y) { return (x < y ? x : y); }
-
-/*******************************************************************************
- * \brief Returns the larger of two given integer (missing from the C standard)
- * \author Frederick Stein
- ******************************************************************************/
-static inline int dmax(double x, double y) { return (x > y ? x : y); }
-
-/*******************************************************************************
- * \brief Equivalent of Fortran's MODULO which always returns a positive number.
- *        https://gcc.gnu.org/onlinedocs/gfortran/MODULO.html
- * \author Ole Schuett
- ******************************************************************************/
-static inline int modulo(int a, int m) { return ((a % m + m) % m); }
-
-/*******************************************************************************
- * \brief Calculates the product of three numbers.
- * \author Frederick Stein
- ******************************************************************************/
-static inline int product3(const int array3[3]) {
-  return array3[0] * array3[1] * array3[2];
 }
 
 void zdscal_(const int *n, const double *da, double complex *za,

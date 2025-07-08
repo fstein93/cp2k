@@ -83,16 +83,9 @@ void collect_y_and_distribute_z_blocked(
     double complex *send_buffer = transposed + send_displacements[process];
     double complex *grid_ptr =
         grid + proc2local_transposed[rank][2][0] * my_sizes[0] * my_sizes[1];
-// Copy the data to the send buffer
-#pragma omp parallel for collapse(2) default(none)                             \
-    shared(my_sizes, send_buffer, grid_ptr, current_send_size_2)
-    for (int index_y = 0; index_y < my_sizes[1]; index_y++) {
-      for (int index_xz = 0; index_xz < my_sizes[0] * current_send_size_2;
-           index_xz++) {
-        send_buffer[index_y * current_send_size_2 * my_sizes[0] + index_xz] =
-            grid_ptr[index_xz * my_sizes[1] + index_y];
-      }
-    }
+    const int xz_size = my_sizes[0] * current_send_size_2;
+    transpose_local_complex(grid_ptr, send_buffer, my_sizes[1], xz_size,
+                            my_sizes[1], xz_size);
   }
   assert(send_offset == my_sizes[0] * my_sizes[1] * npts_global_gspace_2);
   assert(recv_offset == product3(my_sizes_transposed));
@@ -197,18 +190,10 @@ void collect_z_and_distribute_y_blocked(
                                                       my_sizes_transposed[0] *
                                                       my_sizes_transposed[1];
     double complex *recv_buffer = grid + recv_displacements[process];
-// Copy the data to the output array
-#pragma omp parallel for collapse(2) default(none) shared(                     \
-        my_sizes_transposed, recv_buffer, transposed_ptr, current_recv_size_2)
-    for (int index_y = 0; index_y < my_sizes_transposed[1]; index_y++) {
-      for (int index_xz = 0;
-           index_xz < my_sizes_transposed[0] * current_recv_size_2;
-           index_xz++) {
-        transposed_ptr[index_xz * my_sizes_transposed[1] + index_y] =
-            recv_buffer[index_y * current_recv_size_2 * my_sizes_transposed[0] +
-                        index_xz];
-      }
-    }
+    const int xz_size = my_sizes_transposed[0] * current_recv_size_2;
+    transpose_local_complex(recv_buffer, transposed_ptr, xz_size,
+                            my_sizes_transposed[1], xz_size,
+                            my_sizes_transposed[1]);
   }
 
   free(send_counts);
@@ -484,15 +469,8 @@ void collect_x_and_distribute_y_blocked(
         grid + proc2local_transposed[rank][1][0] * my_sizes[2] * my_sizes[0];
     double complex *send_buffer = transposed + send_displacements[process];
     const int yz_size = current_send_size_1 * my_sizes[2];
-// Copy the data to the send buffer
-#pragma omp parallel for collapse(2) default(none)                             \
-    shared(my_sizes, send_buffer, grid_ptr, yz_size)
-    for (int index_x = 0; index_x < my_sizes[0]; index_x++) {
-      for (int index_yz = 0; index_yz < yz_size; index_yz++) {
-        send_buffer[index_x * yz_size + index_yz] =
-            grid_ptr[index_yz * my_sizes[0] + index_x];
-      }
-    }
+    transpose_local_complex(grid_ptr, send_buffer, my_sizes[0], yz_size,
+                            my_sizes[0], yz_size);
   }
   assert(send_offset == product3(my_sizes));
   assert(recv_offset == product3(my_sizes_transposed));
@@ -591,15 +569,9 @@ void collect_y_and_distribute_x_blocked(
                                               my_sizes_transposed[0];
     double complex *received_data = grid + recv_displacements[process];
     const int yz_size = recv_size_1 * my_sizes_transposed[2];
-// Copy the data to the output array
-#pragma omp parallel for collapse(2) default(none)                             \
-    shared(my_sizes_transposed, received_data, transp, yz_size)
-    for (int index_x = 0; index_x < my_sizes_transposed[0]; index_x++) {
-      for (int index_yz = 0; index_yz < yz_size; index_yz++) {
-        transp[index_yz * my_sizes_transposed[0] + index_x] =
-            received_data[yz_size * index_x + index_yz];
-      }
-    }
+    transpose_local_complex(received_data, transp, yz_size,
+                            my_sizes_transposed[0], yz_size,
+                            my_sizes_transposed[0]);
   }
 
   free(send_counts);

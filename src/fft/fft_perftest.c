@@ -59,6 +59,7 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
   double min_time = -1.0;
   double max_time = -1.0;
   double sum_time = 0.0;
+  double sum_time_squared = 0.0;
   for (int run = 0; run < number_of_runs; run++) {
     mp_mpi_barrier(mp_mpi_comm_world);
     begin = clock();
@@ -70,6 +71,7 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
     min_time = min_time < 0.0 ? current_time : fmin(min_time, current_time);
     max_time = fmax(max_time, current_time);
     sum_time += current_time;
+    sum_time_squared += current_time * current_time;
   }
 
   grid_free_complex_rs_grid(&grid_rs);
@@ -78,10 +80,11 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
 
   if (mp_mpi_comm_rank(mp_mpi_comm_world) == 0) {
     printf("Time for %i FW and BW C2C (cart) FFTs of size %i %i %i : min %f, "
-           "max %f, "
-           "avg %f\n",
+           "max %f, avg %f (stdev %f)\n",
            number_of_runs, fft_size[0], fft_size[1], fft_size[2], min_time,
-           max_time, sum_time / number_of_runs);
+           max_time, sum_time / number_of_runs,
+           sqrt((sum_time_squared - sum_time * sum_time / number_of_runs) /
+                (number_of_runs - 1)));
   }
 }
 
@@ -127,6 +130,7 @@ static void run_test_r2c(const int fft_size[3], const int number_of_runs,
   double min_time = -1.0;
   double max_time = -1.0;
   double sum_time = 0.0;
+  double sum_time_squared = 0.0;
   for (int run = 0; run < number_of_runs; run++) {
     mp_mpi_barrier(mp_mpi_comm_world);
     begin = clock();
@@ -138,6 +142,7 @@ static void run_test_r2c(const int fft_size[3], const int number_of_runs,
     min_time = min_time < 0.0 ? current_time : fmin(min_time, current_time);
     max_time = fmax(max_time, current_time);
     sum_time += current_time;
+    sum_time_squared += current_time * current_time;
   }
 
   grid_free_real_rs_grid(&grid_rs);
@@ -146,10 +151,12 @@ static void run_test_r2c(const int fft_size[3], const int number_of_runs,
 
   if (mp_mpi_comm_rank(mp_mpi_comm_world) == 0) {
     printf("Time for %i FW and BW %s FFTs of size %i %i %i : min %f, max %f, "
-           "avg %f\n",
+           "avg %f (stdev %f)\n",
            number_of_runs, use_halfspace ? "R2C/C2R" : "C2C", fft_size[0],
            fft_size[1], fft_size[2], min_time, max_time,
-           sum_time / number_of_runs);
+           sum_time / number_of_runs,
+           sqrt((sum_time_squared - sum_time * sum_time / number_of_runs) /
+                (number_of_runs - 1)));
   }
 }
 
