@@ -135,8 +135,8 @@ inline bool is_on_grid(const int shifted_index, const int npts) {
  * \param grid_gs complex-valued data in reciprocal space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_with_layout(const double complex *grid_rs,
-                           double complex *grid_gs,
+void fft_3d_fw_with_layout(const double complex *restrict grid_rs,
+                           double complex *restrict grid_gs,
                            const fft_grid_layout *grid_layout);
 
 /*******************************************************************************
@@ -145,7 +145,7 @@ void fft_3d_fw_with_layout(const double complex *grid_rs,
  * \param grid_gs complex-valued data in reciprocal space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_r2c_with_layout(const double *grid_rs, double complex *grid_gs,
+void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs, double complex *restrict grid_gs,
                                const fft_grid_layout *grid_layout);
 
 /*******************************************************************************
@@ -155,8 +155,8 @@ void fft_3d_fw_r2c_with_layout(const double *grid_rs, double complex *grid_gs,
  * \param grid_rs complex-valued data in real space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_with_layout(const double complex *grid_gs,
-                           double complex *grid_rs,
+void fft_3d_bw_with_layout(const double complex *restrict grid_gs,
+                           double complex *restrict grid_rs,
                            const fft_grid_layout *fft_grid);
 
 /*******************************************************************************
@@ -166,7 +166,7 @@ void fft_3d_bw_with_layout(const double complex *grid_gs,
  * \param grid_rs real-valued data in real space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_c2r_with_layout(const double complex *grid_gs, double *grid_rs,
+void fft_3d_bw_c2r_with_layout(const double complex *restrict grid_gs, double *restrict grid_rs,
                                const fft_grid_layout *fft_grid);
 
 /*******************************************************************************
@@ -175,8 +175,8 @@ void fft_3d_bw_c2r_with_layout(const double complex *grid_gs, double *grid_rs,
  * \param grid_gs complex-valued data in reciprocal space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_with_layout_to_cart(const double complex *grid_rs,
-                                   double complex *grid_gs,
+void fft_3d_fw_with_layout_to_cart(const double complex *restrict grid_rs,
+                                   double complex *restrict grid_gs,
                                    const fft_grid_layout *grid_layout);
 
 /*******************************************************************************
@@ -185,8 +185,8 @@ void fft_3d_fw_with_layout_to_cart(const double complex *grid_rs,
  * \param grid_gs complex-valued data in reciprocal space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_r2c_with_layout_to_cart(const double *grid_rs,
-                                       double complex *grid_gs,
+void fft_3d_fw_r2c_with_layout_to_cart(const double *restrict grid_rs,
+                                       double complex *restrict grid_gs,
                                        const fft_grid_layout *grid_layout);
 
 /*******************************************************************************
@@ -196,8 +196,8 @@ void fft_3d_fw_r2c_with_layout_to_cart(const double *grid_rs,
  * \param grid_rs complex-valued data in real space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_with_layout_from_cart(const double complex *grid_gs,
-                                     double complex *grid_rs,
+void fft_3d_bw_with_layout_from_cart(const double complex *restrict grid_gs,
+                                     double complex *restrict grid_rs,
                                      const fft_grid_layout *fft_grid);
 
 /*******************************************************************************
@@ -207,8 +207,8 @@ void fft_3d_bw_with_layout_from_cart(const double complex *grid_gs,
  * \param grid_rs real-valued data in real space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_c2r_with_layout_from_cart(const double complex *grid_gs,
-                                         double *grid_rs,
+void fft_3d_bw_c2r_with_layout_from_cart(const double complex *restrict grid_gs,
+                                         double *restrict grid_rs,
                                          const fft_grid_layout *fft_grid);
 
 #endif

@@ -138,7 +138,7 @@ void fft_free_complex(double complex *buffer) {
  ******************************************************************************/
 void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
-                     double complex *grid_in, double complex *grid_out) {
+                     double complex *restrict grid_in, double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_fw_c2c_local_%i_%i",
@@ -165,7 +165,7 @@ void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
-                         double *grid_in, double complex *grid_out) {
+                         double *restrict grid_in, double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_fw_r2c_local_%i_%i",
@@ -192,7 +192,7 @@ void fft_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_1d_bw_local(const int fft_size, const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
-                     double complex *grid_in, double complex *grid_out) {
+                     double complex *restrict grid_in, double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_bw_c2c_local_%i_%i",
@@ -219,7 +219,7 @@ void fft_1d_bw_local(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
-                         double complex *grid_in, double *grid_out) {
+                         double complex *restrict grid_in, double *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_bw_c2r_local_%i_%i",
@@ -246,7 +246,7 @@ void fft_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
-                     double complex *grid_in, double complex *grid_out) {
+                     double complex *restrict grid_in, double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_fw_c2c_local_%i_%i_%i",
@@ -273,7 +273,7 @@ void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
  ******************************************************************************/
 void fft_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
-                         double *grid_in, double complex *grid_out) {
+                         double *restrict grid_in, double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_fw_r2c_local_%i_%i_%i",
@@ -302,7 +302,7 @@ void fft_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
  ******************************************************************************/
 void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
-                     double complex *grid_in, double complex *grid_out) {
+                     double complex *restrict grid_in, double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_bw_c2c_local_%i_%i_%i",
@@ -331,7 +331,7 @@ void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts,
  ******************************************************************************/
 void fft_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
-                         double complex *grid_in, double *grid_out) {
+                         double complex *restrict grid_in, double *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_bw_c2r_local_%i_%i_%i",
@@ -358,8 +358,8 @@ void fft_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_local(const int fft_size[3], double complex *grid_in,
-                     double complex *grid_out) {
+void fft_3d_fw_local(const int fft_size[3], double complex *restrict grid_in,
+                     double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_c2c_local_%i_%i_%i",
@@ -384,8 +384,8 @@ void fft_3d_fw_local(const int fft_size[3], double complex *grid_in,
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
-                         double complex *grid_out) {
+void fft_3d_fw_local_r2c(const int fft_size[3], double *restrict grid_in,
+                         double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_r2c_local_%i_%i_%i",
@@ -410,8 +410,8 @@ void fft_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_local(const int fft_size[3], double complex *grid_in,
-                     double complex *grid_out) {
+void fft_3d_bw_local(const int fft_size[3], double complex *restrict grid_in,
+                     double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_c2c_local_%i_%i_%i",
@@ -436,8 +436,8 @@ void fft_3d_bw_local(const int fft_size[3], double complex *grid_in,
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
-                         double *grid_out) {
+void fft_3d_bw_local_c2r(const int fft_size[3], double complex *restrict grid_in,
+                         double *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_c2r_local_%i_%i_%i",
@@ -543,8 +543,8 @@ int fft_3d_distributed_sizes_r2c(const int npts_global[3],
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
-                           const mp_mpi_comm comm, double complex *grid_in,
-                           double complex *grid_out) {
+                           const mp_mpi_comm comm, double complex *restrict grid_in,
+                           double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -569,7 +569,7 @@ void fft_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
  ******************************************************************************/
 void fft_2d_fw_distributed_r2c(const int npts_global[2],
                                const int number_of_ffts, const mp_mpi_comm comm,
-                               double *grid_in, double complex *grid_out) {
+                               double *restrict grid_in, double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -593,8 +593,8 @@ void fft_2d_fw_distributed_r2c(const int npts_global[2],
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_bw_distributed(const int npts_global[2], const int number_of_ffts,
-                           const mp_mpi_comm comm, double complex *grid_in,
-                           double complex *grid_out) {
+                           const mp_mpi_comm comm, double complex *restrict grid_in,
+                           double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -619,7 +619,7 @@ void fft_2d_bw_distributed(const int npts_global[2], const int number_of_ffts,
  ******************************************************************************/
 void fft_2d_bw_distributed_c2r(const int npts_global[2],
                                const int number_of_ffts, const mp_mpi_comm comm,
-                               double complex *grid_in, double *grid_out) {
+                               double complex *restrict grid_in, double *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -643,7 +643,7 @@ void fft_2d_bw_distributed_c2r(const int npts_global[2],
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_fw_distributed(const int npts_global[3], const mp_mpi_comm comm,
-                           double complex *grid_in, double complex *grid_out) {
+                           double complex *restrict grid_in, double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -666,7 +666,7 @@ void fft_3d_fw_distributed(const int npts_global[3], const mp_mpi_comm comm,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_fw_distributed_r2c(const int npts_global[3], const mp_mpi_comm comm,
-                               double *grid_in, double complex *grid_out) {
+                               double *restrict grid_in, double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -689,7 +689,7 @@ void fft_3d_fw_distributed_r2c(const int npts_global[3], const mp_mpi_comm comm,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_distributed(const int npts_global[3], const mp_mpi_comm comm,
-                           double complex *grid_in, double complex *grid_out) {
+                           double complex *restrict grid_in, double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -712,7 +712,7 @@ void fft_3d_bw_distributed(const int npts_global[3], const mp_mpi_comm comm,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_distributed_c2r(const int npts_global[3], const mp_mpi_comm comm,
-                               double complex *grid_in, double *grid_out) {
+                               double complex *restrict grid_in, double *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
