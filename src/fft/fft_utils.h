@@ -59,24 +59,24 @@ static inline void transpose_local_complex(
     const int total_number_of_columns_grid,
     const int total_number_of_columns_transposed) {
 
-  const int number_of_doubles_per_cache_line = 8;
+  const int number_of_double_complex_per_cache_line = 4;
 
 #pragma omp parallel for default(none) shared(                                 \
         grid, grid_transposed, number_of_columns_grid, number_of_rows_grid,    \
             total_number_of_columns_grid, total_number_of_columns_transposed,  \
-            number_of_doubles_per_cache_line) collapse(2)
+            number_of_double_complex_per_cache_line) collapse(2)
   for (int column_index_start = 0; column_index_start < number_of_columns_grid;
-       column_index_start += number_of_doubles_per_cache_line) {
+       column_index_start += number_of_double_complex_per_cache_line) {
     for (int row_index_start = 0; row_index_start < number_of_rows_grid;
-         row_index_start += number_of_doubles_per_cache_line) {
+         row_index_start += number_of_double_complex_per_cache_line) {
       for (int column_index = column_index_start;
            column_index <
-           imin(column_index_start + number_of_doubles_per_cache_line,
+           imin(column_index_start + number_of_double_complex_per_cache_line,
                 number_of_columns_grid);
            column_index++) {
         for (int row_index = row_index_start;
              row_index <
-             imin(row_index_start + number_of_doubles_per_cache_line,
+             imin(row_index_start + number_of_double_complex_per_cache_line,
                   number_of_rows_grid);
              row_index++) {
           grid_transposed[column_index * total_number_of_columns_transposed +
@@ -136,17 +136,24 @@ static inline void transpose_local_complex_block(
     double complex *restrict grid, double complex *restrict grid_transposed,
     const int number_of_columns_grid, const int number_of_rows_grid,
     const int block_size) {
+  if (block_size == 1) {
+    transpose_local_complex(grid, grid_transposed, number_of_columns_grid,
+                            number_of_rows_grid, number_of_columns_grid,
+                            number_of_rows_grid);
+  } else {
 #pragma omp parallel for default(none)                                         \
     shared(grid, grid_transposed, number_of_columns_grid, number_of_rows_grid, \
                block_size) collapse(2)
-  for (int column_index = 0; column_index < number_of_columns_grid;
-       column_index++) {
-    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
-      memcpy(&grid_transposed[(column_index * number_of_rows_grid + row_index) *
-                              block_size],
-             &grid[(row_index * number_of_columns_grid + column_index) *
-                   block_size],
-             block_size * sizeof(double complex));
+    for (int column_index = 0; column_index < number_of_columns_grid;
+         column_index++) {
+      for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
+        memcpy(
+            &grid_transposed[(column_index * number_of_rows_grid + row_index) *
+                             block_size],
+            &grid[(row_index * number_of_columns_grid + column_index) *
+                  block_size],
+            block_size * sizeof(double complex));
+      }
     }
   }
 }
@@ -159,23 +166,38 @@ static inline void transpose_local_double_block(
     double *restrict grid, double *restrict grid_transposed,
     const int number_of_columns_grid, const int number_of_rows_grid,
     const int block_size) {
+  if (block_size == 1) {
+    transpose_local_double(grid, grid_transposed, number_of_columns_grid,
+                           number_of_rows_grid, number_of_columns_grid,
+                           number_of_rows_grid);
+  } else {
 #pragma omp parallel for default(none)                                         \
     shared(grid, grid_transposed, number_of_columns_grid, number_of_rows_grid, \
                block_size) collapse(2)
-  for (int column_index = 0; column_index < number_of_columns_grid;
-       column_index++) {
-    for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
-      memcpy(&grid_transposed[(column_index * number_of_rows_grid + row_index) *
-                              block_size],
-             &grid[(row_index * number_of_columns_grid + column_index) *
-                   block_size],
-             block_size * sizeof(double));
+    for (int column_index = 0; column_index < number_of_columns_grid;
+         column_index++) {
+      for (int row_index = 0; row_index < number_of_rows_grid; row_index++) {
+        memcpy(
+            &grid_transposed[(column_index * number_of_rows_grid + row_index) *
+                             block_size],
+            &grid[(row_index * number_of_columns_grid + column_index) *
+                  block_size],
+            block_size * sizeof(double));
+      }
     }
   }
 }
 
+void dscal_(const int *n, const double *da, double *dx, const int *incx);
+
 void zdscal_(const int *n, const double *da, double complex *za,
              const int *incx);
+
+void dcopy_(const int *n, const double *dx, const int *incx, double *dy,
+            const int *incy);
+
+void zcopy_(const int *n, const double complex *zx, const int *incx,
+            double complex *zy, const int *incy);
 
 #endif /* FFT_UTILS_H */
 

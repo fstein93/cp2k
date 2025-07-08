@@ -741,9 +741,9 @@ CONTAINS
 
       IF ((fftw3_is_mkl_wrapper()) .OR. &
 #if defined (__FFTW3_UNALIGNED)
-          (.NOT. fftw_plan_type == 1_C_INT + FFTW_UNALIGNED) .OR. &
+          (.NOT. fftw_plan_type == FFTW_ESTIMATE + FFTW_UNALIGNED) .OR. &
 #else
-          (.NOT. fftw_plan_type == 1_C_INT) .OR. &
+          (.NOT. fftw_plan_type == FFTW_ESTIMATE) .OR. &
 #endif
           (n1 < 256 .AND. n2 < 256 .AND. n3 < 256 .AND. nt == 1)) THEN
          ! If the plan type is MEASURE, PATIENT and EXHAUSTIVE or

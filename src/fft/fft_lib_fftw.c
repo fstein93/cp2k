@@ -51,6 +51,7 @@ static bool is_initialized = false;
 
 static int fftw_planning_mode = -1;
 static bool use_fftw_mpi = false;
+static bool has_guru_interface = true;
 
 // These constants encode transposition and MPI usage into the key to cache the
 // plans
@@ -101,6 +102,33 @@ static void add_plan_to_cache(const int key[6], fftw_plan *plan) {
 }
 #endif
 
+#if defined(__FFTW3)
+bool is_guru_interface_available() {
+  fftw_iodim dims[1];
+  dims[0].n = 1;
+  dims[0].is = 1;
+  dims[0].os = 1;
+  fftw_iodim howmany_dims[2];
+  howmany_dims[0].n = 1;
+  howmany_dims[0].is = 1;
+  howmany_dims[0].os = 1;
+  howmany_dims[1].n = 1;
+  howmany_dims[1].is = 1;
+  howmany_dims[1].os = 1;
+  double complex buffer1;
+  fftw_plan plan =
+      fftw_plan_guru_dft(1, dims, 2, howmany_dims, &buffer1, &buffer1,
+                         FFTW_FORWARD, fftw_planning_mode);
+
+  if (plan != NULL) {
+    fftw_destroy_plan(plan);
+    return true;
+  } else {
+    return false;
+  }
+}
+#endif
+
 /*******************************************************************************
  * \brief Initialize the FFT library (if not done externally).
  * \author Frederick Stein, Ole Schuett
@@ -144,8 +172,10 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   fftw_planning_mode += FFTW_UNALIGNED
 #endif
 
+      has_guru_interface = is_guru_interface_available();
+
 #if defined(__USE_FFTW3_MPI)
-      use_fftw_mpi = use_fft_mpi;
+  use_fftw_mpi = use_fft_mpi;
   fftw_mpi_init();
 #else
   (void)use_fft_mpi;
@@ -988,8 +1018,24 @@ void fft_fftw_3d_fw_local(const int fft_size[3], double complex *grid_in,
                           double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
-  fftw_plan *plan = fft_fftw_create_3d_plan(FFTW_FORWARD, fft_size, grid_out);
-  fftw_execute_dft(*plan, grid_in, grid_out);
+  if (false && has_guru_interface &&
+#if defined(__FFTW3_UNALIGNED)
+          (fftw_planning_mode == FFTW_ESTIMATE + FFTW_UNALIGNED) ||
+#else
+      (fftw_planning_mode == FFTW_ESTIMATE) &&
+#endif
+      (fft_size[0] >= 256 || fft_size[1] >= 256 || fft_size[2] >= 256 ||
+       omp_get_max_threads() > 1)) {
+    fft_fftw_1d_fw_local(fft_size[2], fft_size[0] * fft_size[1], false, true,
+                         grid_in, grid_out);
+    fft_fftw_1d_fw_local(fft_size[1], fft_size[0] * fft_size[2], false, true,
+                         grid_out, grid_in);
+    fft_fftw_1d_fw_local(fft_size[0], fft_size[1] * fft_size[2], false, true,
+                         grid_in, grid_out);
+  } else {
+    fftw_plan *plan = fft_fftw_create_3d_plan(FFTW_FORWARD, fft_size, grid_out);
+    fftw_execute_dft(*plan, grid_in, grid_out);
+  }
 #else
   (void)fft_size;
   (void)grid_in;
@@ -1028,8 +1074,18 @@ void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
                           double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
-  fftw_plan *plan = fft_fftw_create_3d_plan(FFTW_BACKWARD, fft_size, grid_out);
-  fftw_execute_dft(*plan, grid_in, grid_out);
+  if (false && has_guru_interface) {
+    fft_fftw_1d_bw_local(fft_size[0], fft_size[1] * fft_size[2], false, true,
+                         grid_in, grid_out);
+    fft_fftw_1d_bw_local(fft_size[1], fft_size[0] * fft_size[2], false, true,
+                         grid_out, grid_in);
+    fft_fftw_1d_bw_local(fft_size[2], fft_size[0] * fft_size[1], false, true,
+                         grid_in, grid_out);
+  } else {
+    fftw_plan *plan =
+        fft_fftw_create_3d_plan(FFTW_BACKWARD, fft_size, grid_out);
+    fftw_execute_dft(*plan, grid_in, grid_out);
+  }
 #else
   (void)fft_size;
   (void)grid_in;
