@@ -56,15 +56,17 @@ void fft_ref_free_complex(double complex *buffer);
  * \brief 1D Forward FFT from transposed format.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_ref_1d_fw_local(double complex *restrict grid_rs, double complex *restrict grid_gs,
-                         const int fft_size, const int number_of_ffts,
-                         const bool transpose_rs, const bool transpose_gs);
+void fft_ref_1d_fw_local(double complex *restrict grid_rs,
+                         double complex *restrict grid_gs, const int fft_size,
+                         const int number_of_ffts, const bool transpose_rs,
+                         const bool transpose_gs);
 
 /*******************************************************************************
  * \brief 1D Forward FFT from transposed format.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_ref_1d_fw_local_r2c(double *restrict grid_rs, double complex *restrict grid_gs,
+void fft_ref_1d_fw_local_r2c(double *restrict grid_rs,
+                             double complex *restrict grid_gs,
                              const int fft_size, const int number_of_ffts,
                              const bool transpose_rs, const bool transpose_gs);
 
@@ -72,23 +74,26 @@ void fft_ref_1d_fw_local_r2c(double *restrict grid_rs, double complex *restrict 
  * \brief 1D Backward FFT to transposed format.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_ref_1d_bw_local(double complex *restrict grid_gs, double complex *restrict grid_rs,
-                         const int fft_size, const int number_of_ffts,
-                         const bool transpose_rs, const bool transpose_gs);
+void fft_ref_1d_bw_local(double complex *restrict grid_gs,
+                         double complex *restrict grid_rs, const int fft_size,
+                         const int number_of_ffts, const bool transpose_rs,
+                         const bool transpose_gs);
 
 /*******************************************************************************
  * \brief 1D Backward FFT to transposed format.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_ref_1d_bw_local_c2r(double complex *restrict grid_gs, double *restrict grid_rs,
-                             const int fft_size, const int number_of_ffts,
-                             const bool transpose_rs, const bool transpose_gs);
+void fft_ref_1d_bw_local_c2r(double complex *restrict grid_gs,
+                             double *restrict grid_rs, const int fft_size,
+                             const int number_of_ffts, const bool transpose_rs,
+                             const bool transpose_gs);
 
 /*******************************************************************************
  * \brief Naive implementation of 2D FFT (transposed format, no normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_ref_2d_fw_local(double complex *restrict grid_rs, double complex *restrict grid_gs,
+void fft_ref_2d_fw_local(double complex *restrict grid_rs,
+                         double complex *restrict grid_gs,
                          const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs);
 
@@ -96,7 +101,8 @@ void fft_ref_2d_fw_local(double complex *restrict grid_rs, double complex *restr
  * \brief Naive implementation of 2D FFT (transposed format, no normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_ref_2d_fw_local_r2c(double *restrict grid_rs, double complex *restrict grid_gs,
+void fft_ref_2d_fw_local_r2c(double *restrict grid_rs,
+                             double complex *restrict grid_gs,
                              const int fft_size[2], const int number_of_ffts,
                              const bool transpose_rs, const bool transpose_gs);
 
@@ -106,7 +112,8 @@ void fft_ref_2d_fw_local_r2c(double *restrict grid_rs, double complex *restrict 
  * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_ref_2d_bw_local(double complex *restrict grid_gs, double complex *restrict grid_rs,
+void fft_ref_2d_bw_local(double complex *restrict grid_gs,
+                         double complex *restrict grid_rs,
                          const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs);
 
@@ -116,9 +123,10 @@ void fft_ref_2d_bw_local(double complex *restrict grid_gs, double complex *restr
  * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_ref_2d_bw_local_c2r(double complex *restrict grid_gs, double *restrict grid_rs,
-                             const int fft_size[2], const int number_of_ffts,
-                             const bool transpose_rs, const bool transpose_gs);
+void fft_ref_2d_bw_local_c2r(double complex *restrict grid_gs,
+                             double *restrict grid_rs, const int fft_size[2],
+                             const int number_of_ffts, const bool transpose_rs,
+                             const bool transpose_gs);
 
 /*******************************************************************************
  * \brief Performs local 3D FFT (no normalization).
@@ -126,7 +134,8 @@ void fft_ref_2d_bw_local_c2r(double complex *restrict grid_gs, double *restrict 
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_ref_3d_fw_local(double complex *restrict grid_rs, double complex *restrict grid_gs,
+void fft_ref_3d_fw_local(double complex *restrict grid_rs,
+                         double complex *restrict grid_gs,
                          const int fft_size[3]);
 
 /*******************************************************************************
@@ -135,7 +144,8 @@ void fft_ref_3d_fw_local(double complex *restrict grid_rs, double complex *restr
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_ref_3d_fw_local_r2c(double *restrict grid_rs, double complex *restrict grid_gs,
+void fft_ref_3d_fw_local_r2c(double *restrict grid_rs,
+                             double complex *restrict grid_gs,
                              const int fft_size[3]);
 
 /*******************************************************************************
@@ -144,7 +154,8 @@ void fft_ref_3d_fw_local_r2c(double *restrict grid_rs, double complex *restrict 
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_ref_3d_bw_local(double complex *restrict grid_gs, double complex *restrict grid_rs,
+void fft_ref_3d_bw_local(double complex *restrict grid_gs,
+                         double complex *restrict grid_rs,
                          const int fft_size[3]);
 
 /*******************************************************************************
@@ -153,8 +164,8 @@ void fft_ref_3d_bw_local(double complex *restrict grid_gs, double complex *restr
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_ref_3d_bw_local_c2r(double complex *restrict grid_gs, double *restrict grid_rs,
-                             const int fft_size[3]);
+void fft_ref_3d_bw_local_c2r(double complex *restrict grid_gs,
+                             double *restrict grid_rs, const int fft_size[3]);
 
 #endif /* FFT_LIB_REF_H */
 

@@ -22,10 +22,10 @@
  * \author Frederick Stein
  ******************************************************************************/
 void collect_y_and_distribute_z_blocked(
-    double complex *restrict grid, double complex *restrict transposed, const int npts_global[3],
-    const int npts_global_gspace_2, const int (*proc2local)[3][2],
-    const int (*proc2local_transposed)[3][2], const mp_mpi_comm comm,
-    const mp_mpi_comm sub_comm[2]) {
+    double complex *restrict grid, double complex *restrict transposed,
+    const int npts_global[3], const int npts_global_gspace_2,
+    const int (*proc2local)[3][2], const int (*proc2local_transposed)[3][2],
+    const mp_mpi_comm comm, const mp_mpi_comm sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_y_distr_z_b_%i_%i_%i_%i",
@@ -80,22 +80,17 @@ void collect_y_and_distribute_z_blocked(
     recv_counts[process] = current_recv_count;
     send_offset += current_send_count;
     recv_offset += current_recv_count;
+    double complex *send_buffer = transposed + send_displacements[process];
+    double complex *grid_ptr =
+        grid + proc2local_transposed[rank][2][0] * my_sizes[0] * my_sizes[1];
 // Copy the data to the send buffer
 #pragma omp parallel for collapse(2) default(none)                             \
-    shared(my_sizes, proc2local_transposed, transposed, grid,                  \
-               send_displacements, process, rank, current_send_size_2)
+    shared(my_sizes, send_buffer, grid_ptr, current_send_size_2)
     for (int index_y = 0; index_y < my_sizes[1]; index_y++) {
-      for (int index_x = 0; index_x < my_sizes[0]; index_x++) {
-        for (int index_z = 0; index_z < current_send_size_2; index_z++) {
-          transposed[send_displacements[process] +
-                     (index_y * current_send_size_2 + index_z) * my_sizes[0] +
-                     index_x] =
-              grid[((proc2local_transposed[rank][2][0] + index_z) *
-                        my_sizes[0] +
-                    index_x) *
-                       my_sizes[1] +
-                   index_y];
-        }
+      for (int index_xz = 0; index_xz < my_sizes[0] * current_send_size_2;
+           index_xz++) {
+        send_buffer[index_y * current_send_size_2 * my_sizes[0] + index_xz] =
+            grid_ptr[index_xz * my_sizes[1] + index_y];
       }
     }
   }
@@ -122,10 +117,10 @@ void collect_y_and_distribute_z_blocked(
  * \author Frederick Stein
  ******************************************************************************/
 void collect_z_and_distribute_y_blocked(
-    double complex *restrict grid, double complex *restrict transposed, const int npts_global[3],
-    const int npts_global_gspace_2, const int (*proc2local)[3][2],
-    const int (*proc2local_transposed)[3][2], const mp_mpi_comm comm,
-    const mp_mpi_comm sub_comm[2]) {
+    double complex *restrict grid, double complex *restrict transposed,
+    const int npts_global[3], const int npts_global_gspace_2,
+    const int (*proc2local)[3][2], const int (*proc2local_transposed)[3][2],
+    const mp_mpi_comm comm, const mp_mpi_comm sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_z_dist_y_b_%i_%i_%i_%i",
@@ -198,22 +193,20 @@ void collect_z_and_distribute_y_blocked(
     mp_mpi_cart_rank(comm, (const int[2]){proc_coord[0], process}, &rank);
     const int current_recv_size_2 =
         proc2local[rank][2][1] - proc2local[rank][2][0] + 1;
+    double complex *transposed_ptr = transposed + proc2local[rank][2][0] *
+                                                      my_sizes_transposed[0] *
+                                                      my_sizes_transposed[1];
+    double complex *recv_buffer = grid + recv_displacements[process];
 // Copy the data to the output array
-#pragma omp parallel for collapse(2) default(none)                             \
-    shared(my_sizes_transposed, proc2local, grid, transposed,                  \
-               recv_displacements, process, rank, current_recv_size_2)
+#pragma omp parallel for collapse(2) default(none) shared(                     \
+        my_sizes_transposed, recv_buffer, transposed_ptr, current_recv_size_2)
     for (int index_y = 0; index_y < my_sizes_transposed[1]; index_y++) {
-      for (int index_x = 0; index_x < my_sizes_transposed[0]; index_x++) {
-        for (int index_z = 0; index_z < current_recv_size_2; index_z++) {
-          transposed[((proc2local[rank][2][0] + index_z) *
-                          my_sizes_transposed[0] +
-                      index_x) *
-                         my_sizes_transposed[1] +
-                     index_y] = grid[recv_displacements[process] +
-                                     (index_y * current_recv_size_2 + index_z) *
-                                         my_sizes_transposed[0] +
-                                     index_x];
-        }
+      for (int index_xz = 0;
+           index_xz < my_sizes_transposed[0] * current_recv_size_2;
+           index_xz++) {
+        transposed_ptr[index_xz * my_sizes_transposed[1] + index_y] =
+            recv_buffer[index_y * current_recv_size_2 * my_sizes_transposed[0] +
+                        index_xz];
       }
     }
   }
@@ -230,9 +223,10 @@ void collect_z_and_distribute_y_blocked(
  * \author Frederick Stein
  ******************************************************************************/
 void collect_x_and_distribute_y_blocked_transpose(
-    double complex *restrict grid, double complex *restrict transposed, const int npts_global[3],
-    const int (*proc2local)[3][2], const int (*proc2local_transposed)[3][2],
-    const mp_mpi_comm comm, const mp_mpi_comm sub_comm[2]) {
+    double complex *restrict grid, double complex *restrict transposed,
+    const int npts_global[3], const int (*proc2local)[3][2],
+    const int (*proc2local_transposed)[3][2], const mp_mpi_comm comm,
+    const mp_mpi_comm sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_x_dist_y_bt_%i_%i_%i_%i",
@@ -286,20 +280,19 @@ void collect_x_and_distribute_y_blocked_transpose(
     recv_counts[process] = current_recv_count;
     send_offset += current_send_count;
     recv_offset += current_recv_count;
+    double complex *send_buffer = transposed + send_displacements[process];
+    double complex *grid_ptr =
+        grid + proc2local_transposed[rank][1][0] * my_sizes[0];
 // Copy the data to the send buffer and exchange the last two indices
 #pragma omp parallel for collapse(2) default(none)                             \
-    shared(my_sizes, proc2local_transposed, transposed, grid,                  \
-               send_displacements, process, rank, send_size_1)
+    shared(my_sizes, send_buffer, grid_ptr, send_size_1)
     for (int index_z = 0; index_z < my_sizes[2]; index_z++) {
       for (int index_y = 0; index_y < send_size_1; index_y++) {
         for (int index_x = 0; index_x < my_sizes[0]; index_x++) {
-          transposed[send_displacements[process] +
-                     (index_x * send_size_1 + index_y) * my_sizes[2] +
-                     index_z] =
-              grid[(index_z * my_sizes[1] + proc2local_transposed[rank][1][0] +
-                    index_y) *
-                       my_sizes[0] +
-                   index_x];
+          send_buffer[(index_x * send_size_1 + index_y) * my_sizes[2] +
+                      index_z] =
+              grid_ptr[(index_z * my_sizes[1] + index_y) * my_sizes[0] +
+                       index_x];
         }
       }
     }
@@ -326,9 +319,10 @@ void collect_x_and_distribute_y_blocked_transpose(
  * \author Frederick Stein
  ******************************************************************************/
 void collect_y_and_distribute_x_blocked_transpose(
-    double complex *restrict grid, double complex *restrict transposed, const int npts_global[3],
-    const int (*proc2local)[3][2], const int (*proc2local_transposed)[3][2],
-    const mp_mpi_comm comm, const mp_mpi_comm sub_comm[2]) {
+    double complex *restrict grid, double complex *restrict transposed,
+    const int npts_global[3], const int (*proc2local)[3][2],
+    const int (*proc2local_transposed)[3][2], const mp_mpi_comm comm,
+    const mp_mpi_comm sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_y_dist_x_bt_%i_%i_%i_%i",
@@ -394,24 +388,22 @@ void collect_y_and_distribute_x_blocked_transpose(
   for (int process = 0; process < dims[0]; process++) {
     int rank;
     mp_mpi_cart_rank(comm, (const int[2]){process, proc_coord[1]}, &rank);
+    const int recv_size_1 = proc2local[rank][1][1] - proc2local[rank][1][0] + 1;
+    double complex *transposed_ptr =
+        transposed + proc2local[rank][1][0] * my_sizes_transposed[0];
+    double complex *recv_buffer = grid + recv_displacements[process];
 // Copy the data to the send buffer and exchange the last two indices
 #pragma omp parallel for collapse(2) default(none)                             \
-    shared(my_sizes_transposed, proc2local, grid, transposed,                  \
-               recv_displacements, process, rank)
-    for (int index_y = 0;
-         index_y < proc2local[rank][1][1] - proc2local[rank][1][0] + 1;
-         index_y++) {
+    shared(my_sizes_transposed, recv_buffer, transposed_ptr, recv_size_1)
+    for (int index_y = 0; index_y < recv_size_1; index_y++) {
       for (int index_z = 0; index_z < my_sizes_transposed[2]; index_z++) {
         for (int index_x = 0; index_x < my_sizes_transposed[0]; index_x++) {
-          transposed[(index_z * my_sizes_transposed[1] +
-                      proc2local[rank][1][0] + index_y) *
-                         my_sizes_transposed[0] +
-                     index_x] = grid[recv_displacements[process] +
-                                     (index_x * (proc2local[rank][1][1] -
-                                                 proc2local[rank][1][0] + 1) +
-                                      index_y) *
-                                         my_sizes_transposed[2] +
-                                     index_z];
+          transposed_ptr[(index_z * my_sizes_transposed[1] + index_y) *
+                             my_sizes_transposed[0] +
+                         index_x] =
+              recv_buffer[(index_x * recv_size_1 + index_y) *
+                              my_sizes_transposed[2] +
+                          index_z];
         }
       }
     }
@@ -429,9 +421,10 @@ void collect_y_and_distribute_x_blocked_transpose(
  * \author Frederick Stein
  ******************************************************************************/
 void collect_x_and_distribute_y_blocked(
-    double complex *restrict grid, double complex *restrict transposed, const int npts_global[3],
-    const int (*proc2local)[3][2], const int (*proc2local_transposed)[3][2],
-    const mp_mpi_comm comm, const mp_mpi_comm sub_comm[2]) {
+    double complex *restrict grid, double complex *restrict transposed,
+    const int npts_global[3], const int (*proc2local)[3][2],
+    const int (*proc2local_transposed)[3][2], const mp_mpi_comm comm,
+    const mp_mpi_comm sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_x_dist_y_b_%i_%i_%i_%i",
@@ -523,9 +516,10 @@ void collect_x_and_distribute_y_blocked(
  * \author Frederick Stein
  ******************************************************************************/
 void collect_y_and_distribute_x_blocked(
-    double complex *restrict grid, double complex *restrict transposed, const int npts_global[3],
-    const int (*proc2local)[3][2], const int (*proc2local_transposed)[3][2],
-    const mp_mpi_comm comm, const mp_mpi_comm sub_comm[2]) {
+    double complex *restrict grid, double complex *restrict transposed,
+    const int npts_global[3], const int (*proc2local)[3][2],
+    const int (*proc2local_transposed)[3][2], const mp_mpi_comm comm,
+    const mp_mpi_comm sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_y_dist_x_b_%i_%i_%i_%i",
@@ -619,10 +613,13 @@ void collect_y_and_distribute_x_blocked(
  * \brief Performs a redistribution (x_D, z_D, y) -> (x, yz_D).
  * \author Frederick Stein
  ******************************************************************************/
-void collect_x_and_distribute_yz_ray(
-    double complex *restrict grid, double complex *restrict transposed, const int npts_global[3],
-    const int (*proc2local)[3][2], const int *number_of_rays,
-    const int (*ray_to_yz)[2], const mp_mpi_comm comm) {
+void collect_x_and_distribute_yz_ray(double complex *restrict grid,
+                                     double complex *restrict transposed,
+                                     const int npts_global[3],
+                                     const int (*proc2local)[3][2],
+                                     const int *number_of_rays,
+                                     const int (*ray_to_yz)[2],
+                                     const mp_mpi_comm comm) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_x_dist_yz_r_%i_%i_%i_%i",
@@ -805,10 +802,13 @@ void collect_x_and_distribute_yz_ray(
  * \brief Performs a transposition of (x, zy_D) -> (x_D, z_D, y).
  * \author Frederick Stein
  ******************************************************************************/
-void collect_yz_and_distribute_x_ray(
-    double complex *restrict grid, double complex *restrict transposed, const int npts_global[3],
-    const int (*proc2local_transposed)[3][2], const int *number_of_rays,
-    const int (*ray_to_yz)[2], const mp_mpi_comm comm) {
+void collect_yz_and_distribute_x_ray(double complex *restrict grid,
+                                     double complex *restrict transposed,
+                                     const int npts_global[3],
+                                     const int (*proc2local_transposed)[3][2],
+                                     const int *number_of_rays,
+                                     const int (*ray_to_yz)[2],
+                                     const mp_mpi_comm comm) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_yz_dist_x_r_%i_%i_%i_%i",
@@ -970,9 +970,10 @@ void collect_yz_and_distribute_x_ray(
  * \author Frederick Stein
  ******************************************************************************/
 void collect_x_and_distribute_yz_ray_transpose(
-    double complex *restrict grid, double complex *restrict transposed, const int npts_global[3],
-    const int (*proc2local)[3][2], const int *number_of_rays,
-    const int (*ray_to_yz)[2], const mp_mpi_comm comm) {
+    double complex *restrict grid, double complex *restrict transposed,
+    const int npts_global[3], const int (*proc2local)[3][2],
+    const int *number_of_rays, const int (*ray_to_yz)[2],
+    const mp_mpi_comm comm) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_x_dist_yz_rt_%i_%i_%i_%i",
@@ -1125,9 +1126,10 @@ void collect_x_and_distribute_yz_ray_transpose(
  * \author Frederick Stein
  ******************************************************************************/
 void collect_yz_and_distribute_x_ray_transpose(
-    double complex *restrict grid, double complex *restrict transposed, const int npts_global[3],
-    const int (*proc2local_transposed)[3][2], const int *number_of_rays,
-    const int (*ray_to_yz)[2], const mp_mpi_comm comm) {
+    double complex *restrict grid, double complex *restrict transposed,
+    const int npts_global[3], const int (*proc2local_transposed)[3][2],
+    const int *number_of_rays, const int (*ray_to_yz)[2],
+    const mp_mpi_comm comm) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_yz_dist_x_rt_%i_%i_%i_%i",

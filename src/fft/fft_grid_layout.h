@@ -145,7 +145,8 @@ void fft_3d_fw_with_layout(const double complex *restrict grid_rs,
  * \param grid_gs complex-valued data in reciprocal space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs, double complex *restrict grid_gs,
+void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs,
+                               double complex *restrict grid_gs,
                                const fft_grid_layout *grid_layout);
 
 /*******************************************************************************
@@ -166,7 +167,8 @@ void fft_3d_bw_with_layout(const double complex *restrict grid_gs,
  * \param grid_rs real-valued data in real space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_c2r_with_layout(const double complex *restrict grid_gs, double *restrict grid_rs,
+void fft_3d_bw_c2r_with_layout(const double complex *restrict grid_gs,
+                               double *restrict grid_rs,
                                const fft_grid_layout *fft_grid);
 
 /*******************************************************************************

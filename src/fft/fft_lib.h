@@ -70,7 +70,8 @@ void fft_free_complex(double complex *buffer);
  ******************************************************************************/
 void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
-                     double complex *restrict grid_in, double complex *restrict grid_out);
+                     double complex *restrict grid_in,
+                     double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief 1D Forward FFT from transposed format.
@@ -78,7 +79,8 @@ void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
-                         double *restrict grid_in, double complex *restrict grid_out);
+                         double *restrict grid_in,
+                         double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief 1D Backward FFT to transposed format.
@@ -86,7 +88,8 @@ void fft_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_1d_bw_local(const int fft_size, const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
-                     double complex *restrict grid_in, double complex *restrict grid_out);
+                     double complex *restrict grid_in,
+                     double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief 1D Backward FFT to transposed format.
@@ -94,7 +97,8 @@ void fft_1d_bw_local(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
-                         double complex *restrict grid_in, double *restrict grid_out);
+                         double complex *restrict grid_in,
+                         double *restrict grid_out);
 
 /*******************************************************************************
  * \brief Naive implementation of 2D FFT (transposed format, no normalization).
@@ -102,7 +106,8 @@ void fft_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
-                     double complex *restrict grid_in, double complex *restrict grid_out);
+                     double complex *restrict grid_in,
+                     double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Naive implementation of 2D FFT (transposed format, no normalization).
@@ -110,7 +115,8 @@ void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
  ******************************************************************************/
 void fft_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
-                         double *restrict grid_in, double complex *restrict grid_out);
+                         double *restrict grid_in,
+                         double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
@@ -120,7 +126,8 @@ void fft_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
  ******************************************************************************/
 void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
-                     double complex *restrict grid_in, double complex *restrict grid_out);
+                     double complex *restrict grid_in,
+                     double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
@@ -130,7 +137,8 @@ void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts,
  ******************************************************************************/
 void fft_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
-                         double complex *restrict grid_in, double *restrict grid_out);
+                         double complex *restrict grid_in,
+                         double *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs local 3D FFT (no normalization).
@@ -165,7 +173,8 @@ void fft_3d_bw_local(const int fft_size[3], double complex *restrict grid_in,
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_local_c2r(const int fft_size[3], double complex *restrict grid_in,
+void fft_3d_bw_local_c2r(const int fft_size[3],
+                         double complex *restrict grid_in,
                          double *restrict grid_out);
 
 /*******************************************************************************
@@ -209,7 +218,8 @@ int fft_3d_distributed_sizes_r2c(const int npts_global[3],
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
-                           const mp_mpi_comm comm, double complex *restrict grid_in,
+                           const mp_mpi_comm comm,
+                           double complex *restrict grid_in,
                            double complex *restrict grid_out);
 
 /*******************************************************************************
@@ -218,14 +228,16 @@ void fft_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
  ******************************************************************************/
 void fft_2d_fw_distributed_r2c(const int npts_global[2],
                                const int number_of_ffts, const mp_mpi_comm comm,
-                               double *restrict grid_in, double complex *restrict grid_out);
+                               double *restrict grid_in,
+                               double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed 2D FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_bw_distributed(const int npts_global[2], const int number_of_ffts,
-                           const mp_mpi_comm comm, double complex *restrict grid_in,
+                           const mp_mpi_comm comm,
+                           double complex *restrict grid_in,
                            double complex *restrict grid_out);
 
 /*******************************************************************************
@@ -234,35 +246,40 @@ void fft_2d_bw_distributed(const int npts_global[2], const int number_of_ffts,
  ******************************************************************************/
 void fft_2d_bw_distributed_c2r(const int npts_global[2],
                                const int number_of_ffts, const mp_mpi_comm comm,
-                               double complex *restrict grid_in, double *restrict grid_out);
+                               double complex *restrict grid_in,
+                               double *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_fw_distributed(const int npts_global[3], const mp_mpi_comm comm,
-                           double complex *restrict grid_in, double complex *restrict grid_out);
+                           double complex *restrict grid_in,
+                           double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_fw_distributed_r2c(const int npts_global[3], const mp_mpi_comm comm,
-                               double *restrict grid_in, double complex *restrict grid_out);
+                               double *restrict grid_in,
+                               double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_distributed(const int npts_global[3], const mp_mpi_comm comm,
-                           double complex *restrict grid_in, double complex *restrict grid_out);
+                           double complex *restrict grid_in,
+                           double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_distributed_c2r(const int npts_global[3], const mp_mpi_comm comm,
-                               double complex *restrict grid_in, double *restrict grid_out);
+                               double complex *restrict grid_in,
+                               double *restrict grid_out);
 
 #endif /* FFT_LIB_H */
 

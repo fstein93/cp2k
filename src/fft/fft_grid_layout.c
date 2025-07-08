@@ -914,11 +914,14 @@ void grid_print_grid_layout_info(const fft_grid_layout *layout,
  * \brief Performs a forward 3D-FFT using a blocked distribution.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_blocked_low(
-    double complex *restrict grid_buffer_1, double complex *restrict grid_buffer_2,
-    const int npts_global[3], const int (*proc2local_rs)[3][2],
-    const int (*proc2local_ms)[3][2], const int (*proc2local_gs)[3][2],
-    const mp_mpi_comm comm, const mp_mpi_comm sub_comm[2]) {
+void fft_3d_fw_blocked_low(double complex *restrict grid_buffer_1,
+                           double complex *restrict grid_buffer_2,
+                           const int npts_global[3],
+                           const int (*proc2local_rs)[3][2],
+                           const int (*proc2local_ms)[3][2],
+                           const int (*proc2local_gs)[3][2],
+                           const mp_mpi_comm comm,
+                           const mp_mpi_comm sub_comm[2]) {
   const int my_process = mp_mpi_comm_rank(comm);
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
@@ -952,9 +955,9 @@ void fft_3d_fw_blocked_low(
       // Perform the first two FFTs in y- and z-direction
       // transpose the last two indices (is cheaper)
       // (z_d,y,x_d) -> (y_d,z,x_d)
-      transpose_local_complex(grid_buffer_1, grid_buffer_2,
-                              fft_sizes_rs[1] * fft_sizes_rs[2],
-                              fft_sizes_rs[0]);
+      transpose_local_complex(
+          grid_buffer_1, grid_buffer_2, fft_sizes_rs[1] * fft_sizes_rs[2],
+          fft_sizes_rs[0], fft_sizes_rs[1] * fft_sizes_rs[2], fft_sizes_rs[0]);
       // Copy back (we do not have in-place transposition implemented)
       memcpy(grid_buffer_1, grid_buffer_2,
              product3(fft_sizes_rs) * sizeof(double complex));
@@ -1031,11 +1034,14 @@ void fft_3d_fw_blocked_low(
  * \brief Performs a forward 3D-FFT using a blocked distribution.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_r2c_blocked_low(
-    double complex *restrict grid_buffer_1, double complex *restrict grid_buffer_2,
-    const int npts_global[3], const int (*proc2local_rs)[3][2],
-    const int (*proc2local_ms)[3][2], const int (*proc2local_gs)[3][2],
-    const mp_mpi_comm comm, const mp_mpi_comm sub_comm[2]) {
+void fft_3d_fw_r2c_blocked_low(double complex *restrict grid_buffer_1,
+                               double complex *restrict grid_buffer_2,
+                               const int npts_global[3],
+                               const int (*proc2local_rs)[3][2],
+                               const int (*proc2local_ms)[3][2],
+                               const int (*proc2local_gs)[3][2],
+                               const mp_mpi_comm comm,
+                               const mp_mpi_comm sub_comm[2]) {
   const int my_process = mp_mpi_comm_rank(comm);
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
@@ -1171,11 +1177,14 @@ void fft_3d_fw_r2c_blocked_low(
  * \brief Performs a backward 3D-FFT using a blocked distribution.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_blocked_low(
-    double complex *restrict grid_buffer_1, double complex *restrict grid_buffer_2,
-    const int npts_global[3], const int (*proc2local_rs)[3][2],
-    const int (*proc2local_ms)[3][2], const int (*proc2local_gs)[3][2],
-    const mp_mpi_comm comm, const mp_mpi_comm sub_comm[2]) {
+void fft_3d_bw_blocked_low(double complex *restrict grid_buffer_1,
+                           double complex *restrict grid_buffer_2,
+                           const int npts_global[3],
+                           const int (*proc2local_rs)[3][2],
+                           const int (*proc2local_ms)[3][2],
+                           const int (*proc2local_gs)[3][2],
+                           const mp_mpi_comm comm,
+                           const mp_mpi_comm sub_comm[2]) {
   const int my_process = mp_mpi_comm_rank(comm);
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
@@ -1222,6 +1231,8 @@ void fft_3d_bw_blocked_low(
                             fft_sizes_rs[0], sub_comm[1], grid_buffer_1,
                             grid_buffer_2);
       transpose_local_complex(grid_buffer_2, grid_buffer_1, fft_sizes_rs[0],
+                              fft_sizes_rs[1] * fft_sizes_rs[2],
+                              fft_sizes_rs[0],
                               fft_sizes_rs[1] * fft_sizes_rs[2]);
       memcpy(grid_buffer_2, grid_buffer_1,
              product3(fft_sizes_rs) * sizeof(double complex));
@@ -1281,11 +1292,14 @@ void fft_3d_bw_blocked_low(
  * \brief Performs a backward 3D-FFT using a blocked distribution.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_c2r_blocked_low(
-    double complex *restrict grid_buffer_1, double complex *restrict grid_buffer_2,
-    const int npts_global[3], const int (*proc2local_rs)[3][2],
-    const int (*proc2local_ms)[3][2], const int (*proc2local_gs)[3][2],
-    const mp_mpi_comm comm, const mp_mpi_comm sub_comm[2]) {
+void fft_3d_bw_c2r_blocked_low(double complex *restrict grid_buffer_1,
+                               double complex *restrict grid_buffer_2,
+                               const int npts_global[3],
+                               const int (*proc2local_rs)[3][2],
+                               const int (*proc2local_ms)[3][2],
+                               const int (*proc2local_gs)[3][2],
+                               const mp_mpi_comm comm,
+                               const mp_mpi_comm sub_comm[2]) {
   const int my_process = mp_mpi_comm_rank(comm);
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
@@ -1410,7 +1424,8 @@ void fft_3d_bw_c2r_blocked_low(
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_fw_ray_low(double complex *restrict grid_buffer_1,
-                       double complex *restrict grid_buffer_2, const int npts_global[3],
+                       double complex *restrict grid_buffer_2,
+                       const int npts_global[3],
                        const int (*proc2local_rs)[3][2],
                        const int (*proc2local_ms)[3][2],
                        const int *rays_per_process, const int (*ray_to_yz)[2],
@@ -1444,9 +1459,9 @@ void fft_3d_fw_ray_low(double complex *restrict grid_buffer_1,
       // Perform the first two FFTs in x- and y-direction
       // transpose the last two indices (is cheaper)
       // (z_d,y,x_d) -> (y_d,z,x_d)
-      transpose_local_complex(grid_buffer_1, grid_buffer_2,
-                              fft_sizes_rs[1] * fft_sizes_rs[2],
-                              fft_sizes_rs[0]);
+      transpose_local_complex(
+          grid_buffer_1, grid_buffer_2, fft_sizes_rs[1] * fft_sizes_rs[2],
+          fft_sizes_rs[0], fft_sizes_rs[1] * fft_sizes_rs[2], fft_sizes_rs[0]);
       memcpy(grid_buffer_1, grid_buffer_2,
              product3(fft_sizes_rs) * sizeof(double complex));
       fft_2d_fw_distributed((const int[2]){npts_global[1], npts_global[2]},
@@ -1659,7 +1674,8 @@ void fft_3d_fw_r2c_ray_low(double complex *restrict grid_buffer_1,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_ray_low(double complex *restrict grid_buffer_1,
-                       double complex *restrict grid_buffer_2, const int npts_global[3],
+                       double complex *restrict grid_buffer_2,
+                       const int npts_global[3],
                        const int (*proc2local_rs)[3][2],
                        const int (*proc2local_ms)[3][2],
                        const int *rays_per_process, const int (*ray_to_yz)[2],
@@ -1707,6 +1723,8 @@ void fft_3d_bw_ray_low(double complex *restrict grid_buffer_1,
                             fft_sizes_rs[0], sub_comm[1], grid_buffer_1,
                             grid_buffer_2);
       transpose_local_complex(grid_buffer_2, grid_buffer_1, fft_sizes_rs[0],
+                              fft_sizes_rs[1] * fft_sizes_rs[2],
+                              fft_sizes_rs[0],
                               fft_sizes_rs[1] * fft_sizes_rs[2]);
       memcpy(grid_buffer_2, grid_buffer_1,
              product3(fft_sizes_rs) * sizeof(double complex));
@@ -2060,7 +2078,8 @@ void fft_3d_fw_r2c_with_layout_to_cart(const double *restrict grid_rs,
  * \param grid_gs complex data in reciprocal space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs, double complex *restrict grid_gs,
+void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs,
+                               double complex *restrict grid_gs,
                                const fft_grid_layout *grid_layout) {
   assert(grid_rs != NULL);
   assert(grid_gs != NULL);
@@ -2298,7 +2317,8 @@ void fft_3d_bw_with_layout_from_cart(const double complex *restrict grid_gs,
  * \param grid_rs real-valued data in real space.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_c2r_with_layout(const double complex *restrict grid_gs, double *restrict grid_rs,
+void fft_3d_bw_c2r_with_layout(const double complex *restrict grid_gs,
+                               double *restrict grid_rs,
                                const fft_grid_layout *grid_layout) {
   assert(grid_gs != NULL);
   assert(grid_rs != NULL);

@@ -1811,8 +1811,8 @@ int fft_test_transpose() {
     }
   }
 
-  transpose_local_complex(input_array, output_array, fft_sizes[1],
-                          fft_sizes[0]);
+  transpose_local_complex(input_array, output_array, fft_sizes[1], fft_sizes[0],
+                          fft_sizes[1], fft_sizes[0]);
 
   double error = 0.0;
 
