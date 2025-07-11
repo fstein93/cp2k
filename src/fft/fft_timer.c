@@ -250,9 +250,9 @@ void fft_print_timing_report(const mp_mpi_comm comm) {
         timing_statistics[size_of_timing_statistics].routine_name =
             strdup(timed_routines[routine].routine_name);
         timing_statistics[size_of_timing_statistics].avg_total_time =
-            summed_info[0] / number_of_calls;
+            summed_info[0] / mp_mpi_comm_size(comm);
         timing_statistics[size_of_timing_statistics].avg_self_time =
-            summed_info[1] / number_of_calls;
+            summed_info[1] / mp_mpi_comm_size(comm);
         timing_statistics[size_of_timing_statistics].max_total_time =
             max_info[0];
         timing_statistics[size_of_timing_statistics].max_self_time =

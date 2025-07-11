@@ -116,7 +116,15 @@ BANNER_C = """\
 
 C_EXTENSIONS = (".c", ".cu", ".cpp", ".cc", ".h", ".hpp")
 
-BSD_PATHS = ("src/offload/", "src/grid/", "src/dbm/", "src/base/openmp_trace.c")
+BSD_PATHS = (
+    "src/offload/",
+    "src/grid/",
+    "src/dbm/",
+    "src/base/openmp_trace.c",
+    "src/fft/",
+    "src/mpiwrap/mp_mpi.c",
+    "src/mpiwrap/mp_mpi.h",
+)
 
 
 @lru_cache(maxsize=None)

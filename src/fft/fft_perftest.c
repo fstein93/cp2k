@@ -15,7 +15,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <time.h>
 
 /*******************************************************************************
  * \brief Performance test for the FFT code.
@@ -42,17 +41,16 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
              (my_bound[2][1] - my_bound[2][0] + 1) * sizeof(double));
   mp_mpi_barrier(mp_mpi_comm_world);
 
-  clock_t begin = clock();
+  double begin = omp_get_wtime();
   fft_fw_to_cart(&grid_rs, &grid_gs);
   fft_bw_from_cart(&grid_gs, &grid_rs);
   mp_mpi_barrier(mp_mpi_comm_world);
-  clock_t end = clock();
+  double end = omp_get_wtime();
 
   if (mp_mpi_comm_rank(mp_mpi_comm_world) == 0) {
     printf(
         "Planning time for FW and BW C2C (cart) FFTs of size %i %i %i : %f\n",
-        fft_size[0], fft_size[1], fft_size[2],
-        (double)(end - begin) / CLOCKS_PER_SEC);
+        fft_size[0], fft_size[1], fft_size[2], end - begin);
     fflush(stdout);
   }
 
@@ -62,12 +60,12 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
   double sum_time_squared = 0.0;
   for (int run = 0; run < number_of_runs; run++) {
     mp_mpi_barrier(mp_mpi_comm_world);
-    begin = clock();
+    begin = omp_get_wtime();
     fft_fw_to_cart(&grid_rs, &grid_gs);
     fft_bw_from_cart(&grid_gs, &grid_rs);
     mp_mpi_barrier(mp_mpi_comm_world);
-    end = clock();
-    const double current_time = (double)(end - begin) / CLOCKS_PER_SEC;
+    end = omp_get_wtime();
+    const double current_time = end - begin;
     min_time = min_time < 0.0 ? current_time : fmin(min_time, current_time);
     max_time = fmax(max_time, current_time);
     sum_time += current_time;
@@ -114,16 +112,16 @@ static void run_test_r2c(const int fft_size[3], const int number_of_runs,
              (my_bound[2][1] - my_bound[2][0] + 1) * sizeof(double));
   mp_mpi_barrier(mp_mpi_comm_world);
 
-  clock_t begin = clock();
+  double begin = omp_get_wtime();
   fft_fw_r2c(&grid_rs, &grid_gs);
   fft_bw_c2r(&grid_gs, &grid_rs);
   mp_mpi_barrier(mp_mpi_comm_world);
-  clock_t end = clock();
+  double end = omp_get_wtime();
 
   if (mp_mpi_comm_rank(mp_mpi_comm_world) == 0) {
     printf("Planning time for FW and BW %s FFTs of size %i %i %i : %f\n",
            use_halfspace ? "R2C/C2R" : "C2C", fft_size[0], fft_size[1],
-           fft_size[2], (double)(end - begin) / CLOCKS_PER_SEC);
+           fft_size[2], end - begin);
     fflush(stdout);
   }
 
@@ -133,12 +131,12 @@ static void run_test_r2c(const int fft_size[3], const int number_of_runs,
   double sum_time_squared = 0.0;
   for (int run = 0; run < number_of_runs; run++) {
     mp_mpi_barrier(mp_mpi_comm_world);
-    begin = clock();
+    begin = omp_get_wtime();
     fft_fw_r2c(&grid_rs, &grid_gs);
     fft_bw_c2r(&grid_gs, &grid_rs);
     mp_mpi_barrier(mp_mpi_comm_world);
-    end = clock();
-    const double current_time = (double)(end - begin) / CLOCKS_PER_SEC;
+    end = omp_get_wtime();
+    const double current_time = end - begin;
     min_time = min_time < 0.0 ? current_time : fmin(min_time, current_time);
     max_time = fmax(max_time, current_time);
     sum_time += current_time;
