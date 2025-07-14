@@ -1,19 +1,29 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT RPA_smearing_H2O
-  RUN_TYPE ENERGY
+  PROJECT RI_RPA_CH3
+  RUN_TYPE GEO_OPT
   &TIMINGS
     THRESHOLD 0.01
   &END TIMINGS
 &END GLOBAL
 
+&MOTION
+  &GEO_OPT
+    MAX_ITER 1
+  &END GEO_OPT
+&END MOTION
+
 &FORCE_EVAL
   METHOD Quickstep
   &DFT
     BASIS_SET_FILE_NAME HFX_BASIS
+    MULTIPLICITY 2
     POTENTIAL_FILE_NAME GTH_POTENTIALS
+    UKS
     &MGRID
+      ! CUTOFF  300
       CUTOFF 100
+      ! REL_CUTOFF  50
       REL_CUTOFF 20
     &END MGRID
     &POISSON
@@ -26,14 +36,10 @@
       METHOD GPW
     &END QS
     &SCF
-      ADDED_MOS 10 10
-      EPS_SCF 1.0E-7
+      ADDED_MOS 20 20
+      EPS_SCF 1.0E-5
       MAX_SCF 100
       SCF_GUESS ATOMIC
-      &PRINT
-        &RESTART OFF
-        &END RESTART
-      &END PRINT
       &SMEAR
         ELECTRONIC_TEMPERATURE 300.
         METHOD FERMI_DIRAC
@@ -41,8 +47,13 @@
     &END SCF
     &XC
       &WF_CORRELATION
-        MEMORY 200.
+        MEMORY 500.0
         NUMBER_PROC 1
+        &CANONICAL_GRADIENTS
+          # Just for testing, use it only if you need the accuracy
+          DOT_PRODUCT_BLKSIZE 1
+          EPS_CANONICAL 0.1
+        &END CANONICAL_GRADIENTS
         &INTEGRALS
           ERI_METHOD GPW
           &WFC_GPW
@@ -51,7 +62,8 @@
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
-          EXTRAPOLATION_ORDER 1
+          FTRPA
+          QUADRATURE_RULE MATSUBARA
           RPA_NUM_QUAD_POINTS 10
           &HF
             FRACTION 1.0000000
@@ -68,6 +80,7 @@
   &END DFT
   &SUBSYS
     &CELL
+      ! ABC [angstrom]  10.000   10.000   10.000
       ABC [angstrom] 6.000 6.000 6.000
       PERIODIC NONE
     &END CELL
@@ -76,14 +89,14 @@
       BASIS_SET RI_AUX RI_DZVP-GTH
       POTENTIAL GTH-PBE-q1
     &END KIND
-    &KIND O
+    &KIND C
       BASIS_SET DZVP-GTH
       BASIS_SET RI_AUX RI_DZVP-GTH
-      POTENTIAL GTH-PBE-q6
+      POTENTIAL GTH-PBE-q4
     &END KIND
     &TOPOLOGY
       COORD_FILE_FORMAT xyz
-      COORD_FILE_NAME H2O_gas.xyz
+      COORD_FILE_NAME CH3.xyz
       &CENTER_COORDINATES
       &END CENTER_COORDINATES
     &END TOPOLOGY
