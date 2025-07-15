@@ -58,9 +58,11 @@ int compare_shell(const void *a, const void *b) {
   for (int index = 0; index < 3; index++) {
     const int a_value = ((const int *)a)[index];
     const int b_value = ((const int *)b)[index];
-    if (a_value > b_value + max_rel_error_for_equivalence_g_squared) {
+    const double max_allowed_error =
+        max_rel_error_for_equivalence_g_squared * fmax(a_value, b_value);
+    if (a_value > b_value + max_allowed_error) {
       return 1;
-    } else if (a_value + max_rel_error_for_equivalence_g_squared < b_value) {
+    } else if (a_value + max_allowed_error < b_value) {
       return -1;
     }
   }
