@@ -1607,8 +1607,7 @@ CONTAINS
          END DO ! jquad
 
          IF (mp2_env%ri_rpa%sigma_param /= sigma_none) THEN
-            CALL finalize_rpa_sigma(rpa_sigma, unit_nr, mp2_env%ri_rpa%e_sigma_corr, para_env, do_minimax_quad)
-            IF (do_minimax_quad) mp2_env%ri_rpa%e_sigma_corr = mp2_env%ri_rpa%e_sigma_corr/2.0_dp
+            CALL finalize_rpa_sigma(rpa_sigma, unit_nr, mp2_env%ri_rpa%e_sigma_corr, para_env)
             CALL para_env%sum(mp2_env%ri_rpa%e_sigma_corr)
          END IF
 
@@ -1617,14 +1616,12 @@ CONTAINS
          IF (scf_control%smear%electronic_temperature <= 0.0_dp) THEN
             IF (.NOT. do_ri_sos_laplace_mp2) THEN
                Erpa = Erpa/(pi*2.0_dp)
-               IF (do_minimax_quad) Erpa = Erpa/2.0_dp
             END IF
          END IF
 
          IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
             CALL para_env%sum(E_exchange)
             E_exchange = E_exchange/(pi*2.0_dp)
-            IF (do_minimax_quad) E_exchange = E_exchange/2.0_dp
             mp2_env%ri_rpa%ener_exchange = E_exchange
          END IF
 

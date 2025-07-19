@@ -116,6 +116,7 @@ CONTAINS
 
 ! Shortcut if Greenx was available and successful
       IF (ierr == 0) THEN
+         IF (.NOT. do_ri_sos_laplace_mp2) wj(:) = wj/2.0_dp
          CALL timestop(handle)
          RETURN
       END IF
@@ -160,7 +161,7 @@ CONTAINS
 
             DO jquad = 1, num_integ_points
                tj(jquad) = x_tw(jquad)
-               wj(jquad) = x_tw(jquad + num_integ_points)
+               wj(jquad) = x_tw(jquad + num_integ_points)/2.0_dp
             END DO
 
             ! for the smaller grids, the factor of 4 is included in get_rpa_minimax_coeff for wj

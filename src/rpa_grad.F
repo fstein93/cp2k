@@ -2062,7 +2062,6 @@ CONTAINS
          my_scale = mp2_env%scale_s
       ELSE
          my_scale = -mp2_env%ri_rpa%scale_rpa/(2.0_dp*pi)
-         IF (mp2_env%ri_rpa%minimax_quad) my_scale = my_scale/2.0_dp
       END IF
 
       IF (do_ri_sos_laplace_mp2) THEN
@@ -2419,7 +2418,6 @@ CONTAINS
 
       nspins = SIZE(homo)
       my_scale = mp2_env%ri_rpa%scale_rpa/(2.0_dp*pi)
-      IF (mp2_env%ri_rpa%minimax_quad) my_scale = my_scale/2.0_dp
 
       CALL cp_fm_release(rpa_work%fm_mat_Q_copy)
 

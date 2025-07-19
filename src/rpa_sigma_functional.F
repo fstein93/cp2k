@@ -189,16 +189,13 @@ CONTAINS
 !> \param unit_nr ...
 !> \param e_sigma_corr ...
 !> \param para_env ...
-!> \param do_minimax_quad ...
 ! **************************************************************************************************
-   SUBROUTINE finalize_rpa_sigma(rpa_sigma, unit_nr, e_sigma_corr, para_env, do_minimax_quad)
+   SUBROUTINE finalize_rpa_sigma(rpa_sigma, unit_nr, e_sigma_corr, para_env)
       TYPE(rpa_sigma_type), INTENT(INOUT)                :: rpa_sigma
       INTEGER                                            :: unit_nr
       REAL(KIND=dp), INTENT(OUT)                         :: e_sigma_corr
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
-      LOGICAL, INTENT(IN)                                :: do_minimax_quad
 
-      IF (do_minimax_quad) rpa_sigma%e_rpa_by_eig_val = rpa_sigma%e_rpa_by_eig_val/2.0_dp
       CALL para_env%sum(rpa_sigma%e_rpa_by_eig_val)
       e_sigma_corr = rpa_sigma%e_sigma_corr
       IF (unit_nr > 0) WRITE (unit_nr, '(T3,A,T56,F25.14)') &
