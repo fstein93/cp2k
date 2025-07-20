@@ -392,8 +392,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: occupation_numbers
       REAL(KIND=dp), INTENT(IN)                          :: electronic_temperature
-      INTEGER, INTENT(IN)                                :: num_integ_points, &
-                                                            num_integ_group, color_rpa_group
+      INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
+                                                            color_rpa_group
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tj_ext, wj_ext
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S

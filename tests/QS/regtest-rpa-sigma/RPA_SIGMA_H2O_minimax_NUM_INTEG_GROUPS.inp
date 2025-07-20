@@ -45,8 +45,8 @@
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
-          NUM_INTEG_GROUPS 4
           MINIMAX
+          NUM_INTEG_GROUPS 4
           RPA_NUM_QUAD_POINTS 6
           SIGMA_FUNCTIONAL PBE0_S2
           &HF

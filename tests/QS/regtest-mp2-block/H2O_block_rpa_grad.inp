@@ -48,8 +48,8 @@
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
-          QUADRATURE_POINTS 4
           MINIMAX
+          QUADRATURE_POINTS 4
         &END RI_RPA
       &END WF_CORRELATION
       &XC_FUNCTIONAL PBE

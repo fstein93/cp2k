@@ -802,10 +802,14 @@ CONTAINS
                occ_diff = 1.0_dp
             END IF
 
-            ! Necessary for FTRPA where omega may be zero and in presence of degenerate orbitals
+            ! Ensure that all energy differences are nonnegative
             IF (eigen_diff > eps_diff) THEN
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                              SQRT(ABS(eigen_diff)*occ_diff/(eigen_diff**2 + omega**2))
+            ELSE IF (ABS(eigen_diff) < eps_diff .AND. avirt + dimen - virtual >= iocc .AND. omega == 0.0_dp) THEN
+               ! Degenerate orbital pairs contribute only at omega=0 (Matsubara summation only, else zero)
+               fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
+                                             occupation_numbers(iocc)*(1.0_dp - occupation_numbers(iocc))
             ELSE
                fm_mat_S%local_data(:, iiB) = 0.0_dp
             END IF
@@ -941,7 +945,6 @@ CONTAINS
 !> \param para_env_RPA ...
 !> \param Erpa ...
 !> \param wjquad ...
-!> \param jquad ...
 ! **************************************************************************************************
    SUBROUTINE compute_Erpa_by_freq_int(dimen_RI, trace_Qomega, fm_mat_Q, para_env_RPA, Erpa, wjquad)
 

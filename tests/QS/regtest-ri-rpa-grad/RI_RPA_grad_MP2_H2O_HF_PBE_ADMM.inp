@@ -54,8 +54,8 @@
         &END INTEGRALS
         &RI_RPA
           ADMM
-          QUADRATURE_POINTS 4
           MINIMAX
+          QUADRATURE_POINTS 4
           &HF
             FRACTION 1.0000000
             &INTERACTION_POTENTIAL
