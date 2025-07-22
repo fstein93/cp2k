@@ -1089,7 +1089,8 @@ list(
   minimax/minimax_exp_gw.F
   minimax/minimax_exp_k15.F
   minimax/minimax_exp_k53.F
-  minimax/minimax_rpa.F)
+  minimax/minimax_rpa.F
+  minimax/minimax_ftrpa.F)
 
 list(
   APPEND

@@ -25,8 +25,10 @@ MODULE mp2_grids
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_para_env_release,&
                                               mp_para_env_type
-   USE minimax_exp,                     ONLY: get_exp_minimax_coeff
+   USE minimax_exp,                     ONLY: check_exp_minimax_range,&
+                                              get_exp_minimax_coeff
    USE minimax_exp_gw,                  ONLY: get_exp_minimax_coeff_gw
+   USE minimax_ftrpa,                   ONLY: get_ftrpa_minimax_coeff
    USE minimax_rpa,                     ONLY: get_rpa_minimax_coeff,&
                                               get_rpa_minimax_coeff_larger_grid
    USE qs_environment_types,            ONLY: get_qs_env,&
@@ -42,9 +44,96 @@ MODULE mp2_grids
    CHARACTER(len=*), PARAMETER, PRIVATE :: moduleN = 'mp2_grids'
 
    PUBLIC :: get_minimax_grid, get_clenshaw_grid, test_least_square_ft, get_l_sq_wghts_cos_tf_t_to_w, &
-             get_l_sq_wghts_cos_tf_w_to_t, get_l_sq_wghts_sin_tf_t_to_w, get_matsubara_grid
+             get_l_sq_wghts_cos_tf_w_to_t, get_l_sq_wghts_sin_tf_t_to_w, get_matsubara_grid, &
+             check_rpa_range, check_laplace_mp2_range, get_minimax_ftrpa_grid
 
 CONTAINS
+
+! **************************************************************************************************
+!> \brief ...
+!> \param num_integ_points ...
+!> \param do_minimax_quad ...
+!> \param do_gw ...
+! **************************************************************************************************
+   SUBROUTINE check_rpa_range(num_integ_points, do_minimax_quad, do_gw)
+      INTEGER, INTENT(INOUT)                             :: num_integ_points
+      LOGICAL, INTENT(IN)                                :: do_minimax_quad, do_gw
+
+      IF (.NOT. do_minimax_quad) RETURN
+      IF (do_gw) THEN
+         IF (num_integ_points > 34) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "The required number of quadrature point exceeds the maximum possible in the "// &
+                         "Minimax quadrature scheme. The number of quadrature point has been reset to 30.")
+            num_integ_points = 30
+         END IF
+      ELSE
+         IF (num_integ_points > 20) THEN
+            CALL cp_warn(__LOCATION__, &
+                         "The required number of quadrature point exceeds the maximum possible in the "// &
+                         "Minimax quadrature scheme. The number of quadrature point has been reset to 20.")
+            num_integ_points = 20
+         END IF
+      END IF
+   END SUBROUTINE check_rpa_range
+
+! **************************************************************************************************
+!> \brief ...
+!> \param num_integ_points ...
+!> \param e_range_input ...
+!> \param e_gap_input ...
+!> \param Eigenval ...
+!> \param homo ...
+! **************************************************************************************************
+   SUBROUTINE check_laplace_mp2_range(num_integ_points, e_range_input, e_gap_input, Eigenval, homo)
+      INTEGER, INTENT(INOUT)                             :: num_integ_points
+      REAL(KIND=dp), INTENT(IN)                          :: e_range_input, e_gap_input
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+
+      INTEGER                                            :: ierr, iiB, ispin, jjB, nspins
+      REAL(KIND=dp)                                      :: e_range, emax, emin
+
+      nspins = SIZE(homo)
+      CPASSERT(SIZE(Eigenval, 2) == nspins)
+
+      ! check the range for the minimax approximation
+      ! Assume all orbitals to be fully occupied or fully unoccupied (in contrast to RPA)
+      E_Range = e_range_input
+      IF (e_range_input <= 1.0_dp .OR. e_gap_input <= 0.0_dp) THEN
+         Emin = HUGE(dp)
+         Emax = 0.0_dp
+         DO ispin = 1, nspins
+         WRITE(*,*) "bounds", homo(ispin), SIZE(Eigenval, 1)
+         WRITE(*,*) "Max virt", Eigenval(homo(ispin) + 1:, ispin)
+         WRITE(*,*) "Max occ", Eigenval(:homo(ispin), ispin)
+            Emin = MIN(Emin, 2.0_dp*(MINVAL(Eigenval(homo(ispin) + 1:, ispin)) - MAXVAL(Eigenval(:homo(ispin), ispin))))
+            Emax = MAX(Emax, 2.0_dp*MAXVAL(Eigenval(:, ispin)) - MINVAL(Eigenval(:, ispin)))
+         END DO
+         E_Range = Emax/Emin
+      END IF
+      IF (E_Range < 2.0_dp) E_Range = 2.0_dp
+      ierr = 0
+      CALL check_exp_minimax_range(num_integ_points, E_Range, ierr)
+      IF (ierr < 0) THEN
+         jjB = num_integ_points - 1
+         DO iiB = 1, jjB
+            num_integ_points = num_integ_points - 1
+            ierr = 0
+            CALL check_exp_minimax_range(num_integ_points, E_Range, ierr)
+            IF (ierr >= 0) EXIT
+         END DO
+         CALL cp_warn(__LOCATION__, &
+                      "Minimax grid for the requested number of grid points not available! "// &
+                      "CP2K will continue with a reduced number of 15 grid points instead!")
+      END IF
+      IF (ierr > 0) THEN
+         CALL cp_warn(__LOCATION__, &
+                      "Minimax grid with the requested energy range not available! "// &
+                      "Use one with the smallest available range instead!")
+      END IF
+      CPASSERT(num_integ_points >= 1)
+   END SUBROUTINE check_laplace_mp2_range
 
 ! **************************************************************************************************
 !> \brief ...
@@ -277,6 +366,90 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE get_minimax_grid
+
+! **************************************************************************************************
+!> \brief ...
+!> \param para_env ...
+!> \param unit_nr ...
+!> \param homo ...
+!> \param virtual ...
+!> \param Eigenval ...
+!> \param num_integ_points ...
+!> \param electronic_temperature ...
+!> \param qs_env ...
+!> \param e_fermi ...
+!> \param tj ...
+!> \param wj ...
+! **************************************************************************************************
+   SUBROUTINE get_minimax_ftrpa_grid(para_env, unit_nr, homo, virtual, Eigenval, num_integ_points, &
+                                     electronic_temperature, qs_env, e_fermi, tj, wj)
+
+      TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: Eigenval
+      INTEGER, INTENT(IN)                                :: num_integ_points
+      REAL(KIND=dp), INTENT(IN)                          :: electronic_temperature
+      TYPE(qs_environment_type), POINTER                 :: qs_env
+      REAL(KIND=dp), INTENT(OUT)                         :: e_fermi
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
+         INTENT(OUT)                                     :: tj, wj
+
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'get_minimax_ftrpa_grid'
+
+      INTEGER                                            :: handle, ierr, jquad, nspins
+      REAL(KIND=dp)                                      :: E_Range, Emax, Emin
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: x_tw
+
+      CALL timeset(routineN, handle)
+
+      ! Test for spin unrestricted
+      nspins = SIZE(homo)
+      CPASSERT(SIZE(virtual) == nspins)
+      CPASSERT(SIZE(Eigenval, 2) == nspins)
+
+      CALL determine_energy_range(qs_env, para_env, homo, virtual, Eigenval, .FALSE., &
+                                  .FALSE., Emin, Emax, e_range, e_fermi)
+
+      e_range = emax/electronic_temperature
+
+      ALLOCATE (x_tw(2*num_integ_points))
+      x_tw = 0.0_dp
+      ierr = 0
+      CALL get_ftrpa_minimax_coeff(num_integ_points, e_range, x_tw, ierr)
+
+      ALLOCATE (tj(num_integ_points))
+      tj = 0.0_dp
+
+      ALLOCATE (wj(num_integ_points))
+      wj = 0.0_dp
+
+      DO jquad = 1, num_integ_points
+         tj(jquad) = x_tw(jquad + num_integ_points)
+         wj(jquad) = x_tw(jquad)
+      END DO
+
+      DEALLOCATE (x_tw)
+
+      IF (unit_nr > 0) THEN
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T75,i6)") &
+            "MINIMAX_INFO| Number of integration points:", num_integ_points
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T66,F15.4)") &
+            "MINIMAX_INFO| Range for the minimax approximation:", e_range
+         WRITE (UNIT=unit_nr, FMT="(T3,A,T54,A,T72,A)") "MINIMAX_INFO| Minimax parameters:", "Weights", "Abscissas"
+         DO jquad = 1, num_integ_points
+            WRITE (UNIT=unit_nr, FMT="(T41,F20.10,F20.10)") wj(jquad), tj(jquad)
+         END DO
+         CALL m_flush(unit_nr)
+      END IF
+
+      ! scale the minimax parameters
+      tj(:) = tj(:)*electronic_temperature
+      wj(:) = wj(:)*electronic_temperature
+
+      CALL timestop(handle)
+
+   END SUBROUTINE get_minimax_ftrpa_grid
 
 ! **************************************************************************************************
 !> \brief ...

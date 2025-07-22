@@ -52,38 +52,6 @@ MODULE minimax_exp
 
    PUBLIC :: get_exp_minimax_coeff, validate_exp_minimax, check_exp_minimax_range
 
-   ! Imported from minimax_k53:
-
-   ! Number of tabulated minimax approximations:
-   ! INTEGER, PARAMETER :: n_approx
-
-   ! Number of K values:
-   ! INTEGER, PARAMETER :: n_k
-
-   ! Maximum K value:
-   ! INTEGER, PARAMETER :: k_max
-
-   ! Maximum range Rc:
-   ! REAL(KIND=dp), PARAMETER :: R_max
-
-   ! Values of K:
-   ! INTEGER, PARAMETER, DIMENSION(n_approx) :: k_mm
-
-   ! Values of Rc:
-   ! REAL(KIND=dp), PARAMETER, DIMENSION(n_approx) :: R_mm
-
-   ! Values of minimax error:
-   ! REAL(KIND=dp), PARAMETER, DIMENSION(n_approx) :: err_mm
-
-   ! Note: the coefficients (k_mm, R_mm, err_mm) are sorted w.r.t. 1) k_mm, 2) R_mm
-
-   ! Given the ith value of K, k_p(i) points to the first minimax
-   ! approximation with K terms:
-   ! INTEGER, PARAMETER, DIMENSION(n_k+1) :: k_p
-
-   ! Minimax coefficients aw of the ith minimax approximation:
-   ! SUBROUTINE get_minimax_coeff_low(i, aw)
-
 CONTAINS
 
 ! **************************************************************************************************

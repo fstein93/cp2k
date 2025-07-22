@@ -63,9 +63,11 @@ MODULE rpa_main
    USE message_passing,                 ONLY: mp_comm_type,&
                                               mp_para_env_release,&
                                               mp_para_env_type
-   USE minimax_exp,                     ONLY: check_exp_minimax_range
-   USE mp2_grids,                       ONLY: get_clenshaw_grid,&
+   USE mp2_grids,                       ONLY: check_laplace_mp2_range,&
+                                              check_rpa_range,&
+                                              get_clenshaw_grid,&
                                               get_matsubara_grid,&
+                                              get_minimax_ftrpa_grid,&
                                               get_minimax_grid
    USE mp2_laplace,                     ONLY: SOS_MP2_postprocessing
    USE mp2_ri_grad_util,                ONLY: array2fm
@@ -238,8 +240,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_ri_compute_en'
 
       INTEGER :: best_integ_group_size, best_num_integ_point, color_rpa_group, dimen, &
-         dimen_homo_square, dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, ierr, iiB, &
-         input_num_integ_groups, integ_group_size, ispin, jjB, min_integ_group_size, &
+         dimen_homo_square, dimen_nm_gw, dimen_virt_square, handle, handle2, handle3, iiB, &
+         input_num_integ_groups, integ_group_size, ispin, min_integ_group_size, &
          my_ab_comb_bse_end, my_ab_comb_bse_size, my_ab_comb_bse_start, my_group_L_end, &
          my_group_L_size, my_group_L_start, my_ij_comb_bse_end, my_ij_comb_bse_size, &
          my_ij_comb_bse_start, my_nm_gw_end, my_nm_gw_size, my_nm_gw_start, ncol_block_mat, &
@@ -249,8 +251,9 @@ CONTAINS
                                                             my_ia_start
       LOGICAL                                            :: do_kpoints_from_Gamma, do_minimax_quad, &
                                                             my_open_shell, skip_integ_group_opt
-      REAL(KIND=dp) :: allowed_memory, avail_mem, E_Range, Emax, Emin, mem_for_iaK, mem_for_QK, &
-         mem_min, mem_per_group, mem_per_rank, mem_per_repl, mem_real
+      REAL(KIND=dp)                                      :: allowed_memory, avail_mem, mem_for_iaK, &
+                                                            mem_for_QK, mem_min, mem_per_group, &
+                                                            mem_per_rank, mem_per_repl, mem_real
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: Eigenval_kp
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_mat_Q, fm_mat_Q_gemm, fm_mat_S, &
                                                             fm_mat_S_gw
@@ -300,56 +303,11 @@ CONTAINS
       do_minimax_quad = mp2_env%ri_rpa%minimax_quad
 
       IF (do_ri_sos_laplace_mp2) THEN
+         CALL check_laplace_mp2_range(mp2_env%ri_laplace%n_quadrature, mp2_env%e_range, mp2_env%e_gap, Eigenval, homo)
          num_integ_points = mp2_env%ri_laplace%n_quadrature
-         input_num_integ_groups = mp2_env%ri_laplace%num_integ_groups
-
-         ! check the range for the minimax approximation
-         ! Assume all orbitals to be fully occupied or fully unoccupied (in contrast to RPA)
-         E_Range = mp2_env%e_range
-         IF (mp2_env%e_range <= 1.0_dp .OR. mp2_env%e_gap <= 0.0_dp) THEN
-            Emin = HUGE(dp)
-            Emax = 0.0_dp
-            DO ispin = 1, nspins
-               IF (homo(ispin) > 0) THEN
-                  Emin = MIN(Emin, 2.0_dp*(Eigenval(homo(ispin) + 1, ispin) - Eigenval(homo(ispin), ispin)))
-                  Emax = MAX(Emax, 2.0_dp*(MAXVAL(Eigenval(:, ispin)) - MINVAL(Eigenval(:, ispin))))
-               END IF
-            END DO
-            E_Range = Emax/Emin
-         END IF
-         IF (E_Range < 2.0_dp) E_Range = 2.0_dp
-         ierr = 0
-         CALL check_exp_minimax_range(num_integ_points, E_Range, ierr)
-         IF (ierr /= 0) THEN
-            jjB = num_integ_points - 1
-            DO iiB = 1, jjB
-               num_integ_points = num_integ_points - 1
-               ierr = 0
-               CALL check_exp_minimax_range(num_integ_points, E_Range, ierr)
-               IF (ierr == 0) EXIT
-            END DO
-         END IF
-         CPASSERT(num_integ_points >= 1)
       ELSE
+         CALL check_rpa_range(mp2_env%ri_rpa%rpa_num_quad_points, do_minimax_quad, my_do_gw)
          num_integ_points = mp2_env%ri_rpa%rpa_num_quad_points
-         input_num_integ_groups = mp2_env%ri_rpa%rpa_num_integ_groups
-         IF (my_do_gw .AND. do_minimax_quad) THEN
-            IF (num_integ_points > 34) THEN
-               IF (unit_nr > 0) &
-                  CALL cp_warn(__LOCATION__, &
-                               "The required number of quadrature point exceeds the maximum possible in the "// &
-                               "Minimax quadrature scheme. The number of quadrature point has been reset to 30.")
-               num_integ_points = 30
-            END IF
-         ELSE
-            IF (do_minimax_quad .AND. num_integ_points > 20) THEN
-               IF (unit_nr > 0) &
-                  CALL cp_warn(__LOCATION__, &
-                               "The required number of quadrature point exceeds the maximum possible in the "// &
-                               "Minimax quadrature scheme. The number of quadrature point has been reset to 20.")
-               num_integ_points = 20
-            END IF
-         END IF
       END IF
       allowed_memory = mp2_env%mp2_memory
 
@@ -402,6 +360,7 @@ CONTAINS
          skip_integ_group_opt = .FALSE.
 
          ! Check the input number of integration groups
+         input_num_integ_groups = mp2_env%ri_rpa%rpa_num_integ_groups
          IF (input_num_integ_groups > 0) THEN
             IF (MOD(num_integ_points, input_num_integ_groups) == 0) THEN
                IF (MOD(ngroup, input_num_integ_groups) == 0) THEN
@@ -1287,29 +1246,35 @@ CONTAINS
 
       ALLOCATE (e_fermi(nspins))
       IF (scf_control%smear%electronic_temperature > 0.0_dp) THEN
+      IF (do_minimax_quad) THEN
+         CALL get_minimax_ftrpa_grid(para_env, unit_nr, homo, virtual, Eigenval, &
+                                     num_integ_points, scf_control%smear%electronic_temperature, &
+                                     qs_env, e_fermi(1), tj, wj)
+      ELSE
          CALL get_matsubara_grid(unit_nr, scf_control%smear%electronic_temperature, Eigenval(:, 1, :), &
                                  num_integ_points, extrapolation_order, tj, wj)
+      END IF
       ELSE IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
-         do_print = .NOT. do_ic_model
-         CALL get_minimax_grid(para_env, unit_nr, homo, virtual, Eigenval, num_integ_points, do_im_time, &
-                               do_ri_sos_laplace_mp2, do_print, &
-                               tau_tj, tau_wj, qs_env, do_gw_im_time, &
-                               do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
-                               weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
-                               qs_env%mp2_env%ri_g0w0%regularization_minimax)
+      do_print = .NOT. do_ic_model
+      CALL get_minimax_grid(para_env, unit_nr, homo, virtual, Eigenval, num_integ_points, do_im_time, &
+                            do_ri_sos_laplace_mp2, do_print, &
+                            tau_tj, tau_wj, qs_env, do_gw_im_time, &
+                            do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
+                            weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
+                            qs_env%mp2_env%ri_g0w0%regularization_minimax)
 
-         ! For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
-         IF (qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
-            CALL keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, &
-                                   weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, do_im_time, &
-                                   num_integ_points, unit_nr, qs_env)
-         END IF
+      ! For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
+      IF (qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
+         CALL keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, &
+                                weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, do_im_time, &
+                                num_integ_points, unit_nr, qs_env)
+      END IF
       ELSE
-         IF (calc_forces) CPABORT("Forces with Clenshaw-Curtis grid not implemented.")
-         CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, occupation_numbers, &
-                                scf_control%smear%electronic_temperature, num_integ_points, &
-                                num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
-                                ext_scaling, tj, wj)
+      IF (calc_forces) CPABORT("Forces with Clenshaw-Curtis grid not implemented.")
+      CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, occupation_numbers, &
+                             scf_control%smear%electronic_temperature, num_integ_points, &
+                             num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
+                             ext_scaling, tj, wj)
       END IF
 
       ! This array is needed for RPA
