@@ -57,8 +57,6 @@
         MEMORY 200.
         NUMBER_PROC 1
         &CANONICAL_GRADIENTS
-          # Just for testing, use it only if you need the accuracy
-          DOT_PRODUCT_BLKSIZE 1
           EPS_CANONICAL 0.1
         &END CANONICAL_GRADIENTS
         &INTEGRALS

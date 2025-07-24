@@ -478,17 +478,6 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, &
-         name="DOT_PRODUCT_BLKSIZE", &
-         description="Dot products for the calculation of the RPA/SOS-MP2 density matrices "// &
-         "are calculated in batches of the size given by this keyword. Larger block sizes "// &
-         "improve the performance but reduce the numerical accuracy. Recommended block sizes are multiples of the number of "// &
-         "doubles per cache line (usually 8). Ignored with MP2 gradients. Set it to -1 to prevent blocking.", &
-         default_i_val=-1)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
-
-      CALL keyword_create( &
-         keyword, __LOCATION__, &
          name="MAX_PARALLEL_COMM", &
          description="Sets the maximum number of parallel communication steps of the non-blocking communication scheme. "// &
          "The number of channels is determined from the available memory. If set to a value smaller than one, "// &

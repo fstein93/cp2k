@@ -38,13 +38,11 @@ MODULE rpa_grad
                                               group_dist_proc,&
                                               maxsize,&
                                               release_group_dist
-   USE kahan_sum,                       ONLY: accurate_dot_product,&
-                                              accurate_dot_product_2
+   USE kahan_sum,                       ONLY: accurate_dot_product
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE libint_2c_3c,                    ONLY: compare_potential_types
-   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU,&
-                                              local_gemm_ctxt_type
+   USE local_gemm_api,                  ONLY: LOCAL_GEMM_PU_GPU
    USE machine,                         ONLY: m_flush,&
                                               m_memory
    USE mathconstants,                   ONLY: pi
@@ -104,7 +102,6 @@ MODULE rpa_grad
    END TYPE rpa_grad_type
 
    INTEGER, PARAMETER :: spla_threshold = 128*128*128*2
-   INTEGER, PARAMETER :: blksize_threshold = 4
 
 CONTAINS
 
@@ -176,7 +173,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_grad_create'
 
-      INTEGER                                            :: handle, ispin, nrow_local, nspins
+      INTEGER                                            :: handle, ispin, nspins
 
       CALL timeset(routineN, handle)
 
@@ -196,16 +193,6 @@ CONTAINS
       ELSE
          CALL rpa_work_type_create(rpa_grad%rpa_work, fm_mat_Q, fm_mat_S, homo, virtual)
       END IF
-
-      ! Set blocksize
-      CALL cp_fm_struct_get(fm_mat_S(1)%matrix_struct, nrow_local=nrow_local)
-      IF (mp2_env%ri_grad%dot_blksize < 1) mp2_env%ri_grad%dot_blksize = nrow_local
-      mp2_env%ri_grad%dot_blksize = MIN(mp2_env%ri_grad%dot_blksize, nrow_local)
-      IF (unit_nr > 0) THEN
-         WRITE (unit_nr, '(T3,A,T75,I6)') 'GRAD_INFO| Block size for the contraction:', mp2_env%ri_grad%dot_blksize
-         CALL m_flush(unit_nr)
-      END IF
-      CALL fm_mat_S(1)%matrix_struct%para_env%sync()
 
       CALL timestop(handle)
 
@@ -837,7 +824,7 @@ CONTAINS
          IF (do_ri_sos_laplace_mp2) THEN
             CALL calc_P_sos_mp2(homo(ispin), fm_mat_S(ispin), fm_work_iaP, &
                                 rpa_grad%sos_mp2_work_occ(ispin), rpa_grad%sos_mp2_work_virt(ispin), &
-                                omega, weight, virtual(ispin), Eigenval(:, ispin), mp2_env%ri_grad%dot_blksize)
+                                omega, weight, virtual(ispin), Eigenval(:, ispin))
 
             CALL calc_fm_mat_S_laplace(fm_work_iaP, homo(ispin), virtual(ispin), Eigenval(:, ispin), omega)
 
@@ -890,17 +877,15 @@ CONTAINS
 !> \param weight ...
 !> \param virtual ...
 !> \param Eigenval ...
-!> \param dot_blksize ...
 ! **************************************************************************************************
    SUBROUTINE calc_P_sos_mp2(homo, fm_mat_S, fm_work_iaP, sos_mp2_work_occ, sos_mp2_work_virt, &
-                             omega, weight, virtual, Eigenval, dot_blksize)
+                             omega, weight, virtual, Eigenval)
       INTEGER, INTENT(IN)                                :: homo
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_work_iaP
       TYPE(sos_mp2_grad_work_type), INTENT(INOUT)        :: sos_mp2_work_occ, sos_mp2_work_virt
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
       INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      INTEGER, INTENT(IN)                                :: dot_blksize
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_sos_mp2'
 
@@ -962,12 +947,12 @@ CONTAINS
       IF (num_ij_pairs > 0) THEN
          CALL calc_Pij_degen(fm_work_iaP, fm_mat_S, sos_mp2_work_occ%pair_list, &
                              virtual, sos_mp2_work_occ%P(homo + 1:), Eigenval(:homo), omega, weight, &
-                             sos_mp2_work_occ%index2send, sos_mp2_work_occ%index2recv, dot_blksize)
+                             sos_mp2_work_occ%index2send, sos_mp2_work_occ%index2recv)
       END IF
       IF (num_ab_pairs > 0) THEN
          CALL calc_Pab_degen(fm_work_iaP, fm_mat_S, sos_mp2_work_virt%pair_list, &
                              virtual, sos_mp2_work_virt%P(virtual + 1:), Eigenval(homo + 1:), omega, weight, &
-                             sos_mp2_work_virt%index2send, sos_mp2_work_virt%index2recv, dot_blksize)
+                             sos_mp2_work_virt%index2send, sos_mp2_work_virt%index2recv)
       END IF
 
       CALL timestop(handle)
@@ -1025,10 +1010,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ! We allocate it at every step to reduce potential memory conflicts with COSMA
-      IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
-         CALL mp2_env%local_gemm_ctx%create(LOCAL_GEMM_PU_GPU)
-         CALL mp2_env%local_gemm_ctx%set_op_threshold_gpu(spla_threshold)
-      END IF
+      CALL mp2_env%local_gemm_ctx%create(LOCAL_GEMM_PU_GPU)
+      CALL mp2_env%local_gemm_ctx%set_op_threshold_gpu(spla_threshold)
 
       tag = 47
 
@@ -1071,9 +1054,7 @@ CONTAINS
       ALLOCATE (buffer_3D(number_of_parallel_channels))
 
       ! Allocate buffers for vector version of kahan summation
-      IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
-         ALLOCATE (buffer_compens_1D(2*MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
-      END IF
+      ALLOCATE (buffer_compens_1D(2*MAX(my_a_size*maxsize(gd_virtual), my_i_size*maxsize(gd_homo))))
 
       IF (number_of_parallel_channels > 1) THEN
          ALLOCATE (procs_recv(number_of_parallel_channels))
@@ -1111,9 +1092,7 @@ CONTAINS
          CALL timestop(handle2)
       END IF
 
-      CALL calc_P_rpa_a(P_ab(:, my_a_start:my_a_end), &
-                        mat_S_3D, mat_work_iaP_3D, &
-                        mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
+      CALL calc_P_rpa_a(P_ab(:, my_a_start:my_a_end), mat_S_3D, mat_work_iaP_3D, &
                         Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                         Eigenval(homo + my_a_start:homo + my_a_end), omega, weight)
 
@@ -1141,9 +1120,7 @@ CONTAINS
          END IF
          CALL timestop(handle2)
 
-         CALL calc_P_rpa_a(P_ab(:, recv_a_start:recv_a_end), &
-                           mat_S_3D, buffer_3D(completed)%array, &
-                           mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
+         CALL calc_P_rpa_a(P_ab(:, recv_a_start:recv_a_end), mat_S_3D, buffer_3D(completed)%array, &
                            Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                            Eigenval(homo + recv_a_start:homo + recv_a_end), omega, weight)
 
@@ -1195,9 +1172,7 @@ CONTAINS
          END DO
       END IF
 
-      CALL calc_P_rpa_i(P_ij(:, my_i_start:my_i_end), &
-                        mat_S_3D, mat_work_iaP_3D, &
-                        mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
+      CALL calc_P_rpa_i(P_ij(:, my_i_start:my_i_end), mat_S_3D, mat_work_iaP_3D, &
                         Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                         Eigenval(my_i_start:my_i_end), omega, weight)
 
@@ -1225,9 +1200,7 @@ CONTAINS
          END IF
          CALL timestop(handle2)
 
-         CALL calc_P_rpa_i(P_ij(:, recv_i_start:recv_i_end), &
-                           mat_S_3D, buffer_3D(completed)%array, &
-                           mp2_env%ri_grad%dot_blksize, buffer_compens_1D, mp2_env%local_gemm_ctx, &
+         CALL calc_P_rpa_i(P_ij(:, recv_i_start:recv_i_end), mat_S_3D, buffer_3D(completed)%array, &
                            Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
                            Eigenval(recv_i_start:recv_i_end), omega, weight)
 
@@ -1257,11 +1230,9 @@ CONTAINS
          DEALLOCATE (send_requests)
       END IF
 
-      IF (mp2_env%ri_grad%dot_blksize >= blksize_threshold) THEN
-         ! release memory allocated by local_gemm when run on GPU. local_gemm_ctx is null on cpu only runs
-         CALL mp2_env%local_gemm_ctx%destroy()
-         DEALLOCATE (buffer_compens_1D)
-      END IF
+      ! release memory allocated by local_gemm when run on GPU. local_gemm_ctx is null on cpu only runs
+      CALL mp2_env%local_gemm_ctx%destroy()
+      DEALLOCATE (buffer_compens_1D)
 
       DO proc_shift = 1, number_of_parallel_channels
          NULLIFY (buffer_3D(proc_shift)%array)
@@ -1278,32 +1249,26 @@ CONTAINS
 !> \param P_ab ...
 !> \param mat_S ...
 !> \param mat_work ...
-!> \param dot_blksize ...
-!> \param buffer_1D ...
-!> \param local_gemm_ctx ...
 !> \param my_eval_virt ...
 !> \param my_eval_occ ...
 !> \param recv_eval_virt ...
 !> \param omega ...
 !> \param weight ...
 ! **************************************************************************************************
-   SUBROUTINE calc_P_rpa_a(P_ab, mat_S, mat_work, dot_blksize, buffer_1D, local_gemm_ctx, &
+   SUBROUTINE calc_P_rpa_a(P_ab, mat_S, mat_work, &
                            my_eval_virt, my_eval_occ, recv_eval_virt, omega, weight)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: P_ab
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: mat_S, mat_work
-      INTEGER, INTENT(IN)                                :: dot_blksize
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT), TARGET                           :: buffer_1D
-      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: local_gemm_ctx
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, recv_eval_virt
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa_a'
 
       INTEGER                                            :: handle, my_a, my_a_size, my_i, &
-                                                            my_i_size, my_P_size, P_end, P_start, &
-                                                            recv_a_size, stripesize
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_compens, buffer_unscaled
+                                                            my_i_size, my_P_size, recv_a, &
+                                                            recv_a_size
+      REAL(KIND=dp)                                      :: e_a, e_b, e_i, my_compens, my_p, omega2, &
+                                                            s, tmp
 
       CALL timeset(routineN, handle)
 
@@ -1312,56 +1277,28 @@ CONTAINS
       my_a_size = SIZE(mat_S, 2)
       my_P_size = SIZE(mat_S, 1)
 
-      IF (dot_blksize >= blksize_threshold) THEN
-         buffer_compens(1:my_a_size, 1:recv_a_size) => buffer_1D(1:my_a_size*recv_a_size)
-         buffer_compens = 0.0_dp
-         buffer_unscaled(1:my_a_size, 1:recv_a_size) => buffer_1D(my_a_size*recv_a_size + 1:2*my_a_size*recv_a_size)
-
-         ! This loop imitates the actual tensor contraction
-         DO my_i = 1, my_i_size
-            DO P_start = 1, my_P_size, dot_blksize
-               stripesize = MIN(dot_blksize, my_P_size - P_start + 1)
-               P_end = P_start + stripesize - 1
-
-               CALL local_gemm_ctx%gemm("T", "N", my_a_size, recv_a_size, stripesize, &
-                                        -weight, mat_S(P_start:P_end, :, my_i), stripesize, &
-                                        mat_work(P_start:P_end, :, my_i), stripesize, &
-                                        0.0_dp, buffer_unscaled, my_a_size)
-
-               CALL scale_buffer_and_add_compens_virt(buffer_unscaled, buffer_compens, omega, &
-                                                      my_eval_virt, recv_eval_virt, my_eval_occ(my_i))
-
-               CALL kahan_step(buffer_compens, P_ab)
-            END DO
-         END DO
-      ELSE
-         BLOCK
-            INTEGER :: recv_a
-            REAL(KIND=dp) :: tmp, e_i, e_a, e_b, omega2, my_compens, my_p, s
-            omega2 = -omega**2
+      omega2 = -omega**2
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_a_size,my_i_size,mat_S,my_eval_virt,recv_eval_virt,my_eval_occ,omega2,&
 !$OMP        P_ab,weight,mat_work)&
 !$OMP PRIVATE(tmp,my_a,recv_a,my_i,e_a,e_b,e_i,my_compens,my_p,s)
-            DO my_a = 1, my_a_size
-            DO recv_a = 1, recv_a_size
-               e_a = my_eval_virt(my_a)
-               e_b = recv_eval_virt(recv_a)
-               my_p = P_ab(my_a, recv_a)
-               my_compens = 0.0_dp
-               DO my_i = 1, my_i_size
-                  e_i = -my_eval_occ(my_i)
-                  tmp = -weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, recv_a, my_i)) &
-                        *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i))) - my_compens
-                  s = my_p + tmp
-                  my_compens = (s - my_p) - tmp
-                  my_p = s
-               END DO
-               P_ab(my_a, recv_a) = my_p
-            END DO
-            END DO
-         END BLOCK
-      END IF
+      DO my_a = 1, my_a_size
+      DO recv_a = 1, recv_a_size
+         e_a = my_eval_virt(my_a)
+         e_b = recv_eval_virt(recv_a)
+         my_p = P_ab(my_a, recv_a)
+         my_compens = 0.0_dp
+         DO my_i = 1, my_i_size
+            e_i = -my_eval_occ(my_i)
+            tmp = -weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, recv_a, my_i)) &
+                  *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i))) - my_compens
+            s = my_p + tmp
+            my_compens = (s - my_p) - tmp
+            my_p = s
+         END DO
+         P_ab(my_a, recv_a) = my_p
+      END DO
+      END DO
 
       CALL timestop(handle)
 
@@ -1372,32 +1309,26 @@ CONTAINS
 !> \param P_ij ...
 !> \param mat_S ...
 !> \param mat_work ...
-!> \param dot_blksize ...
-!> \param buffer_1D ...
-!> \param local_gemm_ctx ...
 !> \param my_eval_virt ...
 !> \param my_eval_occ ...
 !> \param recv_eval_occ ...
 !> \param omega ...
 !> \param weight ...
 ! **************************************************************************************************
-   SUBROUTINE calc_P_rpa_i(P_ij, mat_S, mat_work, dot_blksize, buffer_1D, local_gemm_ctx, &
+   SUBROUTINE calc_P_rpa_i(P_ij, mat_S, mat_work, &
                            my_eval_virt, my_eval_occ, recv_eval_occ, omega, weight)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: P_ij
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S, mat_work
-      INTEGER, INTENT(IN)                                :: dot_blksize
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
-         INTENT(INOUT), TARGET                           :: buffer_1D
-      TYPE(local_gemm_ctxt_type), INTENT(INOUT)          :: local_gemm_ctx
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, recv_eval_occ
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa_i'
 
       INTEGER                                            :: handle, my_a, my_a_size, my_i, &
-                                                            my_i_size, my_P_size, P_end, P_start, &
-                                                            recv_i_size, stripesize
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: buffer_compens, buffer_unscaled
+                                                            my_i_size, my_P_size, recv_i, &
+                                                            recv_i_size
+      REAL(KIND=dp)                                      :: e_a, e_i, e_j, my_compens, my_p, omega2, &
+                                                            s, tmp
 
       CALL timeset(routineN, handle)
 
@@ -1406,56 +1337,28 @@ CONTAINS
       my_a_size = SIZE(mat_S, 2)
       my_P_size = SIZE(mat_S, 1)
 
-      IF (dot_blksize >= blksize_threshold) THEN
-         buffer_compens(1:my_i_size, 1:recv_i_size) => buffer_1D(1:my_i_size*recv_i_size)
-         buffer_compens = 0.0_dp
-         buffer_unscaled(1:my_i_size, 1:recv_i_size) => buffer_1D(my_i_size*recv_i_size + 1:2*my_i_size*recv_i_size)
-
-         ! This loop imitates the actual tensor contraction
-         DO my_a = 1, my_a_size
-            DO P_start = 1, my_P_size, dot_blksize
-               stripesize = MIN(dot_blksize, my_P_size - P_start + 1)
-               P_end = P_start + stripesize - 1
-
-               CALL local_gemm_ctx%gemm("T", "N", my_i_size, recv_i_size, stripesize, &
-                                        weight, mat_S(P_start:P_end, my_a, :), stripesize, &
-                                        mat_work(P_start:P_end, my_a, :), stripesize, &
-                                        0.0_dp, buffer_unscaled, my_i_size)
-
-               CALL scale_buffer_and_add_compens_occ(buffer_unscaled, buffer_compens, omega, &
-                                                     my_eval_occ, recv_eval_occ, my_eval_virt(my_a))
-
-               CALL kahan_step(buffer_compens, P_ij)
-            END DO
-         END DO
-      ELSE
-         BLOCK
-            REAL(KIND=dp) :: tmp, e_i, e_a, e_j, omega2, my_compens, my_p, s
-            INTEGER :: recv_i
-            omega2 = -omega**2
+      omega2 = -omega**2
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_i_size,my_i_size,mat_S,my_eval_occ,my_eval_virt,omega2,&
 !$OMP        recv_eval_occ,P_ij,weight,mat_work)&
 !$OMP PRIVATE(tmp,my_a,recv_i,my_i,e_i,e_j,e_a,my_compens,my_p,s)
-            DO my_i = 1, my_i_size
-            DO recv_i = 1, recv_i_size
-               e_i = my_eval_occ(my_i)
-               e_j = recv_eval_occ(recv_i)
-               my_p = P_ij(my_i, recv_i)
-               my_compens = 0.0_dp
-               DO my_a = 1, my_a_size
-                  e_a = my_eval_virt(my_a)
-                  tmp = weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, my_a, recv_i)) &
-                        *(1.0_dp + omega2/((e_a - e_i)*(e_a - e_j))) - my_compens
-                  s = my_p + tmp
-                  my_compens = (s - my_p) - tmp
-                  my_p = s
-               END DO
-               P_ij(my_i, recv_i) = my_p
-            END DO
-            END DO
-         END BLOCK
-      END IF
+      DO my_i = 1, my_i_size
+      DO recv_i = 1, recv_i_size
+         e_i = my_eval_occ(my_i)
+         e_j = recv_eval_occ(recv_i)
+         my_p = P_ij(my_i, recv_i)
+         my_compens = 0.0_dp
+         DO my_a = 1, my_a_size
+            e_a = my_eval_virt(my_a)
+            tmp = weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, my_a, recv_i)) &
+                  *(1.0_dp + omega2/((e_a - e_i)*(e_a - e_j))) - my_compens
+            s = my_p + tmp
+            my_compens = (s - my_p) - tmp
+            my_p = s
+         END DO
+         P_ij(my_i, recv_i) = my_p
+      END DO
+      END DO
 
       CALL timestop(handle)
 
@@ -1599,10 +1502,9 @@ CONTAINS
 !> \param weight ...
 !> \param index2send ...
 !> \param index2recv ...
-!> \param dot_blksize ...
 ! **************************************************************************************************
    SUBROUTINE calc_Pij_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, P_ij, Eigenval, &
-                             omega, weight, index2send, index2recv, dot_blksize)
+                             omega, weight, index2send, index2recv)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_work_iaP, fm_mat_S
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: pair_list
       INTEGER, INTENT(IN)                                :: virtual
@@ -1610,7 +1512,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
       TYPE(one_dim_int_array), DIMENSION(0:), INTENT(IN) :: index2send, index2recv
-      INTEGER, INTENT(IN)                                :: dot_blksize
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_Pij_degen'
 
@@ -1656,8 +1557,7 @@ CONTAINS
 
             my_col_local = fm_work_iaP%matrix_struct%g2l_col((my_i - 1)*virtual + avirt)
 
-            trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local), &
-                                                   dot_blksize)
+            trace = trace + accurate_dot_product(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
          END DO
 
          P_ij(ij_counter) = P_ij(ij_counter) - trace*sinh_over_x(0.5_dp*(Eigenval(my_i) - Eigenval(my_j))*omega)*omega*weight
@@ -1723,8 +1623,7 @@ CONTAINS
 
                      my_col_local = fm_work_iaP%matrix_struct%g2l_col((my_i - 1)*virtual + avirt)
 
-                     trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local), &
-                                                            dot_blksize)
+                     trace = trace + accurate_dot_product(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local))
                   END DO
 
                   P_ij(ij_counter) = P_ij(ij_counter) &
@@ -1756,10 +1655,9 @@ CONTAINS
 !> \param weight ...
 !> \param index2send ...
 !> \param index2recv ...
-!> \param dot_blksize ...
 ! **************************************************************************************************
    SUBROUTINE calc_Pab_degen(fm_work_iaP, fm_mat_S, pair_list, virtual, P_ab, Eigenval, &
-                             omega, weight, index2send, index2recv, dot_blksize)
+                             omega, weight, index2send, index2recv)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_work_iaP, fm_mat_S
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: pair_list
       INTEGER, INTENT(IN)                                :: virtual
@@ -1767,7 +1665,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
       TYPE(one_dim_int_array), DIMENSION(0:), INTENT(IN) :: index2send, index2recv
-      INTEGER, INTENT(IN)                                :: dot_blksize
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_Pab_degen'
 
@@ -1812,8 +1709,7 @@ CONTAINS
             IF (pcol /= my_pcol) CYCLE
             my_col_local = fm_work_iaP%matrix_struct%g2l_col((iocc - 1)*virtual + my_a)
 
-            trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local), &
-                                                   dot_blksize)
+            trace = trace + accurate_dot_product(fm_mat_S%local_data(:, my_col_local), fm_work_iaP%local_data(:, col_local))
 
          END DO
 
@@ -1881,8 +1777,7 @@ CONTAINS
 
                      my_col_local = fm_work_iaP%matrix_struct%g2l_col((iocc - 1)*virtual + my_a)
 
-                     trace = trace + accurate_dot_product_2(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local), &
-                                                            dot_blksize)
+                     trace = trace + accurate_dot_product(fm_mat_S%local_data(:, my_col_local), buffer_recv(:, col_local))
                   END DO
 
                   P_ab(ab_counter) = P_ab(ab_counter) &
