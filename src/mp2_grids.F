@@ -84,16 +84,18 @@ CONTAINS
 !> \param e_gap_input ...
 !> \param Eigenval ...
 !> \param homo ...
+!> \param virtual ...
 ! **************************************************************************************************
-   SUBROUTINE check_laplace_mp2_range(num_integ_points, e_range_input, e_gap_input, Eigenval, homo)
+   SUBROUTINE check_laplace_mp2_range(num_integ_points, e_range_input, e_gap_input, Eigenval, homo, virtual)
       INTEGER, INTENT(INOUT)                             :: num_integ_points
       REAL(KIND=dp), INTENT(IN)                          :: e_range_input, e_gap_input
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
 
-      INTEGER                                            :: ierr, iiB, ispin, jjB, nspins
+      INTEGER                                            :: ierr, iiB, jjB, nmo, nspins, ispin
       REAL(KIND=dp)                                      :: e_range, emax, emin
 
+      nmo = SIZE(Eigenval, 1)
       nspins = SIZE(homo)
       CPASSERT(SIZE(Eigenval, 2) == nspins)
 
@@ -104,11 +106,9 @@ CONTAINS
          Emin = HUGE(dp)
          Emax = 0.0_dp
          DO ispin = 1, nspins
-         WRITE(*,*) "bounds", homo(ispin), SIZE(Eigenval, 1)
-         WRITE(*,*) "Max virt", Eigenval(homo(ispin) + 1:, ispin)
-         WRITE(*,*) "Max occ", Eigenval(:homo(ispin), ispin)
-            Emin = MIN(Emin, 2.0_dp*(MINVAL(Eigenval(homo(ispin) + 1:, ispin)) - MAXVAL(Eigenval(:homo(ispin), ispin))))
-            Emax = MAX(Emax, 2.0_dp*MAXVAL(Eigenval(:, ispin)) - MINVAL(Eigenval(:, ispin)))
+            Emin = MIN(Emin, 2.0_dp*(MINVAL(Eigenval(nmo-virtual(ispin) + 1:, ispin), DIM=1) -&
+             MAXVAL(Eigenval(:homo(ispin), ispin), DIM=1)))
+            Emax = MAX(Emax, 2.0_dp*(MAXVAL(Eigenval(:, ispin), DIM=1) - MINVAL(Eigenval(:, ispin), DIM=1)))
          END DO
          E_Range = Emax/Emin
       END IF

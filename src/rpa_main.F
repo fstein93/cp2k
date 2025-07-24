@@ -303,7 +303,8 @@ CONTAINS
       do_minimax_quad = mp2_env%ri_rpa%minimax_quad
 
       IF (do_ri_sos_laplace_mp2) THEN
-         CALL check_laplace_mp2_range(mp2_env%ri_laplace%n_quadrature, mp2_env%e_range, mp2_env%e_gap, Eigenval, homo)
+         CALL check_laplace_mp2_range(mp2_env%ri_laplace%n_quadrature, mp2_env%e_range, &
+                                      mp2_env%e_gap, Eigenval, homo, virtual)
          num_integ_points = mp2_env%ri_laplace%n_quadrature
       ELSE
          CALL check_rpa_range(mp2_env%ri_rpa%rpa_num_quad_points, do_minimax_quad, my_do_gw)

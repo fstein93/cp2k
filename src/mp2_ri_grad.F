@@ -1195,6 +1195,22 @@ CONTAINS
                             b_first_row=1, &
                             c_first_col=homo + 1, &
                             c_first_row=homo + 1)
+         ! With Laplace-SOS-MP2, we need to quench matrix elements of the non-degenerate pairs
+         ! and rescale the occupied-occupied pairs
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB)
+            IF (j_global <= (nmo - virtual)) CYCLE
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
+               IF (ABS(Eigenval(i_global) - Eigenval(j_global)) < mp2_env%ri_grad%eps_canonical) THEN
+                  mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB) = 0.0_dp
+               ELSE
+                  mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB) = &
+                     factor*mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB)/ &
+                     (Eigenval(i_global) - Eigenval(j_global))
+               END IF
+            END DO
+         END DO
       END IF
 
       IF (mp2_env%method == ri_mp2_method_gpw .OR. mp2_env%method == ri_rpa_method_gpw) THEN
@@ -1204,30 +1220,26 @@ CONTAINS
             IF (j_global <= homo) CYCLE
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               IF (my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) THEN
+               IF (my_B_virtual_start <= i_global - (nmo - virtual) .AND. i_global - (nmo - virtual) <= my_B_virtual_end) THEN
                   mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB) = &
-                     mp2_env%ri_grad%P_ab(kspin)%array(i_global - homo - my_B_virtual_start + 1, j_global - homo)
+                     mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB) + &
+                  mp2_env%ri_grad%P_ab(kspin)%array(i_global - (nmo - virtual) - my_B_virtual_start + 1, j_global - (nmo - virtual))
                END IF
             END DO
          END DO
       ELSE IF (mp2_env%method == ri_mp2_laplace) THEN
-         ! With Laplace-SOS-MP2, we still have to calculate the matrix elements of the non-degenerate pairs
+         ! Now, we only need to add the contributions from degenerate orbital pairs
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
-            IF (j_global <= homo) CYCLE
+            IF (j_global <= (nmo - virtual)) CYCLE
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
                IF (ABS(Eigenval(i_global) - Eigenval(j_global)) < mp2_env%ri_grad%eps_canonical) THEN
-                  IF (my_B_virtual_start <= i_global - homo .AND. i_global - homo <= my_B_virtual_end) THEN
+                  IF (my_B_virtual_start <= i_global - (nmo - virtual) .AND. i_global - (nmo - virtual) <= my_B_virtual_end) THEN
                      mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB) = &
-                        mp2_env%ri_grad%P_ab(kspin)%array(i_global - homo - my_B_virtual_start + 1, j_global - homo)
-                  ELSE
-                     mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB) = 0.0_dp
+                        mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB) + &
+                  mp2_env%ri_grad%P_ab(kspin)%array(i_global - (nmo - virtual) - my_B_virtual_start + 1, j_global - (nmo - virtual))
                   END IF
-               ELSE
-                  mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB) = &
-                     factor*mp2_env%ri_grad%P_mo(kspin)%local_data(iiB, jjB)/ &
-                     (Eigenval(i_global) - Eigenval(j_global))
                END IF
             END DO
          END DO
