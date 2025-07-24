@@ -146,26 +146,27 @@ CONTAINS
 !> \param dft_control ...
 !> \param mo_coeff ...
 !> \param homo ...
+!> \param virtual ...
 !> \param Eigenval ...
+!> \param occupation ...
 !> \param unit_nr ...
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_eq(qs_env, mp2_env, para_env, dft_control, &
-                                mo_coeff, homo, Eigenval, unit_nr)
+                                mo_coeff, homo, virtual, Eigenval, occupation, unit_nr)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_eq'
 
       INTEGER :: bin, handle, handle2, i, i_global, i_thread, iiB, irep, ispin, j_global, jjB, &
          my_bin_size, n_rep_hf, n_threads, nao, ncol_local, nmo, nrow_local, nspins, transf_type_in
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: virtual
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta, do_dynamic_load_balancing, &
                                                             do_exx, do_hfx, restore_p_screen
@@ -215,9 +216,6 @@ CONTAINS
       CALL MOVE_ALLOC(mp2_env%ri_grad%W_mo, W_mo)
       CALL MOVE_ALLOC(mp2_env%ri_grad%L_jb, L_jb)
 
-      ALLOCATE (virtual(nspins))
-      virtual(:) = nmo - homo(:)
-
       NULLIFY (P_mu_nu)
       CALL dbcsr_allocate_matrix_set(P_mu_nu, nspins)
       DO ispin = 1, nspins
@@ -256,7 +254,7 @@ CONTAINS
          CALL cp_fm_set_all(mo_coeff_v(ispin), 0.0_dp)
          CALL cp_fm_to_fm_submat(msource=mo_coeff(ispin), mtarget=mo_coeff_v(ispin), &
                                  nrow=nao, ncol=virtual(ispin), &
-                                 s_firstrow=1, s_firstcol=homo(ispin) + 1, &
+                                 s_firstrow=1, s_firstcol=nmo - virtual(ispin) + 1, &
                                  t_firstrow=1, t_firstcol=1)
       END DO
 
@@ -374,7 +372,7 @@ CONTAINS
       ! Complete in closed shell case, alpha-alpha (Coulomb and XC)
       ! part of L_bj(alpha) for open shell
 
-      CALL cphf_like_update(qs_env, mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+      CALL cphf_like_update(qs_env, mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
                             P_mo, fm_G_mu_nu, fm_back, transf_type_in, L_jb, &
                             recalc_hfx_integrals=(.NOT. do_exx .AND. mp2_env%ri_grad%free_hfx_buffer) &
                             .OR. (do_exx .AND. .NOT. mp2_env%ri_rpa%reuse_hfx))
@@ -392,7 +390,7 @@ CONTAINS
       END DO
 
       CALL solve_z_vector_eq_low(qs_env, mp2_env, unit_nr, &
-                                 mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                 mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
                                  L_jb, fm_G_mu_nu, fm_back, P_ia)
 
       ! release fm stuff
@@ -408,7 +406,7 @@ CONTAINS
          CALL cp_fm_to_fm_submat(msource=P_ia(ispin), mtarget=P_mo(ispin), &
                                  nrow=homo(ispin), ncol=virtual(ispin), &
                                  s_firstrow=1, s_firstcol=1, &
-                                 t_firstrow=1, t_firstcol=homo(ispin) + 1)
+                                 t_firstrow=1, t_firstcol=nmo - virtual(ispin) + 1)
          ! transpose P_MO matrix (easy way to symmetrize)
          CALL cp_fm_set_all(fm_mo_mo, 0.0_dp)
          ! P_mo now is ready
@@ -527,6 +525,7 @@ CONTAINS
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
+!> \param occupation ...
 !> \param p_env ...
 !> \param fm_mo ...
 !> \param fm_ao ...
@@ -536,12 +535,12 @@ CONTAINS
 !> \param recalc_hfx_integrals ...
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
-   SUBROUTINE cphf_like_update(qs_env, mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+   SUBROUTINE cphf_like_update(qs_env, mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
                                fm_mo, fm_ao, fm_back, transf_type_in, &
                                fm_mo_out, recalc_hfx_integrals)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_ao
@@ -551,15 +550,17 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cphf_like_update'
+      REAL(KIND=dp), PARAMETER                           :: eps_threshold = 1.0e-5_dp
 
       INTEGER                                            :: handle, homo, i_global, iiB, ispin, &
-                                                            j_global, jjB, nao, ncol_local, &
+                                                            j_global, jjB, nao, ncol_local, nmo, &
                                                             nrow_local, nspins, virtual
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
 
       CALL timeset(routineN, handle)
 
+      nmo = SIZE(Eigenval, 1)
       nspins = SIZE(Eigenval, 2)
 
       CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
@@ -583,8 +584,8 @@ CONTAINS
                ! virt-virt block
                CALL parallel_gemm('N', 'N', nao, virtual, virtual, 1.0_dp, &
                                   mo_coeff_v(ispin), mat_in, 0.0_dp, fm_back, &
-                                  b_first_col=homo + 1, &
-                                  b_first_row=homo + 1)
+                                  b_first_col=nmo - virtual + 1, &
+                                  b_first_row=nmo - virtual + 1)
                CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), virtual, 1.0_dp, .TRUE.)
 
             CASE (3)
@@ -625,8 +626,17 @@ CONTAINS
                j_global = col_indices(jjB)
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
-                  fm_mo_out(ispin)%local_data(iiB, jjB) = fm_mo(ispin)%local_data(iiB, jjB)* &
-                                                          (Eigenval(j_global + homo, ispin) - Eigenval(i_global, ispin))
+                  ! These factors should be positive (or at least non-negative)
+                  IF (ABS(occupation(j_global + nmo - virtual, ispin) &
+                          - occupation(i_global, ispin)) > eps_threshold) THEN
+                     fm_mo_out(ispin)%local_data(iiB, jjB) = fm_mo(ispin)%local_data(iiB, jjB)* &
+                                                             (Eigenval(j_global + nmo - virtual, ispin) &
+                                                              - Eigenval(i_global, ispin))/(occupation(i_global, ispin) &
+                                                                                      - occupation(j_global + nmo - virtual, ispin))
+                  ELSE
+                     fm_mo_out(ispin)%local_data(iiB, jjB) = fm_mo(ispin)%local_data(iiB, jjB)*(occupation(i_global, ispin)* &
+                                                                                             (1.0_dp - occupation(i_global, ispin)))
+                  END IF
                END DO
             END DO
          END IF
@@ -662,6 +672,7 @@ CONTAINS
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
+!> \param occupation ...
 !> \param p_env ...
 !> \param L_jb ...
 !> \param fm_G_mu_nu ...
@@ -670,13 +681,13 @@ CONTAINS
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_eq_low(qs_env, mp2_env, unit_nr, &
-                                    mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                    mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
                                     L_jb, fm_G_mu_nu, fm_back, P_ia)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu
@@ -684,6 +695,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: P_ia
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low'
+      REAL(KIND=dp), PARAMETER                           :: eps_threshold = 1.0e-5_dp
 
       INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
                                                             jjB, ncol_local, nmo, nrow_local, &
@@ -718,7 +730,15 @@ CONTAINS
             j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               precond(ispin)%local_data(iiB, jjB) = 1.0_dp/(Eigenval(j_global + nmo - virtual, ispin) - Eigenval(i_global, ispin))
+               IF (ABS(occupation(j_global + nmo - virtual, ispin) &
+                       - occupation(i_global, ispin)) > eps_threshold) THEN
+                  precond(ispin)%local_data(iiB, jjB) = -(occupation(j_global + nmo - virtual, ispin) &
+                                                          - occupation(i_global, ispin))/ &
+                                                        (Eigenval(j_global + nmo - virtual, ispin) &
+                                                         - Eigenval(i_global, ispin))
+               ELSE
+                  precond(ispin)%local_data(iiB, jjB) = 1.0_dp/(occupation(i_global, ispin)*(1.0_dp - occupation(i_global, ispin)))
+               END IF
             END DO
          END DO
       END DO
@@ -726,11 +746,11 @@ CONTAINS
       SELECT CASE (mp2_env%ri_grad%z_solver_method)
       CASE (z_solver_pople)
          CALL solve_z_vector_pople(qs_env, mp2_env, unit_nr, &
-                                   mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                   mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
                                    L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
       CASE (z_solver_cg, z_solver_richardson, z_solver_sd)
          CALL solve_z_vector_cg(qs_env, mp2_env, unit_nr, &
-                                mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
                                 L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
       CASE DEFAULT
          CPABORT("Unknown solver")
@@ -750,6 +770,7 @@ CONTAINS
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
+!> \param occupation ...
 !> \param p_env ...
 !> \param L_jb ...
 !> \param fm_G_mu_nu ...
@@ -758,13 +779,13 @@ CONTAINS
 !> \param precond ...
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_pople(qs_env, mp2_env, unit_nr, &
-                                   mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                   mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
                                    L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu
@@ -873,7 +894,7 @@ CONTAINS
             END DO
 
             CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                  mo_coeff_v, Eigenval, p_env, &
+                                  mo_coeff_v, Eigenval, occupation, p_env, &
                                   xn(:, iiter), fm_G_mu_nu, fm_back, transf_type_in, &
                                   Ax(:, iiter))
 
@@ -996,6 +1017,7 @@ CONTAINS
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
+!> \param occupation ...
 !> \param p_env ...
 !> \param L_jb ...
 !> \param fm_G_mu_nu ...
@@ -1004,13 +1026,13 @@ CONTAINS
 !> \param precond ...
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_cg(qs_env, mp2_env, unit_nr, &
-                                mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
                                 L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu
@@ -1101,7 +1123,7 @@ CONTAINS
             IF (.NOT. mp2_env%ri_grad%recalc_residual .OR. (iiter == 1)) THEN
                IF (iiter > 1) THEN
                   CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                        mo_coeff_v, Eigenval, p_env, &
+                                        mo_coeff_v, Eigenval, occupation, p_env, &
                                         P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
                                         residual)
                ELSE
@@ -1132,7 +1154,7 @@ CONTAINS
          residual_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
 
          CALL cphf_like_update(qs_env, mo_coeff_o, &
-                               mo_coeff_v, Eigenval, p_env, &
+                               mo_coeff_v, Eigenval, occupation, p_env, &
                                search_vector, fm_G_mu_nu, fm_back, transf_type_in, &
                                A_dot_search_vector)
 
@@ -1167,7 +1189,7 @@ CONTAINS
             END DO
          ELSE
             CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                  mo_coeff_v, Eigenval, p_env, &
+                                  mo_coeff_v, Eigenval, occupation, p_env, &
                                   P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
                                   residual)
 
