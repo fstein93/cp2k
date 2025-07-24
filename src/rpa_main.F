@@ -1445,16 +1445,18 @@ CONTAINS
                IF (unit_nr > 0) WRITE (UNIT=unit_nr, FMT="(T3, A, 1X, I3, 1X, A, 1X, I3)") &
                   "INTEG_INFO| Started with Integration point", jquad, "of", num_integ_points
 
+               ! Warning: if extension to finite temperatures is required later, you need to store the original matrix
+               ! elements of fm_mat_S and restart from them because diagonal elements are lost otherwise
                IF (first_cycle .AND. count_ev_sc_gw > 1) THEN
                   IF (iter_sc_gw0 == 1) THEN
                      DO ispin = 1, nspins
                         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
-                                                       Eigenval_last(:, 1, ispin), homo(ispin), omega_old)
+                                                   Eigenval_last(:, 1, ispin), occupation_numbers(:, ispin), homo(ispin), omega_old)
                      END DO
                   ELSE
                      DO ispin = 1, nspins
                         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
-                                                       Eigenval_scf(:, 1, ispin), homo(ispin), omega_old)
+                                                    Eigenval_scf(:, 1, ispin), occupation_numbers(:, ispin), homo(ispin), omega_old)
                      END DO
                   END IF
                END IF
@@ -1497,7 +1499,8 @@ CONTAINS
             ! Calculate RPA exchange energy correction
             IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
                e_exchange_corr = 0.0_dp
-               CALL exchange_work%compute(fm_mat_Q(1), Eigenval(:, 1, :), fm_mat_S, omega, e_exchange_corr, mp2_env)
+               CALL exchange_work%compute(fm_mat_Q(1), Eigenval(:, 1, :), occupation_numbers(:, :), &
+                                          fm_mat_S, omega, e_exchange_corr, mp2_env)
 
                ! Evaluate the final exchange energy correction
                e_exchange = e_exchange + e_exchange_corr*wj(jquad)
@@ -1514,7 +1517,7 @@ CONTAINS
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
                                                            fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
-                                                                                       Eigenval(:, 1, :), tau_wj(jquad), unit_nr)
+                                                                      Eigenval(:, 1, :), occupation_numbers, tau_wj(jquad), unit_nr)
             ELSE
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_copy_Q(fm_mat_Q(1), rpa_grad)
 
@@ -1536,7 +1539,7 @@ CONTAINS
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
                                                            fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
-                                                                                       Eigenval(:, 1, :), wj(jquad), unit_nr)
+                                                                          Eigenval(:, 1, :), occupation_numbers, wj(jquad), unit_nr)
             END IF ! do_ri_sos_laplace_mp2
 
             ! save omega and reset the first_cycle flag
@@ -1738,10 +1741,10 @@ CONTAINS
          ! Remove energy/frequency factor from 3c-Integral for BSE
          IF (iter_sc_gw0 == 1) THEN
             CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
-                                           Eigenval_last(:, 1, 1), homo(1), omega)
+                                           Eigenval_last(:, 1, 1), occupation_numbers(:, ispin), homo(1), omega)
          ELSE
             CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
-                                           Eigenval_scf(:, 1, 1), homo(1), omega)
+                                           Eigenval_scf(:, 1, 1), occupation_numbers(:, ispin), homo(1), omega)
          END IF
          ! Main routine for all BSE postprocessing
          CALL start_bse_calculation(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &

@@ -717,11 +717,12 @@ CONTAINS
 !> \param homo ...
 !> \param virtual ...
 !> \param Eigenval ...
+!> \param occupation ...
 !> \param weight ...
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, fm_mat_Q, fm_mat_Q_gemm, &
-                                         dgemm_counter, fm_mat_S, omega, homo, virtual, Eigenval, weight, unit_nr)
+                                         dgemm_counter, fm_mat_S, omega, homo, virtual, Eigenval, occupation, weight, unit_nr)
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
@@ -730,7 +731,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       REAL(KIND=dp), INTENT(IN)                          :: omega
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       REAL(KIND=dp), INTENT(IN)                          :: weight
       INTEGER, INTENT(IN)                                :: unit_nr
 
@@ -856,7 +857,8 @@ CONTAINS
 
             DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
 
-            CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), Eigenval(:, ispin), homo(ispin), omega)
+       CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), Eigenval(:, ispin), &
+       occupation(:, ispin), homo(ispin), omega)
 
          END IF
 

@@ -706,17 +706,19 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param virtual ...
 !> \param Eigenval_last ...
+!> \param occupation ...
 !> \param homo ...
 !> \param omega_old ...
 ! **************************************************************************************************
-   SUBROUTINE remove_scaling_factor_rpa(fm_mat_S, virtual, Eigenval_last, homo, omega_old)
+   SUBROUTINE remove_scaling_factor_rpa(fm_mat_S, virtual, Eigenval_last, occupation, homo, omega_old)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       INTEGER, INTENT(IN)                                :: virtual
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_last
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_last, occupation
       INTEGER, INTENT(IN)                                :: homo
       REAL(KIND=dp), INTENT(IN)                          :: omega_old
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_scaling_factor_rpa'
+      REAL(KIND=dp), PARAMETER                           :: eps_diff = 1e-5
 
       INTEGER                                            :: avirt, handle, i_global, iiB, iocc, &
                                                             ncol_local
@@ -731,7 +733,7 @@ CONTAINS
                           col_indices=col_indices)
 
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
-!$OMP             SHARED(ncol_local,col_indices,Eigenval_last,fm_mat_S,virtual,homo,omega_old)
+!$OMP             SHARED(ncol_local,col_indices,Eigenval_last,occupation,fm_mat_S,virtual,homo,omega_old)
       DO iiB = 1, ncol_local
          i_global = col_indices(iiB)
 
@@ -739,9 +741,14 @@ CONTAINS
          avirt = i_global - (iocc - 1)*virtual
          eigen_diff = Eigenval_last(avirt + homo) - Eigenval_last(iocc)
 
-         fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
-                                       SQRT(eigen_diff/(eigen_diff**2 + omega_old**2))
-
+         IF (eigen_diff > eps_diff) THEN
+            fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
+                                          SQRT(eigen_diff/(eigen_diff**2 + omega_old**2))
+         ELSE IF (omega_old > 0.0_dp) THEN
+            fm_mat_S%local_data(:, iiB) = 0.0_dp
+         ELSE
+            fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/SQRT(occupation*(1.0_dp - occupation))
+         END IF
       END DO
 
       CALL timestop(handle)
@@ -819,7 +826,7 @@ CONTAINS
          ! In this case the update has to remove the old omega component thus
          ! SQRT(((epsi_a-epsi_i)**2+omega_old**2)/((epsi_a-epsi_i)**2+omega**2))
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
-!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,dimen,omega,omega_old)
+!$OMP             SHARED(ncol_local,col_indices,Eigenval,occupation_numbers,fm_mat_S,virtual,dimen,omega,omega_old)
          DO iiB = 1, ncol_local
             i_global = col_indices(iiB)
 
@@ -830,6 +837,12 @@ CONTAINS
             IF (eigen_diff > eps_diff) THEN
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                              SQRT((eigen_diff**2 + omega_old**2)/(eigen_diff**2 + omega**2))
+            ELSE IF (omega > 0.0_dp) THEN
+               fm_mat_S%local_data(:, iiB) = 0.0_dp
+            ELSE
+               ! Degenerate orbital pairs contribute only at omega=0 (Matsubara summation only, else zero)
+               fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
+                                             occupation_numbers(iocc)*(1.0_dp - occupation_numbers(iocc))
             END IF
 
          END DO
