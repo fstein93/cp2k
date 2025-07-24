@@ -17,9 +17,10 @@ MODULE mp2_ri_grad
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, &
-        dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, &
-        dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_iterator_blocks_left, &
+        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
+        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
+        dbcsr_type_no_symmetry, dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param
@@ -100,6 +101,7 @@ CONTAINS
 !> \param mo_coeff ...
 !> \param dimen_RI ...
 !> \param Eigenval ...
+!> \param occupation ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
 !> \param my_group_L_size ...
@@ -109,7 +111,7 @@ CONTAINS
 !> \author Mauro Del Ben
 ! **************************************************************************************************
    SUBROUTINE calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, cell, particle_set, &
-                                 atomic_kind_set, qs_kind_set, mo_coeff, dimen_RI, Eigenval, &
+                                 atomic_kind_set, qs_kind_set, mo_coeff, dimen_RI, Eigenval, occupation, &
                                  my_group_L_start, my_group_L_end, my_group_L_size, sab_orb_sub, mat_munu, &
                                  blacs_env_sub)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -121,7 +123,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER, INTENT(IN)                                :: dimen_RI
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
                                                             my_group_L_size
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -307,7 +309,7 @@ CONTAINS
             ! The matrices of G_P_ia are deallocated here
             CALL update_lagrangian(mat_munu_local(L_counter)%matrix, matrix_P_inu, Lag_mu_i_1, &
                                    G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
-                                   eps_filter)
+                                   eps_filter, occupation)
          END DO
 
          DO ikind = 1, SIZE(force)
@@ -389,7 +391,7 @@ CONTAINS
             ! The matrices of G_P_ia are deallocated here
             CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
                                    G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
-                                   eps_filter)
+                                   eps_filter, occupation)
 
             CALL integrate_potential_forces_3c_2c(matrix_P_munu, rho_r, rho_g, task_list_sub, pw_env_sub, &
                                                   mp2_env%ri_metric, &
@@ -582,23 +584,34 @@ CONTAINS
 !> \param mo_coeff_o ...
 !> \param Lag_nu_a_2 ...
 !> \param eps_filter ...
+!> \param occupation ...
 ! **************************************************************************************************
    SUBROUTINE update_lagrangian(mat_munu, matrix_P_inu, Lag_mu_i_1, &
                                 G_P_ia, mo_coeff_o, Lag_nu_a_2, &
-                                eps_filter)
+                                eps_filter, occupation)
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_munu
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: matrix_P_inu, Lag_mu_i_1
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_ia
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: Lag_nu_a_2
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: occupation
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_lagrangian'
+      REAL(KIND=dp), PARAMETER                           :: eps_diff = 1.0e-5_dp
 
-      INTEGER                                            :: handle, ispin
+      INTEGER                                            :: col, col_offset, col_size, handle, homo, &
+                                                            i_col, i_row, ispin, nmo, row, &
+                                                            row_offset, row_size, virtual
+      REAL(KIND=dp)                                      :: occ_col, occ_diff, occ_row
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
+      TYPE(dbcsr_iterator_type)                          :: iter
 
       ! update lagrangian
       CALL timeset(routineN, handle)
+
+      CALL dbcsr_get_info(G_P_ia(1)%matrix, nfullrows_total=homo, nfullcols_total=virtual)
+      nmo = SIZE(occupation, 1)
 
       DO ispin = 1, SIZE(G_P_ia)
          ! first contract mat_munu with the half back transformed Gamma_i_nu
@@ -610,6 +623,36 @@ CONTAINS
          CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
          CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
                              0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
+
+         IF (.TRUE. .OR. virtual + homo > nmo) THEN
+            ! Remove the difference of occupation numbers
+            CALL dbcsr_iterator_start(iter, G_P_ia(ispin)%matrix)
+            DO WHILE (dbcsr_iterator_blocks_left(iter))
+
+               CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
+                                              row_size=row_size, col_size=col_size, &
+                                              row_offset=row_offset, col_offset=col_offset)
+
+               DO i_row = 1, MIN(row_size, homo - row_offset + 1)
+                  occ_row = occupation(i_row + row_offset - 1, ispin)
+                  DO i_col = 1, MIN(col_size, virtual - col_offset + 1)
+                     occ_col = occupation(i_col + col_offset - 1 + nmo - virtual, ispin)
+
+                     occ_diff = occ_col - occ_row
+
+                     IF (occ_diff > eps_diff) THEN
+                        data_block(i_row, i_col) = data_block(i_row, i_col)/occ_diff
+                     ELSE IF (ABS(occ_diff) < eps_diff) THEN
+                        data_block(i_row, i_col) = data_block(i_row, i_col)/(occ_row*(1.0_dp - occ_row))
+                     END IF
+
+                  END DO
+
+               END DO
+
+            END DO
+            CALL dbcsr_iterator_stop(iter)
+         END IF
 
          ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
          ! in order to update Lag_nu_a_2
