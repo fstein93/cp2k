@@ -251,6 +251,11 @@ CONTAINS
          END IF
       END DO
 
+      ! Check for finite temperatures
+      IF (ANY(virtual + homo > nmo) .AND. (my_do_ri_sos_laplace_mp2 .OR. do_im_time .OR. mp2_env%ri_rpa%do_ri_g0w0)) THEN
+         CPABORT("Smearing with Laplace-MP2, GW or cubically-scaling RPA not implemented!")
+      END IF
+
       ! a para_env
       color_sub = para_env%mepos/mp2_env%mp2_num_proc
       ALLOCATE (para_env_sub)
