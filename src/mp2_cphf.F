@@ -393,6 +393,10 @@ CONTAINS
                                  mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
                                  L_jb, fm_G_mu_nu, fm_back, P_ia)
 
+      DO ispin = 1, nspins
+         CALL remove_trace(P_ia(ispin), nmo)
+      END DO
+
       ! release fm stuff
       CALL cp_fm_release(fm_G_mu_nu)
       CALL cp_fm_release(L_jb)
@@ -542,11 +546,10 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_ao
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_back
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mo
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_ao, fm_back
       INTEGER, INTENT(IN)                                :: transf_type_in
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo_out
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mo_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cphf_like_update'
@@ -589,6 +592,10 @@ CONTAINS
                CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), virtual, 1.0_dp, .TRUE.)
 
             CASE (3)
+               ! In case of smearing, we have to ensure that the input matrix is trace-free
+               IF (homo + virtual > nmo) THEN
+                  CALL remove_trace(mat_in, nmo)
+               END IF
                ! virt-occ blocks
                CALL parallel_gemm('N', 'N', nao, virtual, homo, 1.0_dp, &
                                   mo_coeff_o(ispin), mat_in, 0.0_dp, fm_back)
@@ -656,12 +663,64 @@ CONTAINS
                                mo_coeff_o(ispin), fm_ao, 0.0_dp, fm_back)
             CALL parallel_gemm('N', 'N', homo, virtual, nao, 1.0_dp, &
                                fm_back, mo_coeff_v(ispin), 1.0_dp, mat_out)
+            IF (homo + virtual > nmo) THEN
+               CALL remove_trace(mat_out, nmo)
+            END IF
          END ASSOCIATE
       END DO
 
       CALL timestop(handle)
 
    END SUBROUTINE cphf_like_update
+
+! **************************************************************************************************
+!> \brief ...
+!> \param mat ...
+!> \param nmo ...
+! **************************************************************************************************
+   SUBROUTINE remove_trace(mat, nmo)
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: mat
+      INTEGER, INTENT(IN)                                :: nmo
+
+      INTEGER                                            :: homo, i_global, iiB, j_global, jjB, &
+                                                            ncol_local, nrow_local, virtual
+      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: trace
+
+      ! Step 1: Determine the trace (Beware that indices are shifted)
+      trace = 0.0_dp
+      CALL cp_fm_get_info(matrix=mat, &
+                          nrow_local=nrow_local, &
+                          ncol_local=ncol_local, &
+                          row_indices=row_indices, &
+                          col_indices=col_indices, &
+                          nrow_global=homo, &
+                          ncol_global=virtual)
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
+            ! These factors should be positive (or at least non-negative)
+            IF (j_global + nmo - virtual == i_global) THEN
+               trace = trace + mat%local_data(iiB, jjB)
+            END IF
+         END DO
+      END DO
+      CALL mat%matrix_struct%para_env%sum(trace)
+      ! Normalize with respect to global size
+      trace = trace/nmo
+      ! Remove from the diagonal elements
+      DO jjB = 1, ncol_local
+         j_global = col_indices(jjB)
+         DO iiB = 1, nrow_local
+            i_global = row_indices(iiB)
+            ! These factors should be positive (or at least non-negative)
+            IF (j_global + nmo - virtual == i_global) THEN
+               mat%local_data(iiB, jjB) = mat%local_data(iiB, jjB) - trace
+            END IF
+         END DO
+      END DO
+   END SUBROUTINE
 
 ! **************************************************************************************************
 !> \brief Low level subroutine for the iterative solution of a large
@@ -690,9 +749,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_back
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: P_ia
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low'
       REAL(KIND=dp), PARAMETER                           :: eps_threshold = 1.0e-5_dp
@@ -788,9 +846,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_back
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: P_ia, precond
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia, precond
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_pople'
 
@@ -1035,9 +1092,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_back
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: P_ia, precond
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia, precond
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_cg'
 
