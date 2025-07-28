@@ -308,7 +308,7 @@ CONTAINS
 
             ! The matrices of G_P_ia are deallocated here
             CALL update_lagrangian(mat_munu_local(L_counter)%matrix, matrix_P_inu, Lag_mu_i_1, &
-                                   G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
+                                   G_P_ia(:, L_counter), mo_coeff_o, mo_coeff_v, Lag_nu_a_2, &
                                    eps_filter, occupation)
          END DO
 
@@ -390,7 +390,7 @@ CONTAINS
 
             ! The matrices of G_P_ia are deallocated here
             CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
-                                   G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
+                                   G_P_ia(:, L_counter), mo_coeff_o, mo_coeff_v, Lag_nu_a_2, &
                                    eps_filter, occupation)
 
             CALL integrate_potential_forces_3c_2c(matrix_P_munu, rho_r, rho_g, task_list_sub, pw_env_sub, &
@@ -582,17 +582,18 @@ CONTAINS
 !> \param Lag_mu_i_1 ...
 !> \param G_P_ia ...
 !> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
 !> \param Lag_nu_a_2 ...
 !> \param eps_filter ...
 !> \param occupation ...
 ! **************************************************************************************************
    SUBROUTINE update_lagrangian(mat_munu, matrix_P_inu, Lag_mu_i_1, &
-                                G_P_ia, mo_coeff_o, Lag_nu_a_2, &
+                                G_P_ia, mo_coeff_o, mo_coeff_v, Lag_nu_a_2, &
                                 eps_filter, occupation)
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_munu
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: matrix_P_inu, Lag_mu_i_1
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_ia
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o, mo_coeff_v
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: Lag_nu_a_2
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: occupation
@@ -614,16 +615,8 @@ CONTAINS
       nmo = SIZE(occupation, 1)
 
       DO ispin = 1, SIZE(G_P_ia)
-         ! first contract mat_munu with the half back transformed Gamma_i_nu
-         ! in order to update Lag_mu_i_1
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, matrix_P_inu(ispin), &
-                             1.0_dp, Lag_mu_i_1(ispin), filter_eps=eps_filter)
 
-         ! transform first index of mat_munu and store the result into matrix_P_inu
-         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
-
+         ! With smearing, we have to recale the elements of G_P_ia and recalculate G_P_inu
          IF (.TRUE. .OR. virtual + homo > nmo) THEN
             ! Remove the difference of occupation numbers
             CALL dbcsr_iterator_start(iter, G_P_ia(ispin)%matrix)
@@ -652,7 +645,23 @@ CONTAINS
 
             END DO
             CALL dbcsr_iterator_stop(iter)
+
+            ! Recalculate P_inu
+            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
+                                0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
          END IF
+
+         ! transform first index of mat_munu and store the result into matrix_P_inu
+
+         ! first contract mat_munu with the half back transformed Gamma_i_nu
+         ! in order to update Lag_mu_i_1
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, matrix_P_inu(ispin), &
+                             1.0_dp, Lag_mu_i_1(ispin), filter_eps=eps_filter)
+
+         ! transform first index of mat_munu and store the result into matrix_P_inu
+         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
 
          ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
          ! in order to update Lag_nu_a_2
@@ -1043,7 +1052,9 @@ CONTAINS
                   iii = iii + 1
                   i_local = row_indeces_info_1i(2, iiB, proc_receive)
                   proc_send_ex = pos_info_ex(proc_send)
-                  buffer_cyclic(proc_send_ex)%msg(i_local, j_local) = buffer_rec(rec_counter)%msg(iii)
+                  buffer_cyclic(proc_send_ex)%msg(i_local, j_local) = &
+                     buffer_cyclic(proc_send_ex)%msg(i_local, j_local) &
+                     + buffer_rec(rec_counter)%msg(iii)
                END DO
             END DO
             ! and the same for L2_nu_a
@@ -1058,7 +1069,9 @@ CONTAINS
                   iii = iii + 1
                   i_local = row_indeces_info_2a(2, iiB, proc_receive)
                   proc_send_ex = pos_info_ex(proc_send)
-                  buffer_cyclic(proc_send_ex)%msg(i_local, j_local) = buffer_rec(rec_counter)%msg(iii)
+                  buffer_cyclic(proc_send_ex)%msg(i_local, j_local) = &
+                     buffer_cyclic(proc_send_ex)%msg(i_local, j_local) &
+                     + buffer_rec(rec_counter)%msg(iii)
                END DO
             END DO
             CALL timestop(handle3)
@@ -1315,14 +1328,15 @@ CONTAINS
          ! first loop over row since in this way we can cycle
          DO iiB = 1, send_row_size
             i_global = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%l2g_row(iiB, send_prow)
-            IF (i_global <= homo) CYCLE
-            i_global = i_global - homo
+            IF (i_global <= nmo - virtual) CYCLE
+            i_global = i_global - nmo + virtual
             IF (.NOT. (my_B_virtual_start <= i_global .AND. i_global <= my_B_virtual_end)) CYCLE
             DO jjB = 1, send_col_size
                j_global = mp2_env%ri_grad%P_mo(kspin)%matrix_struct%l2g_col(jjB, send_pcol)
-               IF (j_global <= homo) CYCLE
-               j_global = j_global - homo
-               ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(kspin)%array(i_global - my_B_virtual_start + 1, j_global)
+               IF (j_global > nmo - virtual) THEN
+                  j_global = j_global - nmo + virtual
+                  ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(kspin)%array(i_global - my_B_virtual_start + 1, j_global)
+               END IF
             END DO
          END DO
 
@@ -1377,9 +1391,9 @@ CONTAINS
                          mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%W_mo(kspin), &
                          a_first_col=1, &
                          a_first_row=1, &
-                         b_first_col=homo + 1, &
+                         b_first_col=nmo - virtual + 1, &
                          b_first_row=1, &
-                         c_first_col=homo + 1, &
+                         c_first_col=nmo - virtual + 1, &
                          c_first_row=1)
       CALL timestop(handle2)
 
@@ -1399,7 +1413,7 @@ CONTAINS
                          L_mu_q, mo_coeff, 0.0_dp, mp2_env%ri_grad%L_jb(kspin), &
                          a_first_col=1, &
                          a_first_row=1, &
-                         b_first_col=homo + 1, &
+                         b_first_col=nmo - virtual + 1, &
                          b_first_row=1, &
                          c_first_col=1, &
                          c_first_row=1)
@@ -1408,7 +1422,7 @@ CONTAINS
                          mo_coeff, L_mu_q, 1.0_dp, mp2_env%ri_grad%L_jb(kspin), &
                          a_first_col=1, &
                          a_first_row=1, &
-                         b_first_col=homo + 1, &
+                         b_first_col=nmo - virtual + 1, &
                          b_first_row=1, &
                          c_first_col=1, &
                          c_first_row=1)

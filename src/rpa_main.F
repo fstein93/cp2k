@@ -1147,8 +1147,6 @@ CONTAINS
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
       extrapolation_order = mp2_env%ri_rpa%extrapolation_order
 
-      CALL get_qs_env(qs_env, scf_control=scf_control)
-
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
       IF (.NOT. do_ri_sos_laplace_mp2) mm_style = mp2_env%ri_rpa%mm_style
@@ -1465,7 +1463,8 @@ CONTAINS
                IF (iter_sc_GW0 > 1) THEN
                   DO ispin = 1, nspins
                      CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
-                                     Eigenval_scf(:, 1, ispin), occupation_numbers(:, ispin), homo(ispin), &
+                                     Eigenval_scf(:, 1, ispin), occupation_numbers(:, ispin), &
+                                     scf_control%smear%electronic_temperature, homo(ispin), &
                                      omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
                                      fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
                                      num_integ_points, count_ev_sc_GW)
@@ -1480,7 +1479,8 @@ CONTAINS
                ELSE
                   DO ispin = 1, nspins
                      CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
-                                     Eigenval(:, 1, ispin), occupation_numbers(:, ispin), homo(ispin), &
+                                     Eigenval(:, 1, ispin), occupation_numbers(:, ispin), &
+                                     scf_control%smear%electronic_temperature, homo(ispin), &
                                      omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
                                      fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
                                      num_integ_points, count_ev_sc_GW)

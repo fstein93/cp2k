@@ -116,6 +116,7 @@ MODULE mp2_cphf
                                               qs_p_env_type
    USE qs_rho_types,                    ONLY: qs_rho_get,&
                                               qs_rho_type
+   USE scf_control_types,               ONLY: scf_control_type
    USE task_list_types,                 ONLY: task_list_type
    USE virial_types,                    ONLY: virial_type,&
                                               zero_virial
@@ -186,6 +187,7 @@ CONTAINS
       TYPE(qs_ks_env_type), POINTER                      :: ks_env
       TYPE(qs_p_env_type), POINTER                       :: p_env
       TYPE(qs_rho_type), POINTER                         :: rho, rho_aux_fit
+      TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: hfx_section, hfx_sections, input
 
       CALL timeset(routineN, handle)
@@ -204,7 +206,8 @@ CONTAINS
                       matrix_p_mp2=matrix_p_mp2, &
                       matrix_p_mp2_admm=matrix_p_mp2_admm, &
                       blacs_env=blacs_env, &
-                      rho=rho)
+                      rho=rho, &
+                      scf_control=scf_control)
 
       CALL qs_rho_get(rho, rho_ao=rho_ao)
 
@@ -372,7 +375,8 @@ CONTAINS
       ! Complete in closed shell case, alpha-alpha (Coulomb and XC)
       ! part of L_bj(alpha) for open shell
 
-      CALL cphf_like_update(qs_env, mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+      CALL cphf_like_update(qs_env, mo_coeff_o, mo_coeff_v, Eigenval, occupation, &
+                            scf_control%smear%electronic_temperature, p_env, &
                             P_mo, fm_G_mu_nu, fm_back, transf_type_in, L_jb, &
                             recalc_hfx_integrals=(.NOT. do_exx .AND. mp2_env%ri_grad%free_hfx_buffer) &
                             .OR. (do_exx .AND. .NOT. mp2_env%ri_rpa%reuse_hfx))
@@ -390,7 +394,8 @@ CONTAINS
       END DO
 
       CALL solve_z_vector_eq_low(qs_env, mp2_env, unit_nr, &
-                                 mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+                                 mo_coeff_o, mo_coeff_v, Eigenval, occupation, &
+                                 scf_control%smear%electronic_temperature, p_env, &
                                  L_jb, fm_G_mu_nu, fm_back, P_ia)
 
       DO ispin = 1, nspins
@@ -530,6 +535,7 @@ CONTAINS
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
 !> \param occupation ...
+!> \param temperature ...
 !> \param p_env ...
 !> \param fm_mo ...
 !> \param fm_ao ...
@@ -539,12 +545,13 @@ CONTAINS
 !> \param recalc_hfx_integrals ...
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
-   SUBROUTINE cphf_like_update(qs_env, mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+   SUBROUTINE cphf_like_update(qs_env, mo_coeff_o, mo_coeff_v, Eigenval, occupation, temperature, p_env, &
                                fm_mo, fm_ao, fm_back, transf_type_in, &
                                fm_mo_out, recalc_hfx_integrals)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
+      REAL(KIND=dp), INTENT(IN)                          :: temperature
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mo
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_ao, fm_back
@@ -641,8 +648,8 @@ CONTAINS
                                                               - Eigenval(i_global, ispin))/(occupation(i_global, ispin) &
                                                                                       - occupation(j_global + nmo - virtual, ispin))
                   ELSE
-                     fm_mo_out(ispin)%local_data(iiB, jjB) = fm_mo(ispin)%local_data(iiB, jjB)*(occupation(i_global, ispin)* &
-                                                                                             (1.0_dp - occupation(i_global, ispin)))
+                     fm_mo_out(ispin)%local_data(iiB, jjB) = fm_mo(ispin)%local_data(iiB, jjB)* &
+                                                    (occupation(i_global, ispin)*(1.0_dp - occupation(i_global, ispin)))/temperature
                   END IF
                END DO
             END DO
@@ -732,6 +739,7 @@ CONTAINS
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
 !> \param occupation ...
+!> \param temperature ...
 !> \param p_env ...
 !> \param L_jb ...
 !> \param fm_G_mu_nu ...
@@ -740,13 +748,15 @@ CONTAINS
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_eq_low(qs_env, mp2_env, unit_nr, &
-                                    mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+                                    mo_coeff_o, mo_coeff_v, Eigenval, occupation, &
+                                    temperature, p_env, &
                                     L_jb, fm_G_mu_nu, fm_back, P_ia)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
+      REAL(KIND=dp), INTENT(IN)                          :: temperature
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
@@ -804,11 +814,11 @@ CONTAINS
       SELECT CASE (mp2_env%ri_grad%z_solver_method)
       CASE (z_solver_pople)
          CALL solve_z_vector_pople(qs_env, mp2_env, unit_nr, &
-                                   mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+                                   mo_coeff_o, mo_coeff_v, Eigenval, occupation, temperature, p_env, &
                                    L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
       CASE (z_solver_cg, z_solver_richardson, z_solver_sd)
          CALL solve_z_vector_cg(qs_env, mp2_env, unit_nr, &
-                                mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+                                mo_coeff_o, mo_coeff_v, Eigenval, occupation, temperature, p_env, &
                                 L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
       CASE DEFAULT
          CPABORT("Unknown solver")
@@ -829,6 +839,7 @@ CONTAINS
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
 !> \param occupation ...
+!> \param temperature ...
 !> \param p_env ...
 !> \param L_jb ...
 !> \param fm_G_mu_nu ...
@@ -837,13 +848,14 @@ CONTAINS
 !> \param precond ...
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_pople(qs_env, mp2_env, unit_nr, &
-                                   mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+                                   mo_coeff_o, mo_coeff_v, Eigenval, occupation, temperature, p_env, &
                                    L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
+      REAL(KIND=dp), INTENT(IN)                          :: temperature
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
@@ -951,7 +963,7 @@ CONTAINS
             END DO
 
             CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                  mo_coeff_v, Eigenval, occupation, p_env, &
+                                  mo_coeff_v, Eigenval, occupation, temperature, p_env, &
                                   xn(:, iiter), fm_G_mu_nu, fm_back, transf_type_in, &
                                   Ax(:, iiter))
 
@@ -1075,6 +1087,7 @@ CONTAINS
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
 !> \param occupation ...
+!> \param temperature ...
 !> \param p_env ...
 !> \param L_jb ...
 !> \param fm_G_mu_nu ...
@@ -1083,13 +1096,14 @@ CONTAINS
 !> \param precond ...
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_cg(qs_env, mp2_env, unit_nr, &
-                                mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+                                mo_coeff_o, mo_coeff_v, Eigenval, occupation, temperature, p_env, &
                                 L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
+      REAL(KIND=dp), INTENT(IN)                          :: temperature
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
@@ -1179,7 +1193,7 @@ CONTAINS
             IF (.NOT. mp2_env%ri_grad%recalc_residual .OR. (iiter == 1)) THEN
                IF (iiter > 1) THEN
                   CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                        mo_coeff_v, Eigenval, occupation, p_env, &
+                                        mo_coeff_v, Eigenval, occupation, temperature, p_env, &
                                         P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
                                         residual)
                ELSE
@@ -1210,7 +1224,7 @@ CONTAINS
          residual_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
 
          CALL cphf_like_update(qs_env, mo_coeff_o, &
-                               mo_coeff_v, Eigenval, occupation, p_env, &
+                               mo_coeff_v, Eigenval, occupation, temperature, p_env, &
                                search_vector, fm_G_mu_nu, fm_back, transf_type_in, &
                                A_dot_search_vector)
 
@@ -1245,7 +1259,7 @@ CONTAINS
             END DO
          ELSE
             CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                  mo_coeff_v, Eigenval, occupation, p_env, &
+                                  mo_coeff_v, Eigenval, occupation, temperature, p_env, &
                                   P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
                                   residual)
 
