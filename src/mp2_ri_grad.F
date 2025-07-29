@@ -861,7 +861,7 @@ CONTAINS
       END DO
       ! col
       DO jjB = 1, ncol_local_2a
-         j_global = col_indices_2a(jjB) + homo
+         j_global = col_indices_2a(jjB) + nmo - virtual
          send_pcol = L_mu_q%matrix_struct%g2p_col(j_global)
          j_local = L_mu_q%matrix_struct%g2l_col(j_global)
          my_col_indeces_info_2a(1, jjB) = send_pcol
@@ -1237,20 +1237,20 @@ CONTAINS
       IF (mp2_env%method == ri_mp2_laplace) THEN
          CALL parallel_gemm('T', 'N', virtual, virtual, nao, 1.0_dp, &
                             mo_coeff, L_mu_q, 0.0_dp, mp2_env%ri_grad%P_mo(kspin), &
-                            a_first_col=homo + 1, &
+                            a_first_col=nmo - virtual + 1, &
                             a_first_row=1, &
-                            b_first_col=homo + 1, &
+                            b_first_col=nmo - virtual + 1, &
                             b_first_row=1, &
-                            c_first_col=homo + 1, &
-                            c_first_row=homo + 1)
+                            c_first_col=nmo - virtual + 1, &
+                            c_first_row=nmo - virtual + 1)
          CALL parallel_gemm('T', 'N', virtual, virtual, nao, -2.0_dp, &
                             L_mu_q, mo_coeff, 2.0_dp, mp2_env%ri_grad%P_mo(kspin), &
-                            a_first_col=homo + 1, &
+                            a_first_col=nmo - virtual + 1, &
                             a_first_row=1, &
-                            b_first_col=homo + 1, &
+                            b_first_col=nmo - virtual + 1, &
                             b_first_row=1, &
-                            c_first_col=homo + 1, &
-                            c_first_row=homo + 1)
+                            c_first_col=nmo - virtual + 1, &
+                            c_first_row=nmo - virtual + 1)
          ! With Laplace-SOS-MP2, we need to quench matrix elements of the non-degenerate pairs
          ! and rescale the occupied-occupied pairs
          DO jjB = 1, ncol_local
@@ -1273,7 +1273,7 @@ CONTAINS
          ! With MP2 and RPA, we have already calculated the density matrix elements
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB)
-            IF (j_global <= homo) CYCLE
+            IF (j_global <= nmo - virtual) CYCLE
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
                IF (my_B_virtual_start <= i_global - (nmo - virtual) .AND. i_global - (nmo - virtual) <= my_B_virtual_end) THEN
