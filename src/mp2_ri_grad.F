@@ -626,17 +626,21 @@ CONTAINS
                                               row_size=row_size, col_size=col_size, &
                                               row_offset=row_offset, col_offset=col_offset)
 
+               ! "occupied orbital"
                DO i_row = 1, MIN(row_size, homo - row_offset + 1)
                   occ_row = occupation(i_row + row_offset - 1, ispin)
+                  ! "virtual orbital"
                   DO i_col = 1, MIN(col_size, virtual - col_offset + 1)
                      occ_col = occupation(i_col + col_offset - 1 + nmo - virtual, ispin)
 
-                     occ_diff = occ_col - occ_row
+                     occ_diff = occ_row - occ_col
 
                      IF (occ_diff > eps_diff) THEN
                         data_block(i_row, i_col) = data_block(i_row, i_col)/occ_diff
-                     ELSE IF (ABS(occ_diff) < eps_diff) THEN
-                        data_block(i_row, i_col) = data_block(i_row, i_col)/(occ_row*(1.0_dp - occ_row))
+                     ELSE IF (ABS(occ_diff) < eps_diff .AND. i_row + row_offset <= i_col + col_offset + nmo - virtual) THEN
+                        data_block(i_row, i_col) = data_block(i_row, i_col)*(1.0_dp - 2.0_dp*occ_row)/(occ_row*(1.0_dp - occ_row))
+                     ELSE
+                        data_block(i_row, i_col) = 0.0_dp
                      END IF
 
                   END DO
