@@ -109,6 +109,7 @@ CONTAINS
       END SELECT
 
       IF (my_print_warning) THEN
+      WRITE (Rc_cha, '(F16.2)') Rc
          Rc_cha = ADJUSTL(Rc_cha)
 
          IF (E_range < Lb) THEN
