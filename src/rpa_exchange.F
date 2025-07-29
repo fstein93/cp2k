@@ -417,17 +417,19 @@ CONTAINS
 !> \param fm_mat_Q ...
 !> \param eig ...
 !> \param occupation ...
+!> \param temperature ...
 !> \param fm_mat_S ...
 !> \param omega ...
 !> \param e_exchange_corr exchange energy correction for a quadrature point
 !> \param mp2_env ...
 !> \author Vladimir Rybkin, 07/2016
 ! **************************************************************************************************
-   SUBROUTINE rpa_exchange_work_compute(exchange_work, fm_mat_Q, eig, occupation, fm_mat_S, omega, &
+   SUBROUTINE rpa_exchange_work_compute(exchange_work, fm_mat_Q, eig, occupation, temperature, fm_mat_S, omega, &
                                         e_exchange_corr, mp2_env)
       CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig, occupation
+      REAL(KIND=dp), INTENT(IN) :: temperature
       TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)         :: fm_mat_S
       REAL(KIND=dp), INTENT(IN)                          :: omega
       REAL(KIND=dp), INTENT(INOUT)                       :: e_exchange_corr
@@ -499,9 +501,9 @@ CONTAINS
                                       dimen_RI, 1, 1, 1, 1, exchange_work%fm_mat_U%matrix_struct%context)
 
       IF (mp2_env%ri_rpa%use_hfx_implementation) THEN
-         CALL exchange_work%compute_hfx(fm_mat_S, eig, occupation, omega, e_exchange_corr)
+         CALL exchange_work%compute_hfx(fm_mat_S, eig, occupation, temperature, omega, e_exchange_corr)
       ELSE
-         CALL exchange_work%compute_fm(fm_mat_S, eig, occupation, omega, e_exchange_corr, mp2_env)
+         CALL exchange_work%compute_fm(fm_mat_S, eig, occupation, temperature, omega, e_exchange_corr, mp2_env)
       END IF
 
       CALL timestop(handle)
@@ -514,17 +516,18 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param eig ...
 !> \param occupation ...
+!> \param temperature ...
 !> \param omega ...
 !> \param e_exchange_corr exchange energy correction for a quadrature point
 !> \param mp2_env ...
 !> \author Frederick Stein, May-June 2024
 ! **************************************************************************************************
-   SUBROUTINE rpa_exchange_work_compute_fm(exchange_work, fm_mat_S, eig, occupation, omega, &
+   SUBROUTINE rpa_exchange_work_compute_fm(exchange_work, fm_mat_S, eig, occupation, temperature, omega, &
                                            e_exchange_corr, mp2_env)
       CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig, occupation
-      REAL(KIND=dp), INTENT(IN)                          :: omega
+      REAL(KIND=dp), INTENT(IN)                          :: temperature, omega
       REAL(KIND=dp), INTENT(INOUT)                       :: e_exchange_corr
       TYPE(mp2_type), INTENT(INOUT) :: mp2_env
 
@@ -586,13 +589,13 @@ CONTAINS
          CALL create_group_dist(virt_dist, exchange_work%para_env_sub%num_pe, virt)
 
          ! Remove extra factor from S after the multiplication (to return to the original matrix)
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), occupation(:, ispin), hom, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), occupation(:, ispin), temperature, omega)
 
          CALL exchange_work%redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, ispin, virt_dist)
          CALL cp_fm_release(fm_mat_Gamma_3)
 
          ! We need only the pure matrix
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), occupation(:, ispin), hom, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), occupation(:, ispin), temperature, omega)
 
          ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
          CALL exchange_work%redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, ispin, virt_dist)
@@ -681,15 +684,16 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param eig ...
 !> \param occupation ...
+!> \param temperature ...
 !> \param omega ...
 !> \param e_exchange_corr ...
 !> \author Vladimir Rybkin, 08/2016
 ! **************************************************************************************************
-   SUBROUTINE rpa_exchange_work_compute_hfx(exchange_work, fm_mat_S, eig, occupation, omega, e_exchange_corr)
+   SUBROUTINE rpa_exchange_work_compute_hfx(exchange_work, fm_mat_S, eig, occupation, temperature, omega, e_exchange_corr)
       CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
       TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT) :: fm_mat_S
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig, occupation
-      REAL(KIND=dp), INTENT(IN)                          :: omega
+      REAL(KIND=dp), INTENT(IN)                          :: temperature, omega
       REAL(KIND=dp), INTENT(OUT) :: e_exchange_corr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_exchange_work_compute_hfx'
@@ -734,7 +738,7 @@ CONTAINS
                             matrix_c=fm_mat_Gamma_3)
 
          ! Remove extra factor from S after the multiplication (to return to the original matrix)
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), occupation(:, ispin), hom, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), occupation(:, ispin), temperature, omega)
 
          ! Copy Gamma_ia_P^3 to dbcsr matrix set
          CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3(ispin)%matrix_set, &

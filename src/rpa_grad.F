@@ -718,11 +718,13 @@ CONTAINS
 !> \param virtual ...
 !> \param Eigenval ...
 !> \param occupation ...
+!> \param temperature ...
 !> \param weight ...
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, fm_mat_Q, fm_mat_Q_gemm, &
-                                         dgemm_counter, fm_mat_S, omega, homo, virtual, Eigenval, occupation, weight, unit_nr)
+                                         dgemm_counter, fm_mat_S, omega, homo, virtual, Eigenval, occupation, &
+                                         temperature, weight, unit_nr)
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
@@ -732,7 +734,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: omega
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
-      REAL(KIND=dp), INTENT(IN)                          :: weight
+      REAL(KIND=dp), INTENT(IN)                          :: temperature, weight
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_grad_matrix_operations'
@@ -853,12 +855,12 @@ CONTAINS
                             rpa_grad%rpa_work%grid, rpa_grad%rpa_work%mepos, &
                             fm_mat_S(ispin)%matrix_struct, &
                             rpa_grad%rpa_work%P_ij(ispin)%array, rpa_grad%rpa_work%P_ab(ispin)%array, &
-                            weight, omega, Eigenval(:, ispin), homo(ispin), unit_nr, mp2_env)
+                            weight, omega, Eigenval(:, ispin), virtual(ispin), unit_nr, mp2_env)
 
             DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
 
             CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), Eigenval(:, ispin), &
-                                           occupation(:, ispin), homo(ispin), omega)
+                                           occupation(:, ispin), temperature, omega)
 
          END IF
 
@@ -893,11 +895,14 @@ CONTAINS
 
       INTEGER                                            :: avirt, col_global, col_local, handle, &
                                                             handle2, iocc, my_a, my_i, ncol_local, &
-                                                            nrow_local, num_ab_pairs, num_ij_pairs
+                                                            nmo, nrow_local, num_ab_pairs, &
+                                                            num_ij_pairs
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
       REAL(KIND=dp)                                      :: ddot, trace
 
       CALL timeset(routineN, handle)
+
+      nmo = SIZE(Eigenval, 1)
 
       CALL cp_fm_get_info(fm_mat_S, col_indices=col_indices, ncol_local=ncol_local, nrow_local=nrow_local)
 
@@ -948,12 +953,12 @@ CONTAINS
       num_ab_pairs = SIZE(sos_mp2_work_virt%pair_list, 2)
       IF (num_ij_pairs > 0) THEN
          CALL calc_Pij_degen(fm_work_iaP, fm_mat_S, sos_mp2_work_occ%pair_list, &
-                             virtual, sos_mp2_work_occ%P(homo + 1:), Eigenval(:homo), omega, weight, &
+                             virtual, sos_mp2_work_occ%P(nmo - virtual + 1:), Eigenval(:homo), omega, weight, &
                              sos_mp2_work_occ%index2send, sos_mp2_work_occ%index2recv)
       END IF
       IF (num_ab_pairs > 0) THEN
          CALL calc_Pab_degen(fm_work_iaP, fm_mat_S, sos_mp2_work_virt%pair_list, &
-                             virtual, sos_mp2_work_virt%P(virtual + 1:), Eigenval(homo + 1:), omega, weight, &
+                             virtual, sos_mp2_work_virt%P(virtual + 1:), Eigenval(nmo - virtual + 1:), omega, weight, &
                              sos_mp2_work_virt%index2send, sos_mp2_work_virt%index2recv)
       END IF
 
@@ -975,12 +980,12 @@ CONTAINS
 !> \param weight ...
 !> \param omega ...
 !> \param Eigenval ...
-!> \param homo ...
+!> \param virtual ...
 !> \param unit_nr ...
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE calc_P_rpa(mat_S_1D, mat_work_iaP_3D, gd_homo, gd_virtual, grid, mepos, &
-                         fm_struct_S, P_ij, P_ab, weight, omega, Eigenval, homo, unit_nr, mp2_env)
+                         fm_struct_S, P_ij, P_ab, weight, omega, Eigenval, virtual, unit_nr, mp2_env)
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: mat_S_1D
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_work_iaP_3D
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_homo, gd_virtual
@@ -989,15 +994,15 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :)                     :: P_ij, P_ab
       REAL(KIND=dp), INTENT(IN)                          :: weight, omega
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
-      INTEGER, INTENT(IN)                                :: homo, unit_nr
+      INTEGER, INTENT(IN)                                :: virtual, unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa'
 
       INTEGER :: completed, handle, handle2, my_a_end, my_a_size, my_a_start, my_i_end, my_i_size, &
-         my_i_start, my_P_size, my_prow, number_of_parallel_channels, proc_a_recv, proc_a_send, &
-         proc_i_recv, proc_i_send, proc_recv, proc_send, proc_shift, recv_a_end, recv_a_size, &
-         recv_a_start, recv_i_end, recv_i_size, recv_i_start, tag
+         my_i_start, my_P_size, my_prow, nmo, number_of_parallel_channels, proc_a_recv, &
+         proc_a_send, proc_i_recv, proc_i_send, proc_recv, proc_send, proc_shift, recv_a_end, &
+         recv_a_size, recv_a_start, recv_i_end, recv_i_size, recv_i_start, tag
       INTEGER(KIND=int_8)                                :: mem, number_of_elements_per_blk
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: procs_recv
       INTEGER, DIMENSION(:, :), POINTER                  :: blacs2mpi
@@ -1010,6 +1015,8 @@ CONTAINS
       TYPE(mp_request_type), ALLOCATABLE, DIMENSION(:)   :: recv_requests, send_requests
 
       CALL timeset(routineN, handle)
+
+      nmo = SIZE(Eigenval, 1)
 
       ! We allocate it at every step to reduce potential memory conflicts with COSMA
       CALL mp2_env%local_gemm_ctx%create(LOCAL_GEMM_PU_GPU)
@@ -1095,8 +1102,9 @@ CONTAINS
       END IF
 
       CALL calc_P_rpa_a(P_ab(:, my_a_start:my_a_end), mat_S_3D, mat_work_iaP_3D, &
-                        Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
-                        Eigenval(homo + my_a_start:homo + my_a_end), omega, weight)
+                        Eigenval(nmo - virtual + my_a_start:nmo - virtual + my_a_end), Eigenval(my_i_start:my_i_end), &
+                        Eigenval(nmo - virtual + my_a_start:nmo - virtual + my_a_end), nmo - virtual + my_a_start - 1, &
+                        nmo - virtual + my_a_start - 1, my_i_start - 1, omega, weight)
 
       DO proc_shift = 1, grid(1) - 1
          CALL timeset(routineN//"_comm_a", handle2)
@@ -1123,8 +1131,9 @@ CONTAINS
          CALL timestop(handle2)
 
          CALL calc_P_rpa_a(P_ab(:, recv_a_start:recv_a_end), mat_S_3D, buffer_3D(completed)%array, &
-                           Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
-                           Eigenval(homo + recv_a_start:homo + recv_a_end), omega, weight)
+                           Eigenval(nmo - virtual + my_a_start:nmo - virtual + my_a_end), Eigenval(my_i_start:my_i_end), &
+                           Eigenval(nmo - virtual + recv_a_start:nmo - virtual + recv_a_end), nmo - virtual + my_a_start - 1, &
+                           nmo - virtual + recv_a_start - 1, my_i_start - 1, omega, weight)
 
          IF (number_of_parallel_channels > 1 .AND. number_of_parallel_channels + proc_shift < grid(1)) THEN
             proc_a_recv = MODULO(mepos(1) - proc_shift - number_of_parallel_channels, grid(1))
@@ -1175,8 +1184,9 @@ CONTAINS
       END IF
 
       CALL calc_P_rpa_i(P_ij(:, my_i_start:my_i_end), mat_S_3D, mat_work_iaP_3D, &
-                        Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
-                        Eigenval(my_i_start:my_i_end), omega, weight)
+                        Eigenval(nmo - virtual + my_a_start:nmo - virtual + my_a_end), Eigenval(my_i_start:my_i_end), &
+                        Eigenval(my_i_start:my_i_end), my_i_start - 1, my_i_start - 1, &
+                        nmo - virtual + my_a_start - 1, omega, weight)
 
       DO proc_shift = 1, grid(2) - 1
          CALL timeset(routineN//"_comm_i", handle2)
@@ -1203,8 +1213,9 @@ CONTAINS
          CALL timestop(handle2)
 
          CALL calc_P_rpa_i(P_ij(:, recv_i_start:recv_i_end), mat_S_3D, buffer_3D(completed)%array, &
-                           Eigenval(homo + my_a_start:homo + my_a_end), Eigenval(my_i_start:my_i_end), &
-                           Eigenval(recv_i_start:recv_i_end), omega, weight)
+                           Eigenval(nmo - virtual + my_a_start:nmo - virtual + my_a_end), Eigenval(my_i_start:my_i_end), &
+                           Eigenval(recv_i_start:recv_i_end), my_i_start - 1, recv_i_start - 1, &
+                           nmo - virtual + my_a_start - 1, omega, weight)
 
          IF (number_of_parallel_channels > 1 .AND. number_of_parallel_channels + proc_shift < grid(2)) THEN
             proc_i_recv = MODULO(mepos(2) - proc_shift - number_of_parallel_channels, grid(2))
@@ -1254,17 +1265,23 @@ CONTAINS
 !> \param my_eval_virt ...
 !> \param my_eval_occ ...
 !> \param recv_eval_virt ...
+!> \param my_virt_offset ...
+!> \param recv_virt_offset ...
+!> \param my_occ_offset ...
 !> \param omega ...
 !> \param weight ...
 ! **************************************************************************************************
-   SUBROUTINE calc_P_rpa_a(P_ab, mat_S, mat_work, &
-                           my_eval_virt, my_eval_occ, recv_eval_virt, omega, weight)
+   SUBROUTINE calc_P_rpa_a(P_ab, mat_S, mat_work, my_eval_virt, my_eval_occ, recv_eval_virt, &
+                           my_virt_offset, recv_virt_offset, my_occ_offset, omega, weight)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: P_ab
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: mat_S, mat_work
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, recv_eval_virt
+      INTEGER, INTENT(IN)                                :: my_virt_offset, recv_virt_offset, &
+                                                            my_occ_offset
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa_a'
+      REAL(KIND=dp), PARAMETER                           :: eps_diff = 1.0e-5_dp
 
       INTEGER                                            :: handle, my_a, my_a_size, my_i, &
                                                             my_i_size, my_P_size, recv_a, &
@@ -1282,7 +1299,7 @@ CONTAINS
       omega2 = -omega**2
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_a_size,my_i_size,mat_S,my_eval_virt,recv_eval_virt,my_eval_occ,omega2,&
-!$OMP        P_ab,weight,mat_work)&
+!$OMP        P_ab,weight,mat_work,my_virt_offset,recv_virt_offset,my_occ_offset)&
 !$OMP PRIVATE(tmp,my_a,recv_a,my_i,e_a,e_b,e_i,my_compens,my_p,s)
       DO my_a = 1, my_a_size
       DO recv_a = 1, recv_a_size
@@ -1290,13 +1307,15 @@ CONTAINS
          e_b = recv_eval_virt(recv_a)
          my_p = P_ab(my_a, recv_a)
          my_compens = 0.0_dp
-         DO my_i = 1, my_i_size
+         DO my_i = 1, MIN(my_i_size, MIN(my_a + my_virt_offset, recv_a + recv_virt_offset) - my_occ_offset - 1)
             e_i = -my_eval_occ(my_i)
-            tmp = -weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, recv_a, my_i)) &
-                  *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i))) - my_compens
-            s = my_p + tmp
-            my_compens = (s - my_p) - tmp
-            my_p = s
+            IF (ABS(e_i + e_a) > eps_diff .AND. ABS(e_i + e_b) > eps_diff) THEN
+               tmp = -weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, recv_a, my_i)) &
+                     *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i))) - my_compens
+               s = my_p + tmp
+               my_compens = (s - my_p) - tmp
+               my_p = s
+            END IF
          END DO
          P_ab(my_a, recv_a) = my_p
       END DO
@@ -1314,17 +1333,23 @@ CONTAINS
 !> \param my_eval_virt ...
 !> \param my_eval_occ ...
 !> \param recv_eval_occ ...
+!> \param my_occ_offset ...
+!> \param recv_occ_offset ...
+!> \param my_virt_offset ...
 !> \param omega ...
 !> \param weight ...
 ! **************************************************************************************************
-   SUBROUTINE calc_P_rpa_i(P_ij, mat_S, mat_work, &
-                           my_eval_virt, my_eval_occ, recv_eval_occ, omega, weight)
+   SUBROUTINE calc_P_rpa_i(P_ij, mat_S, mat_work, my_eval_virt, my_eval_occ, recv_eval_occ, &
+                           my_occ_offset, recv_occ_offset, my_virt_offset, omega, weight)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: P_ij
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S, mat_work
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, recv_eval_occ
+      INTEGER, INTENT(IN)                                :: my_occ_offset, recv_occ_offset, &
+                                                            my_virt_offset
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa_i'
+      REAL(KIND=dp), PARAMETER                           :: eps_diff = 1.0e-5_dp
 
       INTEGER                                            :: handle, my_a, my_a_size, my_i, &
                                                             my_i_size, my_P_size, recv_i, &
@@ -1342,7 +1367,7 @@ CONTAINS
       omega2 = -omega**2
 !$OMP PARALLEL DO COLLAPSE(2) DEFAULT(NONE)&
 !$OMP SHARED(my_a_size,recv_i_size,my_i_size,mat_S,my_eval_occ,my_eval_virt,omega2,&
-!$OMP        recv_eval_occ,P_ij,weight,mat_work)&
+!$OMP        recv_eval_occ,P_ij,weight,mat_work,my_occ_offset,recv_occ_offset,my_virt_offset)&
 !$OMP PRIVATE(tmp,my_a,recv_i,my_i,e_i,e_j,e_a,my_compens,my_p,s)
       DO my_i = 1, my_i_size
       DO recv_i = 1, recv_i_size
@@ -1350,13 +1375,15 @@ CONTAINS
          e_j = recv_eval_occ(recv_i)
          my_p = P_ij(my_i, recv_i)
          my_compens = 0.0_dp
-         DO my_a = 1, my_a_size
+         DO my_a = MAX(1, MAX(my_i + my_occ_offset, recv_i + recv_occ_offset) - my_virt_offset + 1), my_a_size
             e_a = my_eval_virt(my_a)
-            tmp = weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, my_a, recv_i)) &
-                  *(1.0_dp + omega2/((e_a - e_i)*(e_a - e_j))) - my_compens
-            s = my_p + tmp
-            my_compens = (s - my_p) - tmp
-            my_p = s
+            IF (ABS(e_a - e_i) > eps_diff .AND. ABS(e_a - e_j) > eps_diff) THEN
+               tmp = weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, my_a, recv_i)) &
+                     *(1.0_dp + omega2/((e_a - e_i)*(e_a - e_j))) - my_compens
+               s = my_p + tmp
+               my_compens = (s - my_p) - tmp
+               my_p = s
+            END IF
          END DO
          P_ij(my_i, recv_i) = my_p
       END DO

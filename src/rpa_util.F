@@ -125,6 +125,7 @@ CONTAINS
 !> \param fm_scaled_dm_occ_tau ...
 !> \param fm_scaled_dm_virt_tau ...
 !> \param homo ...
+!> \param virtual ...
 !> \param nmo ...
 ! **************************************************************************************************
    SUBROUTINE alloc_im_time(qs_env, para_env, dimen_RI, dimen_RI_red, num_integ_points, nspins, &
@@ -143,7 +144,7 @@ CONTAINS
                             fm_mat_RI_global_work, fm_mat_work, fm_mo_coeff_occ_scaled, &
                             fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, &
                             mat_MinvVMinv, mat_P_omega, mat_P_omega_kp, &
-                            mat_work, mo_coeff, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, homo, nmo)
+                            mat_work, mo_coeff, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, homo, virtual, nmo)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp_para_env_type), POINTER                    :: para_env
@@ -187,7 +188,7 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       INTEGER, INTENT(IN)                                :: nmo
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'alloc_im_time'
@@ -212,7 +213,7 @@ CONTAINS
 
       DO ispin = 1, SIZE(mo_coeff)
          CALL create_occ_virt_mo_coeffs(fm_mo_coeff_occ(ispin), fm_mo_coeff_virt(ispin), mo_coeff(ispin), &
-                                        nmo, homo(ispin))
+                                        nmo, homo(ispin), virtual(ispin))
       END DO
 
       num_3c_repl = SIZE(t_3c_O, 2)
@@ -393,19 +394,22 @@ CONTAINS
 !> \param mo_coeff ...
 !> \param nmo ...
 !> \param homo ...
+!> \param virtual ...
 ! **************************************************************************************************
    SUBROUTINE create_occ_virt_mo_coeffs(fm_mo_coeff_occ, fm_mo_coeff_virt, mo_coeff, &
-                                        nmo, homo)
+                                        nmo, homo, virtual)
 
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mo_coeff_occ, fm_mo_coeff_virt
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
-      INTEGER, INTENT(IN)                                :: nmo, homo
+      INTEGER, INTENT(IN)                                :: nmo, homo, virtual
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'create_occ_virt_mo_coeffs'
 
-      INTEGER                                            :: handle, icol_global, irow_global
+      INTEGER                                            :: handle, icol_global, irow_global, nao
 
       CALL timeset(routineN, handle)
+
+      CALL cp_fm_get_info(mo_coeff, nrow_global=nao)
 
       CALL cp_fm_create(fm_mo_coeff_occ, mo_coeff%matrix_struct)
       CALL cp_fm_set_all(fm_mo_coeff_occ, 0.0_dp)
@@ -413,7 +417,7 @@ CONTAINS
 
       ! set all virtual MO coeffs to zero
       DO icol_global = homo + 1, nmo
-         DO irow_global = 1, nmo
+         DO irow_global = 1, nao
             CALL cp_fm_set_element(fm_mo_coeff_occ, irow_global, icol_global, 0.0_dp)
          END DO
       END DO
@@ -423,8 +427,8 @@ CONTAINS
       CALL cp_fm_to_fm(mo_coeff, fm_mo_coeff_virt)
 
       ! set all occupied MO coeffs to zero
-      DO icol_global = 1, homo
-         DO irow_global = 1, nmo
+      DO icol_global = 1, nmo - virtual
+         DO irow_global = 1, nao
             CALL cp_fm_set_element(fm_mo_coeff_virt, irow_global, icol_global, 0.0_dp)
          END DO
       END DO
@@ -709,25 +713,26 @@ CONTAINS
 !> \param virtual ...
 !> \param Eigenval_last ...
 !> \param occupation ...
-!> \param homo ...
+!> \param temperature ...
 !> \param omega_old ...
 ! **************************************************************************************************
-   SUBROUTINE remove_scaling_factor_rpa(fm_mat_S, virtual, Eigenval_last, occupation, homo, omega_old)
+   SUBROUTINE remove_scaling_factor_rpa(fm_mat_S, virtual, Eigenval_last, occupation, temperature, omega_old)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_last, occupation
-      INTEGER, INTENT(IN)                                :: homo
-      REAL(KIND=dp), INTENT(IN)                          :: omega_old
+      REAL(KIND=dp), INTENT(IN)                          :: temperature, omega_old
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_scaling_factor_rpa'
       REAL(KIND=dp), PARAMETER                           :: eps_diff = 1e-5
 
       INTEGER                                            :: avirt, handle, i_global, iiB, iocc, &
-                                                            ncol_local
+                                                            ncol_local, nmo
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
       REAL(KIND=dp)                                      :: eigen_diff
 
       CALL timeset(routineN, handle)
+
+      nmo = SIZE(Eigenval_last, 1)
 
       ! get info of fm_mat_S
       CALL cp_fm_get_info(matrix=fm_mat_S, &
@@ -735,17 +740,20 @@ CONTAINS
                           col_indices=col_indices)
 
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
-!$OMP             SHARED(ncol_local,col_indices,Eigenval_last,occupation,fm_mat_S,virtual,homo,omega_old)
+!$OMP             SHARED(ncol_local,col_indices,Eigenval_last,occupation,temperature,fm_mat_S,nmo,virtual,omega_old)
       DO iiB = 1, ncol_local
          i_global = col_indices(iiB)
 
          iocc = MAX(1, i_global - 1)/virtual + 1
-         avirt = i_global - (iocc - 1)*virtual
-         eigen_diff = Eigenval_last(avirt + homo) - Eigenval_last(iocc)
+         avirt = i_global - (iocc - 1)*virtual + nmo - virtual
+         eigen_diff = Eigenval_last(avirt) - Eigenval_last(iocc)
 
          IF (eigen_diff > eps_diff) THEN
             fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
                                           SQRT(eigen_diff/(eigen_diff**2 + omega_old**2))
+         ELSE IF (omega_old <= 0.0_dp .AND. avirt >= iocc) THEN
+            fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
+                                          SQRT(occupation(iocc)*(1.0_dp - occupation(iocc))/temperature)
          END IF
       END DO
 
@@ -801,10 +809,10 @@ CONTAINS
             i_global = col_indices(iiB)
 
             iocc = MAX(1, i_global - 1)/virtual + 1
-            avirt = i_global - (iocc - 1)*virtual
-            eigen_diff = Eigenval(avirt + dimen - virtual) - Eigenval(iocc)
+            avirt = i_global - (iocc - 1)*virtual + dimen - virtual
+            eigen_diff = Eigenval(avirt) - Eigenval(iocc)
             IF (PRESENT(occupation_numbers) .AND. PRESENT(temperature)) THEN
-               occ_diff = ABS(occupation_numbers(avirt + dimen - virtual) - occupation_numbers(iocc))
+               occ_diff = occupation_numbers(avirt) - occupation_numbers(iocc)
             ELSE
                occ_diff = 1.0_dp
             END IF
@@ -812,12 +820,12 @@ CONTAINS
             ! Ensure that all energy differences are nonnegative
             IF (eigen_diff > eps_diff) THEN
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
-                                             SQRT(ABS(eigen_diff)*occ_diff/(eigen_diff**2 + omega**2))
-            ELSE IF (ABS(eigen_diff) < eps_diff .AND. avirt + dimen - virtual >= iocc .AND. omega == 0.0_dp) THEN
+                                             SQRT(ABS(eigen_diff*occ_diff)/(eigen_diff**2 + omega**2))
+            ELSE IF (ABS(eigen_diff) < eps_diff .AND. avirt >= iocc .AND. omega == 0.0_dp) THEN
                ! Degenerate orbital pairs contribute only at omega=0 (Matsubara summation only, else zero)
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                              occupation_numbers(iocc)*(1.0_dp - occupation_numbers(iocc))/ &
-                                             temperature
+                                             temperature/2.0_dp
             ELSE
                fm_mat_S%local_data(:, iiB) = 0.0_dp
             END IF

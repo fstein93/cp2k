@@ -647,8 +647,7 @@ CONTAINS
 !> \author Jan Wilhelm, 03/2015
 ! **************************************************************************************************
    SUBROUTINE calculate_BIb_C_2D(BIb_C_2D, BIb_C, para_env_sub, dimen_ia, homo, virtual, &
-                                 gd_B_virtual, &
-                                 my_ia_size, my_ia_start, my_ia_end, my_group_L_size)
+                                 gd_B_virtual, my_ia_size, my_ia_start, my_ia_end, my_group_L_size)
 
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(OUT)                                     :: BIb_C_2D
@@ -1135,7 +1134,7 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       nspins = SIZE(homo)
-      nmo = homo(1) + virtual(1)
+      nmo = SIZE(eigenval, 1)
 
       my_open_shell = (nspins == 2)
 
@@ -1204,7 +1203,7 @@ CONTAINS
                             fm_mat_RI_global_work, fm_mat_work, fm_mo_coeff_occ_scaled, &
                             fm_mo_coeff_virt_scaled, mat_dm, mat_L, mat_M_P_munu_occ, mat_M_P_munu_virt, &
                             mat_MinvVMinv, mat_P_omega, mat_P_omega_kp, mat_work, mo_coeff, &
-                            fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, homo, nmo)
+                            fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau, homo, virtual, nmo)
 
          IF (calc_forces) CALL init_im_time_forces(force_data, fm_matrix_PQ, t_3c_M, unit_nr, mp2_env, qs_env)
 
@@ -1450,12 +1449,14 @@ CONTAINS
                   IF (iter_sc_gw0 == 1) THEN
                      DO ispin = 1, nspins
                         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
-                                                   Eigenval_last(:, 1, ispin), occupation_numbers(:, ispin), homo(ispin), omega_old)
+                                                       Eigenval_last(:, 1, ispin), occupation_numbers(:, ispin), &
+                                                       scf_control%smear%electronic_temperature, omega_old)
                      END DO
                   ELSE
                      DO ispin = 1, nspins
                         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
-                                                    Eigenval_scf(:, 1, ispin), occupation_numbers(:, ispin), homo(ispin), omega_old)
+                                                       Eigenval_scf(:, 1, ispin), occupation_numbers(:, ispin), &
+                                                       scf_control%smear%electronic_temperature, omega_old)
                      END DO
                   END IF
                END IF
@@ -1501,6 +1502,7 @@ CONTAINS
             IF (mp2_env%ri_rpa%exchange_correction /= rpa_exchange_none) THEN
                e_exchange_corr = 0.0_dp
                CALL exchange_work%compute(fm_mat_Q(1), Eigenval(:, 1, :), occupation_numbers(:, :), &
+                                          scf_control%smear%electronic_temperature, &
                                           fm_mat_S, omega, e_exchange_corr, mp2_env)
 
                ! Evaluate the final exchange energy correction
@@ -1516,9 +1518,10 @@ CONTAINS
 
                CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad))
 
-               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
-                                                           fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
-                                                                      Eigenval(:, 1, :), occupation_numbers, tau_wj(jquad), unit_nr)
+               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations( &
+                  mp2_env, rpa_grad, do_ri_sos_laplace_mp2, fm_mat_Q, fm_mat_Q_gemm, &
+                  dgemm_counter, fm_mat_S, omega, homo, virtual, Eigenval(:, 1, :), &
+                  occupation_numbers, scf_control%smear%electronic_temperature, tau_wj(jquad), unit_nr)
             ELSE
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_copy_Q(fm_mat_Q(1), rpa_grad)
 
@@ -1538,9 +1541,10 @@ CONTAINS
                                                 Erpa, wj(jquad))
                END IF
 
-               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, &
-                                                           fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, fm_mat_S, omega, homo, virtual, &
-                                                                          Eigenval(:, 1, :), occupation_numbers, wj(jquad), unit_nr)
+               IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations( &
+                  mp2_env, rpa_grad, do_ri_sos_laplace_mp2, fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, &
+                  fm_mat_S, omega, homo, virtual, Eigenval(:, 1, :), occupation_numbers, &
+                  scf_control%smear%electronic_temperature, wj(jquad), unit_nr)
             END IF ! do_ri_sos_laplace_mp2
 
             ! save omega and reset the first_cycle flag
@@ -1742,10 +1746,12 @@ CONTAINS
          ! Remove energy/frequency factor from 3c-Integral for BSE
          IF (iter_sc_gw0 == 1) THEN
             CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
-                                           Eigenval_last(:, 1, 1), occupation_numbers(:, ispin), homo(1), omega)
+                                           Eigenval_last(:, 1, 1), occupation_numbers(:, ispin), &
+                                           scf_control%smear%electronic_temperature, omega)
          ELSE
             CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
-                                           Eigenval_scf(:, 1, 1), occupation_numbers(:, ispin), homo(1), omega)
+                                           Eigenval_scf(:, 1, 1), occupation_numbers(:, ispin), &
+                                           scf_control%smear%electronic_temperature, omega)
          END IF
          ! Main routine for all BSE postprocessing
          CALL start_bse_calculation(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
