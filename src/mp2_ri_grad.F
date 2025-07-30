@@ -266,6 +266,10 @@ CONTAINS
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
             ALLOCATE (mat_munu_local(L_counter)%matrix)
+
+            ALLOCATE (matrix_P_munu_local(L_counter)%matrix)
+            CALL dbcsr_create(matrix_P_munu_local(L_counter)%matrix, template=mat_munu%matrix, &
+                              matrix_type=dbcsr_type_symmetric)
             CALL dbcsr_create(mat_munu_local(L_counter)%matrix, template=mat_munu%matrix, &
                               matrix_type=dbcsr_type_symmetric)
             CALL dbcsr_copy(mat_munu_local(L_counter)%matrix, mat_munu%matrix)
@@ -310,6 +314,11 @@ CONTAINS
             CALL update_lagrangian(mat_munu_local(L_counter)%matrix, matrix_P_inu, Lag_mu_i_1, &
                                    G_P_ia(:, L_counter), mo_coeff_o, mo_coeff_v, Lag_nu_a_2, &
                                    eps_filter, occupation)
+
+            DO ispin = 1, nspins
+               CALL dbcsr_release(G_P_ia(ispin, L_counter)%matrix)
+               DEALLOCATE (G_P_ia(ispin, L_counter)%matrix)
+            END DO
          END DO
 
          DO ikind = 1, SIZE(force)
@@ -357,6 +366,10 @@ CONTAINS
 
          IF (use_virial) h_stress = 0.0_dp
 
+         ALLOCATE (matrix_P_munu%matrix)
+         CALL dbcsr_create(matrix_P_munu%matrix, template=mat_munu%matrix, &
+                           matrix_type=dbcsr_type_symmetric)
+
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
@@ -392,6 +405,11 @@ CONTAINS
             CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
                                    G_P_ia(:, L_counter), mo_coeff_o, mo_coeff_v, Lag_nu_a_2, &
                                    eps_filter, occupation)
+
+            DO ispin = 1, nspins
+               CALL dbcsr_release(G_P_ia(ispin, L_counter)%matrix)
+               DEALLOCATE (G_P_ia(ispin, L_counter)%matrix)
+            END DO
 
             CALL integrate_potential_forces_3c_2c(matrix_P_munu, rho_r, rho_g, task_list_sub, pw_env_sub, &
                                                   mp2_env%ri_metric, &
@@ -501,8 +519,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE G_P_transform_MO_to_AO(G_P_munu, G_P_munu_nosym, mat_munu, G_P_ia, G_P_inu, &
                                      mo_coeff_v, mo_coeff_o, eps_filter)
-      TYPE(dbcsr_type), POINTER                          :: G_P_munu
-      TYPE(dbcsr_type), INTENT(INOUT)                    :: G_P_munu_nosym, mat_munu
+      TYPE(dbcsr_type), INTENT(INOUT)                    :: G_P_munu, G_P_munu_nosym, mat_munu
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: G_P_ia
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: G_P_inu
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_v, mo_coeff_o
@@ -511,12 +528,6 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER :: routineN = 'G_P_transform_MO_to_AO'
 
       INTEGER                                            :: handle
-
-      IF (.NOT. ASSOCIATED(G_P_munu)) THEN
-         ALLOCATE (G_P_munu)
-         CALL dbcsr_create(G_P_munu, template=mat_munu, &
-                           matrix_type=dbcsr_type_symmetric)
-      END IF
 
       CALL G_P_transform_alpha_beta(G_P_ia, G_P_inu, G_P_munu_nosym, mo_coeff_v, mo_coeff_o, eps_filter)
 
@@ -671,10 +682,6 @@ CONTAINS
          ! in order to update Lag_nu_a_2
          CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
                              1.0_dp, Lag_nu_a_2(ispin), filter_eps=eps_filter)
-
-         ! release the actual gamma_P_ia
-         CALL dbcsr_release(G_P_ia(ispin)%matrix)
-         DEALLOCATE (G_P_ia(ispin)%matrix)
       END DO
 
       CALL timestop(handle)
