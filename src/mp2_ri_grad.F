@@ -265,11 +265,11 @@ CONTAINS
          L_counter = 0
          DO LLL = my_group_L_start, my_group_L_end
             L_counter = L_counter + 1
-            ALLOCATE (mat_munu_local(L_counter)%matrix)
 
             ALLOCATE (matrix_P_munu_local(L_counter)%matrix)
             CALL dbcsr_create(matrix_P_munu_local(L_counter)%matrix, template=mat_munu%matrix, &
                               matrix_type=dbcsr_type_symmetric)
+            ALLOCATE (mat_munu_local(L_counter)%matrix)
             CALL dbcsr_create(mat_munu_local(L_counter)%matrix, template=mat_munu%matrix, &
                               matrix_type=dbcsr_type_symmetric)
             CALL dbcsr_copy(mat_munu_local(L_counter)%matrix, mat_munu%matrix)
