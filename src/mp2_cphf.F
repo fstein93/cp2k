@@ -719,7 +719,7 @@ CONTAINS
             END IF
          END DO
       END DO
-   END SUBROUTINE
+   END SUBROUTINE remove_trace
 
 ! **************************************************************************************************
 !> \brief Low level subroutine for the iterative solution of a large
