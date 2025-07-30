@@ -267,14 +267,15 @@ CONTAINS
 !> \param matrix_b : input matrix_b, upon out put the updated matrix_b
 !> \author  Lianheng Tong
 ! **************************************************************************************************
-   SUBROUTINE cp_fm_geadd(alpha, trans, matrix_a, beta, matrix_b)
+  SUBROUTINE cp_fm_geadd(alpha, trans, matrix_a, beta, matrix_b, n_rows, n_cols, a_first_col, a_first_row, b_first_col, b_first_row)
       REAL(KIND=dp), INTENT(IN) :: alpha, beta
       CHARACTER, INTENT(IN) :: trans
       TYPE(cp_fm_type), INTENT(IN) :: matrix_a, matrix_b
+      INTEGER, INTENT(IN), OPTIONAL :: n_rows, n_cols, a_first_col, a_first_row, b_first_col, b_first_row
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_geadd'
 
-      INTEGER :: nrow_global, ncol_global, handle
+      INTEGER :: nrow_global, ncol_global, handle, a_row_start, a_col_start, b_row_start, b_col_start, rows, cols
       REAL(KIND=dp), DIMENSION(:, :), POINTER :: aa, bb
 #if defined(__parallel)
       INTEGER, DIMENSION(9) :: desca, descb
@@ -286,43 +287,59 @@ CONTAINS
 
       nrow_global = matrix_a%matrix_struct%nrow_global
       ncol_global = matrix_a%matrix_struct%ncol_global
-      CPASSERT(nrow_global == matrix_b%matrix_struct%nrow_global)
-      CPASSERT(ncol_global == matrix_b%matrix_struct%ncol_global)
 
       aa => matrix_a%local_data
       bb => matrix_b%local_data
+
+      rows = nrow_global
+      IF (PRESENT(n_rows)) rows = n_rows
+      cols = ncol_global
+      IF (PRESENT(n_cols)) cols = n_cols
+      a_row_start = 1
+      IF (PRESENT(a_first_row)) a_row_start = a_first_row
+      a_col_start = 1
+      IF (PRESENT(a_first_col)) a_col_start = a_first_col
+      b_row_start = 1
+      IF (PRESENT(b_first_row)) b_row_start = b_first_row
+      b_col_start = 1
+      IF (PRESENT(b_first_col)) b_col_start = b_first_col
+
+      CPASSERT(nrow_global <= matrix_a%matrix_struct%nrow_global)
+      CPASSERT(ncol_global <= matrix_a%matrix_struct%ncol_global)
+      CPASSERT(nrow_global <= matrix_b%matrix_struct%nrow_global)
+      CPASSERT(ncol_global <= matrix_b%matrix_struct%ncol_global)
 
 #if defined(__parallel)
       desca = matrix_a%matrix_struct%descriptor
       descb = matrix_b%matrix_struct%descriptor
       CALL pdgeadd(trans, &
-                   nrow_global, &
-                   ncol_global, &
+                   rows, &
+                   cols, &
                    alpha, &
                    aa, &
-                   1, 1, &
+                   a_row_start, a_col_start, &
                    desca, &
                    beta, &
                    bb, &
-                   1, 1, &
+                   b_row_start, b_col_start, &
                    descb)
 #elif defined(__MKL)
-      CALL mkl_domatadd('C', trans, 'N', nrow_global, ncol_global, &
-                        alpha, aa, nrow_global, beta, bb, nrow_global, bb, nrow_global)
+      CALL mkl_domatadd('C', trans, 'N', rows, cols, &
+                        alpha, aa(a_row_start, a_col_start), SIZE(aa, 1), beta, bb(b_row_start, b_col_start), SIZE(bb, 1),  bb(b_row_start, b_col_start), SIZE(bb, 1))
 #else
       ! dgeadd is not a standard BLAS function, although it is implemented
       ! in some libraries like OpenBLAS, so not going to use it here
       SELECT CASE (trans)
       CASE ('T')
-         DO jj = 1, ncol_global
-            DO ii = 1, nrow_global
-               bb(ii, jj) = beta*bb(ii, jj) + alpha*aa(jj, ii)
+         DO jj = 0, cols - 1
+            DO ii = 0, rows - 1
+ bb(b_row_start + ii, b_col_start + jj) = beta*bb(b_row_start + ii, b_col_start + jj) + alpha*aa(a_row_start + jj, a_col_start + ii)
             END DO
          END DO
       CASE DEFAULT
-         DO jj = 1, ncol_global
-            DO ii = 1, nrow_global
-               bb(ii, jj) = beta*bb(ii, jj) + alpha*aa(ii, jj)
+         DO jj = 0, cols - 1
+            DO ii = 0, rows - 1
+ bb(b_row_start + ii, b_col_start + jj) = beta*bb(b_row_start + ii, b_col_start + jj) + alpha*aa(a_row_start + ii, a_col_start + jj)
             END DO
          END DO
       END SELECT

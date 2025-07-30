@@ -1984,6 +1984,8 @@ CONTAINS
       ! Scaling factor is required to scale the density matrices and the Gamma matrices later
       IF (do_ri_sos_laplace_mp2) THEN
          my_scale = mp2_env%scale_s
+      ELSE IF (qs_env%scf_control%smear%electronic_temperature > 0.0_dp) THEN
+         my_scale = -mp2_env%ri_rpa%scale_rpa
       ELSE
          my_scale = -mp2_env%ri_rpa%scale_rpa/(2.0_dp*pi)
       END IF

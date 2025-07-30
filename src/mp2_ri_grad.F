@@ -24,6 +24,7 @@ MODULE mp2_ri_grad
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -1502,6 +1503,9 @@ CONTAINS
                                c_first_col=virtual_offset + 1, &
                                c_first_row=1)
             CALL timestop(handle2)
+
+            WRITE (*, *) "DEBUG P_mo", ispin, cp_fm_frobenius_norm(mp2_env%ri_grad%P_mo(ispin))
+            WRITE (*, *) "DEBUG W_mo", ispin, cp_fm_frobenius_norm(mp2_env%ri_grad%W_mo(ispin))
          END IF
 
          IF (update_lagrangian) THEN
@@ -1537,6 +1541,8 @@ CONTAINS
 
             ! finally release L_mu_q
             CALL timestop(handle2)
+
+            WRITE (*, *) "DEBUG L_jb", ispin, cp_fm_frobenius_norm(mp2_env%ri_grad%L_jb(ispin))
          END IF
          CALL cp_fm_release(L_mu_q)
 
