@@ -136,10 +136,10 @@ CONTAINS
       INTEGER                                            :: eri_method, handle, handle2, i, ikind, &
                                                             ispin, itmp(2), L_counter, LLL, &
                                                             my_P_end, my_P_size, my_P_start, nao, &
-                                                            nspins
+                                                            nmo, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, homo, kind_of, &
                                                             natom_of_kind, virtual
-      LOGICAL                                            :: use_virial
+      LOGICAL                                            :: do_smearing, use_virial
       REAL(KIND=dp)                                      :: cutoff_old, eps_filter, factor_2c, &
                                                             relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
@@ -154,7 +154,8 @@ CONTAINS
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:, :)   :: G_P_ia
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local, matrix_P_munu_local
       TYPE(dbcsr_type)                                   :: matrix_P_munu_nosym
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: Lag_mu_i_1, Lag_nu_a_2, matrix_P_inu
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: Lag_mu_i_1, Lag_nu_a_2, LagFT_mu_i_1, &
+                                                            LagFT_nu_a_2, matrix_P_inu
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_2c_RI, force_3c_aux, &
                                                             force_3c_orb_mu, force_3c_orb_nu
@@ -173,7 +174,7 @@ CONTAINS
       eri_method = mp2_env%eri_method
       eri_param => mp2_env%eri_mme_param
 
-      ! Find out whether we have a closed or open shell
+      nmo = SIZE(Eigenval, 1)
       nspins = SIZE(Eigenval, 2)
 
       ALLOCATE (virtual(nspins), homo(nspins))
@@ -193,6 +194,8 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (mp2_env%ri_grad%G_P_ia)
+
+      do_smearing = ANY(homo + virtual > nmo)
 
       itmp = get_limit(dimen_RI, para_env_sub%num_pe, para_env_sub%mepos)
       my_P_start = itmp(1)
@@ -236,6 +239,20 @@ CONTAINS
          CALL dbcsr_create(Lag_nu_a_2(ispin), template=mo_coeff_v(ispin)%matrix)
          CALL dbcsr_set(Lag_nu_a_2(ispin), 0.0_dp)
       END DO
+
+      IF (do_smearing) THEN
+         ALLOCATE (LagFT_mu_i_1(nspins))
+         DO ispin = 1, nspins
+            CALL dbcsr_create(LagFT_mu_i_1(ispin), template=mo_coeff_o(ispin)%matrix)
+            CALL dbcsr_set(LagFT_mu_i_1(ispin), 0.0_dp)
+         END DO
+
+         ALLOCATE (LagFT_nu_a_2(nspins))
+         DO ispin = 1, nspins
+            CALL dbcsr_create(LagFT_nu_a_2(ispin), template=mo_coeff_v(ispin)%matrix)
+            CALL dbcsr_set(LagFT_nu_a_2(ispin), 0.0_dp)
+         END DO
+      END IF
 
       ! get forces
       NULLIFY (force, virial)
@@ -311,8 +328,16 @@ CONTAINS
 
             ! The matrices of G_P_ia are deallocated here
             CALL update_lagrangian(mat_munu_local(L_counter)%matrix, matrix_P_inu, Lag_mu_i_1, &
-                                   G_P_ia(:, L_counter), mo_coeff_o, mo_coeff_v, Lag_nu_a_2, &
-                                   eps_filter, occupation)
+                                   G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
+                                   eps_filter)
+
+            IF (do_smearing) THEN
+               CALL update_G_P_ia_FT(matrix_P_inu, G_P_ia(:, L_counter), mo_coeff_v, &
+                                     eps_filter, occupation)
+               CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, LagFT_mu_i_1, &
+                                      G_P_ia(:, L_counter), mo_coeff_o, LagFT_nu_a_2, &
+                                      eps_filter)
+            END IF
 
             DO ispin = 1, nspins
                CALL dbcsr_release(G_P_ia(ispin, L_counter)%matrix)
@@ -402,8 +427,16 @@ CONTAINS
 
             ! The matrices of G_P_ia are deallocated here
             CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
-                                   G_P_ia(:, L_counter), mo_coeff_o, mo_coeff_v, Lag_nu_a_2, &
-                                   eps_filter, occupation)
+                                   G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
+                                   eps_filter)
+
+            IF (do_smearing) THEN
+               CALL update_G_P_ia_FT(matrix_P_inu, G_P_ia(:, L_counter), mo_coeff_v, &
+                                     eps_filter, occupation)
+               CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, LagFT_mu_i_1, &
+                                      G_P_ia(:, L_counter), mo_coeff_o, LagFT_nu_a_2, &
+                                      eps_filter)
+            END IF
 
             DO ispin = 1, nspins
                CALL dbcsr_release(G_P_ia(ispin, L_counter)%matrix)
@@ -491,8 +524,43 @@ CONTAINS
       DEALLOCATE (Lag_mu_i_1, Lag_nu_a_2)
 
       CALL create_W_P(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, &
-                      para_env_sub, Eigenval, L1_mu_i, L2_nu_a, .TRUE., .TRUE.)
+                      para_env_sub, Eigenval, L1_mu_i, L2_nu_a, .TRUE.,.NOT. do_smearing)
       DEALLOCATE (L1_mu_i, L2_nu_a)
+
+      IF (do_smearing) THEN
+         ALLOCATE (L1_mu_i(nspins), L2_nu_a(nspins))
+         DO ispin = 1, nspins
+            ! Now we move from the local matrices to the global ones
+            ! defined over all MPI tasks
+            ! Start with moving from the DBCSR to FM for the lagrangians
+            NULLIFY (fm_struct_tmp)
+            CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
+                                     nrow_global=nao, ncol_global=homo(ispin))
+            CALL cp_fm_create(L1_mu_i(ispin), fm_struct_tmp, name="Lag_mu_i")
+            CALL cp_fm_struct_release(fm_struct_tmp)
+            CALL cp_fm_set_all(L1_mu_i(ispin), 0.0_dp)
+            CALL copy_dbcsr_to_fm(matrix=LagFT_mu_i_1(ispin), fm=L1_mu_i(ispin))
+
+            ! release Lag_mu_i_1
+            CALL dbcsr_release(LagFT_mu_i_1(ispin))
+
+            NULLIFY (fm_struct_tmp)
+            CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
+                                     nrow_global=nao, ncol_global=virtual(ispin))
+            CALL cp_fm_create(L2_nu_a(ispin), fm_struct_tmp, name="Lag_nu_a")
+            CALL cp_fm_struct_release(fm_struct_tmp)
+            CALL cp_fm_set_all(L2_nu_a(ispin), 0.0_dp)
+            CALL copy_dbcsr_to_fm(matrix=LagFT_nu_a_2(ispin), fm=L2_nu_a(ispin))
+
+            ! release Lag_nu_a_2
+            CALL dbcsr_release(LagFT_nu_a_2(ispin))
+         END DO
+         DEALLOCATE (LagFT_mu_i_1, LagFT_nu_a_2)
+
+         CALL create_W_P(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, &
+                         para_env_sub, Eigenval, L1_mu_i, L2_nu_a, .FALSE., .TRUE.)
+         DEALLOCATE (L1_mu_i, L2_nu_a)
+      END IF
 
       CALL timestop(handle)
 
@@ -585,79 +653,27 @@ CONTAINS
 !> \param Lag_mu_i_1 ...
 !> \param G_P_ia ...
 !> \param mo_coeff_o ...
-!> \param mo_coeff_v ...
 !> \param Lag_nu_a_2 ...
 !> \param eps_filter ...
-!> \param occupation ...
 ! **************************************************************************************************
    SUBROUTINE update_lagrangian(mat_munu, matrix_P_inu, Lag_mu_i_1, &
-                                G_P_ia, mo_coeff_o, mo_coeff_v, Lag_nu_a_2, &
-                                eps_filter, occupation)
+                                G_P_ia, mo_coeff_o, Lag_nu_a_2, &
+                                eps_filter)
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_munu
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: matrix_P_inu, Lag_mu_i_1
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_ia
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o, mo_coeff_v
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: Lag_nu_a_2
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: occupation
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_lagrangian'
-      REAL(KIND=dp), PARAMETER                           :: eps_diff = 1.0e-5_dp
 
-      INTEGER                                            :: col, col_offset, col_size, handle, homo, &
-                                                            i_col, i_row, ispin, nmo, row, &
-                                                            row_offset, row_size, virtual
-      REAL(KIND=dp)                                      :: occ_col, occ_diff, occ_row
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
-      TYPE(dbcsr_iterator_type)                          :: iter
+      INTEGER                                            :: handle, ispin
 
       ! update lagrangian
       CALL timeset(routineN, handle)
 
-      CALL dbcsr_get_info(G_P_ia(1)%matrix, nfullrows_total=homo, nfullcols_total=virtual)
-      nmo = SIZE(occupation, 1)
-
       DO ispin = 1, SIZE(G_P_ia)
-
-         ! With smearing, we have to recale the elements of G_P_ia and recalculate G_P_inu
-         IF (.TRUE. .OR. virtual + homo > nmo) THEN
-            ! Remove the difference of occupation numbers
-            CALL dbcsr_iterator_start(iter, G_P_ia(ispin)%matrix)
-            DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-               CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
-                                              row_size=row_size, col_size=col_size, &
-                                              row_offset=row_offset, col_offset=col_offset)
-
-               ! "occupied orbital"
-               DO i_row = 1, MIN(row_size, homo - row_offset + 1)
-                  occ_row = occupation(i_row + row_offset - 1, ispin)
-                  ! "virtual orbital"
-                  DO i_col = 1, MIN(col_size, virtual - col_offset + 1)
-                     occ_col = occupation(i_col + col_offset - 1 + nmo - virtual, ispin)
-
-                     occ_diff = occ_row - occ_col
-
-                     IF (occ_diff > eps_diff) THEN
-                        data_block(i_row, i_col) = data_block(i_row, i_col)/occ_diff
-                     ELSE IF (ABS(occ_diff) < eps_diff .AND. i_row + row_offset <= i_col + col_offset + nmo - virtual) THEN
-                        data_block(i_row, i_col) = data_block(i_row, i_col)*(1.0_dp - 2.0_dp*occ_row)/(occ_row*(1.0_dp - occ_row))
-                     ELSE
-                        data_block(i_row, i_col) = 0.0_dp
-                     END IF
-
-                  END DO
-
-               END DO
-
-            END DO
-            CALL dbcsr_iterator_stop(iter)
-
-            ! Recalculate P_inu
-            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
-                                0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
-         END IF
-
          ! transform first index of mat_munu and store the result into matrix_P_inu
 
          ! first contract mat_munu with the half back transformed Gamma_i_nu
@@ -679,6 +695,80 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE update_lagrangian
+
+! **************************************************************************************************
+!> \brief ...
+!> \param matrix_P_inu ...
+!> \param G_P_ia ...
+!> \param mo_coeff_v ...
+!> \param eps_filter ...
+!> \param occupation ...
+! **************************************************************************************************
+   SUBROUTINE update_G_P_ia_FT(matrix_P_inu, G_P_ia, mo_coeff_v, eps_filter, occupation)
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: matrix_P_inu
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_ia
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_v
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: occupation
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_G_P_ia_FT'
+      REAL(KIND=dp), PARAMETER                           :: eps_diff = 1.0e-5_dp
+
+      INTEGER                                            :: col, col_offset, col_size, handle, homo, &
+                                                            i_col, i_row, ispin, nmo, row, &
+                                                            row_offset, row_size, virtual
+      REAL(KIND=dp)                                      :: occ_col, occ_diff, occ_row
+      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
+      TYPE(dbcsr_iterator_type)                          :: iter
+
+      ! update lagrangian
+      CALL timeset(routineN, handle)
+
+      CALL dbcsr_get_info(G_P_ia(1)%matrix, nfullrows_total=homo, nfullcols_total=virtual)
+      nmo = SIZE(occupation, 1)
+
+      DO ispin = 1, SIZE(G_P_ia)
+
+         ! Remove the difference of occupation numbers
+         CALL dbcsr_iterator_start(iter, G_P_ia(ispin)%matrix)
+         DO WHILE (dbcsr_iterator_blocks_left(iter))
+
+            CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
+                                           row_size=row_size, col_size=col_size, &
+                                           row_offset=row_offset, col_offset=col_offset)
+
+            ! "occupied orbital"
+            DO i_row = 1, MIN(row_size, homo - row_offset + 1)
+               occ_row = occupation(i_row + row_offset - 1, ispin)
+               ! "virtual orbital"
+               DO i_col = 1, MIN(col_size, virtual - col_offset + 1)
+                  occ_col = occupation(i_col + col_offset - 1 + nmo - virtual, ispin)
+
+                  occ_diff = occ_row - occ_col
+
+                  IF (occ_diff > eps_diff) THEN
+                     data_block(i_row, i_col) = data_block(i_row, i_col)/occ_diff
+                  ELSE IF (ABS(occ_diff) < eps_diff .AND. i_row + row_offset <= i_col + col_offset + nmo - virtual) THEN
+                     data_block(i_row, i_col) = data_block(i_row, i_col)*(1.0_dp - 2.0_dp*occ_row)/(occ_row*(1.0_dp - occ_row))
+                  ELSE
+                     data_block(i_row, i_col) = 0.0_dp
+                  END IF
+
+               END DO
+
+            END DO
+
+         END DO
+         CALL dbcsr_iterator_stop(iter)
+
+         ! Recalculate P_inu
+         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
+      END DO
+
+      CALL timestop(handle)
+
+   END SUBROUTINE update_G_P_ia_FT
 
 ! **************************************************************************************************
 !> \brief ...
