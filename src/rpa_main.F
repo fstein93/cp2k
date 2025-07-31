@@ -1037,7 +1037,7 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: dimen_ia
       INTEGER, INTENT(IN)                                :: dimen_nm_gw
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: Eigenval
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: occupation_numbers
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: occupation_numbers
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
@@ -1448,13 +1448,13 @@ CONTAINS
                IF (first_cycle .AND. count_ev_sc_gw > 1) THEN
                   IF (iter_sc_gw0 == 1) THEN
                      DO ispin = 1, nspins
-                        CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
+                        CALL remove_scaling_factor_rpa(fm_mat_S(ispin), homo(ispin), virtual(ispin), &
                                                        Eigenval_last(:, 1, ispin), occupation_numbers(:, ispin), &
                                                        scf_control%smear%electronic_temperature, omega_old)
                      END DO
                   ELSE
                      DO ispin = 1, nspins
-                        CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virtual(ispin), &
+                        CALL remove_scaling_factor_rpa(fm_mat_S(ispin), homo(ispin), virtual(ispin), &
                                                        Eigenval_scf(:, 1, ispin), occupation_numbers(:, ispin), &
                                                        scf_control%smear%electronic_temperature, omega_old)
                      END DO
@@ -1745,12 +1745,12 @@ CONTAINS
          CALL cp_fm_to_fm(fm_mat_S(1), fm_mat_S_ia_bse)
          ! Remove energy/frequency factor from 3c-Integral for BSE
          IF (iter_sc_gw0 == 1) THEN
-            CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
-                                           Eigenval_last(:, 1, 1), occupation_numbers(:, ispin), &
+            CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, homo(1), virtual(1), &
+                                           Eigenval_last(:, 1, 1), occupation_numbers(:, 1), &
                                            scf_control%smear%electronic_temperature, omega)
          ELSE
-            CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, virtual(1), &
-                                           Eigenval_scf(:, 1, 1), occupation_numbers(:, ispin), &
+            CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, homo(1), virtual(1), &
+                                           Eigenval_scf(:, 1, 1), occupation_numbers(:, 1), &
                                            scf_control%smear%electronic_temperature, omega)
          END IF
          ! Main routine for all BSE postprocessing

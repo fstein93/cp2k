@@ -578,7 +578,7 @@ CONTAINS
          ! Update G with a new value of Omega: in practice, it is G*S
 
          ! Scale fm_work_iaP
-         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), &
+         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., hom, virt, eig(:, ispin), &
                                 omega, 0.0_dp)
 
          ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2)
@@ -589,19 +589,19 @@ CONTAINS
          CALL create_group_dist(virt_dist, exchange_work%para_env_sub%num_pe, virt)
 
          ! Remove extra factor from S after the multiplication (to return to the original matrix)
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), occupation(:, ispin), temperature, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), hom, virt, eig(:, ispin), occupation(:, ispin), temperature, omega)
 
          CALL exchange_work%redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, ispin, virt_dist)
          CALL cp_fm_release(fm_mat_Gamma_3)
 
          ! We need only the pure matrix
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), occupation(:, ispin), temperature, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), hom, virt, eig(:, ispin), occupation(:, ispin), temperature, omega)
 
          ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
          CALL exchange_work%redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, ispin, virt_dist)
 
          ! Return to the original tensor
-         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), omega, 0.0_dp)
+         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., hom, virt, eig(:, ispin), omega, 0.0_dp)
 
          L_size_Gamma = SIZE(mat_Gamma_3_3D, 3)
          my_virt = SIZE(mat_Gamma_3_3D, 1)
@@ -728,7 +728,7 @@ CONTAINS
          ! Update G with a new value of Omega: in practice, it is G*S
 
          ! Scale fm_work_iaP
-         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., virt, eig(:, ispin), &
+         CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., hom, virt, eig(:, ispin), &
                                 omega, 0.0_dp)
 
          ! Calculate Gamma_3: Gamma_3 = G*S*R^(1/2) = G*S*R^(1/2)
@@ -738,7 +738,7 @@ CONTAINS
                             matrix_c=fm_mat_Gamma_3)
 
          ! Remove extra factor from S after the multiplication (to return to the original matrix)
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), virt, eig(:, ispin), occupation(:, ispin), temperature, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), hom, virt, eig(:, ispin), occupation(:, ispin), temperature, omega)
 
          ! Copy Gamma_ia_P^3 to dbcsr matrix set
          CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3(ispin)%matrix_set, &

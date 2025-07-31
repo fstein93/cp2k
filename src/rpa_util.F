@@ -690,7 +690,7 @@ CONTAINS
          ! the first index of tau_tj starts with 0 (see mp2_weights)
          CALL calc_fm_mat_S_laplace(fm_mat_S, homo, virtual, Eigenval, omega - omega_old)
       ELSE
-         CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval, &
+         CALL calc_fm_mat_S_rpa(fm_mat_S, first_cycle, homo, virtual, Eigenval, &
                                 omega, omega_old, occupation_numbers, temperature)
       END IF
 
@@ -710,15 +710,17 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param fm_mat_S ...
+!> \param homo ...
 !> \param virtual ...
 !> \param Eigenval_last ...
 !> \param occupation ...
 !> \param temperature ...
 !> \param omega_old ...
+!> \note If omega > 0 elements from partially occupied orbitals are NOT retrieved
 ! **************************************************************************************************
-   SUBROUTINE remove_scaling_factor_rpa(fm_mat_S, virtual, Eigenval_last, occupation, temperature, omega_old)
+   SUBROUTINE remove_scaling_factor_rpa(fm_mat_S, homo, virtual, Eigenval_last, occupation, temperature, omega_old)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
-      INTEGER, INTENT(IN)                                :: virtual
+      INTEGER, INTENT(IN)                                :: homo, virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_last, occupation
       REAL(KIND=dp), INTENT(IN)                          :: temperature, omega_old
 
@@ -728,7 +730,7 @@ CONTAINS
       INTEGER                                            :: avirt, handle, i_global, iiB, iocc, &
                                                             ncol_local, nmo
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
-      REAL(KIND=dp)                                      :: eigen_diff
+      REAL(KIND=dp)                                      :: eigen_diff, occ_diff
 
       CALL timeset(routineN, handle)
 
@@ -740,20 +742,28 @@ CONTAINS
                           col_indices=col_indices)
 
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
-!$OMP             SHARED(ncol_local,col_indices,Eigenval_last,occupation,temperature,fm_mat_S,nmo,virtual,omega_old)
+!$OMP             SHARED(ncol_local,col_indices,Eigenval_last,occupation,temperature,fm_mat_S,nmo,homo,virtual,omega_old,occ_diff)
       DO iiB = 1, ncol_local
          i_global = col_indices(iiB)
 
          iocc = MAX(1, i_global - 1)/virtual + 1
          avirt = i_global - (iocc - 1)*virtual + nmo - virtual
-         eigen_diff = Eigenval_last(avirt) - Eigenval_last(iocc)
+         eigen_diff = ABS(Eigenval_last(avirt) - Eigenval_last(iocc))
+         occ_diff = ABS(occupation(avirt) - occupation(iocc))
 
          IF (eigen_diff > eps_diff) THEN
+            IF (iocc <= nmo - virtual .OR. avirt > homo) THEN
+               fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
+                                             SQRT(eigen_diff*occ_diff/(eigen_diff**2 + omega_old**2))
+            ELSE
+               fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
+                                             SQRT(eigen_diff*occ_diff/(eigen_diff**2 + omega_old**2)/2.0_dp)
+            END IF
+         ELSE IF (omega_old <= 0.0_dp) THEN
             fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
-                                          SQRT(eigen_diff/(eigen_diff**2 + omega_old**2))
-         ELSE IF (omega_old <= 0.0_dp .AND. avirt >= iocc) THEN
-            fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
-                                          SQRT(occupation(iocc)*(1.0_dp - occupation(iocc))/temperature)
+                                          SQRT(occupation(iocc)*(1.0_dp - occupation(iocc))/temperature/2.0_dp)
+         ELSE
+            fm_mat_S%local_data(:, iiB) = 0.0_dp
          END IF
       END DO
 
@@ -765,6 +775,7 @@ CONTAINS
 !> \brief ...
 !> \param fm_mat_S ...
 !> \param first_cycle ...
+!> \param homo ...
 !> \param virtual ...
 !> \param Eigenval ...
 !> \param omega ...
@@ -772,11 +783,11 @@ CONTAINS
 !> \param occupation_numbers ...
 !> \param temperature ...
 ! **************************************************************************************************
-   SUBROUTINE calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval, &
+   SUBROUTINE calc_fm_mat_S_rpa(fm_mat_S, first_cycle, homo, virtual, Eigenval, &
                                 omega, omega_old, occupation_numbers, temperature)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: first_cycle
-      INTEGER, INTENT(IN)                                :: virtual
+      INTEGER, INTENT(IN)                                :: homo, virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: occupation_numbers
@@ -785,8 +796,8 @@ CONTAINS
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_fm_mat_S_rpa'
       REAL(KIND=dp), PARAMETER                           :: eps_diff = 1e-5
 
-      INTEGER                                            :: avirt, dimen, handle, i_global, iiB, &
-                                                            iocc, ncol_local
+      INTEGER                                            :: avirt, handle, i_global, iiB, iocc, &
+                                                            ncol_local, nmo
       INTEGER, DIMENSION(:), POINTER                     :: col_indices
       REAL(KIND=dp)                                      :: eigen_diff, occ_diff
 
@@ -797,35 +808,42 @@ CONTAINS
                           ncol_local=ncol_local, &
                           col_indices=col_indices)
 
-      dimen = SIZE(Eigenval)
+      nmo = SIZE(Eigenval)
 
       ! update G matrix with the new value of omega
       IF (first_cycle) THEN
          ! In this case just update the matrix (symmetric form) with
          ! SQRT((epsi_a-epsi_i)/((epsi_a-epsi_i)**2+omega**2))
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global,occ_diff) &
-!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,virtual,dimen,omega,occupation_numbers,temperature)
+!$OMP             SHARED(ncol_local,col_indices,Eigenval,fm_mat_S,homo,virtual,nmo,omega,occupation_numbers,temperature)
          DO iiB = 1, ncol_local
             i_global = col_indices(iiB)
 
             iocc = MAX(1, i_global - 1)/virtual + 1
-            avirt = i_global - (iocc - 1)*virtual + dimen - virtual
+            avirt = i_global - (iocc - 1)*virtual + nmo - virtual
             eigen_diff = Eigenval(avirt) - Eigenval(iocc)
             IF (PRESENT(occupation_numbers) .AND. PRESENT(temperature)) THEN
                occ_diff = occupation_numbers(avirt) - occupation_numbers(iocc)
+               WRITE (*, *) "occ_diff", avirt, iocc, occ_diff
             ELSE
                occ_diff = 1.0_dp
             END IF
 
             ! Ensure that all energy differences are nonnegative
-            IF (eigen_diff > eps_diff) THEN
+            IF (ABS(eigen_diff) > eps_diff) THEN
+               IF (avirt > homo .OR. iocc <= nmo - virtual) THEN
+                  fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
+                                                SQRT(ABS(eigen_diff*occ_diff)/(eigen_diff**2 + omega**2))
+               ELSE
+                  ! These terms need to be reduced by two to prevent double-counting
+                  fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
+                                                SQRT(ABS(eigen_diff*occ_diff)/(eigen_diff**2 + omega**2)/2.0_dp)
+               END IF
+            ELSE IF (omega == 0.0_dp) THEN
+               ! Diagonal elements need a factor of two to prevent double-counting
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
-                                             SQRT(ABS(eigen_diff*occ_diff)/(eigen_diff**2 + omega**2))
-            ELSE IF (ABS(eigen_diff) < eps_diff .AND. avirt >= iocc .AND. omega == 0.0_dp) THEN
-               ! Degenerate orbital pairs contribute only at omega=0 (Matsubara summation only, else zero)
-               fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
-                                             occupation_numbers(iocc)*(1.0_dp - occupation_numbers(iocc))/ &
-                                             temperature/2.0_dp
+                                             SQRT(occupation_numbers(iocc)*(1.0_dp - occupation_numbers(iocc))/ &
+                                                  temperature/2.0_dp)
             ELSE
                fm_mat_S%local_data(:, iiB) = 0.0_dp
             END IF
@@ -835,18 +853,19 @@ CONTAINS
          ! In this case the update has to remove the old omega component thus
          ! SQRT(((epsi_a-epsi_i)**2+omega_old**2)/((epsi_a-epsi_i)**2+omega**2))
 !$OMP PARALLEL DO DEFAULT(NONE) PRIVATE(iiB,iocc,avirt,eigen_diff,i_global) &
-!$OMP             SHARED(ncol_local,col_indices,Eigenval,occupation_numbers,fm_mat_S,virtual,dimen,omega,omega_old)
+!$OMP             SHARED(ncol_local,col_indices,Eigenval,occupation_numbers,fm_mat_S,homo,virtual,nmo,omega,omega_old)
          DO iiB = 1, ncol_local
             i_global = col_indices(iiB)
 
             iocc = MAX(1, i_global - 1)/virtual + 1
             avirt = i_global - (iocc - 1)*virtual
-            eigen_diff = Eigenval(avirt + dimen - virtual) - Eigenval(iocc)
+            eigen_diff = Eigenval(avirt + nmo - virtual) - Eigenval(iocc)
 
-            IF (eigen_diff > eps_diff) THEN
+            IF (ABS(eigen_diff) > eps_diff) THEN
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                              SQRT((eigen_diff**2 + omega_old**2)/(eigen_diff**2 + omega**2))
             ELSE
+               WRITE (*, *) "Set elements to zero", avirt + nmo - virtual, iocc
                fm_mat_S%local_data(:, iiB) = 0.0_dp
             END IF
 

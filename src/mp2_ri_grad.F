@@ -327,16 +327,12 @@ CONTAINS
                                    0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
             END DO
 
-            ! The matrices of G_P_ia are deallocated here
-            CALL update_lagrangian(mat_munu_local(L_counter)%matrix, matrix_P_inu, Lag_mu_i_1, &
-                                   G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
-                                   eps_filter)
-
             IF (do_smearing) THEN
-               CALL update_G_P_ia_FT(matrix_P_inu, G_P_ia(:, L_counter), mo_coeff_v, &
-                                     eps_filter, occupation)
-               CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, LagFT_mu_i_1, &
-                                      G_P_ia(:, L_counter), mo_coeff_o, LagFT_nu_a_2, &
+               CALL update_G_P_ia_FT(matrix_P_inu, G_P_ia(:, L_counter), mo_coeff_o, mo_coeff_v, occupation, mat_munu%matrix, &
+                                     Lag_mu_i_1, LagFT_mu_i_1, Lag_nu_a_2, LagFT_nu_a_2, eps_filter)
+            ELSE
+               CALL update_lagrangian(mat_munu_local(L_counter)%matrix, matrix_P_inu, Lag_mu_i_1, &
+                                      G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
                                       eps_filter)
             END IF
 
@@ -426,16 +422,12 @@ CONTAINS
                virial%pv_virial = pv_virial
             END IF
 
-            ! The matrices of G_P_ia are deallocated here
-            CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
-                                   G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
-                                   eps_filter)
-
             IF (do_smearing) THEN
-               CALL update_G_P_ia_FT(matrix_P_inu, G_P_ia(:, L_counter), mo_coeff_v, &
-                                     eps_filter, occupation)
-               CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, LagFT_mu_i_1, &
-                                      G_P_ia(:, L_counter), mo_coeff_o, LagFT_nu_a_2, &
+               CALL update_G_P_ia_FT(matrix_P_inu, G_P_ia(:, L_counter), mo_coeff_o, mo_coeff_v, occupation, mat_munu%matrix, &
+                                     Lag_mu_i_1, LagFT_mu_i_1, Lag_nu_a_2, LagFT_nu_a_2, eps_filter)
+            ELSE
+               CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
+                                      G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
                                       eps_filter)
             END IF
 
@@ -701,16 +693,27 @@ CONTAINS
 !> \brief ...
 !> \param matrix_P_inu ...
 !> \param G_P_ia ...
+!> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
-!> \param eps_filter ...
 !> \param occupation ...
+!> \param mat_munu ...
+!> \param Lag_mu_i_1 ...
+!> \param LagFT_mu_i_1 ...
+!> \param Lag_nu_a_2 ...
+!> \param LagFT_nu_a_2 ...
+!> \param eps_filter ...
 ! **************************************************************************************************
-   SUBROUTINE update_G_P_ia_FT(matrix_P_inu, G_P_ia, mo_coeff_v, eps_filter, occupation)
+   SUBROUTINE update_G_P_ia_FT(matrix_P_inu, G_P_ia, mo_coeff_o, mo_coeff_v, occupation, mat_munu, Lag_mu_i_1, LagFT_mu_i_1, &
+                               Lag_nu_a_2, LagFT_nu_a_2, &
+                               eps_filter)
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: matrix_P_inu
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_ia
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_v
-      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
+      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: occupation
+      TYPE(dbcsr_type), INTENT(IN)                       :: mat_munu
+      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: Lag_mu_i_1, LagFT_mu_i_1, Lag_nu_a_2, &
+                                                            LagFT_nu_a_2
+      REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_G_P_ia_FT'
       REAL(KIND=dp), PARAMETER                           :: eps_diff = 1.0e-5_dp
@@ -729,6 +732,22 @@ CONTAINS
       nmo = SIZE(occupation, 1)
 
       DO ispin = 1, SIZE(G_P_ia)
+         ! transform first index of mat_munu and store the result into matrix_P_inu
+
+         ! first contract mat_munu with the half back transformed Gamma_i_nu
+         ! in order to update Lag_mu_i_1
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, matrix_P_inu(ispin), &
+                             1.0_dp, Lag_mu_i_1(ispin), filter_eps=eps_filter)
+
+         ! transform first index of mat_munu and store the result into matrix_P_inu
+         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
+
+         ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
+         ! in order to update Lag_nu_a_2
+         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
+                             1.0_dp, Lag_nu_a_2(ispin), filter_eps=eps_filter)
 
          ! Remove the difference of occupation numbers
          CALL dbcsr_iterator_start(iter, G_P_ia(ispin)%matrix)
@@ -765,6 +784,22 @@ CONTAINS
          ! Recalculate P_inu
          CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
                              0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
+         ! transform first index of mat_munu and store the result into matrix_P_inu
+
+         ! first contract mat_munu with the half back transformed Gamma_i_nu
+         ! in order to update Lag_mu_i_1
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, matrix_P_inu(ispin), &
+                             1.0_dp, LagFT_mu_i_1(ispin), filter_eps=eps_filter)
+
+         ! transform first index of mat_munu and store the result into matrix_P_inu
+         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
+
+         ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
+         ! in order to update Lag_nu_a_2
+         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
+                             1.0_dp, LagFT_nu_a_2(ispin), filter_eps=eps_filter)
       END DO
 
       CALL timestop(handle)

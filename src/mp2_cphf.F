@@ -331,7 +331,6 @@ CONTAINS
 
          focc = 1.0_dp
          IF (nspins == 1) focc = 2.0_dp
-         !focc = 0.0_dp
          DO ispin = 1, nspins
             CALL dbcsr_add(P_mu_nu(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, -1.0_dp)
             CALL copy_dbcsr_to_fm(matrix=P_mu_nu(ispin)%matrix, fm=fm_G_mu_nu)

@@ -92,7 +92,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
 
-      INTEGER                                            :: ierr, iiB, jjB, nmo, nspins, ispin
+      INTEGER                                            :: ierr, iiB, ispin, jjB, nmo, nspins
       REAL(KIND=dp)                                      :: e_range, emax, emin
 
       nmo = SIZE(Eigenval, 1)
@@ -106,8 +106,8 @@ CONTAINS
          Emin = HUGE(dp)
          Emax = 0.0_dp
          DO ispin = 1, nspins
-            Emin = MIN(Emin, 2.0_dp*(MINVAL(Eigenval(nmo-virtual(ispin) + 1:, ispin), DIM=1) -&
-             MAXVAL(Eigenval(:homo(ispin), ispin), DIM=1)))
+            Emin = MIN(Emin, 2.0_dp*(MINVAL(Eigenval(nmo - virtual(ispin) + 1:, ispin), DIM=1) - &
+                                     MAXVAL(Eigenval(:homo(ispin), ispin), DIM=1)))
             Emax = MAX(Emax, 2.0_dp*(MAXVAL(Eigenval(:, ispin), DIM=1) - MINVAL(Eigenval(:, ispin), DIM=1)))
          END DO
          E_Range = Emax/Emin
