@@ -24,7 +24,7 @@ MODULE mp2_ri_grad
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_geadd
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_release,&
                                               cp_fm_struct_type
@@ -32,7 +32,6 @@ MODULE mp2_ri_grad
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE input_constants,                 ONLY: do_eri_gpw,&
                                               do_eri_mme,&
@@ -155,8 +154,8 @@ CONTAINS
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:, :)   :: G_P_ia
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local, matrix_P_munu_local
       TYPE(dbcsr_type)                                   :: matrix_P_munu_nosym
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: Lag_mu_i_1, Lag_nu_a_2, LagFT_mu_i_1, &
-                                                            LagFT_nu_a_2, matrix_P_inu
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:) :: Lag2_mu_i_1, Lag2_nu_a_2, Lag_mu_i_1, &
+         Lag_nu_a_2, LagFT2_mu_i_1, LagFT2_nu_a_2, LagFT_mu_i_1, LagFT_nu_a_2, matrix_P_inu
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_2c_RI, force_3c_aux, &
                                                             force_3c_orb_mu, force_3c_orb_nu
@@ -253,6 +252,29 @@ CONTAINS
             CALL dbcsr_create(LagFT_nu_a_2(ispin), template=mo_coeff_v(ispin)%matrix)
             CALL dbcsr_set(LagFT_nu_a_2(ispin), 0.0_dp)
          END DO
+         ALLOCATE (Lag2_mu_i_1(nspins))
+         DO ispin = 1, nspins
+            CALL dbcsr_create(Lag2_mu_i_1(ispin), template=mo_coeff_o(ispin)%matrix)
+            CALL dbcsr_set(Lag2_mu_i_1(ispin), 0.0_dp)
+         END DO
+
+         ALLOCATE (Lag2_nu_a_2(nspins))
+         DO ispin = 1, nspins
+            CALL dbcsr_create(Lag2_nu_a_2(ispin), template=mo_coeff_v(ispin)%matrix)
+            CALL dbcsr_set(Lag2_nu_a_2(ispin), 0.0_dp)
+         END DO
+
+         ALLOCATE (LagFT2_mu_i_1(nspins))
+         DO ispin = 1, nspins
+            CALL dbcsr_create(LagFT2_mu_i_1(ispin), template=mo_coeff_o(ispin)%matrix)
+            CALL dbcsr_set(LagFT2_mu_i_1(ispin), 0.0_dp)
+         END DO
+
+         ALLOCATE (LagFT2_nu_a_2(nspins))
+         DO ispin = 1, nspins
+            CALL dbcsr_create(LagFT2_nu_a_2(ispin), template=mo_coeff_v(ispin)%matrix)
+            CALL dbcsr_set(LagFT2_nu_a_2(ispin), 0.0_dp)
+         END DO
       END IF
 
       ! get forces
@@ -329,7 +351,8 @@ CONTAINS
 
             IF (do_smearing) THEN
                CALL update_G_P_ia_FT(matrix_P_inu, G_P_ia(:, L_counter), mo_coeff_o, mo_coeff_v, occupation, mat_munu%matrix, &
-                                     Lag_mu_i_1, LagFT_mu_i_1, Lag_nu_a_2, LagFT_nu_a_2, eps_filter)
+                                     Lag_mu_i_1, LagFT_mu_i_1, Lag_nu_a_2, LagFT_nu_a_2, &
+                                     Lag2_mu_i_1, LagFT2_mu_i_1, Lag2_nu_a_2, LagFT2_nu_a_2, eps_filter)
             ELSE
                CALL update_lagrangian(mat_munu_local(L_counter)%matrix, matrix_P_inu, Lag_mu_i_1, &
                                       G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
@@ -424,7 +447,8 @@ CONTAINS
 
             IF (do_smearing) THEN
                CALL update_G_P_ia_FT(matrix_P_inu, G_P_ia(:, L_counter), mo_coeff_o, mo_coeff_v, occupation, mat_munu%matrix, &
-                                     Lag_mu_i_1, LagFT_mu_i_1, Lag_nu_a_2, LagFT_nu_a_2, eps_filter)
+                                     Lag_mu_i_1, LagFT_mu_i_1, Lag_nu_a_2, LagFT_nu_a_2, &
+                                     Lag2_mu_i_1, LagFT2_mu_i_1, Lag2_nu_a_2, LagFT2_nu_a_2, eps_filter)
             ELSE
                CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
                                       G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
@@ -701,10 +725,14 @@ CONTAINS
 !> \param LagFT_mu_i_1 ...
 !> \param Lag_nu_a_2 ...
 !> \param LagFT_nu_a_2 ...
+!> \param Lag2_mu_i_1 ...
+!> \param LagFT2_mu_i_1 ...
+!> \param Lag2_nu_a_2 ...
+!> \param LagFT2_nu_a_2 ...
 !> \param eps_filter ...
 ! **************************************************************************************************
    SUBROUTINE update_G_P_ia_FT(matrix_P_inu, G_P_ia, mo_coeff_o, mo_coeff_v, occupation, mat_munu, Lag_mu_i_1, LagFT_mu_i_1, &
-                               Lag_nu_a_2, LagFT_nu_a_2, &
+                               Lag_nu_a_2, LagFT_nu_a_2, Lag2_mu_i_1, LagFT2_mu_i_1, Lag2_nu_a_2, LagFT2_nu_a_2, &
                                eps_filter)
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: matrix_P_inu
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_ia
@@ -712,7 +740,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: occupation
       TYPE(dbcsr_type), INTENT(IN)                       :: mat_munu
       TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: Lag_mu_i_1, LagFT_mu_i_1, Lag_nu_a_2, &
-                                                            LagFT_nu_a_2
+                                                            LagFT_nu_a_2, Lag2_mu_i_1, &
+                                                            LagFT2_mu_i_1, Lag2_nu_a_2, &
+                                                            LagFT2_nu_a_2
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_G_P_ia_FT'
@@ -731,23 +761,51 @@ CONTAINS
       CALL dbcsr_get_info(G_P_ia(1)%matrix, nfullrows_total=homo, nfullcols_total=virtual)
       nmo = SIZE(occupation, 1)
 
+      ! We need to distinguish fully occupied/virtual and partially occupied orbitals due to the missing scaling factor
+
       DO ispin = 1, SIZE(G_P_ia)
+         ! Step 1: P_mo
+         ! Part A1: fully virtual orbitals
          ! transform first index of mat_munu and store the result into matrix_P_inu
+         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
+         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
+                             first_k=homo + virtual - nmo + 1)
 
          ! first contract mat_munu with the half back transformed Gamma_i_nu
          ! in order to update Lag_mu_i_1
          CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, matrix_P_inu(ispin), &
                              1.0_dp, Lag_mu_i_1(ispin), filter_eps=eps_filter)
 
+         ! Part A2: fully occupied orbitals
          ! transform first index of mat_munu and store the result into matrix_P_inu
          CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
          CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
+                             last_row=nmo - virtual)
+
+         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
+                             1.0_dp, Lag_nu_a_2(ispin), filter_eps=eps_filter)
+
+         ! Part B1: partially virtual orbitals
+         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
+         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
+                             last_k=homo + virtual - nmo)
+
+         CALL dbcsr_multiply("N", "N", SQRT(0.5_dp), mat_munu, matrix_P_inu(ispin), &
+                             1.0_dp, Lag2_mu_i_1(ispin), filter_eps=eps_filter)
+
+         ! Part B2: partially occupied orbitals
+         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
+                             first_row=nmo - virtual + 1)
 
          ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
          ! in order to update Lag_nu_a_2
-         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
-                             1.0_dp, Lag_nu_a_2(ispin), filter_eps=eps_filter)
+         CALL dbcsr_multiply("N", "N", -SQRT(0.5_dp), matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
+                             1.0_dp, Lag2_nu_a_2(ispin), filter_eps=eps_filter)
 
          ! Remove the difference of occupation numbers
          CALL dbcsr_iterator_start(iter, G_P_ia(ispin)%matrix)
@@ -781,25 +839,48 @@ CONTAINS
          END DO
          CALL dbcsr_iterator_stop(iter)
 
-         ! Recalculate P_inu
-         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
+         ! Step 2: Lagrangian (L_jb)
+         ! Part A1: fully virtual orbitals
          ! transform first index of mat_munu and store the result into matrix_P_inu
+         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
+         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
+                             first_k=homo + virtual - nmo + 1)
 
          ! first contract mat_munu with the half back transformed Gamma_i_nu
          ! in order to update Lag_mu_i_1
          CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, matrix_P_inu(ispin), &
                              1.0_dp, LagFT_mu_i_1(ispin), filter_eps=eps_filter)
 
+         ! Part A2: fully occupied orbitals
          ! transform first index of mat_munu and store the result into matrix_P_inu
          CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
          CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
+                             last_row=nmo - virtual)
+
+         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
+                             1.0_dp, LagFT_nu_a_2(ispin), filter_eps=eps_filter)
+
+         ! Part B1: partially virtual orbitals
+         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
+         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
+                             last_k=homo + virtual - nmo)
+
+         CALL dbcsr_multiply("N", "N", SQRT(0.5_dp), mat_munu, matrix_P_inu(ispin), &
+                             1.0_dp, LagFT2_mu_i_1(ispin), filter_eps=eps_filter)
+
+         ! Part B2: partially occupied orbitals
+         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
+         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
+                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
+                             first_row=nmo - virtual + 1)
 
          ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
          ! in order to update Lag_nu_a_2
-         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
-                             1.0_dp, LagFT_nu_a_2(ispin), filter_eps=eps_filter)
+         CALL dbcsr_multiply("N", "N", -SQRT(0.5_dp), matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
+                             1.0_dp, LagFT2_nu_a_2(ispin), filter_eps=eps_filter)
       END DO
 
       CALL timestop(handle)
@@ -1301,8 +1382,8 @@ CONTAINS
                                 col_indices=col_indices)
 
             IF (.NOT. mp2_env%method == ri_rpa_method_gpw) THEN
-               CALL parallel_gemm('T', 'N', homo(ispin), homo(ispin), nao, 1.0_dp, &
-                                  mo_coeff(ispin), L_mu_q, 0.0_dp, fm_P_ij, &
+               CALL parallel_gemm('T', 'N', homo(ispin), homo(ispin), nao, 2.0_dp, &
+                                  mo_coeff(ispin), L_mu_q, 1.0_dp, fm_P_ij, &
                                   a_first_col=1, &
                                   a_first_row=1, &
                                   b_first_col=1, &
@@ -1310,7 +1391,7 @@ CONTAINS
                                   c_first_col=1, &
                                   c_first_row=1)
                CALL parallel_gemm('T', 'N', homo(ispin), homo(ispin), nao, -2.0_dp, &
-                                  L_mu_q, mo_coeff(ispin), 2.0_dp, fm_P_ij, &
+                                  L_mu_q, mo_coeff(ispin), 1.0_dp, fm_P_ij, &
                                   a_first_col=1, &
                                   a_first_row=1, &
                                   b_first_col=1, &
@@ -1318,6 +1399,7 @@ CONTAINS
                                   c_first_col=1, &
                                   c_first_row=1)
 
+               IF (ALLOCATED(mp2_env%ri_grad%P_ij(ispin)%array)) THEN
                DO jjB = 1, ncol_local
                   j_global = col_indices(jjB)
                   DO iiB = 1, nrow_local
@@ -1331,7 +1413,8 @@ CONTAINS
                      END IF
                   END DO
                END DO
-            ELSE
+               END IF
+            ELSE IF (ALLOCATED(mp2_env%ri_grad%P_ij(ispin)%array)) THEN
                DO jjB = 1, ncol_local
                   j_global = col_indices(jjB)
                   DO iiB = 1, nrow_local
@@ -1341,21 +1424,23 @@ CONTAINS
                END DO
             END IF
             ! deallocate the local P_ij
-            DEALLOCATE (mp2_env%ri_grad%P_ij(ispin)%array)
+            IF (ALLOCATED(mp2_env%ri_grad%P_ij(ispin)%array)) DEALLOCATE (mp2_env%ri_grad%P_ij(ispin)%array)
             CALL timestop(handle2)
 
+            CALL timeset(routineN//"_PMO", handle2)
             ! Now create and fill the P matrix (MO)
             ! FOR NOW WE ASSUME P_ab AND P_ij ARE REPLICATED OVER EACH MPI RANK
             IF (.NOT. ALLOCATED(mp2_env%ri_grad%P_mo)) THEN
                ALLOCATE (mp2_env%ri_grad%P_mo(SIZE(mp2_env%ri_grad%mo_coeff_o)))
             END IF
 
-            CALL timeset(routineN//"_PMO", handle2)
-            NULLIFY (fm_struct_tmp)
-            CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
-                                     nrow_global=nmo, ncol_global=nmo)
-            CALL cp_fm_create(mp2_env%ri_grad%P_mo(ispin), fm_struct_tmp, name="P_MP2_MO")
-            CALL cp_fm_set_all(mp2_env%ri_grad%P_mo(ispin), 0.0_dp)
+            IF (.NOT. ASSOCIATED(mp2_env%ri_grad%P_mo(ispin)%matrix_struct)) THEN
+               NULLIFY (fm_struct_tmp)
+               CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
+                                        nrow_global=nmo, ncol_global=nmo)
+               CALL cp_fm_create(mp2_env%ri_grad%P_mo(ispin), fm_struct_tmp, name="P_MP2_MO")
+               CALL cp_fm_set_all(mp2_env%ri_grad%P_mo(ispin), 0.0_dp)
+            END IF
 
             ! start with the (easy) occ-occ block and locally held P_ab elements
             itmp = get_limit(virtual(ispin), para_env_sub%num_pe, para_env_sub%mepos)
@@ -1363,7 +1448,7 @@ CONTAINS
             my_B_virtual_end = itmp(2)
 
             ! Fill occ-occ block
-            CALL cp_fm_to_fm_submat(fm_P_ij, mp2_env%ri_grad%P_mo(ispin), homo(ispin), homo(ispin), 1, 1, 1, 1)
+            CALL cp_fm_geadd(1.0_dp, "N", fm_P_ij, 1.0_dp, mp2_env%ri_grad%P_mo(ispin))
             CALL cp_fm_release(fm_P_ij)
 
             CALL cp_fm_get_info(mp2_env%ri_grad%P_mo(ispin), &
@@ -1538,9 +1623,6 @@ CONTAINS
                                c_first_col=virtual_offset + 1, &
                                c_first_row=1)
             CALL timestop(handle2)
-
-            WRITE (*, *) "DEBUG P_mo", ispin, cp_fm_frobenius_norm(mp2_env%ri_grad%P_mo(ispin))
-            WRITE (*, *) "DEBUG W_mo", ispin, cp_fm_frobenius_norm(mp2_env%ri_grad%W_mo(ispin))
          END IF
 
          IF (update_lagrangian) THEN
@@ -1576,8 +1658,6 @@ CONTAINS
 
             ! finally release L_mu_q
             CALL timestop(handle2)
-
-            WRITE (*, *) "DEBUG L_jb", ispin, cp_fm_frobenius_norm(mp2_env%ri_grad%L_jb(ispin))
          END IF
          CALL cp_fm_release(L_mu_q)
 
