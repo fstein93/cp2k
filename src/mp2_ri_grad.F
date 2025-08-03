@@ -147,8 +147,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
       REAL(KIND=dp), DIMENSION(:, :), POINTER            :: I_tmp2
       TYPE(cp_eri_mme_param), POINTER                    :: eri_param
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: L1_mu_i, L1FT_mu_i, L2_nu_a, L2FT_nu_a
       TYPE(dbcsr_p_type)                                 :: matrix_P_munu
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:)      :: mo_coeff_o, mo_coeff_v
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:, :)   :: G_P_ia
@@ -511,75 +509,15 @@ CONTAINS
       ! defined over all MPI tasks
       ! Start with moving from the DBCSR to FM for the lagrangians
 
-      ALLOCATE (L1_mu_i(nspins), L2_nu_a(nspins))
-      DO ispin = 1, nspins
-         ! Now we move from the local matrices to the global ones
-         ! defined over all MPI tasks
-         ! Start with moving from the DBCSR to FM for the lagrangians
-         NULLIFY (fm_struct_tmp)
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
-                                  nrow_global=nao, ncol_global=homo(ispin))
-         CALL cp_fm_create(L1_mu_i(ispin), fm_struct_tmp, name="Lag_mu_i")
-         CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(L1_mu_i(ispin), 0.0_dp)
-         CALL copy_dbcsr_to_fm(matrix=Lag_mu_i_1(ispin), fm=L1_mu_i(ispin))
-
-         ! release Lag_mu_i_1
-         CALL dbcsr_release(Lag_mu_i_1(ispin))
-
-         NULLIFY (fm_struct_tmp)
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
-                                  nrow_global=nao, ncol_global=virtual(ispin))
-         CALL cp_fm_create(L2_nu_a(ispin), fm_struct_tmp, name="Lag_nu_a")
-         CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(L2_nu_a(ispin), 0.0_dp)
-         CALL copy_dbcsr_to_fm(matrix=Lag_nu_a_2(ispin), fm=L2_nu_a(ispin))
-
-         ! release Lag_nu_a_2
-         CALL dbcsr_release(Lag_nu_a_2(ispin))
-      END DO
-      DEALLOCATE (Lag_mu_i_1, Lag_nu_a_2)
-
       IF (.NOT. do_smearing) THEN
          CALL create_W_P(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, &
-                         para_env_sub, Eigenval, L1_mu_i, L2_nu_a)
-         DEALLOCATE (L1_mu_i, L2_nu_a)
+                         para_env_sub, blacs_env_sub, Eigenval, Lag_mu_i_1, Lag_nu_a_2)
       ELSE
          CALL create_W_P_FT(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, &
-                            para_env_sub, Eigenval, L1_mu_i, L2_nu_a, .TRUE.,.NOT. do_smearing)
-         DEALLOCATE (L1_mu_i, L2_nu_a)
-         ALLOCATE (L1FT_mu_i(nspins), L2FT_nu_a(nspins))
-         DO ispin = 1, nspins
-            ! Now we move from the local matrices to the global ones
-            ! defined over all MPI tasks
-            ! Start with moving from the DBCSR to FM for the lagrangians
-            NULLIFY (fm_struct_tmp)
-            CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
-                                     nrow_global=nao, ncol_global=homo(ispin))
-            CALL cp_fm_create(L1FT_mu_i(ispin), fm_struct_tmp, name="LagFT_mu_i")
-            CALL cp_fm_struct_release(fm_struct_tmp)
-            CALL cp_fm_set_all(L1FT_mu_i(ispin), 0.0_dp)
-            CALL copy_dbcsr_to_fm(matrix=LagFT_mu_i_1(ispin), fm=L1FT_mu_i(ispin))
-
-            ! release Lag_mu_i_1
-            CALL dbcsr_release(LagFT_mu_i_1(ispin))
-
-            NULLIFY (fm_struct_tmp)
-            CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
-                                     nrow_global=nao, ncol_global=virtual(ispin))
-            CALL cp_fm_create(L2FT_nu_a(ispin), fm_struct_tmp, name="LagFT_nu_a")
-            CALL cp_fm_struct_release(fm_struct_tmp)
-            CALL cp_fm_set_all(L2FT_nu_a(ispin), 0.0_dp)
-            CALL copy_dbcsr_to_fm(matrix=LagFT_nu_a_2(ispin), fm=L2FT_nu_a(ispin))
-
-            ! release Lag_nu_a_2
-            CALL dbcsr_release(LagFT_nu_a_2(ispin))
-         END DO
-         DEALLOCATE (LagFT_mu_i_1, LagFT_nu_a_2)
+                            para_env_sub, blacs_env_sub, Eigenval, Lag_mu_i_1, Lag_nu_a_2, .TRUE.,.NOT. do_smearing)
 
          CALL create_W_P_FT(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, &
-                            para_env_sub, Eigenval, L1FT_mu_i, L2FT_nu_a, .FALSE., .TRUE.)
-         DEALLOCATE (L1FT_mu_i, L2FT_nu_a)
+                            para_env_sub, blacs_env_sub, Eigenval, LagFT_mu_i_1, LagFT_nu_a_2, .FALSE., .TRUE.)
       END IF
 
       CALL timestop(handle)
@@ -899,19 +837,21 @@ CONTAINS
 !> \param virtual ...
 !> \param para_env ...
 !> \param para_env_sub ...
+!> \param blacs_env_sub ...
 !> \param Eigenval ...
-!> \param L1_mu_i ...
-!> \param L2_nu_a ...
+!> \param Lag1_mu_i ...
+!> \param Lag2_nu_a ...
 ! **************************************************************************************************
-   SUBROUTINE create_W_P(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, para_env_sub, &
-                         Eigenval, L1_mu_i, L2_nu_a)
+   SUBROUTINE create_W_P(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, para_env_sub, blacs_env_sub, &
+                         Eigenval, Lag1_mu_i, Lag2_nu_a)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: L1_mu_i, L2_nu_a
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: Lag1_mu_i, Lag2_nu_a
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_W_P'
 
@@ -935,8 +875,8 @@ CONTAINS
       ! create the globally distributed mixed lagrangian
       NULLIFY (blacs_env)
       CALL get_qs_env(qs_env, blacs_env=blacs_env)
-      CALL merge_Lagrangian_matrices(blacs_env, mo_coeff, para_env, para_env_sub, &
-                                     L1_mu_i, L2_nu_a, L_mu_q)
+      CALL merge_Lagrangian_matrices(blacs_env, mo_coeff, para_env, para_env_sub, blacs_env_sub, &
+                                     Lag1_mu_i, Lag2_nu_a, L_mu_q)
 
       ! Set the factor to multiply P_ij (depends on the open or closed shell)
       factor = 1.0_dp
@@ -1258,21 +1198,23 @@ CONTAINS
 !> \param virtual ...
 !> \param para_env ...
 !> \param para_env_sub ...
+!> \param blacs_env_sub ...
 !> \param Eigenval ...
-!> \param L1_mu_i ...
-!> \param L2_nu_a ...
+!> \param Lag1_mu_i ...
+!> \param Lag2_nu_a ...
 !> \param update_densities ...
 !> \param update_lagrangian ...
 ! **************************************************************************************************
-   SUBROUTINE create_W_P_FT(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, para_env_sub, &
-                            Eigenval, L1_mu_i, L2_nu_a, update_densities, update_lagrangian)
+   SUBROUTINE create_W_P_FT(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, para_env_sub, blacs_env_sub, &
+                            Eigenval, Lag1_mu_i, Lag2_nu_a, update_densities, update_lagrangian)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: L1_mu_i, L2_nu_a
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: Lag1_mu_i, Lag2_nu_a
       LOGICAL, INTENT(IN)                                :: update_densities, update_lagrangian
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_W_P_FT'
@@ -1297,8 +1239,8 @@ CONTAINS
       ! create the globally distributed mixed lagrangian
       NULLIFY (blacs_env)
       CALL get_qs_env(qs_env, blacs_env=blacs_env)
-      CALL merge_Lagrangian_matrices(blacs_env, mo_coeff, para_env, para_env_sub, &
-                                     L1_mu_i, L2_nu_a, L_mu_q)
+      CALL merge_Lagrangian_matrices(blacs_env, mo_coeff, para_env, para_env_sub, blacs_env_sub, &
+                                     Lag1_mu_i, Lag2_nu_a, L_mu_q)
 
       ! Set the factor to multiply P_ij (depends on the open or closed shell)
       factor = 1.0_dp
@@ -1621,23 +1563,25 @@ CONTAINS
 !> \param mo_coeff ...
 !> \param para_env ...
 !> \param para_env_sub ...
-!> \param L1_mu_i ...
-!> \param L2_nu_a ...
+!> \param blacs_env_sub ...
+!> \param Lag_mu_i ...
+!> \param Lag_nu_a ...
 !> \param L_mu_q ...
 ! **************************************************************************************************
-   SUBROUTINE merge_Lagrangian_matrices(blacs_env, mo_coeff, para_env, para_env_sub, &
-                                        L1_mu_i, L2_nu_a, L_mu_q)
+   SUBROUTINE merge_Lagrangian_matrices(blacs_env, mo_coeff, para_env, para_env_sub, blacs_env_sub, &
+                                        Lag_mu_i, Lag_nu_a, L_mu_q)
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: L1_mu_i, L2_nu_a
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: Lag_mu_i, Lag_nu_a
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: L_mu_q
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_Lagrangian_matrices'
 
-      INTEGER :: color_exchange, dummy_proc, handle, handle2, handle3, i_global, i_local, iiB, &
-         iii, iproc, ispin, j_global, j_local, jjB, max_col_size, max_row_size, mypcol, myprow, &
-         nao, ncol_local, ncol_local_1i, ncol_local_2a, nmo, npcol, nprow, nrow_local, &
+      INTEGER :: color_exchange, dummy_proc, handle, handle2, handle3, homo, i_global, i_local, &
+         iiB, iii, iproc, ispin, j_global, j_local, jjB, max_col_size, max_row_size, mypcol, &
+         myprow, nao, ncol_local, ncol_local_1i, ncol_local_2a, nmo, npcol, nprow, nrow_local, &
          nrow_local_1i, nrow_local_2a, nspins, number_of_rec, number_of_send, proc_receive, &
          proc_receive_static, proc_send, proc_send_ex, proc_send_static, proc_send_sub, &
          proc_shift, rec_col_size, rec_counter, rec_row_size, send_counter, send_pcol, send_prow, &
@@ -1655,6 +1599,7 @@ CONTAINS
                                                             row_indices_1i, row_indices_2a
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: mat_rec, mat_send
       TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: L1_mu_i, L2_nu_a
       TYPE(integ_mat_buffer_type), ALLOCATABLE, &
          DIMENSION(:)                                    :: buffer_rec, buffer_send
       TYPE(integ_mat_buffer_type_2D), ALLOCATABLE, &
@@ -1665,6 +1610,38 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       nspins = SIZE(mo_coeff)
+
+      ALLOCATE (L1_mu_i(nspins), L2_nu_a(nspins))
+      DO ispin = 1, nspins
+         CALL dbcsr_get_info(Lag_mu_i(ispin), nfullcols_total=homo, nfullrows_total=nao)
+         ! Now we move from the local matrices to the global ones
+         ! defined over all MPI tasks
+         ! Start with moving from the DBCSR to FM for the lagrangians
+         NULLIFY (fm_struct_tmp)
+         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
+                                  nrow_global=nao, ncol_global=homo)
+         CALL cp_fm_create(L1_mu_i(ispin), fm_struct_tmp, name="Lag_mu_i")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+         CALL cp_fm_set_all(L1_mu_i(ispin), 0.0_dp)
+         CALL copy_dbcsr_to_fm(matrix=Lag_mu_i(ispin), fm=L1_mu_i(ispin))
+
+         ! release Lag_mu_i
+         CALL dbcsr_release(Lag_mu_i(ispin))
+
+         CALL dbcsr_get_info(Lag_nu_a(ispin), nfullcols_total=virtual, nfullrows_total=nao)
+
+         NULLIFY (fm_struct_tmp)
+         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env_sub, context=blacs_env_sub, &
+                                  nrow_global=nao, ncol_global=virtual)
+         CALL cp_fm_create(L2_nu_a(ispin), fm_struct_tmp, name="Lag_nu_a")
+         CALL cp_fm_struct_release(fm_struct_tmp)
+         CALL cp_fm_set_all(L2_nu_a(ispin), 0.0_dp)
+         CALL copy_dbcsr_to_fm(matrix=Lag_nu_a(ispin), fm=L2_nu_a(ispin))
+
+         ! release Lag_nu_a
+         CALL dbcsr_release(Lag_nu_a(ispin))
+      END DO
+      DEALLOCATE (Lag_mu_i, Lag_nu_a)
 
       ALLOCATE (L_mu_q(nspins))
 
