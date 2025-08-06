@@ -30,6 +30,7 @@ MODULE mp2_cphf
                                               dbcsr_deallocate_matrix_set
    USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
                                               cp_fm_geadd,&
+                                              cp_fm_scale_and_add,&
                                               cp_fm_uplo_to_full
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_p_type,&
@@ -408,53 +409,151 @@ CONTAINS
 
       CALL cp_fm_create(fm_mo_mo, P_mo(1)%matrix_struct)
 
-      ! update the MP2-MO density matrix with the occ-virt block
-      DO ispin = 1, nspins
-         CALL cp_fm_geadd(1.0_dp, "N", P_ia(ispin), 1.0_dp, P_mo(ispin), &
-                          homo(ispin), virtual(ispin), 1, 1, nmo - virtual(ispin) + 1, 1)
-         CALL cp_fm_geadd(1.0_dp, "T", P_ia(ispin), 1.0_dp, P_mo(ispin), &
-                          virtual(ispin), homo(ispin), 1, 1, 1, nmo - virtual(ispin) + 1)
-      END DO
-      CALL cp_fm_release(P_ia)
-      CALL cp_fm_release(fm_mo_mo)
-
       ! do the final update to the energy weighted matrix W_MO
-      DO ispin = 1, nspins
-         CALL cp_fm_get_info(matrix=W_mo(ispin), &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices)
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB)
-            IF (j_global <= homo(ispin)) THEN
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
-                  W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
-                                                     - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
-                  IF (i_global == j_global .AND. nspins == 1) W_mo(ispin)%local_data(iiB, jjB) = &
-                     W_mo(ispin)%local_data(iiB, jjB) - 2.0_dp*Eigenval(j_global, ispin)
-                  IF (i_global == j_global .AND. nspins == 2) W_mo(ispin)%local_data(iiB, jjB) = &
-                     W_mo(ispin)%local_data(iiB, jjB) - Eigenval(j_global, ispin)
-               END DO
-            END IF
-            IF (j_global > nmo - virtual(ispin)) THEN
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
-                  IF (i_global <= homo(ispin)) THEN
-                     ! virt-occ
-                     W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
-                                                        - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(i_global, ispin)
-                  END IF
-                  IF (i_global > nmo - virtual(ispin)) THEN
-                     ! virt-virt
+      IF (ANY(homo + virtual > nmo)) THEN
+         ! In the FT case, it is a bit more complicated as we need to separate the different contributions
+         DO ispin = 1, nspins
+            CALL cp_fm_get_info(matrix=W_mo(ispin), &
+                                nrow_local=nrow_local, &
+                                ncol_local=ncol_local, &
+                                row_indices=row_indices, &
+                                col_indices=col_indices)
+
+            ! Bring P_ia to the correct format
+            CALL cp_fm_set_all(fm_mo_mo, 0.0_dp)
+            CALL cp_fm_to_fm_submat(msource=P_ia(ispin), mtarget=fm_mo_mo, &
+                                    nrow=homo(ispin), ncol=virtual(ispin), &
+                                    s_firstrow=1, s_firstcol=1, &
+                                    t_firstrow=1, t_firstcol=nmo - virtual(ispin) + 1)
+
+            ! Update the occupied-occupied and virtual-virtual block with the direct contributions from the density matrix
+            ! Beware that both blocks will overlap here
+            DO jjB = 1, ncol_local
+               j_global = col_indices(jjB)
+               IF (j_global <= homo(ispin)) THEN
+                  ! This is the contribution from the SCF density
+                  DO iiB = 1, nrow_local
+                     i_global = row_indices(iiB)
+                     IF (i_global == j_global .AND. nspins == 1) W_mo(ispin)%local_data(iiB, jjB) = &
+                        W_mo(ispin)%local_data(iiB, jjB) - 2.0_dp*Eigenval(j_global, ispin)*occupation(j_global, ispin)
+                     IF (i_global == j_global .AND. nspins == 2) W_mo(ispin)%local_data(iiB, jjB) = &
+                        W_mo(ispin)%local_data(iiB, jjB) - Eigenval(j_global, ispin)*occupation(j_global, ispin)
                      W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
                                                         - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
-                  END IF
-               END DO
-            END IF
+                  END DO
+               END IF
+               IF (j_global > nmo - virtual(ispin)) THEN
+                  DO iiB = 1, nrow_local
+                     i_global = row_indices(iiB)
+                     IF (i_global > nmo - virtual(ispin)) THEN
+                        ! virt-virt
+                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                   - mp2_env%ri_grad%P_mo_FTab(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                     END IF
+                  END DO
+               END IF
+            END DO
+            DO jjB = 1, ncol_local
+               j_global = col_indices(jjB)
+               IF (j_global <= homo(ispin)) THEN
+                  DO iiB = 1, nrow_local
+                     i_global = row_indices(iiB)
+                     W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                        - fm_mo_mo%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                  END DO
+               ELSE
+               END IF
+               IF (j_global > nmo - virtual(ispin)) THEN
+                  DO iiB = 1, nrow_local
+                     i_global = row_indices(iiB)
+                     IF (i_global <= homo(ispin)) THEN
+                        ! virt-occ
+                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                           - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(i_global, ispin)
+                     END IF
+                     IF (i_global > nmo - virtual(ispin)) THEN
+                        ! virt-virt
+                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                           - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                     END IF
+                  END DO
+               END IF
+            END DO
+            CALL cp_fm_scale_and_add(1.0_dp, P_mo(ispin), 1.0_dp, fm_mo_mo)
+
+            CALL cp_fm_set_all(fm_mo_mo, 0.0_dp)
+            CALL cp_fm_geadd(1.0_dp, "T", P_ia(ispin), 0.0_dp, fm_mo_mo, &
+                             virtual(ispin), homo(ispin), 1, 1, 1, nmo - virtual(ispin) + 1)
+            DO jjB = 1, ncol_local
+               j_global = col_indices(jjB)
+               IF (j_global > nmo - virtual(ispin)) THEN
+                  DO iiB = 1, nrow_local
+                     i_global = row_indices(iiB)
+                     IF (i_global <= homo(ispin)) THEN
+                        ! virt-occ
+                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                           - fm_mo_mo%local_data(iiB, jjB)*Eigenval(i_global, ispin)
+                     ELSE
+                        EXIT
+                     END IF
+                  END DO
+               END IF
+            END DO
          END DO
-      END DO
+         CALL cp_fm_scale_and_add(1.0_dp, P_mo(ispin), 1.0_dp, fm_mo_mo)
+         CALL cp_fm_release(P_ia)
+         CALL cp_fm_release(mp2_env%ri_grad%P_mo_FTab)
+         CALL cp_fm_release(fm_mo_mo)
+      ELSE
+         DO ispin = 1, nspins
+            ! update the MP2-MO density matrix with the occ-virt block
+            CALL cp_fm_to_fm_submat(msource=P_ia(ispin), mtarget=P_mo(ispin), &
+                                    nrow=homo(ispin), ncol=virtual(ispin), &
+                                    s_firstrow=1, s_firstcol=1, &
+                                    t_firstrow=1, t_firstcol=homo(ispin) + 1)
+            ! transpose P_MO matrix (easy way to symmetrize)
+            CALL cp_fm_set_all(fm_mo_mo, 0.0_dp)
+            ! P_mo now is ready
+            CALL cp_fm_uplo_to_full(matrix=P_mo(ispin), work=fm_mo_mo)
+         END DO
+         CALL cp_fm_release(P_ia)
+         CALL cp_fm_release(fm_mo_mo)
+
+         DO ispin = 1, nspins
+            CALL cp_fm_get_info(matrix=W_mo(ispin), &
+                                nrow_local=nrow_local, &
+                                ncol_local=ncol_local, &
+                                row_indices=row_indices, &
+                                col_indices=col_indices)
+            DO jjB = 1, ncol_local
+               j_global = col_indices(jjB)
+               IF (j_global <= homo(ispin)) THEN
+                  DO iiB = 1, nrow_local
+                     i_global = row_indices(iiB)
+                     W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                        - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                     IF (i_global == j_global .AND. nspins == 1) W_mo(ispin)%local_data(iiB, jjB) = &
+                        W_mo(ispin)%local_data(iiB, jjB) - 2.0_dp*Eigenval(j_global, ispin)
+                     IF (i_global == j_global .AND. nspins == 2) W_mo(ispin)%local_data(iiB, jjB) = &
+                        W_mo(ispin)%local_data(iiB, jjB) - Eigenval(j_global, ispin)
+                  END DO
+               ELSE
+                  DO iiB = 1, nrow_local
+                     i_global = row_indices(iiB)
+                     IF (i_global <= homo(ispin)) THEN
+                        ! virt-occ
+                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                           - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(i_global, ispin)
+                     ELSE
+                        ! virt-virt
+                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                           - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                     END IF
+                  END DO
+               END IF
+            END DO
+         END DO
+      END IF
 
       ! create the MP2 energy weighted density matrix
       NULLIFY (p_env%w1)
