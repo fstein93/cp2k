@@ -438,8 +438,10 @@ CONTAINS
                         W_mo(ispin)%local_data(iiB, jjB) - 2.0_dp*Eigenval(j_global, ispin)*occupation(j_global, ispin)
                      IF (i_global == j_global .AND. nspins == 2) W_mo(ispin)%local_data(iiB, jjB) = &
                         W_mo(ispin)%local_data(iiB, jjB) - Eigenval(j_global, ispin)*occupation(j_global, ispin)
-                     W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
-                                                        - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                     IF (i_global < homo(i_global)) THEN
+                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                           - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                     END IF
                   END DO
                END IF
                IF (j_global > nmo - virtual(ispin)) THEN
@@ -458,19 +460,16 @@ CONTAINS
                IF (j_global <= homo(ispin)) THEN
                   DO iiB = 1, nrow_local
                      i_global = row_indices(iiB)
-                     W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
-                                                        - fm_mo_mo%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                     IF (i_global > nmo - virtual(ispin)) THEN
+                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                           - fm_mo_mo%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                     END IF
                   END DO
                ELSE
                END IF
                IF (j_global > nmo - virtual(ispin)) THEN
                   DO iiB = 1, nrow_local
                      i_global = row_indices(iiB)
-                     IF (i_global <= homo(ispin)) THEN
-                        ! virt-occ
-                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
-                                                           - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(i_global, ispin)
-                     END IF
                      IF (i_global > nmo - virtual(ispin)) THEN
                         ! virt-virt
                         W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
@@ -493,14 +492,12 @@ CONTAINS
                         ! virt-occ
                         W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
                                                            - fm_mo_mo%local_data(iiB, jjB)*Eigenval(i_global, ispin)
-                     ELSE
-                        EXIT
                      END IF
                   END DO
                END IF
             END DO
+            CALL cp_fm_scale_and_add(1.0_dp, P_mo(ispin), 1.0_dp, fm_mo_mo)
          END DO
-         CALL cp_fm_scale_and_add(1.0_dp, P_mo(ispin), 1.0_dp, fm_mo_mo)
          CALL cp_fm_release(P_ia)
          CALL cp_fm_release(mp2_env%ri_grad%P_mo_FTab)
          CALL cp_fm_release(fm_mo_mo)
