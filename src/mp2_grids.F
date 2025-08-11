@@ -195,6 +195,10 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      IF (ANY(homo + virtual > SIZE(Eigenval, 1))) THEN
+         CPABORT("Smearing requires either DO_FTRPA or Clenshaw Curtis quadrature!")
+      END IF
+
       CALL determine_energy_range(qs_env, para_env, homo, virtual, Eigenval, do_ri_sos_laplace_mp2, &
                                   do_kpoints_cubic_RPA, Emin, Emax, e_range, e_fermi)
 

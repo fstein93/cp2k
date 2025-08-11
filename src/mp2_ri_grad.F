@@ -708,9 +708,11 @@ CONTAINS
          ! Part A1: fully virtual orbitals
          ! transform first index of mat_munu and store the result into matrix_P_inu
          CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
-         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
-                             first_k=homo + virtual - nmo + 1)
+         IF (homo + virtual - nmo + 1 <= virtual) THEN
+            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
+                                0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
+                                first_k=homo + virtual - nmo + 1)
+         END IF
 
          ! first contract mat_munu with the half back transformed Gamma_i_nu
          ! in order to update Lag_mu_i_1
@@ -766,7 +768,8 @@ CONTAINS
 
                   IF (occ_diff > eps_diff) THEN
                      data_block(i_row, i_col) = data_block(i_row, i_col)/occ_diff
-                  ELSE IF (ABS(occ_diff) < eps_diff .AND. i_row + row_offset <= i_col + col_offset + nmo - virtual) THEN
+                  ELSE IF (ABS(occ_diff) < eps_diff) THEN
+                     WRITE (*, *) "occ_row", occ_row, occ_row*(1.0_dp - occ_row)
                      data_block(i_row, i_col) = data_block(i_row, i_col)*(1.0_dp - 2.0_dp*occ_row)/(occ_row*(1.0_dp - occ_row))
                   ELSE
                      data_block(i_row, i_col) = 0.0_dp
@@ -783,9 +786,11 @@ CONTAINS
          ! Part A1: fully virtual orbitals
          ! transform first index of mat_munu and store the result into matrix_P_inu
          CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
-         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
-                             first_k=homo + virtual - nmo + 1)
+         IF (homo + virtual - nmo + 1 <= virtual) THEN
+            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
+                                0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
+                                first_k=homo + virtual - nmo + 1)
+         END IF
 
          ! first contract mat_munu with the half back transformed Gamma_i_nu
          ! in order to update Lag_mu_i_1
@@ -817,7 +822,7 @@ CONTAINS
                              0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
                              first_row=nmo - virtual + 1)
 
-         ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
+         ! contract the transformend matrix_P_inu with the untransformed Gamma_i_a
          ! in order to update Lag_nu_a_2
          CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
                              1.0_dp, LagFT2_nu_a_2(ispin), filter_eps=eps_filter)

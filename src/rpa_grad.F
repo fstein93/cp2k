@@ -809,7 +809,7 @@ CONTAINS
                                             fm_mat_Q_gemm(jspin)%matrix_struct%context)
          ELSE
             CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., homo(ispin), virtual(ispin), Eigenval(:, ispin), &
-                                   omega, 0.0_dp)
+                                   omega, 0.0_dp, occupation(:, ispin), temperature)
          END IF
 
          CALL timeset(routineN//"_contr_S", handle2)
@@ -1317,7 +1317,8 @@ CONTAINS
          DO my_i = 1, my_i_size
             e_i = -my_eval_occ(my_i)
             occ_i = my_occ_occ(my_i)
-            IF (ABS(e_i + e_a) > eps_diff .AND. ABS(e_i + e_b) > eps_diff) THEN
+            IF (ABS(occ_i + e_a) > eps_diff .AND. ABS(e_i + e_b) > eps_diff &
+                .AND. ABS(occ_i - occ_a) > eps_diff .AND. ABS(occ_i - occ_b) > eps_diff) THEN
                tmp = -weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, recv_a, my_i)) &
                      *(1.0_dp + omega2/((e_a + e_i)*(e_b + e_i)))/SQRT(ABS((occ_i - occ_a)*(occ_i - occ_b))) - my_compens
                s = my_p + tmp
@@ -1388,7 +1389,8 @@ CONTAINS
          DO my_a = 1, my_a_size
             e_a = my_eval_virt(my_a)
             occ_a = my_occ_virt(my_a)
-            IF (ABS(e_a - e_i) > eps_diff .AND. ABS(e_a - e_j) > eps_diff) THEN
+            IF (ABS(e_a - e_i) > eps_diff .AND. ABS(e_a - e_j) > eps_diff &
+                .AND. ABS(occ_i - occ_a) > eps_diff .AND. ABS(occ_j - occ_a) > eps_diff) THEN
                tmp = weight*accurate_dot_product(mat_S(:, my_a, my_i), mat_work(:, my_a, recv_i)) &
                      *(1.0_dp + omega2/((e_a - e_i)*(e_a - e_j)))/SQRT(ABS((occ_i - occ_a)*(occ_j - occ_a))) - my_compens
                s = my_p + tmp

@@ -1243,36 +1243,36 @@ CONTAINS
       END IF
 
       ALLOCATE (e_fermi(nspins))
-      IF (scf_control%smear%electronic_temperature > 0.0_dp) THEN
-      IF (do_minimax_quad) THEN
-         CALL get_minimax_ftrpa_grid(para_env, unit_nr, homo, virtual, Eigenval, &
-                                     num_integ_points, scf_control%smear%electronic_temperature, &
-                                     qs_env, e_fermi(1), tj, wj)
-      ELSE
-         CALL get_matsubara_grid(unit_nr, scf_control%smear%electronic_temperature, Eigenval(:, 1, :), &
-                                 num_integ_points, extrapolation_order, tj, wj)
-      END IF
+      IF (mp2_env%ri_rpa%do_ftrpa) THEN
+         IF (do_minimax_quad) THEN
+            CALL get_minimax_ftrpa_grid(para_env, unit_nr, homo, virtual, Eigenval, &
+                                        num_integ_points, scf_control%smear%electronic_temperature, &
+                                        qs_env, e_fermi(1), tj, wj)
+         ELSE
+            CALL get_matsubara_grid(unit_nr, scf_control%smear%electronic_temperature, Eigenval(:, 1, :), &
+                                    num_integ_points, extrapolation_order, tj, wj)
+         END IF
       ELSE IF (do_minimax_quad .OR. do_ri_sos_laplace_mp2) THEN
-      do_print = .NOT. do_ic_model
-      CALL get_minimax_grid(para_env, unit_nr, homo, virtual, Eigenval, num_integ_points, do_im_time, &
-                            do_ri_sos_laplace_mp2, do_print, &
-                            tau_tj, tau_wj, qs_env, do_gw_im_time, &
-                            do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
-                            weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
-                            qs_env%mp2_env%ri_g0w0%regularization_minimax)
+         do_print = .NOT. do_ic_model
+         CALL get_minimax_grid(para_env, unit_nr, homo, virtual, Eigenval, num_integ_points, do_im_time, &
+                               do_ri_sos_laplace_mp2, do_print, &
+                               tau_tj, tau_wj, qs_env, do_gw_im_time, &
+                               do_kpoints_cubic_RPA, e_fermi(1), tj, wj, &
+                               weights_cos_tf_t_to_w, weights_cos_tf_w_to_t, weights_sin_tf_t_to_w, &
+                               qs_env%mp2_env%ri_g0w0%regularization_minimax)
 
-      ! For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
-      IF (qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
-         CALL keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, &
-                                weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, do_im_time, &
-                                num_integ_points, unit_nr, qs_env)
-      END IF
+         ! For sos_laplace_mp2 and low-scaling RPA, potentially need to store/retrieve the initial weights
+         IF (qs_env%mp2_env%ri_rpa_im_time%keep_quad) THEN
+            CALL keep_initial_quad(tj, wj, tau_tj, tau_wj, weights_cos_tf_t_to_w, &
+                                   weights_cos_tf_w_to_t, do_ri_sos_laplace_mp2, do_im_time, &
+                                   num_integ_points, unit_nr, qs_env)
+         END IF
       ELSE
-      IF (calc_forces) CPABORT("Forces with Clenshaw-Curtis grid not implemented.")
-      CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, occupation_numbers, &
-                             scf_control%smear%electronic_temperature, num_integ_points, &
-                             num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
-                             ext_scaling, tj, wj)
+         IF (calc_forces) CPABORT("Forces with Clenshaw-Curtis grid not implemented.")
+         CALL get_clenshaw_grid(para_env, para_env_RPA, unit_nr, homo, virtual, Eigenval, occupation_numbers, &
+                                scf_control%smear%electronic_temperature, num_integ_points, &
+                                num_integ_group, color_rpa_group, fm_mat_S, my_do_gw, &
+                                ext_scaling, tj, wj)
       END IF
 
       ! This array is needed for RPA

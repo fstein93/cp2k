@@ -248,9 +248,6 @@ CONTAINS
             virtual(ispin) = nmo - homo(ispin)
             occupation_numbers(:homo(ispin), ispin) = 1.0_dp
             occupation_numbers(homo(ispin) + 1:, ispin) = 0.0_dp
-         ELSE IF (nspins == 1) THEN
-            ! With one spin, we normalize the occupation numbers to one
-            occupation_numbers(:, :) = occupation_numbers(:, :)/2.0_dp
          END IF
       END DO
       CPASSERT(ALL(occupation_numbers <= 1.0_dp .AND. occupation_numbers >= 0.0_dp))

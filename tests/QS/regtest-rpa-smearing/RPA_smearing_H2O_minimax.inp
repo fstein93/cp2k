@@ -50,6 +50,7 @@
           &END WFC_GPW
         &END INTEGRALS
         &RI_RPA
+          FTRPA
           MINIMAX
           RPA_NUM_QUAD_POINTS 10
           &HF
