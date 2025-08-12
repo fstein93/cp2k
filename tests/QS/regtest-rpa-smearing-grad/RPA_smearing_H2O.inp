@@ -26,6 +26,12 @@
       PERIODIC NONE
       POISSON_SOLVER WAVELET
     &END POISSON
+    &PRINT
+      &MO
+        ENERGIES
+        OCCUPATION_NUMBERS
+      &END MO
+    &END PRINT
     &QS
       EPS_DEFAULT 1.0E-15
       METHOD GPW

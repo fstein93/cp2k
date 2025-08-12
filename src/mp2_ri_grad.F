@@ -768,7 +768,7 @@ CONTAINS
 
                   IF (occ_diff > eps_diff) THEN
                      data_block(i_row, i_col) = data_block(i_row, i_col)/occ_diff
-                  ELSE IF (ABS(occ_diff) < eps_diff) THEN
+                  ELSE IF (ABS(occ_diff) < eps_diff .AND. occ_row > 0.0_dp .AND. occ_row < 1.0_dp) THEN
                      WRITE (*, *) "occ_row", occ_row, occ_row*(1.0_dp - occ_row)
                      data_block(i_row, i_col) = data_block(i_row, i_col)*(1.0_dp - 2.0_dp*occ_row)/(occ_row*(1.0_dp - occ_row))
                   ELSE
