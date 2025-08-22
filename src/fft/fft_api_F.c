@@ -55,9 +55,10 @@ void fft_library_init_F(const int backend_F, const int fftw_plan,
     plan_type = FFT_ESTIMATE;
   }
   fft_init_lib(backend, plan_type, use_fftw_mpi, wisdom_file);
+  fft_init_timer(false);
 }
 
-void fft_finalize_lib_F(const char *wisdom_file) {
+void fft_library_finalize_F(const char *wisdom_file) {
   fft_finalize_lib(wisdom_file);
 }
 

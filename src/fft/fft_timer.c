@@ -373,20 +373,22 @@ int fft_start_timer(const char *routine_name) {
  * \author Frederick Stein
  ******************************************************************************/
 void fft_stop_timer(const int handle) {
-  assert(timers_initialized && "Timing module is not initialized!\n");
-  if (omp_get_thread_num() == 0) {
-    assert(stack != NULL && "Stack is empty!\n");
-    int stack_handle;
-    double total_time, self_time;
-    pop_from_stack(&stack_handle, &total_time, &self_time);
-    assert(stack_handle == handle && "Incorrect order of timing regions!\n");
-    // Merge with the list of routines
-    if (debug_mode && mp_mpi_comm_rank(mp_mpi_comm_world) == 0) {
-      printf("FFT_PROFILE (%i) %s %f %f\n", mp_mpi_comm_rank(mp_mpi_comm_world),
-             get_routine_name(stack_handle), total_time, self_time);
-      fflush(stdout);
+  if (timers_initialized) {
+    if (omp_get_thread_num() == 0) {
+      assert(stack != NULL && "Stack is empty!\n");
+      int stack_handle;
+      double total_time, self_time;
+      pop_from_stack(&stack_handle, &total_time, &self_time);
+      assert(stack_handle == handle && "Incorrect order of timing regions!\n");
+      // Merge with the list of routines
+      if (debug_mode && mp_mpi_comm_rank(mp_mpi_comm_world) == 0) {
+        printf("FFT_PROFILE (%i) %s %f %f\n",
+               mp_mpi_comm_rank(mp_mpi_comm_world),
+               get_routine_name(stack_handle), total_time, self_time);
+        fflush(stdout);
+      }
+      update_routine(handle, total_time, self_time);
     }
-    update_routine(handle, total_time, self_time);
   }
 }
 

@@ -8,5 +8,6 @@
         "../base",
         "../mpiwrap",
         "../offload",
+        "../fft",
     ],
 }

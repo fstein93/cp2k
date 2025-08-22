@@ -33,6 +33,10 @@ MODULE fft_tools
                                               C_SIZE_T
    USE cp_array_utils,                  ONLY: cp_1d_i_a_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT,&
+                                              FFT_LIBRARY_FFTW_MODE_ESTIMATE,&
+                                              fft_library_finalize,&
+                                              fft_library_init
    USE fft_lib_old,                     ONLY: &
         BWFFT, FWFFT, fft_1d, fft_2d, fft_3d, fft_alloc, fft_arbitrary_lengths_available, &
         fft_create_plan_1d, fft_create_plan_2d, fft_create_plan_3d, fft_dealloc, fft_destroy_plan, &
@@ -200,6 +204,8 @@ CONTAINS
       ! release it first to prevent memory leaks
       CALL release_fft_scratch_pool()
 
+      CALL fft_library_init(FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_FFTW_MODE_ESTIMATE, .TRUE., wisdom_file)
+
       CALL fft_do_init(wisdom_file, plan_style, fftsg_sizes, fftlib)
 
       CALL init_fft_scratch_pool()
@@ -224,6 +230,8 @@ CONTAINS
       ! finalize fft libs
 
       CALL fft_do_cleanup(wisdom_file, para_env%is_source())
+
+      CALL fft_library_finalize(wisdom_file)
 
    END SUBROUTINE finalize_fft
 
