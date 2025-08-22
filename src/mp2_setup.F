@@ -506,7 +506,7 @@ CONTAINS
 
       ! Set the CPHF section
       CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%FREE_HFX_BUFFER", l_val=mp2_env%ri_grad%free_hfx_buffer)
-      CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%EPS_CANONICAL", r_val=mp2_env%ri_grad%eps_canonical)
+      CALL section_vals_val_get(mp2_section, "EPS_CANONICAL", r_val=mp2_env%eps_canonical)
       CALL section_vals_val_get(mp2_section, "CANONICAL_GRADIENTS%MAX_PARALLEL_COMM", i_val=mp2_env%ri_grad%max_parallel_comm)
       cphf_section => section_vals_get_subs_vals(mp2_section, "CANONICAL_GRADIENTS%CPHF")
       IF (ASSOCIATED(cphf_section)) THEN

@@ -839,7 +839,7 @@ CONTAINS
                   fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                                 SQRT(ABS(eigen_diff*occ_diff)/(eigen_diff**2 + omega**2)/2.0_dp)
                END IF
-            ELSE IF (omega == 0.0_dp) THEN
+            ELSE IF (omega <= 0.0_dp) THEN
                ! Diagonal elements need a factor of two to prevent double-counting
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                              SQRT(occupation_numbers(iocc)*(1.0_dp - occupation_numbers(iocc))/ &

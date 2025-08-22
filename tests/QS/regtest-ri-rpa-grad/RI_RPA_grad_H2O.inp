@@ -1,7 +1,8 @@
 &GLOBAL
   PRINT_LEVEL MEDIUM
-  PROJECT RI_laplace_MP2_H2O_degen
+  PROJECT RI_RPA_grad_MP2_H2O
   RUN_TYPE GEO_OPT
+  #  RUN_TYPE ENERGY_FORCE
   &TIMINGS
     THRESHOLD 0.01
   &END TIMINGS
@@ -31,7 +32,7 @@
       METHOD GPW
     &END QS
     &SCF
-      EPS_SCF 1.0E-6
+      EPS_SCF 1.0E-7
       MAX_SCF 100
       SCF_GUESS RESTART
       ! ADDED_MOS 15000 15000
@@ -39,17 +40,23 @@
     &XC
       &HF
         FRACTION 1.0000000
+        &INTERACTION_POTENTIAL
+          CUTOFF_RADIUS 1.5
+          POTENTIAL_TYPE TRUNCATED
+        &END INTERACTION_POTENTIAL
         &SCREENING
           EPS_SCHWARZ 1.0E-6
+          EPS_SCHWARZ_FORCES 1.0E-6
           SCREEN_ON_INITIAL_P FALSE
         &END SCREENING
       &END HF
       &WF_CORRELATION
-        # This increases the computational costs significantly as the default suffices
-        # We use it just to test the code path with degenerate orbital pairs
-        EPS_CANONICAL 1.0
         MEMORY 200.
         NUMBER_PROC 1
+        &CANONICAL_GRADIENTS
+          # Just for testing, use it only if you need the accuracy
+          EPS_CANONICAL 0.1
+        &END CANONICAL_GRADIENTS
         &INTEGRALS
           ERI_METHOD GPW
           &WFC_GPW
@@ -57,9 +64,10 @@
             REL_CUTOFF 20
           &END WFC_GPW
         &END INTEGRALS
-        &RI_SOS_MP2
+        &RI_RPA
+          MINIMAX
           QUADRATURE_POINTS 4
-        &END RI_SOS_MP2
+        &END RI_RPA
       &END WF_CORRELATION
       &XC_FUNCTIONAL NONE
       &END XC_FUNCTIONAL
@@ -67,7 +75,7 @@
   &END DFT
   &SUBSYS
     &CELL
-      ABC [angstrom] 4.000 4.000 4.000
+      ABC [angstrom] 4.0 4.0 4.0
       PERIODIC XYZ
     &END CELL
     &KIND H

@@ -159,6 +159,14 @@ CONTAINS
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_CANONICAL", &
+                          description="Threshold under which a given MO pair is considered to be degenerate. "// &
+                          "Ignored except at T>0 or gradients with canonical MP2 or SOS-MP2.", &
+                          usage="EPS_CANONICAL 1.0E-8", type_of_var=real_t, &
+                          default_r_val=1.0E-5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
       NULLIFY (subsection)
       CALL create_mp2_details_section(subsection)
       CALL section_add_subsection(section, subsection)
@@ -455,15 +463,6 @@ CONTAINS
       CALL create_cphf(subsection)
       CALL section_add_subsection(section, subsection)
       CALL section_release(subsection)
-
-      CALL keyword_create(keyword, __LOCATION__, name="EPS_CANONICAL", &
-                          description="Threshold under which a given ij or ab pair is considered to be degenerate and "// &
-                          "its contribution to the density matrix is calculated directly. "// &
-                          "Ignored in case of energy-only calculation.", &
-                          usage="EPS_CANONICAL 1.0E-8", type_of_var=real_t, &
-                          default_r_val=1.0E-7_dp)
-      CALL section_add_keyword(section, keyword)
-      CALL keyword_release(keyword)
 
       CALL keyword_create( &
          keyword, __LOCATION__, &

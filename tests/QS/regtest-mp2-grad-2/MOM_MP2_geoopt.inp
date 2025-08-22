@@ -66,10 +66,10 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
+        EPS_CANONICAL 1.0E-7
         MEMORY 500
         NUMBER_PROC 1
         &CANONICAL_GRADIENTS
-          EPS_CANONICAL 1.0E-7
           FREE_HFX_BUFFER .FALSE.
           &CPHF
             EPS_CONV 1.0E-4

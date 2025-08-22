@@ -54,10 +54,10 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
+        EPS_CANONICAL 0.1
         MEMORY 200.
         NUMBER_PROC 1
         &CANONICAL_GRADIENTS
-          EPS_CANONICAL 0.1
         &END CANONICAL_GRADIENTS
         &INTEGRALS
           ERI_METHOD GPW

@@ -2546,7 +2546,7 @@ CONTAINS
       DO iiB = 1, homo
          ! diagonal elements already updated
          DO jjB = iiB + 1, homo
-            IF (ABS(Eigenval(jjB) - Eigenval(iiB)) < mp2_env%ri_grad%eps_canonical) &
+            IF (ABS(Eigenval(jjB) - Eigenval(iiB)) < mp2_env%eps_canonical) &
                num_sing_ij = num_sing_ij + 1
          END DO
       END DO
@@ -2616,7 +2616,7 @@ CONTAINS
       DO iiB = 1, homo
          ! diagonal elements already updated
          DO jjB = iiB + 1, homo
-            IF (ABS(Eigenval(jjB) - Eigenval(iiB)) >= mp2_env%ri_grad%eps_canonical) CYCLE
+            IF (ABS(Eigenval(jjB) - Eigenval(iiB)) >= mp2_env%eps_canonical) CYCLE
             ij_counter = ij_counter + 1
             DO kkB = 1, homo_beta - MOD(homo_beta, block_size), block_size
                IF (ijk_counter + 1 > num_k_blocks) EXIT
@@ -2634,7 +2634,7 @@ CONTAINS
       DO iiB = 1, homo
          ! diagonal elements already updated
          DO jjB = iiB + 1, homo
-            IF (ABS(Eigenval(jjB) - Eigenval(iiB)) >= mp2_env%ri_grad%eps_canonical) CYCLE
+            IF (ABS(Eigenval(jjB) - Eigenval(iiB)) >= mp2_env%eps_canonical) CYCLE
             ij_counter = ij_counter + 1
             DO kkB = 1, homo_beta
                IF (ijk_marker(kkB, ij_counter)) THEN

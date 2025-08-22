@@ -438,7 +438,7 @@ CONTAINS
                         W_mo(ispin)%local_data(iiB, jjB) - 2.0_dp*Eigenval(j_global, ispin)*occupation(j_global, ispin)
                      IF (i_global == j_global .AND. nspins == 2) W_mo(ispin)%local_data(iiB, jjB) = &
                         W_mo(ispin)%local_data(iiB, jjB) - Eigenval(j_global, ispin)*occupation(j_global, ispin)
-                     IF (i_global < homo(i_global)) THEN
+                     IF (i_global < homo(ispin)) THEN
                         W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
                                                            - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
                      END IF
@@ -893,7 +893,7 @@ CONTAINS
                                                           - occupation(i_global, ispin))/ &
                                                         (Eigenval(j_global, ispin) &
                                                          - Eigenval(i_global, ispin))
-               ELSE
+               ELSE IF (occupation(i_global, ispin) > eps_threshold .AND. occupation(i_global, ispin) < 1.0_dp - eps_threshold) THEN
                   precond(ispin)%local_data(iiB, jjB) = 1.0_dp/(occupation(i_global, ispin)*(1.0_dp - occupation(i_global, ispin)))
                END IF
             END DO
@@ -1127,7 +1127,7 @@ CONTAINS
 
          END DO
 
-         IF (unit_nr > 0) THEN
+         IF (.FALSE. .AND. unit_nr > 0) THEN
             WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
             IF (converged) THEN
                WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations converged in', cycle_counter, ' steps'

@@ -53,10 +53,13 @@
     &END SCF
     &XC
       &WF_CORRELATION
+        EPS_CANONICAL 0.1
         MEMORY 500.0
         NUMBER_PROC 1
         &CANONICAL_GRADIENTS
-          EPS_CANONICAL 0.1
+          &CPHF
+            MAX_ITER 1000
+          &END CPHF
         &END CANONICAL_GRADIENTS
         &INTEGRALS
           ERI_METHOD GPW

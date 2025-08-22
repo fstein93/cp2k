@@ -297,7 +297,6 @@ MODULE mp2_types
       TYPE(qs_p_env_type), POINTER                       :: p_env => NULL()
       TYPE(qs_force_type), DIMENSION(:), POINTER         :: mp2_force => NULL()
       REAL(KIND=dp), DIMENSION(3, 3)                     :: mp2_virial = 0.0_dp
-      REAL(dp)                                           :: eps_canonical = 0.0_dp
       LOGICAL                                            :: free_hfx_buffer = .FALSE.
       INTEGER                                            :: max_parallel_comm = 0
    END TYPE grad_util
@@ -385,7 +384,8 @@ MODULE mp2_types
 #endif
       REAL(KIND=dp)                                      :: mp2_memory = 0.0_dp, &
                                                             scale_S = 0.0_dp, &
-                                                            scale_T = 0.0_dp
+                                                            scale_T = 0.0_dp, &
+                                                            eps_canonical = 0.0_dp
       INTEGER                                            :: mp2_num_proc = 0
       INTEGER                                            :: block_size_row = 0
       INTEGER                                            :: block_size_col = 0

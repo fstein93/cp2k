@@ -42,7 +42,6 @@
         MEMORY 1000.0
         NUMBER_PROC 1
         &CANONICAL_GRADIENTS
-          EPS_CANONICAL 0.00001
           FREE_HFX_BUFFER .FALSE.
           &CPHF
             EPS_CONV 1.0E-6
