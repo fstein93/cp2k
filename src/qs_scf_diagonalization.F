@@ -13,7 +13,6 @@
 !>      05.2009
 ! **************************************************************************************************
 MODULE qs_scf_diagonalization
-   USE cp_array_utils,                  ONLY: cp_1d_r_p_type
    USE cp_cfm_basic_linalg,             ONLY: cp_cfm_scale_and_add,&
                                               cp_cfm_scale_and_add_fm
    USE cp_cfm_diag,                     ONLY: cp_cfm_geeig,&
@@ -795,7 +794,6 @@ CONTAINS
       REAL(dp)                                           :: ene_diff, ene_old, iter_delta, max_val, &
                                                             sum_band, sum_val, t1, t2
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues, mo_occupations
-      TYPE(cp_1d_r_p_type), ALLOCATABLE, DIMENSION(:)    :: eval_first, occ_first
       TYPE(cp_fm_type)                                   :: work
       TYPE(cp_fm_type), POINTER                          :: c0, chc, evec, mo_coeff
       TYPE(cp_logger_type), POINTER                      :: logger
@@ -817,19 +815,6 @@ CONTAINS
       !Extra loop keeping mos unchanged and refining the subspace occupation
       nspin = SIZE(mos)
       CALL qs_rho_get(rho, rho_ao=rho_ao, rho_ao_kp=rho_ao_kp)
-
-      ALLOCATE (eval_first(nspin))
-      ALLOCATE (occ_first(nspin))
-      DO ispin = 1, nspin
-         CALL get_mo_set(mo_set=mos(ispin), &
-                         nmo=nmo, &
-                         eigenvalues=mo_eigenvalues, &
-                         occupation_numbers=mo_occupations)
-         ALLOCATE (eval_first(ispin)%array(nmo))
-         ALLOCATE (occ_first(ispin)%array(nmo))
-         eval_first(ispin)%array(1:nmo) = mo_eigenvalues(1:nmo)
-         occ_first(ispin)%array(1:nmo) = mo_occupations(1:nmo)
-      END DO
 
       DO ispin = 1, nspin
          ! does not yet handle k-points
@@ -968,10 +953,7 @@ CONTAINS
          ! does not yet handle k-points
          CALL dbcsr_copy(scf_env%p_mix_new(ispin, 1)%matrix, rho_ao(ispin)%matrix)
          CALL dbcsr_copy(rho_ao(ispin)%matrix, subspace_env%p_matrix_store(ispin)%matrix)
-
-         DEALLOCATE (eval_first(ispin)%array, occ_first(ispin)%array)
       END DO
-      DEALLOCATE (eval_first, occ_first)
 
       CALL timestop(handle)
 
@@ -1357,8 +1339,6 @@ CONTAINS
          ELSE
             ! Q = S*C
             mo2ao => mob
-!MK     CALL copy_sm_to_fm(matrix_s(1)%matrix,work)
-!MK     CALL cp_fm_symm("L", "U",nao, nao, 1.0_dp, work, moa, 0.0_dp, mo2ao)
             CALL cp_dbcsr_sm_fm_multiply(matrix_s(1)%matrix, moa, mo2ao, nao)
          END IF
 

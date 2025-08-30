@@ -522,17 +522,19 @@ CONTAINS
          END IF
 
          IF (scf_control%smear%do_smear) &
-            CALL set_mo_occupation(mos_mp2, scf_control%smear)
+            CALL set_mo_occupation(mos_mp2(ispin), scf_control%smear)
       END DO
-
-      IF (scf_control%smear%do_smear) THEN
-         CALL set_mo_occupation(mos_mp2, scf_control%smear)
-      END IF
 
       ! Normalize occupation numbers to 1
       IF (nspins == 1) THEN
          CALL get_mo_set(mos_mp2(1), occupation_numbers=mo_occupation_numbers)
          mo_occupation_numbers = mo_occupation_numbers/2.0_dp
+         WRITE (*, *) "occupancy", 1, mo_occupation_numbers
+      ELSE
+         DO ispin = 1, nspins
+            CALL get_mo_set(mos_mp2(ispin), occupation_numbers=mo_occupation_numbers)
+            WRITE (*, *) "occupancy", ispin, mo_occupation_numbers
+         END DO
       END IF
 
       CALL cp_fm_release(fm_matrix_s)

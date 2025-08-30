@@ -1017,14 +1017,13 @@ CONTAINS
 
       INTEGER                                            :: ispin
       LOGICAL                                            :: uniform_occupation
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: occupation_numbers
       TYPE(cp_fm_type), POINTER                          :: mo_coeff
       TYPE(dbcsr_type)                                   :: mo_derivs2_tmp1, mo_derivs2_tmp2
       TYPE(dbcsr_type), POINTER                          :: mo_coeff_b
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mo_set_type), DIMENSION(:), POINTER           :: mo_array
 
-      NULLIFY (dft_control, mo_array, mo_coeff, mo_coeff_b, occupation_numbers)
+      NULLIFY (dft_control, mo_array, mo_coeff, mo_coeff_b)
 
       CALL get_qs_env(qs_env, &
                       dft_control=dft_control, &
@@ -1033,7 +1032,7 @@ CONTAINS
       DO ispin = 1, SIZE(mo_derivs)
 
          CALL get_mo_set(mo_set=mo_array(ispin), mo_coeff=mo_coeff, &
-                         mo_coeff_b=mo_coeff_b, occupation_numbers=occupation_numbers)
+                         mo_coeff_b=mo_coeff_b)
          CALL dbcsr_multiply('n', 'n', 1.0_dp, ks_matrix(ispin)%matrix, mo_coeff_b, &
                              0.0_dp, mo_derivs(ispin)%matrix)
 
