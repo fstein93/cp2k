@@ -1321,7 +1321,7 @@ CONTAINS
          my_block_size_a = MAX(0, my_block_end_a - my_block_start_a + 1)
          recv_block_start_a = 1
          recv_block_end_a = MIN(recv_a_size, n_partial - recv_a_start + 1)
-         recv_block_size_a = MAX(0, recv_block_end_a - recv_block_start_a)
+         recv_block_size_a = MAX(0, recv_block_end_a - recv_block_start_a + 1)
 
          buffer_compens(1:my_block_size_a, 1:recv_block_size_a) => &
             buffer_1D(1:my_block_size_a*recv_block_size_a)
@@ -1351,7 +1351,7 @@ CONTAINS
          my_block_size_a = MAX(0, my_block_end_a - my_block_start_a + 1)
          recv_block_start_a = MAX(1, n_partial - recv_a_start + 2)
          recv_block_end_a = recv_a_size
-         recv_block_size_a = MAX(0, recv_block_end_a - recv_block_start_a)
+         recv_block_size_a = MAX(0, recv_block_end_a - recv_block_start_a + 1)
 
          buffer_compens(1:my_block_size_a, 1:recv_block_size_a) => &
             buffer_1D(1:my_block_size_a*recv_block_size_a)
@@ -1429,7 +1429,7 @@ CONTAINS
          my_block_size_i = MAX(0, my_block_end_i - my_block_start_i + 1)
          recv_block_start_i = 1
          recv_block_end_i = MIN(recv_i_size, full_homo - recv_i_start + 1)
-         recv_block_size_i = MAX(0, recv_block_end_i - recv_block_start_i)
+         recv_block_size_i = MAX(0, recv_block_end_i - recv_block_start_i + 1)
 
          buffer_compens(1:my_block_size_i, 1:recv_block_size_i) => &
             buffer_1D(1:my_block_size_i*recv_block_size_i)
@@ -1447,7 +1447,7 @@ CONTAINS
             CALL scale_buffer_and_add_compens_occ_partial(buffer_unscaled, buffer_compens, omega, &
                                                           my_eval_occ(my_block_start_i:my_block_end_i), &
                                                           recv_eval_occ(recv_block_start_i:recv_block_end_i), my_eval_virt(my_a), &
-                                                          my_occ_occ(recv_block_start_i:recv_block_end_i), &
+                                                          my_occ_occ(my_block_start_i:my_block_end_i), &
                                                           recv_occ_occ(recv_block_start_i:recv_block_end_i), my_occ_virt(my_a))
 
             CALL kahan_step(buffer_compens, P_ij(my_block_start_i:my_block_end_i, recv_block_start_i:recv_block_end_i))
@@ -1462,7 +1462,7 @@ CONTAINS
          my_block_size_i = MAX(0, my_block_end_i - my_block_start_i + 1)
          recv_block_start_i = MAX(1, full_homo - recv_i_start + 2)
          recv_block_end_i = recv_i_size
-         recv_block_size_i = MAX(0, recv_block_end_i - recv_block_start_i)
+         recv_block_size_i = MAX(0, recv_block_end_i - recv_block_start_i + 1)
 
          buffer_compens(1:my_block_size_i, 1:recv_block_size_i) => &
             buffer_1D(1:my_block_size_i*recv_block_size_i)
@@ -1477,7 +1477,7 @@ CONTAINS
 
          CALL scale_buffer_and_add_compens_occ(buffer_unscaled, buffer_compens, omega, &
                                                my_eval_occ(my_block_start_i:my_block_end_i), &
-                                               recv_eval_occ(my_block_start_i:my_block_end_i), my_eval_virt(my_a))
+                                               recv_eval_occ(recv_block_start_i:recv_block_end_i), my_eval_virt(my_a))
 
          CALL kahan_step(buffer_compens, P_ij(my_block_start_i:my_block_end_i, recv_block_start_i:recv_block_end_i))
       END DO
