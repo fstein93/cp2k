@@ -1349,7 +1349,7 @@ CONTAINS
                         Eigenval(nmo - virtual + my_a_start:nmo - virtual + my_a_end), Eigenval(my_i_start:my_i_end), &
                         Eigenval(my_i_start:my_i_end), &
                         occupation(nmo - virtual + my_a_start:nmo - virtual + my_a_end), occupation(my_i_start:my_i_end), &
-                        occupation(my_i_start:my_i_end), omega, weight)
+                        occupation(my_i_start:my_i_end), temperature, omega, weight)
 
       DO proc_shift = 1, grid(2) - 1
          CALL timeset(routineN//"_comm_i", handle2)
@@ -1380,7 +1380,7 @@ CONTAINS
                            Eigenval(nmo - virtual + my_a_start:nmo - virtual + my_a_end), Eigenval(my_i_start:my_i_end), &
                            Eigenval(recv_i_start:recv_i_end), &
                            occupation(nmo - virtual + my_a_start:nmo - virtual + my_a_end), occupation(my_i_start:my_i_end), &
-                           occupation(recv_i_start:recv_i_end), omega, weight)
+                           occupation(recv_i_start:recv_i_end), temperature, omega, weight)
 
          IF (number_of_parallel_channels > 1 .AND. number_of_parallel_channels + proc_shift < grid(2)) THEN
             proc_i_recv = MODULO(mepos(2) - proc_shift - number_of_parallel_channels, grid(2))
@@ -1549,11 +1549,13 @@ CONTAINS
 !> \param my_occ_virt ...
 !> \param my_occ_occ ...
 !> \param recv_occ_occ ...
+!> \param temperature ...
 !> \param omega ...
 !> \param weight ...
 ! **************************************************************************************************
    SUBROUTINE calc_P_rpa_i(P_ij, mat_S, mat_work, buffer_1D, local_gemm_ctx, full_homo, my_i_start, recv_i_start, &
-                           my_eval_virt, my_eval_occ, recv_eval_occ, my_occ_virt, my_occ_occ, recv_occ_occ, omega, weight)
+                           my_eval_virt, my_eval_occ, recv_eval_occ, my_occ_virt, my_occ_occ, recv_occ_occ, &
+                           temperature, omega, weight)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: P_ij
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_S, mat_work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -1563,7 +1565,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, &
                                                             recv_eval_occ, my_occ_virt, &
                                                             my_occ_occ, recv_occ_occ
-      REAL(KIND=dp), INTENT(IN)                          :: omega, weight
+      REAL(KIND=dp), INTENT(IN)                          :: temperature, omega, weight
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa_i'
 
@@ -1601,11 +1603,9 @@ CONTAINS
                                      mat_work(:, my_a, recv_block_start_i:recv_block_end_i), my_P_size, &
                                      0.0_dp, buffer_unscaled, my_i_size)
 
-            CALL scale_buffer_and_add_compens_occ_partial(buffer_unscaled, buffer_compens, omega, &
-                                                          my_eval_occ(my_block_start_i:my_block_end_i), &
-                                                          recv_eval_occ(recv_block_start_i:recv_block_end_i), my_eval_virt(my_a), &
-                                                          my_occ_occ(my_block_start_i:my_block_end_i), &
-                                                          recv_occ_occ(recv_block_start_i:recv_block_end_i), my_occ_virt(my_a))
+            CALL scale_buffer_and_add_compens_occ(buffer_unscaled, buffer_compens, omega, &
+                                                  my_eval_occ(my_block_start_i:my_block_end_i), &
+                                                  recv_eval_occ(recv_block_start_i:recv_block_end_i), my_eval_virt(my_a))
 
             CALL kahan_step(buffer_compens, P_ij(my_block_start_i:my_block_end_i, recv_block_start_i:recv_block_end_i))
          END DO
@@ -1632,9 +1632,11 @@ CONTAINS
                                   mat_work(:, my_a, :), my_P_size, &
                                   0.0_dp, buffer_unscaled, my_i_size)
 
-         CALL scale_buffer_and_add_compens_occ(buffer_unscaled, buffer_compens, omega, &
-                                               my_eval_occ(my_block_start_i:my_block_end_i), &
-                                               recv_eval_occ(recv_block_start_i:recv_block_end_i), my_eval_virt(my_a))
+         CALL scale_buffer_and_add_compens_occ_partial(buffer_unscaled, buffer_compens, temperature, omega, &
+                                                       my_eval_occ(my_block_start_i:my_block_end_i), &
+                                                       recv_eval_occ(recv_block_start_i:recv_block_end_i), my_eval_virt(my_a), &
+                                                       my_occ_occ(my_block_start_i:my_block_end_i), &
+                                                       recv_occ_occ(recv_block_start_i:recv_block_end_i), my_occ_virt(my_a))
 
          CALL kahan_step(buffer_compens, P_ij(my_block_start_i:my_block_end_i, recv_block_start_i:recv_block_end_i))
       END DO
@@ -1766,9 +1768,41 @@ CONTAINS
             WRITE (*, *) omega, deval_ai, deval_bi, deval_ab
             ! We branch to catch all different corner cases of vanishing denominators
             ! e(a)->e(b), e(i)->e(a), e(i)->e(b) (if e(a) /= e(b))
-            factor = (deval_ai*deval_bi - omega**2)/ &
-                     (deval_ai**2 + omega**2)/ &
-                     (deval_bi**2 + omega**2)*docc_ai*docc_bi
+            IF (omega > 0.0_dp) THEN
+               IF (ABS(deval_ab) > threshold) THEN
+                  factor = (deval_ai*deval_bi - omega**2)/ &
+                           (deval_ai**2 + omega**2)/ &
+                           (deval_bi**2 + omega**2)*docc_ai*docc_bi &
+                           + (deval_ai/(deval_ai**2 + omega**2) + deval_bi/(deval_bi**2 + omega**2))*docc_ab/deval_ab
+               ELSE
+                  factor = (deval_ai**2 - omega**2)/ &
+                           (deval_ai**2 + omega**2)**2*docc_ai**2 &
+                           - 2.0_dp*deval_ai/(deval_ai**2 + omega**2)*my_occ_virt(my_a)*(1.0_dp - my_occ_virt(my_a))/temperature
+               END IF
+            ELSE
+               IF (ABS(deval_ab) > threshold) THEN
+                  IF (ABS(deval_ai) > threshold) THEN
+                     IF (ABS(deval_bi) > threshold) THEN
+                        factor = 1.0_dp/deval_ai/deval_bi*docc_ai*docc_bi &
+                                 + (1.0_dp/deval_ai + 1.0_dp/deval_bi)*docc_ab/deval_ab
+                     ELSE
+                        factor = -recv_occ_virt(my_b)*(1.0_dp - recv_occ_virt(my_b))/deval_ab/temperature &
+                                 - docc_ab/deval_ab**2
+                     END IF
+                  ELSE
+                     factor = my_occ_virt(my_a)*(1.0_dp - my_occ_virt(my_a))/deval_ab/temperature &
+                              + docc_ab/deval_ab**2
+                  END IF
+               ELSE
+                  IF (ABS(deval_ai) > threshold) THEN
+                     factor = (docc_ai/deval_ai)**2 &
+                              - 2.0_dp/deval_ai*my_occ_virt(my_a)*(1.0_dp - my_occ_virt(my_a))/temperature
+                  ELSE
+                     factor = -0.5_dp*my_occ_virt(my_a)*(1.0_dp - my_occ_virt(my_a)) &
+                              *(1.0_dp - 2.0_dp*my_occ_virt(my_a))/temperature**2
+                  END IF
+               END IF
+            END IF
             buffer_compens(my_a, my_b) = buffer_unscaled(my_a, my_b)*factor - buffer_compens(my_a, my_b)
          END DO
       END DO
@@ -1822,6 +1856,7 @@ CONTAINS
 !> \brief ...
 !> \param buffer_unscaled ...
 !> \param buffer_compens ...
+!> \param temperature ...
 !> \param omega ...
 !> \param my_eval_occ ...
 !> \param recv_eval_occ ...
@@ -1830,12 +1865,12 @@ CONTAINS
 !> \param recv_occ_occ ...
 !> \param my_occ_virt ...
 ! **************************************************************************************************
-   SUBROUTINE scale_buffer_and_add_compens_occ_partial(buffer_unscaled, buffer_compens, omega, &
+   SUBROUTINE scale_buffer_and_add_compens_occ_partial(buffer_unscaled, buffer_compens, temperature, omega, &
                                                        my_eval_occ, recv_eval_occ, my_eval_virt, &
                                                        my_occ_occ, recv_occ_occ, my_occ_virt)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: buffer_unscaled
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: buffer_compens
-      REAL(KIND=dp), INTENT(IN)                          :: omega
+      REAL(KIND=dp), INTENT(IN)                          :: temperature, omega
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_occ, recv_eval_occ
       REAL(KIND=dp), INTENT(IN)                          :: my_eval_virt
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_occ_occ, recv_occ_occ
@@ -1845,7 +1880,8 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: threshold = 1.0e-5_dp
 
       INTEGER                                            :: handle, my_i, my_j
-      REAL(KIND=dp)                                      :: factor
+      REAL(KIND=dp)                                      :: deval_ai, deval_aj, deval_ij, docc_ai, &
+                                                            docc_aj, docc_ij, factor
 
       CALL timeset(routineN, handle)
 
@@ -1853,12 +1889,58 @@ CONTAINS
 
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(buffer_compens,buffer_unscaled,omega,&
 !$OMP        my_eval_virt,my_eval_occ,recv_eval_occ,my_occ_occ,recv_occ_occ,&
-!$OMP        my_occ_virt) PRIVATE(my_i,my_j,factor)
+!$OMP        my_occ_virt,temperature) PRIVATE(my_i,my_j,factor,deval_ij,deval_ai,deval_aj,docc_ij,docc_ai,docc_aj)
       DO my_j = 1, SIZE(buffer_compens, 2)
          DO my_i = 1, SIZE(buffer_compens, 1)
-            factor = ((my_eval_virt - my_eval_occ(my_i))*(my_eval_virt - recv_eval_occ(my_j)) - omega**2) &
-                     /((my_eval_virt - my_eval_occ(my_i))**2 + omega**2) &
-                     /((my_eval_virt - recv_eval_occ(my_j))**2 + omega**2)
+            deval_ij = my_eval_occ(my_i) - recv_eval_occ(my_j)
+            deval_ai = my_eval_virt - my_eval_occ(my_i)
+            deval_aj = my_eval_virt - recv_eval_occ(my_j)
+            docc_ij = my_occ_occ(my_i) - recv_occ_occ(my_j)
+            docc_ai = my_occ_virt - my_occ_occ(my_i)
+            docc_aj = my_occ_virt - recv_occ_occ(my_j)
+            IF (omega > 0.0_dp) THEN
+               IF (ABS(deval_ij) > threshold) THEN
+                  factor = (deval_ai*deval_aj - omega**2) &
+                           /(deval_ai**2 + omega**2)/(deval_aj**2 + omega**2)*(docc_ai + docc_aj) &
+                           + (deval_ai/(deval_ai**2 + omega**2) + deval_aj/(deval_aj**2 + omega**2)) &
+                           *docc_ij/deval_ij
+                  WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
+               ELSE
+                  factor = 2.0_dp*(deval_ai + omega)*(deval_ai - omega) &
+                           /(deval_ai**2 + omega**2)**2*docc_ai &
+                           - 2.0_dp*deval_ai/(deval_ai**2 + omega**2) &
+                           *my_occ_occ(my_i)*(1.0_dp - my_occ_occ(my_i))/temperature
+                  WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
+               END IF
+            ELSE
+               IF (ABS(deval_ij) > threshold) THEN
+                  IF (ABS(deval_ai) > threshold) THEN
+                     IF (ABS(deval_aj) > threshold) THEN
+                        factor = 1.0_dp/(deval_ai*deval_aj)*(docc_ai + docc_aj) &
+                                 + (1.0_dp/deval_ai + 1.0_dp/deval_aj)*docc_ij/deval_ij
+                        WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
+                     ELSE
+                        factor = recv_occ_occ(my_j)*(1.0_dp - recv_occ_occ(my_j))/temperature/deval_ij &
+                                 - docc_ij/deval_ij**2
+                        WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
+                     END IF
+                  ELSE
+                     factor = -my_occ_occ(my_i)*(1.0_dp - my_occ_occ(my_i))/temperature/deval_ij &
+                              + docc_ij/deval_ij**2
+                     WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
+                  END IF
+               ELSE
+                  IF (ABS(deval_ai) > threshold) THEN
+                     factor = 2.0_dp*docc_ai/deval_ai**2 &
+                              - 2.0_dp/deval_ai*my_occ_occ(my_i)*(1.0_dp - my_occ_occ(my_i))/temperature
+                     WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
+                  ELSE
+                     factor = -0.5_dp*my_occ_occ(my_i)*(1.0_dp - my_occ_occ(my_i))* &
+                              (1.0_dp - 2.0_dp*my_occ_occ(my_i))/temperature**2
+                     WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
+                  END IF
+               END IF
+            END IF
             buffer_compens(my_i, my_j) = buffer_unscaled(my_i, my_j)*factor - buffer_compens(my_i, my_j)
          END DO
       END DO
