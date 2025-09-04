@@ -1311,8 +1311,9 @@ CONTAINS
 
       END IF
 
-      IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_create(rpa_grad, fm_mat_Q(1), &
-                                                                   fm_mat_S, homo, virtual, mp2_env, Eigenval(:, 1, :), &
+      IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_create(rpa_grad, fm_mat_Q(1), fm_mat_S, &
+                                                                   scf_control%smear%electronic_temperature, &
+                                                                   homo, virtual, mp2_env, Eigenval(:, 1, :), &
                                                                    unit_nr, do_ri_sos_laplace_mp2)
       IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) &
          CALL exchange_work%create(qs_env, para_env_sub, mat_munu, dimen_RI_red, &
@@ -1519,9 +1520,9 @@ CONTAINS
                CALL SOS_MP2_postprocessing(fm_mat_Q, Erpa, tau_wj(jquad))
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations( &
-                  mp2_env, rpa_grad, do_ri_sos_laplace_mp2, fm_mat_Q, fm_mat_Q_gemm, &
-                  dgemm_counter, fm_mat_S, omega, homo, virtual, Eigenval(:, 1, :), &
-                  occupation_numbers, scf_control%smear%electronic_temperature, tau_wj(jquad), unit_nr)
+                  mp2_env, rpa_grad, fm_mat_Q, fm_mat_Q_gemm, &
+                  dgemm_counter, fm_mat_S, omega, Eigenval(:, 1, :), &
+                  occupation_numbers, tau_wj(jquad))
             ELSE
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_copy_Q(fm_mat_Q(1), rpa_grad)
 
@@ -1542,9 +1543,8 @@ CONTAINS
                END IF
 
                IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_matrix_operations( &
-                  mp2_env, rpa_grad, do_ri_sos_laplace_mp2, fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, &
-                  fm_mat_S, omega, homo, virtual, Eigenval(:, 1, :), occupation_numbers, &
-                  scf_control%smear%electronic_temperature, wj(jquad), unit_nr)
+                  mp2_env, rpa_grad, fm_mat_Q, fm_mat_Q_gemm, dgemm_counter, &
+                  fm_mat_S, omega, Eigenval(:, 1, :), occupation_numbers, wj(jquad))
             END IF ! do_ri_sos_laplace_mp2
 
             ! save omega and reset the first_cycle flag
@@ -1812,8 +1812,7 @@ CONTAINS
       END IF
 
       IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_finalize(rpa_grad, mp2_env, para_env_sub, para_env, &
-                                                                     qs_env, gd_array, color_sub, do_ri_sos_laplace_mp2, &
-                                                                     homo, virtual)
+                                                                     qs_env, gd_array, color_sub)
 
       CALL timestop(handle)
 

@@ -99,6 +99,9 @@ MODULE rpa_grad
       TYPE(cp_fm_type) :: fm_Gamma_PQ = cp_fm_type()
       TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE :: fm_Y
       TYPE(sos_mp2_grad_work_type), ALLOCATABLE, DIMENSION(:) :: sos_mp2_work_occ, sos_mp2_work_virt
+      INTEGER, DIMENSION(:), ALLOCATABLE :: homo, virtual
+      INTEGER :: unit_nr
+      REAL(KIND=dp) :: temperature
       TYPE(rpa_grad_work_type) :: rpa_work
    END TYPE rpa_grad_type
 
@@ -161,11 +164,12 @@ CONTAINS
 !> \param unit_nr ...
 !> \param do_ri_sos_laplace_mp2 ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_grad_create(rpa_grad, fm_mat_Q, fm_mat_S, &
+   SUBROUTINE rpa_grad_create(rpa_grad, fm_mat_Q, fm_mat_S, temperature, &
                               homo, virtual, mp2_env, Eigenval, unit_nr, do_ri_sos_laplace_mp2)
       TYPE(rpa_grad_type), INTENT(OUT)                   :: rpa_grad
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
+      REAL(KIND=dp), INTENT(IN) :: temperature
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
@@ -182,6 +186,13 @@ CONTAINS
       CALL cp_fm_set_all(rpa_grad%fm_Gamma_PQ, 0.0_dp)
 
       nspins = SIZE(fm_mat_S)
+
+ALLOCATE(rpa_grad%homo(nspins), rpa_grad%virtual(nspins))
+rpa_grad%homo(:) = homo
+rpa_grad%virtual(:) = virtual
+
+rpa_grad%unit_nr = unit_nr
+rpa_grad%temperature = temperature
 
       ALLOCATE (rpa_grad%fm_Y(nspins))
       DO ispin = 1, nspins
@@ -723,20 +734,18 @@ CONTAINS
 !> \param weight ...
 !> \param unit_nr ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_grad_matrix_operations(mp2_env, rpa_grad, do_ri_sos_laplace_mp2, fm_mat_Q, fm_mat_Q_gemm, &
-                                         dgemm_counter, fm_mat_S, omega, homo, virtual, Eigenval, occupation, &
-                                         temperature, weight, unit_nr)
+   SUBROUTINE rpa_grad_matrix_operations(mp2_env, rpa_grad, fm_mat_Q, fm_mat_Q_gemm, &
+                                         dgemm_counter, fm_mat_S, omega, Eigenval, occupation, &
+                                         weight)
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
-      LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
+      LOGICAL                                :: do_ri_sos_laplace_mp2
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q, fm_mat_Q_gemm
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       REAL(KIND=dp), INTENT(IN)                          :: omega
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
-      REAL(KIND=dp), INTENT(IN)                          :: temperature, weight
-      INTEGER, INTENT(IN)                                :: unit_nr
+      REAL(KIND=dp), INTENT(IN)                          :: weight
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_grad_matrix_operations'
 
@@ -755,6 +764,8 @@ CONTAINS
 
       CALL cp_fm_get_info(fm_mat_Q(1), nrow_global=dimen_RI, nrow_local=nrow_local, ncol_local=ncol_local, &
                           col_indices=col_indices, row_indices=row_indices)
+
+                          do_ri_sos_laplace_mp2 = ALLOCATED(rpa_grad%sos_mp2_work_occ) .AND. ALLOCATED(rpa_grad%sos_mp2_work_virt)
 
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
          CALL cp_fm_create(fm_work_PQ, fm_mat_Q(1)%matrix_struct)
@@ -809,8 +820,8 @@ CONTAINS
             CALL cp_fm_to_fm_submat_general(fm_mat_Q(jspin), fm_mat_Q_gemm(jspin), dimen_RI, dimen_RI, 1, 1, 1, 1, &
                                             fm_mat_Q_gemm(jspin)%matrix_struct%context)
          ELSE
-            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., homo(ispin), virtual(ispin), Eigenval(:, ispin), &
-                                   omega, 0.0_dp, occupation(:, ispin), temperature)
+            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., rpa_grad%homo(ispin), rpa_grad%virtual(ispin), Eigenval(:, ispin), &
+                                   omega, 0.0_dp, occupation(:, ispin), rpa_grad%temperature)
          END IF
 
          CALL timeset(routineN//"_contr_S", handle2)
@@ -826,11 +837,12 @@ CONTAINS
          CALL timestop(handle2)
 
          IF (do_ri_sos_laplace_mp2) THEN
-            CALL calc_P_sos_mp2(homo(ispin), fm_mat_S(ispin), fm_work_iaP, &
+            CALL calc_P_sos_mp2(rpa_grad%homo(ispin), fm_mat_S(ispin), fm_work_iaP, &
                                 rpa_grad%sos_mp2_work_occ(ispin), rpa_grad%sos_mp2_work_virt(ispin), &
-                                omega, weight, virtual(ispin), Eigenval(:, ispin))
+                                omega, weight, rpa_grad%virtual(ispin), Eigenval(:, ispin))
 
-            CALL calc_fm_mat_S_laplace(fm_work_iaP, homo(ispin), virtual(ispin), Eigenval(:, ispin), omega)
+            CALL calc_fm_mat_S_laplace(fm_work_iaP, rpa_grad%homo(ispin), rpa_grad%virtual(ispin), &
+            Eigenval(:, ispin), omega)
 
             CALL cp_fm_scale_and_add(1.0_dp, rpa_grad%fm_Y(ispin), -weight, fm_work_iaP)
 
@@ -856,12 +868,13 @@ CONTAINS
                             rpa_grad%rpa_work%grid, rpa_grad%rpa_work%mepos, &
                             fm_mat_S(ispin)%matrix_struct, &
                             rpa_grad%rpa_work%P_ij(ispin)%array, rpa_grad%rpa_work%P_ab(ispin)%array, &
-                            weight, omega, Eigenval(:, ispin), occupation(:, ispin), homo(ispin), virtual(ispin), unit_nr, mp2_env)
+                            rpa_grad%temperature, weight, omega, Eigenval(:, ispin), occupation(:, ispin), &
+                            rpa_grad%homo(ispin), rpa_grad%virtual(ispin), rpa_grad%unit_nr, mp2_env)
 
             DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
 
-            CALL remove_scaling_factor_rpa(fm_mat_S(ispin), homo(ispin), virtual(ispin), Eigenval(:, ispin), &
-                                           occupation(:, ispin), temperature, omega)
+            CALL remove_scaling_factor_rpa(fm_mat_S(ispin), rpa_grad%homo(ispin), rpa_grad%virtual(ispin), Eigenval(:, ispin), &
+                                           occupation(:, ispin), rpa_grad%temperature, omega)
 
          END IF
 
@@ -978,6 +991,7 @@ CONTAINS
 !> \param fm_struct_S ...
 !> \param P_ij ...
 !> \param P_ab ...
+!> \param temperature ...
 !> \param weight ...
 !> \param omega ...
 !> \param Eigenval ...
@@ -988,14 +1002,15 @@ CONTAINS
 !> \param mp2_env ...
 ! **************************************************************************************************
    SUBROUTINE calc_P_rpa(mat_S_1D, mat_work_iaP_3D, gd_homo, gd_virtual, grid, mepos, &
-                         fm_struct_S, P_ij, P_ab, weight, omega, Eigenval, occupation, homo, virtual, unit_nr, mp2_env)
+                         fm_struct_S, P_ij, P_ab, temperature, weight, omega, Eigenval, &
+                         occupation, homo, virtual, unit_nr, mp2_env)
       REAL(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: mat_S_1D
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(INOUT)   :: mat_work_iaP_3D
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_homo, gd_virtual
       INTEGER, DIMENSION(2), INTENT(IN)                  :: grid, mepos
       TYPE(cp_fm_struct_type), INTENT(IN), POINTER       :: fm_struct_S
       REAL(KIND=dp), DIMENSION(:, :)                     :: P_ij, P_ab
-      REAL(KIND=dp), INTENT(IN)                          :: weight, omega
+      REAL(KIND=dp), INTENT(IN)                          :: temperature, weight, omega
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval, occupation
       INTEGER, INTENT(IN)                                :: homo, virtual, unit_nr
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
@@ -1109,7 +1124,8 @@ CONTAINS
                         Eigenval(nmo - virtual + my_a_start:nmo - virtual + my_a_end), Eigenval(my_i_start:my_i_end), &
                         Eigenval(nmo - virtual + my_a_start:nmo - virtual + my_a_end), &
                         occupation(nmo - virtual + my_a_start:nmo - virtual + my_a_end), occupation(my_i_start:my_i_end), &
-                        occupation(nmo - virtual + my_a_start:nmo - virtual + my_a_end), omega, weight)
+                        occupation(nmo - virtual + my_a_start:nmo - virtual + my_a_end), &
+                        temperature, omega, weight)
 
       DO proc_shift = 1, grid(1) - 1
          CALL timeset(routineN//"_comm_a", handle2)
@@ -1140,7 +1156,8 @@ CONTAINS
                            Eigenval(nmo - virtual + my_a_start:nmo - virtual + my_a_end), Eigenval(my_i_start:my_i_end), &
                            Eigenval(nmo - virtual + recv_a_start:nmo - virtual + recv_a_end), &
                            occupation(nmo - virtual + my_a_start:nmo - virtual + my_a_end), occupation(my_i_start:my_i_end), &
-                           occupation(nmo - virtual + recv_a_start:nmo - virtual + recv_a_end), omega, weight)
+                           occupation(nmo - virtual + recv_a_start:nmo - virtual + recv_a_end), &
+                           temperature, omega, weight)
 
          IF (number_of_parallel_channels > 1 .AND. number_of_parallel_channels + proc_shift < grid(1)) THEN
             proc_a_recv = MODULO(mepos(1) - proc_shift - number_of_parallel_channels, grid(1))
@@ -1284,11 +1301,13 @@ CONTAINS
 !> \param my_occ_virt ...
 !> \param my_occ_occ ...
 !> \param recv_occ_virt ...
+!> \param temperature ...
 !> \param omega ...
 !> \param weight ...
 ! **************************************************************************************************
    SUBROUTINE calc_P_rpa_a(P_ab, mat_S, mat_work, buffer_1D, local_gemm_ctx, n_partial, my_a_start, recv_a_start, &
-                           my_eval_virt, my_eval_occ, recv_eval_virt, my_occ_virt, my_occ_occ, recv_occ_virt, omega, weight)
+                           my_eval_virt, my_eval_occ, recv_eval_virt, my_occ_virt, my_occ_occ, recv_occ_virt, &
+                           temperature, omega, weight)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: P_ab
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: mat_S, mat_work
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
@@ -1298,7 +1317,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, my_eval_occ, &
                                                             recv_eval_virt, my_occ_virt, &
                                                             my_occ_occ, recv_occ_virt
-      REAL(KIND=dp), INTENT(IN)                          :: omega, weight
+      REAL(KIND=dp), INTENT(IN)                          :: temperature, omega, weight
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_P_rpa_a'
 
@@ -1339,7 +1358,8 @@ CONTAINS
                                                            my_eval_virt(my_block_start_a:my_block_end_a), &
                                                            recv_eval_virt(recv_block_start_a:recv_block_end_a), my_eval_occ(my_i), &
                                                            my_occ_virt(my_block_start_a:my_block_end_a), &
-                                                           recv_occ_virt(recv_block_start_a:recv_block_end_a), my_occ_occ(my_i))
+                                                           recv_occ_virt(recv_block_start_a:recv_block_end_a), my_occ_occ(my_i), &
+                                                           temperature)
 
             CALL kahan_step(buffer_compens, P_ab(my_block_start_a:my_block_end_a, recv_block_start_a:recv_block_end_a))
          END DO
@@ -1567,34 +1587,79 @@ CONTAINS
 !> \param my_occ_virt ...
 !> \param recv_occ_virt ...
 !> \param my_occ_occ ...
+!> \param temperature ...
 ! **************************************************************************************************
    SUBROUTINE scale_buffer_and_add_compens_virt_partial(buffer_unscaled, buffer_compens, omega, &
                                                         my_eval_virt, recv_eval_virt, my_eval_occ, &
-                                                        my_occ_virt, recv_occ_virt, my_occ_occ)
+                                                        my_occ_virt, recv_occ_virt, my_occ_occ, &
+                                                        temperature)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: buffer_unscaled
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: buffer_compens
       REAL(KIND=dp), INTENT(IN)                          :: omega
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, recv_eval_virt
       REAL(KIND=dp), INTENT(IN)                          :: my_eval_occ
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_occ_virt, recv_occ_virt
-      REAL(KIND=dp), INTENT(IN)                          :: my_occ_occ
+      REAL(KIND=dp), INTENT(IN)                          :: my_occ_occ, temperature
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_buffer_and_add_compens_virt_partial'
       REAL(KIND=dp), PARAMETER                           :: threshold = 1.0e-5_dp
 
       INTEGER                                            :: handle, my_a, my_b
-      REAL(KIND=dp)                                      :: factor
+      REAL(KIND=dp)                                      :: deval_ab, deval_ai, deval_bi, docc_ab, &
+                                                            docc_ai, docc_bi, factor
 
       CALL timeset(routineN, handle)
 
-      MARK_USED(threshold)
-
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(buffer_unscaled,buffer_compens,omega,&
 !$OMP                                  my_eval_virt,recv_eval_virt,my_eval_occ,&
-!$OMP                                  my_occ_virt,recv_occ_virt,my_occ_occ) PRIVATE(my_a,my_b,factor)
+!$OMP                                  my_occ_virt,recv_occ_virt,my_occ_occ,temperature) &
+!$OMP PRIVATE(my_a,my_b,factor,deval_ai, deval_bi,deval_ab,docc_ab,docc_ai,docc_bi)
       DO my_b = 1, SIZE(buffer_compens, 2)
          DO my_a = 1, SIZE(buffer_compens, 1)
-            factor = (1.0_dp - omega**2/((my_eval_virt(my_a) - my_eval_occ)*(recv_eval_virt(my_b) - my_eval_occ)))
+            deval_ai = my_eval_virt(my_a) - my_eval_occ
+            deval_bi = recv_eval_virt(my_b) - my_eval_occ
+            deval_ab = my_eval_virt(my_a) - recv_eval_virt(my_b)
+            docc_ai = my_occ_virt(my_a) - my_occ_occ
+            docc_bi = recv_occ_virt(my_b) - my_occ_occ
+            docc_ab = my_occ_virt(my_a) - recv_occ_virt(my_b)
+            WRITE (*, *) omega, deval_ai, deval_bi, deval_ab
+            ! We branch to catch all different corner cases of vanishing denominators
+            ! e(a)->e(b), e(i)->e(a), e(i)->e(b) (if e(a) /= e(b))
+            IF (omega > 0.0_dp) THEN
+               IF (ABS(deval_ab) > threshold) THEN
+                  factor = -(1.0_dp - omega**2/(deval_ai*deval_bi))* &
+                           (docc_ai + docc_bi)/docc_ai/docc_bi &
+                           - (deval_ai*(deval_bi**2 + omega**2) + deval_bi*(deval_ai**2 + omega**2))/ &
+                           deval_ai/deval_bi/docc_ai/docc_bi*docc_ab/deval_ab
+               ELSE IF (ABS(deval_ai) < threshold .OR. ABS(deval_bi) < threshold) THEN
+                  factor = 0.0_dp
+               ELSE
+                  factor = -2.0_dp*(1.0_dp + omega/deval_ai)*(1.0_dp - omega/deval_ai)/docc_ai &
+                           + 2.0_dp*deval_ai*(deval_ai**2 + omega**2)/deval_ai**2/docc_ai**2 &
+                           *my_occ_virt(my_a)*(1.0_dp - my_occ_virt(my_a))/temperature
+               END IF
+            ELSE
+               IF (ABS(deval_ab) > threshold) THEN
+                  IF (ABS(deval_ai) > threshold .AND. ABS(deval_bi) > threshold) THEN
+                     factor = -(docc_ai + docc_bi)/docc_ai/docc_bi &
+                              - (deval_ai*deval_bi**2 + deval_bi*deval_ai**2)/ &
+                              deval_ai/deval_bi/docc_ai/docc_bi*docc_ab/deval_ab
+                  ELSE IF (ABS(deval_ai) > threshold) THEN
+                     factor = -1.0_dp/docc_bi-1.0_dp/docc_ai &
+                              - deval_bi/docc_ai/docc_bi*docc_ab/deval_ab &
+                              - deval_ai/docc_ai/docc_bi*docc_ab/deval_ab
+                  ELSE IF (ABS(deval_bi) > threshold) THEN
+                     factor = -(docc_ai + docc_bi)/docc_ai/docc_bi &
+                              - (deval_ai*deval_bi**2 + deval_bi*deval_ai**2)/ &
+                              deval_ai/deval_bi/docc_ai/docc_bi*docc_ab/deval_ab
+                  END IF
+               ELSE IF (ABS(deval_ai) < threshold .OR. ABS(deval_bi) < threshold) THEN
+                  factor = (1.0_dp - 2.0_dp*my_occ_virt(my_a))/(my_occ_virt(my_a)*(1.0_dp - my_occ_virt(my_a)))
+               ELSE
+                  factor = -2.0_dp/docc_ai + 2.0_dp*deval_ai/docc_ai**2 &
+                           *my_occ_virt(my_a)*(1.0_dp - my_occ_virt(my_a))/temperature
+               END IF
+            END IF
             buffer_compens(my_a, my_b) = buffer_unscaled(my_a, my_b)*factor - buffer_compens(my_a, my_b)
          END DO
       END DO
@@ -2139,15 +2204,14 @@ CONTAINS
 !> \param virtual ...
 ! **************************************************************************************************
    SUBROUTINE rpa_grad_finalize(rpa_grad, mp2_env, para_env_sub, para_env, qs_env, gd_array, &
-                                color_sub, do_ri_sos_laplace_mp2, homo, virtual)
+                                color_sub)
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub, para_env
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(group_dist_d1_type)                           :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
-      LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      LOGICAL                                :: do_ri_sos_laplace_mp2
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_grad_finalize'
 
@@ -2171,6 +2235,8 @@ CONTAINS
 
       nspins = SIZE(rpa_grad%fm_Y)
 
+      do_ri_sos_laplace_mp2 = ALLOCATED(rpa_grad%sos_mp2_work_occ) .AND. ALLOCATED(rpa_grad%sos_mp2_work_virt)
+
       ! Scaling factor is required to scale the density matrices and the Gamma matrices later
       IF (do_ri_sos_laplace_mp2) THEN
          my_scale = mp2_env%scale_s
@@ -2182,10 +2248,10 @@ CONTAINS
 
       IF (do_ri_sos_laplace_mp2) THEN
          CALL sos_mp2_grad_finalize(rpa_grad%sos_mp2_work_occ, rpa_grad%sos_mp2_work_virt, &
-                                    para_env, para_env_sub, homo, virtual, mp2_env)
+                                    para_env, para_env_sub, rpa_grad%homo, rpa_grad%virtual, mp2_env)
       ELSE
-         CALL rpa_grad_work_finalize(rpa_grad%rpa_work, mp2_env, homo, &
-                                     virtual, para_env, para_env_sub)
+         CALL rpa_grad_work_finalize(rpa_grad%rpa_work, mp2_env, rpa_grad%homo, &
+                                     rpa_grad%virtual, para_env, para_env_sub)
       END IF
 
       CALL get_qs_env(qs_env, blacs_env=blacs_env)
@@ -2342,7 +2408,7 @@ CONTAINS
                        fm_G_P_ia)
 
          ! create the Gamma_ia_P in DBCSR style
-         CALL create_dbcsr_gamma(Gamma_2D, homo(ispin), virtual(ispin), dimen_ia, para_env_sub, &
+         CALL create_dbcsr_gamma(Gamma_2D, rpa_grad%homo(ispin), rpa_grad%virtual(ispin), dimen_ia, para_env_sub, &
                                  my_ia_start, my_ia_end, my_group_L_size, gd_ia, &
                                  mp2_env%ri_grad%G_P_ia(:, ispin), mp2_env%ri_grad%mo_coeff_o(ispin)%matrix)
 
@@ -2350,6 +2416,8 @@ CONTAINS
 
       END DO
       DEALLOCATE (rpa_grad%fm_Y)
+      DEALLOCATE(rpa_grad%homo)
+      DEALLOCATE(rpa_grad%virtual)
       CALL cp_fm_release(fm_PQ_half)
 
       CALL timestop(handle)
