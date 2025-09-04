@@ -873,7 +873,7 @@ CONTAINS
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q, fm_mat_Q_gemm
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S
       REAL(KIND=dp), INTENT(IN)                          :: omega
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       REAL(KIND=dp), INTENT(IN)                          :: weight
@@ -952,8 +952,9 @@ CONTAINS
             CALL cp_fm_to_fm_submat_general(fm_mat_Q(jspin), fm_mat_Q_gemm(jspin), dimen_RI, dimen_RI, 1, 1, 1, 1, &
                                             fm_mat_Q_gemm(jspin)%matrix_struct%context)
          ELSE
-            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., rpa_grad%homo(ispin), rpa_grad%virtual(ispin), Eigenval(:, ispin), &
-                                   omega, 0.0_dp, occupation(:, ispin), rpa_grad%temperature)
+            CALL remove_scaling_factor_rpa(fm_mat_S(ispin), rpa_grad%homo(ispin), rpa_grad%virtual(ispin), Eigenval(:, ispin), &
+                                           occupation(:, ispin), rpa_grad%temperature, omega)
+            CALL rpa_grad%rpa_work%degenerate(ispin)%apply(fm_mat_S(ispin))
          END IF
 
          CALL timeset(routineN//"_contr_S", handle2)
@@ -980,14 +981,18 @@ CONTAINS
 
             CALL cp_fm_release(fm_work_iaP)
          ELSE
-            ! To save memory, we add it now
-            CALL cp_fm_scale_and_add(1.0_dp, rpa_grad%fm_Y(ispin), -weight, fm_work_iaP)
 
             ! Redistribute both matrices and deallocate fm_work_iaP
             CALL redistribute_fm_mat_S(rpa_grad%rpa_work%index2send(:, ispin), rpa_grad%rpa_work%index2recv(:, ispin), &
                                        fm_work_iaP, mat_work_iaP_3D, &
                                        rpa_grad%rpa_work%gd_homo(ispin), rpa_grad%rpa_work%gd_virtual(ispin), &
                                        rpa_grad%rpa_work%mepos)
+            CALL calc_fm_mat_S_rpa(fm_work_iaP, .TRUE., rpa_grad%homo(ispin), rpa_grad%virtual(ispin), Eigenval(:, ispin), &
+                                   omega, 0.0_dp, occupation(:, ispin), rpa_grad%temperature)
+            CALL calc_fm_mat_S_rpa(fm_work_iaP, .TRUE., rpa_grad%homo(ispin), rpa_grad%virtual(ispin), Eigenval(:, ispin), &
+                                   omega, 0.0_dp, occupation(:, ispin), rpa_grad%temperature)
+            ! To save memory, we add it now
+            CALL cp_fm_scale_and_add(1.0_dp, rpa_grad%fm_Y(ispin), -weight, fm_work_iaP)
             CALL cp_fm_release(fm_work_iaP)
 
             CALL redistribute_fm_mat_S(rpa_grad%rpa_work%index2send(:, ispin), rpa_grad%rpa_work%index2recv(:, ispin), &
@@ -1005,8 +1010,8 @@ CONTAINS
 
             DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
 
-            CALL remove_scaling_factor_rpa(fm_mat_S(ispin), rpa_grad%homo(ispin), rpa_grad%virtual(ispin), Eigenval(:, ispin), &
-                                           occupation(:, ispin), rpa_grad%temperature, omega)
+            CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., rpa_grad%homo(ispin), rpa_grad%virtual(ispin), Eigenval(:, ispin), &
+                                   omega, 0.0_dp, occupation(:, ispin), rpa_grad%temperature)
 
          END IF
 
@@ -1698,7 +1703,9 @@ CONTAINS
 !$OMP                                  my_eval_virt,recv_eval_virt,my_eval_occ) PRIVATE(my_a,my_b,factor)
       DO my_b = 1, SIZE(buffer_compens, 2)
          DO my_a = 1, SIZE(buffer_compens, 1)
-            factor = (1.0_dp - omega**2/((my_eval_virt(my_a) - my_eval_occ)*(recv_eval_virt(my_b) - my_eval_occ)))
+            factor = ((my_eval_virt(my_a) - my_eval_occ)*(recv_eval_virt(my_b) - my_eval_occ) - omega**2) &
+                     /((my_eval_virt(my_a) - my_eval_occ)**2 + omega**2) &
+                     /((recv_eval_virt(my_b) - my_eval_occ)**2 + omega**2)
             buffer_compens(my_a, my_b) = buffer_unscaled(my_a, my_b)*factor - buffer_compens(my_a, my_b)
          END DO
       END DO
@@ -1742,6 +1749,8 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
+      MARK_USED(threshold)
+
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(buffer_unscaled,buffer_compens,omega,&
 !$OMP                                  my_eval_virt,recv_eval_virt,my_eval_occ,&
 !$OMP                                  my_occ_virt,recv_occ_virt,my_occ_occ,temperature) &
@@ -1757,41 +1766,9 @@ CONTAINS
             WRITE (*, *) omega, deval_ai, deval_bi, deval_ab
             ! We branch to catch all different corner cases of vanishing denominators
             ! e(a)->e(b), e(i)->e(a), e(i)->e(b) (if e(a) /= e(b))
-            IF (omega > 0.0_dp) THEN
-               IF (ABS(deval_ab) > threshold) THEN
-                  factor = -(1.0_dp - omega**2/(deval_ai*deval_bi))* &
-                           (docc_ai + docc_bi)/docc_ai/docc_bi &
-                           - (deval_ai*(deval_bi**2 + omega**2) + deval_bi*(deval_ai**2 + omega**2))/ &
-                           deval_ai/deval_bi/docc_ai/docc_bi*docc_ab/deval_ab
-               ELSE IF (ABS(deval_ai) < threshold .OR. ABS(deval_bi) < threshold) THEN
-                  factor = 0.0_dp
-               ELSE
-                  factor = -2.0_dp*(1.0_dp + omega/deval_ai)*(1.0_dp - omega/deval_ai)/docc_ai &
-                           + 2.0_dp*deval_ai*(deval_ai**2 + omega**2)/deval_ai**2/docc_ai**2 &
-                           *my_occ_virt(my_a)*(1.0_dp - my_occ_virt(my_a))/temperature
-               END IF
-            ELSE
-               IF (ABS(deval_ab) > threshold) THEN
-                  IF (ABS(deval_ai) > threshold .AND. ABS(deval_bi) > threshold) THEN
-                     factor = -(docc_ai + docc_bi)/docc_ai/docc_bi &
-                              - (deval_ai*deval_bi**2 + deval_bi*deval_ai**2)/ &
-                              deval_ai/deval_bi/docc_ai/docc_bi*docc_ab/deval_ab
-                  ELSE IF (ABS(deval_ai) > threshold) THEN
-                     factor = -1.0_dp/docc_bi - 1.0_dp/docc_ai &
-                              - deval_bi/docc_ai/docc_bi*docc_ab/deval_ab &
-                              - deval_ai/docc_ai/docc_bi*docc_ab/deval_ab
-                  ELSE IF (ABS(deval_bi) > threshold) THEN
-                     factor = -(docc_ai + docc_bi)/docc_ai/docc_bi &
-                              - (deval_ai*deval_bi**2 + deval_bi*deval_ai**2)/ &
-                              deval_ai/deval_bi/docc_ai/docc_bi*docc_ab/deval_ab
-                  END IF
-               ELSE IF (ABS(deval_ai) < threshold .OR. ABS(deval_bi) < threshold) THEN
-                  factor = (1.0_dp - 2.0_dp*my_occ_virt(my_a))/(my_occ_virt(my_a)*(1.0_dp - my_occ_virt(my_a)))
-               ELSE
-                  factor = -2.0_dp/docc_ai + 2.0_dp*deval_ai/docc_ai**2 &
-                           *my_occ_virt(my_a)*(1.0_dp - my_occ_virt(my_a))/temperature
-               END IF
-            END IF
+            factor = (deval_ai*deval_bi - omega**2)/ &
+                     (deval_ai**2 + omega**2)/ &
+                     (deval_bi**2 + omega**2)*docc_ai*docc_bi
             buffer_compens(my_a, my_b) = buffer_unscaled(my_a, my_b)*factor - buffer_compens(my_a, my_b)
          END DO
       END DO
@@ -1829,7 +1806,9 @@ CONTAINS
 !$OMP        my_eval_virt,my_eval_occ,recv_eval_occ) PRIVATE(my_i,my_j,factor)
       DO my_j = 1, SIZE(buffer_compens, 2)
          DO my_i = 1, SIZE(buffer_compens, 1)
-            factor = (1.0_dp - omega**2/((my_eval_virt - my_eval_occ(my_i))*(my_eval_virt - recv_eval_occ(my_j))))
+            factor = ((my_eval_virt - my_eval_occ(my_i))*(my_eval_virt - recv_eval_occ(my_j)) - omega**2) &
+                     /((my_eval_virt - my_eval_occ(my_i))**2 + omega**2) &
+                     /((my_eval_virt - recv_eval_occ(my_j))**2 + omega**2)
             buffer_compens(my_i, my_j) = buffer_unscaled(my_i, my_j)*factor - buffer_compens(my_i, my_j)
          END DO
       END DO
@@ -1877,7 +1856,9 @@ CONTAINS
 !$OMP        my_occ_virt) PRIVATE(my_i,my_j,factor)
       DO my_j = 1, SIZE(buffer_compens, 2)
          DO my_i = 1, SIZE(buffer_compens, 1)
-            factor = (1.0_dp - omega**2/((my_eval_virt - my_eval_occ(my_i))*(my_eval_virt - recv_eval_occ(my_j))))
+            factor = ((my_eval_virt - my_eval_occ(my_i))*(my_eval_virt - recv_eval_occ(my_j)) - omega**2) &
+                     /((my_eval_virt - my_eval_occ(my_i))**2 + omega**2) &
+                     /((my_eval_virt - recv_eval_occ(my_j))**2 + omega**2)
             buffer_compens(my_i, my_j) = buffer_unscaled(my_i, my_j)*factor - buffer_compens(my_i, my_j)
          END DO
       END DO
