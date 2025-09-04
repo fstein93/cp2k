@@ -1313,6 +1313,7 @@ CONTAINS
 
       IF (calc_forces .AND. .NOT. do_im_time) CALL rpa_grad_create(rpa_grad, fm_mat_Q(1), fm_mat_S, &
                                                                    scf_control%smear%electronic_temperature, &
+                                                                   1.0e-5_dp, &
                                                                    homo, virtual, mp2_env, Eigenval(:, 1, :), &
                                                                    unit_nr, do_ri_sos_laplace_mp2)
       IF (.NOT. do_im_time .AND. .NOT. do_ri_sos_laplace_mp2) &

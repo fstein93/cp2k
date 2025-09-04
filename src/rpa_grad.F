@@ -78,6 +78,16 @@ MODULE rpa_grad
 
    PUBLIC :: rpa_grad_needed_mem, rpa_grad_type, rpa_grad_create, rpa_grad_finalize, rpa_grad_matrix_operations, rpa_grad_copy_Q
 
+   TYPE rpa_degenerate_type
+      PRIVATE
+      INTEGER, DIMENSION(:), ALLOCATABLE :: degenerate_index_pairs
+      REAL(KIND=dp), DIMENSION(:, :), ALLOCATABLE :: degenerate_matrix_elements
+   CONTAINS
+      PROCEDURE, PASS, NON_OVERRIDABLE :: create => rpa_degenerate_type_create
+      PROCEDURE, PASS, NON_OVERRIDABLE :: apply => rpa_degenerate_type_apply
+      PROCEDURE, PASS, NON_OVERRIDABLE :: release => rpa_degenerate_type_release
+   END TYPE rpa_degenerate_type
+
    TYPE sos_mp2_grad_work_type
       PRIVATE
       INTEGER, DIMENSION(:, :), ALLOCATABLE :: pair_list
@@ -87,6 +97,7 @@ MODULE rpa_grad
 
    TYPE rpa_grad_work_type
       TYPE(cp_fm_type) :: fm_mat_Q_copy = cp_fm_type()
+      TYPE(rpa_degenerate_type), DIMENSION(:), ALLOCATABLE :: degenerate
       TYPE(one_dim_int_array), DIMENSION(:, :), ALLOCATABLE :: index2send
       TYPE(two_dim_int_array), DIMENSION(:, :), ALLOCATABLE :: index2recv
       TYPE(group_dist_d1_type), DIMENSION(:), ALLOCATABLE :: gd_homo, gd_virtual
@@ -100,9 +111,9 @@ MODULE rpa_grad
       TYPE(cp_fm_type), DIMENSION(:), ALLOCATABLE :: fm_Y
       TYPE(sos_mp2_grad_work_type), ALLOCATABLE, DIMENSION(:) :: sos_mp2_work_occ, sos_mp2_work_virt
       INTEGER, DIMENSION(:), ALLOCATABLE :: homo, virtual
-      INTEGER :: unit_nr
-      REAL(KIND=dp) :: temperature
-      TYPE(rpa_grad_work_type) :: rpa_work
+      INTEGER :: unit_nr = -1
+      REAL(KIND=dp) :: temperature = 0.0_dp
+      TYPE(rpa_grad_work_type) :: rpa_work = rpa_grad_work_type()
    END TYPE rpa_grad_type
 
    INTEGER, PARAMETER :: spla_threshold = 128*128*128*2
@@ -153,10 +164,126 @@ CONTAINS
    END SUBROUTINE rpa_grad_needed_mem
 
 ! **************************************************************************************************
+!> \brief ...
+!> \param rpa_degenerate ...
+!> \param fm_mat_S ...
+!> \param Eigenval ...
+!> \param virtual ...
+!> \param threshold ...
+! **************************************************************************************************
+   SUBROUTINE rpa_degenerate_type_create(rpa_degenerate, fm_mat_S, Eigenval, virtual, threshold)
+      CLASS(rpa_degenerate_type), INTENT(INOUT) :: rpa_degenerate
+      TYPE(cp_fm_type), INTENT(IN) :: fm_mat_S
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN) :: Eigenval
+      INTEGER, INTENT(IN) :: virtual
+      REAL(KIND=dp), INTENT(IN) :: threshold
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_degenerate_type_create'
+
+      INTEGER :: handle, ncol_local, number_of_degenerate_orbital_pairs, nrow_local, iocc, avirt, iiB, nmo, i_global
+      INTEGER, DIMENSION(:), POINTER :: col_indices
+      REAL(KIND=dp) :: eigen_diff
+
+      CALL timeset(routineN, handle)
+
+      CALL rpa_degenerate%release()
+
+      nmo = SIZE(Eigenval)
+
+      ! get info of fm_mat_S
+      CALL cp_fm_get_info(matrix=fm_mat_S, &
+                          ncol_local=ncol_local, &
+                          nrow_local=nrow_local, &
+                          col_indices=col_indices)
+
+      number_of_degenerate_orbital_pairs = 0
+
+      ! Determine the number of degenerate orbital pairs
+      DO iiB = 1, ncol_local
+         i_global = col_indices(iiB)
+
+         iocc = MAX(1, i_global - 1)/virtual + 1
+         avirt = i_global - (iocc - 1)*virtual + nmo - virtual
+         eigen_diff = Eigenval(avirt) - Eigenval(iocc)
+
+         IF (ABS(eigen_diff) < threshold) THEN
+            number_of_degenerate_orbital_pairs = number_of_degenerate_orbital_pairs + 1
+         END IF
+      END DO
+
+      ! Setup the container
+      ALLOCATE (rpa_degenerate%degenerate_index_pairs(number_of_degenerate_orbital_pairs))
+      ALLOCATE (rpa_degenerate%degenerate_matrix_elements(nrow_local, number_of_degenerate_orbital_pairs))
+
+      ! Store the data from degenerate orbital pairs
+      number_of_degenerate_orbital_pairs = 0
+      DO iiB = 1, ncol_local
+         i_global = col_indices(iiB)
+
+         iocc = MAX(1, i_global - 1)/virtual + 1
+         avirt = i_global - (iocc - 1)*virtual + nmo - virtual
+         eigen_diff = Eigenval(avirt) - Eigenval(iocc)
+
+         IF (ABS(eigen_diff) < threshold) THEN
+            number_of_degenerate_orbital_pairs = number_of_degenerate_orbital_pairs + 1
+
+            rpa_degenerate%degenerate_index_pairs(number_of_degenerate_orbital_pairs) = iiB
+            rpa_degenerate%degenerate_matrix_elements(:, number_of_degenerate_orbital_pairs) = fm_mat_S%local_data(:, iiB)
+         END IF
+      END DO
+
+      CALL timestop(handle)
+   END SUBROUTINE rpa_degenerate_type_create
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rpa_degenerate ...
+!> \param fm_mat_S ...
+! **************************************************************************************************
+   SUBROUTINE rpa_degenerate_type_apply(rpa_degenerate, fm_mat_S)
+      CLASS(rpa_degenerate_type), INTENT(INOUT) :: rpa_degenerate
+      TYPE(cp_fm_type), INTENT(INOUT) :: fm_mat_S
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_degenerate_type_apply'
+
+      INTEGER :: handle, pair
+
+      CALL timeset(routineN, handle)
+
+      ! Determine the number of degenerate orbital pairs
+      DO pair = 1, SIZE(rpa_degenerate%degenerate_index_pairs)
+         fm_mat_S%local_data(:, rpa_degenerate%degenerate_index_pairs(pair)) = rpa_degenerate%degenerate_matrix_elements(:, pair)
+      END DO
+
+      CALL timestop(handle)
+   END SUBROUTINE rpa_degenerate_type_apply
+
+! **************************************************************************************************
+!> \brief ...
+!> \param rpa_degenerate ...
+! **************************************************************************************************
+   SUBROUTINE rpa_degenerate_type_release(rpa_degenerate)
+      CLASS(rpa_degenerate_type), INTENT(INOUT) :: rpa_degenerate
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_degenerate_type_release'
+
+      INTEGER :: handle
+
+      CALL timeset(routineN, handle)
+
+      IF (ALLOCATED(rpa_degenerate%degenerate_index_pairs)) DEALLOCATE (rpa_degenerate%degenerate_index_pairs)
+      IF (ALLOCATED(rpa_degenerate%degenerate_matrix_elements)) DEALLOCATE (rpa_degenerate%degenerate_matrix_elements)
+
+      CALL timestop(handle)
+   END SUBROUTINE rpa_degenerate_type_release
+
+! **************************************************************************************************
 !> \brief Creates the arrays of a rpa_grad_type
 !> \param rpa_grad ...
 !> \param fm_mat_Q ...
 !> \param fm_mat_S ...
+!> \param temperature ...
+!> \param threshold ...
 !> \param homo ...
 !> \param virtual ...
 !> \param mp2_env ...
@@ -164,12 +291,12 @@ CONTAINS
 !> \param unit_nr ...
 !> \param do_ri_sos_laplace_mp2 ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_grad_create(rpa_grad, fm_mat_Q, fm_mat_S, temperature, &
+   SUBROUTINE rpa_grad_create(rpa_grad, fm_mat_Q, fm_mat_S, temperature, threshold, &
                               homo, virtual, mp2_env, Eigenval, unit_nr, do_ri_sos_laplace_mp2)
       TYPE(rpa_grad_type), INTENT(OUT)                   :: rpa_grad
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
-      REAL(KIND=dp), INTENT(IN) :: temperature
+      REAL(KIND=dp), INTENT(IN)                          :: temperature, threshold
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
@@ -187,12 +314,12 @@ CONTAINS
 
       nspins = SIZE(fm_mat_S)
 
-ALLOCATE(rpa_grad%homo(nspins), rpa_grad%virtual(nspins))
-rpa_grad%homo(:) = homo
-rpa_grad%virtual(:) = virtual
+      ALLOCATE (rpa_grad%homo(nspins), rpa_grad%virtual(nspins))
+      rpa_grad%homo(:) = homo
+      rpa_grad%virtual(:) = virtual
 
-rpa_grad%unit_nr = unit_nr
-rpa_grad%temperature = temperature
+      rpa_grad%unit_nr = unit_nr
+      rpa_grad%temperature = temperature
 
       ALLOCATE (rpa_grad%fm_Y(nspins))
       DO ispin = 1, nspins
@@ -203,7 +330,7 @@ rpa_grad%temperature = temperature
          CALL sos_mp2_work_type_create(rpa_grad%sos_mp2_work_occ, rpa_grad%sos_mp2_work_virt, &
                                        unit_nr, Eigenval, homo, virtual, mp2_env%eps_canonical, fm_mat_S)
       ELSE
-         CALL rpa_work_type_create(rpa_grad%rpa_work, fm_mat_Q, fm_mat_S, homo, virtual)
+         CALL rpa_work_type_create(rpa_grad%rpa_work, fm_mat_Q, fm_mat_S, homo, virtual, Eigenval, threshold)
       END IF
 
       CALL timestop(handle)
@@ -269,12 +396,16 @@ rpa_grad%temperature = temperature
 !> \param fm_mat_S ...
 !> \param homo ...
 !> \param virtual ...
+!> \param Eigenval ...
+!> \param threshold ...
 ! **************************************************************************************************
-   SUBROUTINE rpa_work_type_create(rpa_work, fm_mat_Q, fm_mat_S, homo, virtual)
+   SUBROUTINE rpa_work_type_create(rpa_work, fm_mat_Q, fm_mat_S, homo, virtual, Eigenval, threshold)
       TYPE(rpa_grad_work_type), INTENT(OUT)              :: rpa_work
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
+      REAL(KIND=dp), INTENT(IN)                          :: threshold
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_work_type_create'
 
@@ -287,11 +418,17 @@ rpa_grad%temperature = temperature
 
       CALL timeset(routineN, handle)
 
+      nspins = SIZE(fm_mat_S)
+
+      ALLOCATE (rpa_work%degenerate(nspins))
+      DO ispin = 1, nspins
+         CALL rpa_work%degenerate(ispin)%create( &
+            fm_mat_S(ispin), Eigenval(:, ispin), virtual(ispin), threshold)
+      END DO
+
       CALL cp_fm_create(rpa_work%fm_mat_Q_copy, matrix_struct=fm_mat_Q%matrix_struct)
 
       CALL fm_mat_S(1)%matrix_struct%context%get(number_of_process_columns=num_pe_col, my_process_column=my_pcol)
-
-      nspins = SIZE(fm_mat_S)
 
       ALLOCATE (rpa_work%index2send(0:num_pe_col - 1, nspins), &
                 rpa_work%index2recv(0:num_pe_col - 1, nspins), &
@@ -720,26 +857,20 @@ rpa_grad%temperature = temperature
 !> \brief ...
 !> \param mp2_env ...
 !> \param rpa_grad ...
-!> \param do_ri_sos_laplace_mp2 ...
 !> \param fm_mat_Q ...
 !> \param fm_mat_Q_gemm ...
 !> \param dgemm_counter ...
 !> \param fm_mat_S ...
 !> \param omega ...
-!> \param homo ...
-!> \param virtual ...
 !> \param Eigenval ...
 !> \param occupation ...
-!> \param temperature ...
 !> \param weight ...
-!> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE rpa_grad_matrix_operations(mp2_env, rpa_grad, fm_mat_Q, fm_mat_Q_gemm, &
                                          dgemm_counter, fm_mat_S, omega, Eigenval, occupation, &
                                          weight)
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
-      LOGICAL                                :: do_ri_sos_laplace_mp2
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q, fm_mat_Q_gemm
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
@@ -754,6 +885,7 @@ rpa_grad%temperature = temperature
                                                             jspin, ncol_local, nrow_local, nspins, &
                                                             row_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      LOGICAL                                            :: do_ri_sos_laplace_mp2
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :), &
          TARGET                                          :: mat_S_3D, mat_work_iaP_3D
       TYPE(cp_fm_type)                                   :: fm_work_iaP, fm_work_PQ
@@ -765,7 +897,7 @@ rpa_grad%temperature = temperature
       CALL cp_fm_get_info(fm_mat_Q(1), nrow_global=dimen_RI, nrow_local=nrow_local, ncol_local=ncol_local, &
                           col_indices=col_indices, row_indices=row_indices)
 
-                          do_ri_sos_laplace_mp2 = ALLOCATED(rpa_grad%sos_mp2_work_occ) .AND. ALLOCATED(rpa_grad%sos_mp2_work_virt)
+      do_ri_sos_laplace_mp2 = ALLOCATED(rpa_grad%sos_mp2_work_occ) .AND. ALLOCATED(rpa_grad%sos_mp2_work_virt)
 
       IF (.NOT. do_ri_sos_laplace_mp2) THEN
          CALL cp_fm_create(fm_work_PQ, fm_mat_Q(1)%matrix_struct)
@@ -842,7 +974,7 @@ rpa_grad%temperature = temperature
                                 omega, weight, rpa_grad%virtual(ispin), Eigenval(:, ispin))
 
             CALL calc_fm_mat_S_laplace(fm_work_iaP, rpa_grad%homo(ispin), rpa_grad%virtual(ispin), &
-            Eigenval(:, ispin), omega)
+                                       Eigenval(:, ispin), omega)
 
             CALL cp_fm_scale_and_add(1.0_dp, rpa_grad%fm_Y(ispin), -weight, fm_work_iaP)
 
@@ -1645,7 +1777,7 @@ rpa_grad%temperature = temperature
                               - (deval_ai*deval_bi**2 + deval_bi*deval_ai**2)/ &
                               deval_ai/deval_bi/docc_ai/docc_bi*docc_ab/deval_ab
                   ELSE IF (ABS(deval_ai) > threshold) THEN
-                     factor = -1.0_dp/docc_bi-1.0_dp/docc_ai &
+                     factor = -1.0_dp/docc_bi - 1.0_dp/docc_ai &
                               - deval_bi/docc_ai/docc_bi*docc_ab/deval_ab &
                               - deval_ai/docc_ai/docc_bi*docc_ab/deval_ab
                   ELSE IF (ABS(deval_bi) > threshold) THEN
@@ -2199,9 +2331,6 @@ rpa_grad%temperature = temperature
 !> \param qs_env ...
 !> \param gd_array ...
 !> \param color_sub ...
-!> \param do_ri_sos_laplace_mp2 ...
-!> \param homo ...
-!> \param virtual ...
 ! **************************************************************************************************
    SUBROUTINE rpa_grad_finalize(rpa_grad, mp2_env, para_env_sub, para_env, qs_env, gd_array, &
                                 color_sub)
@@ -2211,7 +2340,6 @@ rpa_grad%temperature = temperature
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(group_dist_d1_type)                           :: gd_array
       INTEGER, INTENT(IN)                                :: color_sub
-      LOGICAL                                :: do_ri_sos_laplace_mp2
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'rpa_grad_finalize'
 
@@ -2220,6 +2348,7 @@ rpa_grad%temperature = temperature
          ngroup, nspins, pos_group, pos_sub, proc
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pos_info
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: group_grid_2_mepos, mepos_2_grid_group
+      LOGICAL                                            :: do_ri_sos_laplace_mp2
       REAL(KIND=dp)                                      :: my_scale
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: Gamma_2D
       TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
@@ -2416,8 +2545,8 @@ rpa_grad%temperature = temperature
 
       END DO
       DEALLOCATE (rpa_grad%fm_Y)
-      DEALLOCATE(rpa_grad%homo)
-      DEALLOCATE(rpa_grad%virtual)
+      DEALLOCATE (rpa_grad%homo)
+      DEALLOCATE (rpa_grad%virtual)
       CALL cp_fm_release(fm_PQ_half)
 
       CALL timestop(handle)
@@ -2604,6 +2733,9 @@ rpa_grad%temperature = temperature
       my_scale = mp2_env%ri_rpa%scale_rpa/(2.0_dp*pi)
 
       CALL cp_fm_release(rpa_work%fm_mat_Q_copy)
+      DO ispin = 1, nspins
+         CALL rpa_work%degenerate(ispin)%release()
+      END DO
 
       DO ispin = 1, nspins
       DO proc = 0, SIZE(rpa_work%index2send, 1) - 1
