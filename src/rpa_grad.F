@@ -1523,7 +1523,8 @@ CONTAINS
 
             CALL scale_buffer_and_add_compens_virt(buffer_unscaled, buffer_compens, omega, &
                                                    my_eval_virt(my_block_start_a:my_block_end_a), &
-                                                   recv_eval_virt(recv_block_start_a:recv_block_end_a), my_eval_occ(my_i))
+                                                   recv_eval_virt(recv_block_start_a:recv_block_end_a), &
+                                                   my_eval_occ(my_i), my_occ_occ(my_i))
 
             CALL kahan_step(buffer_compens, P_ab(my_block_start_a:my_block_end_a, recv_block_start_a:recv_block_end_a))
          END DO
@@ -1605,7 +1606,8 @@ CONTAINS
 
             CALL scale_buffer_and_add_compens_occ(buffer_unscaled, buffer_compens, omega, &
                                                   my_eval_occ(my_block_start_i:my_block_end_i), &
-                                                  recv_eval_occ(recv_block_start_i:recv_block_end_i), my_eval_virt(my_a))
+                                                  recv_eval_occ(recv_block_start_i:recv_block_end_i), &
+                                                  my_eval_virt(my_a), my_occ_virt(my_a))
 
             CALL kahan_step(buffer_compens, P_ij(my_block_start_i:my_block_end_i, recv_block_start_i:recv_block_end_i))
          END DO
@@ -1685,14 +1687,15 @@ CONTAINS
 !> \param my_eval_virt ...
 !> \param recv_eval_virt ...
 !> \param my_eval_occ ...
+!> \param my_occ_occ ...
 ! **************************************************************************************************
    SUBROUTINE scale_buffer_and_add_compens_virt(buffer_unscaled, buffer_compens, omega, &
-                                                my_eval_virt, recv_eval_virt, my_eval_occ)
+                                                my_eval_virt, recv_eval_virt, my_eval_occ, my_occ_occ)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: buffer_unscaled
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: buffer_compens
       REAL(KIND=dp), INTENT(IN)                          :: omega
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_virt, recv_eval_virt
-      REAL(KIND=dp), INTENT(IN)                          :: my_eval_occ
+      REAL(KIND=dp), INTENT(IN)                          :: my_eval_occ, my_occ_occ
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_buffer_and_add_compens_virt'
 
@@ -1702,12 +1705,12 @@ CONTAINS
       CALL timeset(routineN, handle)
 
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(buffer_unscaled,buffer_compens,omega,&
-!$OMP                                  my_eval_virt,recv_eval_virt,my_eval_occ) PRIVATE(my_a,my_b,factor)
+!$OMP                                  my_eval_virt,recv_eval_virt,my_eval_occ, my_occ_occ) PRIVATE(my_a,my_b,factor)
       DO my_b = 1, SIZE(buffer_compens, 2)
          DO my_a = 1, SIZE(buffer_compens, 1)
             factor = ((my_eval_virt(my_a) - my_eval_occ)*(recv_eval_virt(my_b) - my_eval_occ) - omega**2) &
                      /((my_eval_virt(my_a) - my_eval_occ)**2 + omega**2) &
-                     /((recv_eval_virt(my_b) - my_eval_occ)**2 + omega**2)
+                     /((recv_eval_virt(my_b) - my_eval_occ)**2 + omega**2)*my_occ_occ
             buffer_compens(my_a, my_b) = buffer_unscaled(my_a, my_b)*factor - buffer_compens(my_a, my_b)
          END DO
       END DO
@@ -1765,7 +1768,6 @@ CONTAINS
             docc_ai = my_occ_virt(my_a) - my_occ_occ
             docc_bi = recv_occ_virt(my_b) - my_occ_occ
             docc_ab = my_occ_virt(my_a) - recv_occ_virt(my_b)
-            WRITE (*, *) omega, deval_ai, deval_bi, deval_ab
             ! We branch to catch all different corner cases of vanishing denominators
             ! e(a)->e(b), e(i)->e(a), e(i)->e(b) (if e(a) /= e(b))
             IF (omega > 0.0_dp) THEN
@@ -1820,14 +1822,15 @@ CONTAINS
 !> \param my_eval_occ ...
 !> \param recv_eval_occ ...
 !> \param my_eval_virt ...
+!> \param my_occ_virt ...
 ! **************************************************************************************************
    SUBROUTINE scale_buffer_and_add_compens_occ(buffer_unscaled, buffer_compens, omega, &
-                                               my_eval_occ, recv_eval_occ, my_eval_virt)
+                                               my_eval_occ, recv_eval_occ, my_eval_virt, my_occ_virt)
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: buffer_unscaled
       REAL(KIND=dp), DIMENSION(:, :), INTENT(INOUT)      :: buffer_compens
       REAL(KIND=dp), INTENT(IN)                          :: omega
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: my_eval_occ, recv_eval_occ
-      REAL(KIND=dp), INTENT(IN)                          :: my_eval_virt
+      REAL(KIND=dp), INTENT(IN)                          :: my_eval_virt, my_occ_virt
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'scale_buffer_and_add_compens_occ'
 
@@ -1837,12 +1840,12 @@ CONTAINS
       CALL timeset(routineN, handle)
 
 !$OMP PARALLEL DO DEFAULT(NONE) SHARED(buffer_compens,buffer_unscaled,omega,&
-!$OMP        my_eval_virt,my_eval_occ,recv_eval_occ) PRIVATE(my_i,my_j,factor)
+!$OMP        my_eval_virt,my_occ_virt,my_eval_occ,recv_eval_occ) PRIVATE(my_i,my_j,factor)
       DO my_j = 1, SIZE(buffer_compens, 2)
          DO my_i = 1, SIZE(buffer_compens, 1)
             factor = ((my_eval_virt - my_eval_occ(my_i))*(my_eval_virt - recv_eval_occ(my_j)) - omega**2) &
                      /((my_eval_virt - my_eval_occ(my_i))**2 + omega**2) &
-                     /((my_eval_virt - recv_eval_occ(my_j))**2 + omega**2)
+                     /((my_eval_virt - recv_eval_occ(my_j))**2 + omega**2)*(1.0_dp - my_occ_virt)
             buffer_compens(my_i, my_j) = buffer_unscaled(my_i, my_j)*factor - buffer_compens(my_i, my_j)
          END DO
       END DO
@@ -1904,13 +1907,11 @@ CONTAINS
                            /(deval_ai**2 + omega**2)/(deval_aj**2 + omega**2)*(docc_ai + docc_aj) &
                            + (deval_ai/(deval_ai**2 + omega**2) + deval_aj/(deval_aj**2 + omega**2)) &
                            *docc_ij/deval_ij
-                  WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
                ELSE
                   factor = 2.0_dp*(deval_ai + omega)*(deval_ai - omega) &
                            /(deval_ai**2 + omega**2)**2*docc_ai &
                            - 2.0_dp*deval_ai/(deval_ai**2 + omega**2) &
                            *my_occ_occ(my_i)*(1.0_dp - my_occ_occ(my_i))/temperature
-                  WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
                END IF
             ELSE
                IF (ABS(deval_ij) > threshold) THEN
@@ -1918,26 +1919,21 @@ CONTAINS
                      IF (ABS(deval_aj) > threshold) THEN
                         factor = 1.0_dp/(deval_ai*deval_aj)*(docc_ai + docc_aj) &
                                  + (1.0_dp/deval_ai + 1.0_dp/deval_aj)*docc_ij/deval_ij
-                        WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
                      ELSE
                         factor = recv_occ_occ(my_j)*(1.0_dp - recv_occ_occ(my_j))/temperature/deval_ij &
                                  - docc_ij/deval_ij**2
-                        WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
                      END IF
                   ELSE
                      factor = -my_occ_occ(my_i)*(1.0_dp - my_occ_occ(my_i))/temperature/deval_ij &
                               + docc_ij/deval_ij**2
-                     WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
                   END IF
                ELSE
                   IF (ABS(deval_ai) > threshold) THEN
                      factor = 2.0_dp*docc_ai/deval_ai**2 &
                               - 2.0_dp/deval_ai*my_occ_occ(my_i)*(1.0_dp - my_occ_occ(my_i))/temperature
-                     WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
                   ELSE
                      factor = -0.5_dp*my_occ_occ(my_i)*(1.0_dp - my_occ_occ(my_i))* &
                               (1.0_dp - 2.0_dp*my_occ_occ(my_i))/temperature**2
-                     WRITE (*, *) omega, deval_ij, deval_ai, deval_aj, factor
                   END IF
                END IF
             END IF
