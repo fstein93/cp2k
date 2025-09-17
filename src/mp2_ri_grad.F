@@ -777,8 +777,6 @@ CONTAINS
                   IF (occ_diff > eps_diff) THEN
                      data_block(i_row, i_col) = data_block(i_row, i_col)/occ_diff
                   ELSE IF (occ_row > eps_diff .AND. occ_row < 1.0_dp - eps_diff) THEN
-                     WRITE (*, *) i_row + row_offset - 1, i_col + col_offset - 1 + nmo - virtual, occ_row
-                     WRITE (*, *) (1.0_dp - 2.0_dp*occ_row)/(occ_row*(1.0_dp - occ_row))
                      data_block(i_row, i_col) = data_block(i_row, i_col)*(1.0_dp - 2.0_dp*occ_row) &
                                                 /(occ_row*(1.0_dp - occ_row))/temperature
                   ELSE

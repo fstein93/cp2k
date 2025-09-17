@@ -28,8 +28,7 @@ MODULE mp2_cphf
                                               cp_dbcsr_plus_fm_fm_t,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_frobenius_norm,&
-                                              cp_fm_geadd,&
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_geadd,&
                                               cp_fm_scale_and_add,&
                                               cp_fm_uplo_to_full
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
@@ -397,8 +396,6 @@ CONTAINS
 
       DO ispin = 1, nspins
          CALL remove_trace(P_ia(ispin), nmo)
-
-         WRITE (*, *) "DEBUG P_ia", ispin, cp_fm_frobenius_norm(P_ia(ispin))
       END DO
 
       ! release fm stuff
@@ -693,14 +690,58 @@ CONTAINS
                IF (homo + virtual > nmo) THEN
                   CALL remove_trace(mat_in, nmo)
                END IF
-               ! virt-occ blocks
-               CALL parallel_gemm('N', 'N', nao, virtual, homo, 1.0_dp, &
-                                  mo_coeff_o(ispin), mat_in, 0.0_dp, fm_back)
-               CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), virtual, 1.0_dp, .TRUE.)
-               ! and symmetrize (here again multiply instead of transposing)
-               CALL parallel_gemm('N', 'T', nao, homo, virtual, 1.0_dp, &
-                                  mo_coeff_v(ispin), mat_in, 0.0_dp, fm_back)
-               CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin), homo, 1.0_dp, .TRUE.)
+               IF (homo + virtual > nmo) THEN
+                  ! Misuse the output array as buffer
+                  CALL cp_fm_get_info(matrix=fm_mo_out(ispin), &
+                                      nrow_local=nrow_local, &
+                                      ncol_local=ncol_local, &
+                                      row_indices=row_indices, &
+                                      col_indices=col_indices)
+                  DO jjB = 1, ncol_local
+                     j_global = col_indices(jjB) + nmo - virtual
+                     DO iiB = 1, nrow_local
+                        i_global = row_indices(iiB)
+                        ! The different blocks need separate scaling factors
+                        IF (occupation(j_global, ispin) > 0.0_dp .AND. &
+                            occupation(j_global, ispin) < 1.0_dp) THEN
+                           IF (occupation(i_global, ispin) > 0.0_dp .AND. &
+                               occupation(i_global, ispin) < 1.0_dp) THEN
+                              ! Partial-partial block: Reverse sign
+                              fm_mo_out(ispin)%local_data(iiB, jjB) = &
+                                 -mat_in%local_data(iiB, jjB)
+                           ELSE
+                              ! homo-partial block: scale by negated occupation number
+                              fm_mo_out(ispin)%local_data(iiB, jjB) = -mat_in%local_data(iiB, jjB)* &
+                                                                      occupation(i_global, ispin)
+                           END IF
+                        ELSE
+                           IF (occupation(i_global, ispin) > 0.0_dp .AND. &
+                               occupation(i_global, ispin) < 1.0_dp) THEN
+                              ! Virtual-partial block: scale by complementary occupation number
+                              fm_mo_out(ispin)%local_data(iiB, jjB) = &
+                                 mat_in%local_data(iiB, jjB)*(1.0_dp - occupation(i_global, ispin))
+                           ELSE
+                              ! Occupied-virtual block: simple copy
+                              fm_mo_out(ispin)%local_data(iiB, jjB) = mat_in%local_data(iiB, jjB)
+                           END IF
+                        END IF
+                     END DO
+                  END DO
+                  CALL parallel_gemm('N', 'N', nao, virtual, homo, 1.0_dp, &
+                                     mo_coeff_o(ispin), fm_mo_out(ispin), 0.0_dp, fm_back)
+                  CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), virtual, 1.0_dp, .TRUE.)
+                  ! and symmetrize (here again multiply instead of transposing)
+                  CALL parallel_gemm('N', 'T', nao, homo, virtual, 1.0_dp, &
+                                     mo_coeff_v(ispin), fm_mo_out(ispin), 0.0_dp, fm_back)
+               ELSE
+                  CALL parallel_gemm('N', 'N', nao, virtual, homo, 1.0_dp, &
+                                     mo_coeff_o(ispin), mat_in, 0.0_dp, fm_back)
+                  CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), virtual, 1.0_dp, .TRUE.)
+                  ! and symmetrize (here again multiply instead of transposing)
+                  CALL parallel_gemm('N', 'T', nao, homo, virtual, 1.0_dp, &
+                                     mo_coeff_v(ispin), mat_in, 0.0_dp, fm_back)
+                  CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin), homo, 1.0_dp, .TRUE.)
+               END IF
 
             CASE DEFAULT
                ! nothing
@@ -731,14 +772,21 @@ CONTAINS
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
                   ! These factors should be positive (or at least non-negative)
-                  IF (ABS(occupation(j_global, ispin) &
-                          - occupation(i_global, ispin)) > eps_threshold) THEN
-                     fm_mo_out(ispin)%local_data(iiB, jjB) = &
-                        fm_mo(ispin)%local_data(iiB, jjB)*(Eigenval(j_global, ispin) - Eigenval(i_global, ispin))/ &
-                        (occupation(i_global, ispin) - occupation(j_global, ispin))
+                  IF (occupation(j_global, ispin) > 0.0_dp .AND. &
+                      occupation(j_global, ispin) < 1.0_dp .AND. &
+                      occupation(i_global, ispin) > 0.0_dp .AND. &
+                      occupation(i_global, ispin) < 1.0_dp) THEN
+                     IF (ABS(occupation(j_global, ispin) - occupation(i_global, ispin)) > eps_threshold) THEN
+                        fm_mo_out(ispin)%local_data(iiB, jjB) = &
+                           fm_mo(ispin)%local_data(iiB, jjB)*(Eigenval(j_global, ispin) - Eigenval(i_global, ispin))/ &
+                           (occupation(i_global, ispin) - occupation(j_global, ispin))
+                     ELSE
+                        fm_mo_out(ispin)%local_data(iiB, jjB) = fm_mo(ispin)%local_data(iiB, jjB)* &
+                                                                occupation(i_global, ispin)*(1.0_dp - occupation(i_global, ispin))
+                     END IF
                   ELSE
-                     fm_mo_out(ispin)%local_data(iiB, jjB) = fm_mo(ispin)%local_data(iiB, jjB)* &
-                                                             occupation(i_global, ispin)*(1.0_dp - occupation(i_global, ispin))
+                     fm_mo_out(ispin)%local_data(iiB, jjB) = &
+                        fm_mo(ispin)%local_data(iiB, jjB)*(Eigenval(j_global, ispin) - Eigenval(i_global, ispin))
                   END IF
                END DO
             END DO
@@ -760,6 +808,11 @@ CONTAINS
             CALL parallel_gemm('N', 'N', homo, virtual, nao, 1.0_dp, &
                                fm_back, mo_coeff_v(ispin), 1.0_dp, mat_out)
             IF (homo + virtual > nmo) THEN
+               ! With partially occupied orbitals, the partial-partial block needs the opposite sign
+               CALL parallel_gemm('N', 'N', homo + virtual - nmo, homo + virtual - nmo, nao, 1.0_dp, &
+                                  fm_back, mo_coeff_v(ispin), -2.0_dp, mat_out, &
+                                  a_first_row=nmo - virtual + 1, &
+                                  c_first_row=nmo - virtual + 1)
                CALL remove_trace(mat_out, nmo)
             END IF
          END ASSOCIATE
@@ -887,14 +940,23 @@ CONTAINS
             j_global = col_indices(jjB) + nmo - virtual
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               IF (ABS(occupation(j_global, ispin) &
-                       - occupation(i_global, ispin)) > eps_threshold) THEN
-                  precond(ispin)%local_data(iiB, jjB) = -(occupation(j_global, ispin) &
-                                                          - occupation(i_global, ispin))/ &
+               IF (occupation(j_global, ispin) > 0.0_dp .AND. &
+                   occupation(j_global, ispin) < 1.0_dp .AND. &
+                   occupation(i_global, ispin) > 0.0_dp .AND. &
+                   occupation(i_global, ispin) < 1.0_dp) THEN
+                  IF (ABS(occupation(j_global, ispin) &
+                          - occupation(i_global, ispin)) > eps_threshold) THEN
+                     precond(ispin)%local_data(iiB, jjB) = -(occupation(j_global, ispin) &
+                                                             - occupation(i_global, ispin))/ &
+                                                           (Eigenval(j_global, ispin) &
+                                                            - Eigenval(i_global, ispin))
+               ELSE IF (occupation(i_global, ispin) > eps_threshold .AND. occupation(i_global, ispin) < 1.0_dp - eps_threshold) THEN
+                   precond(ispin)%local_data(iiB, jjB) = 1.0_dp/(occupation(i_global, ispin)*(1.0_dp - occupation(i_global, ispin)))
+                  END IF
+               ELSE
+                  precond(ispin)%local_data(iiB, jjB) = 1.0_dp/ &
                                                         (Eigenval(j_global, ispin) &
                                                          - Eigenval(i_global, ispin))
-               ELSE IF (occupation(i_global, ispin) > eps_threshold .AND. occupation(i_global, ispin) < 1.0_dp - eps_threshold) THEN
-                  precond(ispin)%local_data(iiB, jjB) = 1.0_dp/(occupation(i_global, ispin)*(1.0_dp - occupation(i_global, ispin)))
                END IF
             END DO
          END DO
