@@ -160,9 +160,17 @@ CONTAINS
       CALL keyword_release(keyword)
 
       CALL keyword_create(keyword, __LOCATION__, name="EPS_CANONICAL", &
-                          description="Threshold under which a given MO pair is considered to be degenerate. "// &
+                          description="Energy threshold under which a given MO pair is considered to be degenerate. "// &
                           "Ignored except at T>0 or gradients with canonical MP2 or SOS-MP2.", &
                           usage="EPS_CANONICAL 1.0E-8", type_of_var=real_t, &
+                          default_r_val=1.0E-5_dp)
+      CALL section_add_keyword(section, keyword)
+      CALL keyword_release(keyword)
+
+      CALL keyword_create(keyword, __LOCATION__, name="EPS_FERMI_DIRAC", &
+                          description="Occupancy threshold under which an MO pair is considered partially occupied. "// &
+                          "Ignored except at T>0.", &
+                          usage="EPS_FERMI_DIRAC 1.0E-8", type_of_var=real_t, &
                           default_r_val=1.0E-5_dp)
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)

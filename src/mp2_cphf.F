@@ -439,30 +439,11 @@ CONTAINS
                         W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
                                                            - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
                      END IF
-                  END DO
-               END IF
-               IF (j_global > nmo - virtual(ispin)) THEN
-                  DO iiB = 1, nrow_local
-                     i_global = row_indices(iiB)
-                     IF (i_global > nmo - virtual(ispin)) THEN
-                        ! virt-virt
-                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
-                                                   - mp2_env%ri_grad%P_mo_FTab(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
-                     END IF
-                  END DO
-               END IF
-            END DO
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               IF (j_global <= homo(ispin)) THEN
-                  DO iiB = 1, nrow_local
-                     i_global = row_indices(iiB)
                      IF (i_global > nmo - virtual(ispin)) THEN
                         W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
                                                            - fm_mo_mo%local_data(iiB, jjB)*Eigenval(j_global, ispin)
                      END IF
                   END DO
-               ELSE
                END IF
                IF (j_global > nmo - virtual(ispin)) THEN
                   DO iiB = 1, nrow_local
@@ -496,7 +477,6 @@ CONTAINS
             CALL cp_fm_scale_and_add(1.0_dp, P_mo(ispin), 1.0_dp, fm_mo_mo)
          END DO
          CALL cp_fm_release(P_ia)
-         CALL cp_fm_release(mp2_env%ri_grad%P_mo_FTab)
          CALL cp_fm_release(fm_mo_mo)
       ELSE
          DO ispin = 1, nspins
@@ -647,18 +627,22 @@ CONTAINS
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cphf_like_update'
-      REAL(KIND=dp), PARAMETER                           :: eps_threshold = 1.0e-5_dp
 
       INTEGER                                            :: handle, homo, i_global, iiB, ispin, &
                                                             j_global, jjB, nao, ncol_local, nmo, &
                                                             nrow_local, nspins, virtual
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: eps_canonical
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
+      TYPE(mp2_type), POINTER                            :: mp2_env
 
       CALL timeset(routineN, handle)
 
       nmo = SIZE(Eigenval, 1)
       nspins = SIZE(Eigenval, 2)
+
+      CALL get_qs_env(qs_env, mp2_env=mp2_env)
+      eps_canonical = mp2_env%eps_canonical
 
       CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
 
@@ -684,13 +668,18 @@ CONTAINS
                                   b_first_col=nmo - virtual + 1, &
                                   b_first_row=nmo - virtual + 1)
                CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), virtual, 1.0_dp, .TRUE.)
+               IF (homo + virtual > nmo) THEN
+                  ! We added the partial-partial block twice
+                  CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), &
+                                             homo + virtual - nmo, -1.0_dp, .TRUE.)
+               END IF
 
             CASE (3)
+
                ! In case of smearing, we have to ensure that the input matrix is trace-free
+               CALL remove_trace(mat_in, nmo)
                IF (homo + virtual > nmo) THEN
-                  CALL remove_trace(mat_in, nmo)
-               END IF
-               IF (homo + virtual > nmo) THEN
+
                   ! Misuse the output array as buffer
                   CALL cp_fm_get_info(matrix=fm_mo_out(ispin), &
                                       nrow_local=nrow_local, &
@@ -702,24 +691,21 @@ CONTAINS
                      DO iiB = 1, nrow_local
                         i_global = row_indices(iiB)
                         ! The different blocks need separate scaling factors
-                        IF (occupation(j_global, ispin) > 0.0_dp .AND. &
-                            occupation(j_global, ispin) < 1.0_dp) THEN
-                           IF (occupation(i_global, ispin) > 0.0_dp .AND. &
-                               occupation(i_global, ispin) < 1.0_dp) THEN
+                        IF (j_global <= homo) THEN
+                           IF (i_global > nmo - virtual) THEN
                               ! Partial-partial block: Reverse sign
                               fm_mo_out(ispin)%local_data(iiB, jjB) = &
-                                 -mat_in%local_data(iiB, jjB)
+                                 -0.5_dp*mat_in%local_data(iiB, jjB)
                            ELSE
                               ! homo-partial block: scale by negated occupation number
-                              fm_mo_out(ispin)%local_data(iiB, jjB) = -mat_in%local_data(iiB, jjB)* &
-                                                                      occupation(i_global, ispin)
+                              fm_mo_out(ispin)%local_data(iiB, jjB) = mat_in%local_data(iiB, jjB)* &
+                                                                      (1.0_dp - occupation(j_global, ispin))
                            END IF
                         ELSE
-                           IF (occupation(i_global, ispin) > 0.0_dp .AND. &
-                               occupation(i_global, ispin) < 1.0_dp) THEN
+                           IF (i_global > nmo - virtual) THEN
                               ! Virtual-partial block: scale by complementary occupation number
                               fm_mo_out(ispin)%local_data(iiB, jjB) = &
-                                 mat_in%local_data(iiB, jjB)*(1.0_dp - occupation(i_global, ispin))
+                                 mat_in%local_data(iiB, jjB)*occupation(i_global, ispin)
                            ELSE
                               ! Occupied-virtual block: simple copy
                               fm_mo_out(ispin)%local_data(iiB, jjB) = mat_in%local_data(iiB, jjB)
@@ -733,6 +719,7 @@ CONTAINS
                   ! and symmetrize (here again multiply instead of transposing)
                   CALL parallel_gemm('N', 'T', nao, homo, virtual, 1.0_dp, &
                                      mo_coeff_v(ispin), fm_mo_out(ispin), 0.0_dp, fm_back)
+                  CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin), homo, 1.0_dp, .TRUE.)
                ELSE
                   CALL parallel_gemm('N', 'N', nao, virtual, homo, 1.0_dp, &
                                      mo_coeff_o(ispin), mat_in, 0.0_dp, fm_back)
@@ -772,16 +759,13 @@ CONTAINS
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
                   ! These factors should be positive (or at least non-negative)
-                  IF (occupation(j_global, ispin) > 0.0_dp .AND. &
-                      occupation(j_global, ispin) < 1.0_dp .AND. &
-                      occupation(i_global, ispin) > 0.0_dp .AND. &
-                      occupation(i_global, ispin) < 1.0_dp) THEN
-                     IF (ABS(occupation(j_global, ispin) - occupation(i_global, ispin)) > eps_threshold) THEN
+                  IF (j_global <= homo .AND. i_global > nmo - virtual) THEN
+                     IF (ABS(occupation(j_global, ispin) - occupation(i_global, ispin)) > eps_canonical) THEN
                         fm_mo_out(ispin)%local_data(iiB, jjB) = &
                            fm_mo(ispin)%local_data(iiB, jjB)*(Eigenval(j_global, ispin) - Eigenval(i_global, ispin))/ &
                            (occupation(i_global, ispin) - occupation(j_global, ispin))
                      ELSE
-                        fm_mo_out(ispin)%local_data(iiB, jjB) = fm_mo(ispin)%local_data(iiB, jjB)* &
+                        fm_mo_out(ispin)%local_data(iiB, jjB) = fm_mo(ispin)%local_data(iiB, jjB)/ &
                                                                 occupation(i_global, ispin)*(1.0_dp - occupation(i_global, ispin))
                      END IF
                   ELSE
@@ -809,12 +793,13 @@ CONTAINS
                                fm_back, mo_coeff_v(ispin), 1.0_dp, mat_out)
             IF (homo + virtual > nmo) THEN
                ! With partially occupied orbitals, the partial-partial block needs the opposite sign
-               CALL parallel_gemm('N', 'N', homo + virtual - nmo, homo + virtual - nmo, nao, 1.0_dp, &
-                                  fm_back, mo_coeff_v(ispin), -2.0_dp, mat_out, &
+               CALL parallel_gemm('N', 'N', homo + virtual - nmo, homo + virtual - nmo, nao, -2.0_dp, &
+                                  fm_back, mo_coeff_v(ispin), 1.0_dp, mat_out, &
                                   a_first_row=nmo - virtual + 1, &
                                   c_first_row=nmo - virtual + 1)
-               CALL remove_trace(mat_out, nmo)
             END IF
+
+            CALL remove_trace(mat_out, nmo)
          END ASSOCIATE
       END DO
 
@@ -845,32 +830,32 @@ CONTAINS
                           col_indices=col_indices, &
                           nrow_global=homo, &
                           ncol_global=virtual)
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            ! These factors should be positive (or at least non-negative)
-            IF (j_global + nmo - virtual == i_global) THEN
-               trace = trace + mat%local_data(iiB, jjB)
-            END IF
+      IF (homo + virtual > nmo) THEN
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB) + nmo - virtual
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
+               ! These factors should be positive (or at least non-negative)
+               IF (j_global == i_global) THEN
+                  trace = trace + mat%local_data(iiB, jjB)
+               END IF
+            END DO
          END DO
-      END DO
-      CALL mat%matrix_struct%para_env%sum(trace)
-      ! Normalize with respect to global size
-      trace = trace/nmo
-      ! Remove from the diagonal elements
-      DO jjB = 1, ncol_local
-         j_global = col_indices(jjB)
-         DO iiB = 1, nrow_local
-            i_global = row_indices(iiB)
-            ! These factors should be positive (or at least non-negative)
-            IF (j_global + nmo - virtual == i_global) THEN
-               mat%local_data(iiB, jjB) = mat%local_data(iiB, jjB) - trace
-            ELSE IF (j_global + nmo - virtual < i_global) THEN
-               mat%local_data(iiB, jjB) = 0.0_dp
-            END IF
+         CALL mat%matrix_struct%para_env%sum(trace)
+         ! Normalize with respect to global size
+         trace = trace/(homo + virtual - nmo)
+         ! Remove from the diagonal elements
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB) + nmo - virtual
+            DO iiB = 1, nrow_local
+               i_global = row_indices(iiB)
+               ! These factors should be positive (or at least non-negative)
+               IF (j_global == i_global) THEN
+                  mat%local_data(iiB, jjB) = mat%local_data(iiB, jjB) - trace
+               END IF
+            END DO
          END DO
-      END DO
+      END IF
    END SUBROUTINE remove_trace
 
 ! **************************************************************************************************
@@ -892,25 +877,24 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_eq_low(qs_env, mp2_env, unit_nr, &
                                     mo_coeff_o, mo_coeff_v, Eigenval, occupation, &
-                                    p_env, &
-                                    L_jb, fm_G_mu_nu, fm_back, P_ia)
+                                    p_env, L_jb, fm_G_mu_nu, fm_back, P_ia)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
       TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low'
-      REAL(KIND=dp), PARAMETER                           :: eps_threshold = 1.0e-5_dp
 
-      INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
-                                                            jjB, ncol_local, nmo, nrow_local, &
-                                                            nspins, virtual
+      INTEGER                                            :: handle, homo, i_global, iiB, ispin, &
+                                                            j_global, jjB, ncol_local, nmo, &
+                                                            nrow_local, nspins, virtual
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
+      REAL(KIND=dp)                                      :: eps_canonical
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: precond
 
       CALL timeset(routineN, handle)
@@ -918,10 +902,13 @@ CONTAINS
       nmo = SIZE(eigenval, 1)
       nspins = SIZE(eigenval, 2)
 
+      eps_canonical = mp2_env%eps_canonical
+
       ! Pople method
       ! change sign to L_jb
       DO ispin = 1, nspins
          L_jb(ispin)%local_data(:, :) = -L_jb(ispin)%local_data(:, :)
+         CALL remove_trace(L_jb(ispin), nmo)
       END DO
 
       ! create fm structure
@@ -935,28 +922,23 @@ CONTAINS
                              ncol_local=ncol_local, &
                              row_indices=row_indices, &
                              col_indices=col_indices, &
-                             ncol_global=virtual)
+                             ncol_global=virtual, &
+                             nrow_global=homo)
          DO jjB = 1, ncol_local
             j_global = col_indices(jjB) + nmo - virtual
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               IF (occupation(j_global, ispin) > 0.0_dp .AND. &
-                   occupation(j_global, ispin) < 1.0_dp .AND. &
-                   occupation(i_global, ispin) > 0.0_dp .AND. &
-                   occupation(i_global, ispin) < 1.0_dp) THEN
-                  IF (ABS(occupation(j_global, ispin) &
-                          - occupation(i_global, ispin)) > eps_threshold) THEN
-                     precond(ispin)%local_data(iiB, jjB) = -(occupation(j_global, ispin) &
-                                                             - occupation(i_global, ispin))/ &
-                                                           (Eigenval(j_global, ispin) &
-                                                            - Eigenval(i_global, ispin))
-               ELSE IF (occupation(i_global, ispin) > eps_threshold .AND. occupation(i_global, ispin) < 1.0_dp - eps_threshold) THEN
-                   precond(ispin)%local_data(iiB, jjB) = 1.0_dp/(occupation(i_global, ispin)*(1.0_dp - occupation(i_global, ispin)))
+               IF (j_global <= homo .AND. i_global > nmo - virtual) THEN
+                  IF (ABS(occupation(j_global, ispin) - occupation(i_global, ispin)) > eps_canonical) THEN
+                     precond(ispin)%local_data(iiB, jjB) = &
+                        (occupation(i_global, ispin) - occupation(j_global, ispin))/ &
+                        (Eigenval(j_global, ispin) - Eigenval(i_global, ispin))
+
+                  ELSE
+                     precond(ispin)%local_data(iiB, jjB) = (occupation(i_global, ispin)*(1.0_dp - occupation(i_global, ispin)))
                   END IF
                ELSE
-                  precond(ispin)%local_data(iiB, jjB) = 1.0_dp/ &
-                                                        (Eigenval(j_global, ispin) &
-                                                         - Eigenval(i_global, ispin))
+                  precond(ispin)%local_data(iiB, jjB) = 1.0_dp/(Eigenval(j_global, ispin) - Eigenval(i_global, ispin))
                END IF
             END DO
          END DO
@@ -1189,7 +1171,7 @@ CONTAINS
 
          END DO
 
-         IF (.FALSE. .AND. unit_nr > 0) THEN
+         IF (unit_nr > 0) THEN
             WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
             IF (converged) THEN
                WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations converged in', cycle_counter, ' steps'

@@ -953,7 +953,7 @@ CONTAINS
                                             fm_mat_Q_gemm(jspin)%matrix_struct%context)
          ELSE
             CALL remove_scaling_factor_rpa(fm_mat_S(ispin), rpa_grad%homo(ispin), rpa_grad%virtual(ispin), Eigenval(:, ispin), &
-                                           occupation(:, ispin), rpa_grad%temperature, omega)
+                                           occupation(:, ispin), mp2_env%eps_canonical, rpa_grad%temperature, omega)
             CALL rpa_grad%rpa_work%degenerate(ispin)%apply(fm_mat_S(ispin))
          END IF
 
@@ -988,9 +988,9 @@ CONTAINS
                                        rpa_grad%rpa_work%gd_homo(ispin), rpa_grad%rpa_work%gd_virtual(ispin), &
                                        rpa_grad%rpa_work%mepos)
             CALL calc_fm_mat_S_rpa(fm_work_iaP, .TRUE., rpa_grad%homo(ispin), rpa_grad%virtual(ispin), Eigenval(:, ispin), &
-                                   omega, 0.0_dp, occupation(:, ispin), rpa_grad%temperature)
+                                   omega, 0.0_dp, occupation(:, ispin), mp2_env%eps_canonical, rpa_grad%temperature)
             CALL calc_fm_mat_S_rpa(fm_work_iaP, .TRUE., rpa_grad%homo(ispin), rpa_grad%virtual(ispin), Eigenval(:, ispin), &
-                                   omega, 0.0_dp, occupation(:, ispin), rpa_grad%temperature)
+                                   omega, 0.0_dp, occupation(:, ispin), mp2_env%eps_canonical, rpa_grad%temperature)
             ! To save memory, we add it now
             CALL cp_fm_scale_and_add(1.0_dp, rpa_grad%fm_Y(ispin), -weight, fm_work_iaP)
             CALL cp_fm_release(fm_work_iaP)
@@ -1011,7 +1011,7 @@ CONTAINS
             DEALLOCATE (mat_work_iaP_3D, mat_S_3D)
 
             CALL calc_fm_mat_S_rpa(fm_mat_S(ispin), .TRUE., rpa_grad%homo(ispin), rpa_grad%virtual(ispin), Eigenval(:, ispin), &
-                                   omega, 0.0_dp, occupation(:, ispin), rpa_grad%temperature)
+                                   omega, 0.0_dp, occupation(:, ispin), mp2_env%eps_canonical, rpa_grad%temperature)
 
          END IF
 

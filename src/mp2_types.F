@@ -285,7 +285,7 @@ MODULE mp2_types
       TYPE(dbcsr_p_type), DIMENSION(:, :), ALLOCATABLE   :: G_P_ia
       TYPE(dbcsr_p_type), DIMENSION(:), ALLOCATABLE      :: mo_coeff_o, &
                                                             mo_coeff_v
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: P_mo, P_mo_FTab, W_mo, L_jb
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: P_mo, W_mo, L_jb
       REAL(KIND=dp)                                      :: cphf_eps_conv = 0.0_dp, &
                                                             scale_step_size = 0.0_dp
       INTEGER                                            :: cphf_max_num_iter = 0, &
@@ -385,7 +385,8 @@ MODULE mp2_types
       REAL(KIND=dp)                                      :: mp2_memory = 0.0_dp, &
                                                             scale_S = 0.0_dp, &
                                                             scale_T = 0.0_dp, &
-                                                            eps_canonical = 0.0_dp
+                                                            eps_canonical = 0.0_dp, &
+                                                            eps_fermi = 0.0_dp
       INTEGER                                            :: mp2_num_proc = 0
       INTEGER                                            :: block_size_row = 0
       INTEGER                                            :: block_size_col = 0

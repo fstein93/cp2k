@@ -17,10 +17,9 @@ MODULE mp2_ri_grad
    USE cp_blacs_env,                    ONLY: cp_blacs_env_type
    USE cp_control_types,                ONLY: dft_control_type
    USE cp_dbcsr_api,                    ONLY: &
-        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_iterator_blocks_left, &
-        dbcsr_iterator_next_block, dbcsr_iterator_start, dbcsr_iterator_stop, dbcsr_iterator_type, &
-        dbcsr_multiply, dbcsr_p_type, dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, &
-        dbcsr_type_no_symmetry, dbcsr_type_symmetric
+        dbcsr_add, dbcsr_copy, dbcsr_create, dbcsr_get_info, dbcsr_multiply, dbcsr_p_type, &
+        dbcsr_release, dbcsr_set, dbcsr_transposed, dbcsr_type, dbcsr_type_no_symmetry, &
+        dbcsr_type_symmetric
    USE cp_dbcsr_operations,             ONLY: copy_dbcsr_to_fm,&
                                               dbcsr_deallocate_matrix_set
    USE cp_eri_mme_interface,            ONLY: cp_eri_mme_param
@@ -102,7 +101,6 @@ CONTAINS
 !> \param mo_coeff ...
 !> \param dimen_RI ...
 !> \param Eigenval ...
-!> \param occupation ...
 !> \param my_group_L_start ...
 !> \param my_group_L_end ...
 !> \param my_group_L_size ...
@@ -112,7 +110,7 @@ CONTAINS
 !> \author Mauro Del Ben
 ! **************************************************************************************************
    SUBROUTINE calc_ri_mp2_nonsep(qs_env, mp2_env, para_env, para_env_sub, cell, particle_set, &
-                                 atomic_kind_set, qs_kind_set, mo_coeff, dimen_RI, Eigenval, occupation, &
+                                 atomic_kind_set, qs_kind_set, mo_coeff, dimen_RI, Eigenval, &
                                  my_group_L_start, my_group_L_end, my_group_L_size, sab_orb_sub, mat_munu, &
                                  blacs_env_sub)
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -124,7 +122,7 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
       INTEGER, INTENT(IN)                                :: dimen_RI
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: my_group_L_start, my_group_L_end, &
                                                             my_group_L_size
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
@@ -140,9 +138,9 @@ CONTAINS
                                                             nmo, nspins
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: atom_of_kind, homo, kind_of, &
                                                             natom_of_kind, virtual
-      LOGICAL                                            :: do_smearing, use_virial
+      LOGICAL                                            :: use_virial
       REAL(KIND=dp)                                      :: cutoff_old, eps_filter, factor_2c, &
-                                                            relative_cutoff_old, temperature
+                                                            relative_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: e_cutoff_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: G_PQ_local, G_PQ_local_2
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_stress, pv_virial
@@ -153,8 +151,7 @@ CONTAINS
       TYPE(dbcsr_p_type), ALLOCATABLE, DIMENSION(:, :)   :: G_P_ia
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_munu_local, matrix_P_munu_local
       TYPE(dbcsr_type)                                   :: matrix_P_munu_nosym
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:) :: Lag2_mu_i_1, Lag2_nu_a_2, Lag_mu_i_1, &
-         Lag_nu_a_2, LagFT2_mu_i_1, LagFT2_nu_a_2, LagFT_mu_i_1, LagFT_nu_a_2, matrix_P_inu
+      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: Lag_mu_i_1, Lag_nu_a_2, matrix_P_inu
       TYPE(dft_control_type), POINTER                    :: dft_control
       TYPE(mp2_eri_force), ALLOCATABLE, DIMENSION(:)     :: force_2c, force_2c_RI, force_3c_aux, &
                                                             force_3c_orb_mu, force_3c_orb_nu
@@ -175,7 +172,6 @@ CONTAINS
       eri_param => mp2_env%eri_mme_param
 
       CALL get_qs_env(qs_env, scf_control=scf_control)
-      temperature = scf_control%smear%electronic_temperature
 
       nmo = SIZE(Eigenval, 1)
       nspins = SIZE(Eigenval, 2)
@@ -197,8 +193,6 @@ CONTAINS
          END DO
       END DO
       DEALLOCATE (mp2_env%ri_grad%G_P_ia)
-
-      do_smearing = ANY(homo + virtual > nmo)
 
       itmp = get_limit(dimen_RI, para_env_sub%num_pe, para_env_sub%mepos)
       my_P_start = itmp(1)
@@ -242,43 +236,6 @@ CONTAINS
          CALL dbcsr_create(Lag_nu_a_2(ispin), template=mo_coeff_v(ispin)%matrix)
          CALL dbcsr_set(Lag_nu_a_2(ispin), 0.0_dp)
       END DO
-
-      IF (do_smearing) THEN
-         ALLOCATE (LagFT_mu_i_1(nspins))
-         DO ispin = 1, nspins
-            CALL dbcsr_create(LagFT_mu_i_1(ispin), template=mo_coeff_o(ispin)%matrix)
-            CALL dbcsr_set(LagFT_mu_i_1(ispin), 0.0_dp)
-         END DO
-
-         ALLOCATE (LagFT_nu_a_2(nspins))
-         DO ispin = 1, nspins
-            CALL dbcsr_create(LagFT_nu_a_2(ispin), template=mo_coeff_v(ispin)%matrix)
-            CALL dbcsr_set(LagFT_nu_a_2(ispin), 0.0_dp)
-         END DO
-         ALLOCATE (Lag2_mu_i_1(nspins))
-         DO ispin = 1, nspins
-            CALL dbcsr_create(Lag2_mu_i_1(ispin), template=mo_coeff_o(ispin)%matrix)
-            CALL dbcsr_set(Lag2_mu_i_1(ispin), 0.0_dp)
-         END DO
-
-         ALLOCATE (Lag2_nu_a_2(nspins))
-         DO ispin = 1, nspins
-            CALL dbcsr_create(Lag2_nu_a_2(ispin), template=mo_coeff_v(ispin)%matrix)
-            CALL dbcsr_set(Lag2_nu_a_2(ispin), 0.0_dp)
-         END DO
-
-         ALLOCATE (LagFT2_mu_i_1(nspins))
-         DO ispin = 1, nspins
-            CALL dbcsr_create(LagFT2_mu_i_1(ispin), template=mo_coeff_o(ispin)%matrix)
-            CALL dbcsr_set(LagFT2_mu_i_1(ispin), 0.0_dp)
-         END DO
-
-         ALLOCATE (LagFT2_nu_a_2(nspins))
-         DO ispin = 1, nspins
-            CALL dbcsr_create(LagFT2_nu_a_2(ispin), template=mo_coeff_v(ispin)%matrix)
-            CALL dbcsr_set(LagFT2_nu_a_2(ispin), 0.0_dp)
-         END DO
-      END IF
 
       ! get forces
       NULLIFY (force, virial)
@@ -352,16 +309,9 @@ CONTAINS
                                    0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter)
             END DO
 
-            IF (do_smearing) THEN
-               CALL update_G_P_ia_FT(matrix_P_inu, G_P_ia(:, L_counter), mo_coeff_o, mo_coeff_v, occupation, mat_munu%matrix, &
-                                     Lag_mu_i_1, LagFT_mu_i_1, Lag_nu_a_2, LagFT_nu_a_2, &
-                                     Lag2_mu_i_1, LagFT2_mu_i_1, Lag2_nu_a_2, LagFT2_nu_a_2, &
-                                     temperature, eps_filter)
-            ELSE
-               CALL update_lagrangian(mat_munu_local(L_counter)%matrix, matrix_P_inu, Lag_mu_i_1, &
-                                      G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
-                                      eps_filter)
-            END IF
+            CALL update_lagrangian(mat_munu_local(L_counter)%matrix, matrix_P_inu, Lag_mu_i_1, &
+                                   G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
+                                   eps_filter)
 
             DO ispin = 1, nspins
                CALL dbcsr_release(G_P_ia(ispin, L_counter)%matrix)
@@ -449,16 +399,9 @@ CONTAINS
                virial%pv_virial = pv_virial
             END IF
 
-            IF (do_smearing) THEN
-               CALL update_G_P_ia_FT(matrix_P_inu, G_P_ia(:, L_counter), mo_coeff_o, mo_coeff_v, occupation, mat_munu%matrix, &
-                                     Lag_mu_i_1, LagFT_mu_i_1, Lag_nu_a_2, LagFT_nu_a_2, &
-                                     Lag2_mu_i_1, LagFT2_mu_i_1, Lag2_nu_a_2, LagFT2_nu_a_2, &
-                                     temperature, eps_filter)
-            ELSE
-               CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
-                                      G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
-                                      eps_filter)
-            END IF
+            CALL update_lagrangian(mat_munu%matrix, matrix_P_inu, Lag_mu_i_1, &
+                                   G_P_ia(:, L_counter), mo_coeff_o, Lag_nu_a_2, &
+                                   eps_filter)
 
             DO ispin = 1, nspins
                CALL dbcsr_release(G_P_ia(ispin, L_counter)%matrix)
@@ -516,15 +459,8 @@ CONTAINS
       ! defined over all MPI tasks
       ! Start with moving from the DBCSR to FM for the lagrangians
 
-      IF (.NOT. do_smearing) THEN
-         CALL create_W_P(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, &
-                         para_env_sub, blacs_env_sub, Eigenval, Lag_mu_i_1, Lag_nu_a_2)
-      ELSE
-         CALL create_W_P_FT(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, &
-                            para_env_sub, blacs_env_sub, Eigenval, Lag_mu_i_1, Lag_nu_a_2, &
-                            Lag2_mu_i_1, Lag2_nu_a_2, LagFT_mu_i_1, LagFT_nu_a_2, &
-                            LagFT2_mu_i_1, LagFT2_nu_a_2)
-      END IF
+      CALL create_W_P(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, &
+                      para_env_sub, blacs_env_sub, Eigenval, Lag_mu_i_1, Lag_nu_a_2)
 
       CALL timestop(handle)
 
@@ -662,186 +598,6 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief ...
-!> \param matrix_P_inu ...
-!> \param G_P_ia ...
-!> \param mo_coeff_o ...
-!> \param mo_coeff_v ...
-!> \param occupation ...
-!> \param mat_munu ...
-!> \param Lag_mu_i_1 ...
-!> \param LagFT_mu_i_1 ...
-!> \param Lag_nu_a_2 ...
-!> \param LagFT_nu_a_2 ...
-!> \param Lag2_mu_i_1 ...
-!> \param LagFT2_mu_i_1 ...
-!> \param Lag2_nu_a_2 ...
-!> \param LagFT2_nu_a_2 ...
-!> \param temperature ...
-!> \param eps_filter ...
-! **************************************************************************************************
-   SUBROUTINE update_G_P_ia_FT(matrix_P_inu, G_P_ia, mo_coeff_o, mo_coeff_v, occupation, mat_munu, Lag_mu_i_1, LagFT_mu_i_1, &
-                               Lag_nu_a_2, LagFT_nu_a_2, Lag2_mu_i_1, LagFT2_mu_i_1, Lag2_nu_a_2, LagFT2_nu_a_2, &
-                               temperature, eps_filter)
-      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: matrix_P_inu
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: G_P_ia
-      TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: occupation
-      TYPE(dbcsr_type), INTENT(IN)                       :: mat_munu
-      TYPE(dbcsr_type), DIMENSION(:), INTENT(INOUT)      :: Lag_mu_i_1, LagFT_mu_i_1, Lag_nu_a_2, &
-                                                            LagFT_nu_a_2, Lag2_mu_i_1, &
-                                                            LagFT2_mu_i_1, Lag2_nu_a_2, &
-                                                            LagFT2_nu_a_2
-      REAL(KIND=dp), INTENT(IN)                          :: temperature, eps_filter
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'update_G_P_ia_FT'
-      REAL(KIND=dp), PARAMETER                           :: eps_diff = 1.0e-5_dp
-
-      INTEGER                                            :: col, col_offset, col_size, handle, homo, &
-                                                            i_col, i_row, ispin, nmo, row, &
-                                                            row_offset, row_size, virtual
-      REAL(KIND=dp)                                      :: occ_col, occ_diff, occ_row
-      REAL(KIND=dp), DIMENSION(:, :), POINTER            :: data_block
-      TYPE(dbcsr_iterator_type)                          :: iter
-
-      ! update lagrangian
-      CALL timeset(routineN, handle)
-
-      CALL dbcsr_get_info(G_P_ia(1)%matrix, nfullrows_total=homo, nfullcols_total=virtual)
-      nmo = SIZE(occupation, 1)
-
-      ! We need to distinguish fully occupied/virtual and partially occupied orbitals due to the missing scaling factor
-
-      DO ispin = 1, SIZE(G_P_ia)
-         ! Step 1: P_mo
-         ! Part A1: fully virtual orbitals
-         ! transform first index of mat_munu and store the result into matrix_P_inu
-         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
-         IF (homo + virtual - nmo + 1 <= virtual) THEN
-            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
-                                0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
-                                first_k=homo + virtual - nmo + 1)
-         END IF
-
-         ! first contract mat_munu with the half back transformed Gamma_i_nu
-         ! in order to update Lag_mu_i_1
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, matrix_P_inu(ispin), &
-                             1.0_dp, Lag_mu_i_1(ispin), filter_eps=eps_filter)
-
-         ! Part A2: fully occupied orbitals
-         ! transform first index of mat_munu and store the result into matrix_P_inu
-         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
-                             last_row=nmo - virtual)
-
-         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
-                             1.0_dp, Lag_nu_a_2(ispin), filter_eps=eps_filter)
-
-         ! Part B1: partially virtual orbitals
-         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
-         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
-                             last_k=homo + virtual - nmo)
-
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, matrix_P_inu(ispin), &
-                             1.0_dp, Lag2_mu_i_1(ispin), filter_eps=eps_filter)
-
-         ! Part B2: partially occupied orbitals
-         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
-                             first_row=nmo - virtual + 1)
-
-         ! contract the transformend matrix_P_inu with the untransformend Gamma_i_a
-         ! in order to update Lag_nu_a_2
-         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
-                             1.0_dp, Lag2_nu_a_2(ispin), filter_eps=eps_filter)
-
-         ! Remove the difference of occupation numbers
-         CALL dbcsr_iterator_start(iter, G_P_ia(ispin)%matrix)
-         DO WHILE (dbcsr_iterator_blocks_left(iter))
-
-            CALL dbcsr_iterator_next_block(iter, row, col, data_block, &
-                                           row_size=row_size, col_size=col_size, &
-                                           row_offset=row_offset, col_offset=col_offset)
-
-            ! "occupied orbital"
-            DO i_row = 1, MIN(row_size, homo - row_offset + 1)
-               occ_row = occupation(i_row + row_offset - 1, ispin)
-               ! "virtual orbital"
-               DO i_col = 1, MIN(col_size, virtual - col_offset + 1)
-                  occ_col = occupation(i_col + col_offset - 1 + nmo - virtual, ispin)
-
-                  occ_diff = occ_row - occ_col
-
-                  IF (occ_diff > eps_diff) THEN
-                     data_block(i_row, i_col) = data_block(i_row, i_col)/occ_diff
-                  ELSE IF (occ_row > eps_diff .AND. occ_row < 1.0_dp - eps_diff) THEN
-                     data_block(i_row, i_col) = data_block(i_row, i_col)*(1.0_dp - 2.0_dp*occ_row) &
-                                                /(occ_row*(1.0_dp - occ_row))/temperature
-                  ELSE
-                     data_block(i_row, i_col) = 0.0_dp
-                  END IF
-
-               END DO
-
-            END DO
-
-         END DO
-         CALL dbcsr_iterator_stop(iter)
-
-         ! Step 2: Lagrangian (L_jb)
-         ! Part A1: fully virtual orbitals
-         ! transform first index of mat_munu and store the result into matrix_P_inu
-         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
-         IF (homo + virtual - nmo + 1 <= virtual) THEN
-            CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
-                                0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
-                                first_k=homo + virtual - nmo + 1)
-         END IF
-
-         ! first contract mat_munu with the half back transformed Gamma_i_nu
-         ! in order to update Lag_mu_i_1
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, matrix_P_inu(ispin), &
-                             1.0_dp, LagFT_mu_i_1(ispin), filter_eps=eps_filter)
-
-         ! Part A2: fully occupied orbitals
-         ! transform first index of mat_munu and store the result into matrix_P_inu
-         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
-                             last_row=nmo - virtual)
-
-         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
-                             1.0_dp, LagFT_nu_a_2(ispin), filter_eps=eps_filter)
-
-         ! Part B1: partially virtual orbitals
-         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
-         CALL dbcsr_multiply("N", "T", 1.0_dp, mo_coeff_v(ispin)%matrix, G_P_ia(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
-                             last_k=homo + virtual - nmo)
-
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, matrix_P_inu(ispin), &
-                             1.0_dp, LagFT2_mu_i_1(ispin), filter_eps=eps_filter)
-
-         ! Part B2: partially occupied orbitals
-         CALL dbcsr_set(matrix_P_inu(ispin), 0.0_dp)
-         CALL dbcsr_multiply("N", "N", 1.0_dp, mat_munu, mo_coeff_o(ispin)%matrix, &
-                             0.0_dp, matrix_P_inu(ispin), filter_eps=eps_filter, &
-                             first_row=nmo - virtual + 1)
-
-         ! contract the transformend matrix_P_inu with the untransformed Gamma_i_a
-         ! in order to update Lag_nu_a_2
-         CALL dbcsr_multiply("N", "N", -1.0_dp, matrix_P_inu(ispin), G_P_ia(ispin)%matrix, &
-                             1.0_dp, LagFT2_nu_a_2(ispin), filter_eps=eps_filter)
-      END DO
-
-      CALL timestop(handle)
-
-   END SUBROUTINE update_G_P_ia_FT
-
-! **************************************************************************************************
-!> \brief ...
 !> \param qs_env ...
 !> \param mp2_env ...
 !> \param mo_coeff ...
@@ -938,19 +694,19 @@ CONTAINS
                                c_first_row=1)
 
             IF (ALLOCATED(mp2_env%ri_grad%P_ij(ispin)%array)) THEN
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
-                  ! diagonal elements and nearly degenerate ij pairs already updated
-                  IF (ABS(Eigenval(j_global, ispin) - Eigenval(i_global, ispin)) < mp2_env%eps_canonical) THEN
-                     fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(ispin)%array(i_global, j_global)
-                  ELSE
-                     fm_P_ij%local_data(iiB, jjB) = &
-                        factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global, ispin) - Eigenval(i_global, ispin))
-                  END IF
+               DO jjB = 1, ncol_local
+                  j_global = col_indices(jjB)
+                  DO iiB = 1, nrow_local
+                     i_global = row_indices(iiB)
+                     ! diagonal elements and nearly degenerate ij pairs already updated
+                     IF (ABS(Eigenval(j_global, ispin) - Eigenval(i_global, ispin)) < mp2_env%eps_canonical) THEN
+                        fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(ispin)%array(i_global, j_global)
+                     ELSE
+                        fm_P_ij%local_data(iiB, jjB) = &
+                           factor*fm_P_ij%local_data(iiB, jjB)/(Eigenval(j_global, ispin) - Eigenval(i_global, ispin))
+                     END IF
+                  END DO
                END DO
-            END DO
             END IF
          ELSE IF (ALLOCATED(mp2_env%ri_grad%P_ij(ispin)%array)) THEN
             DO jjB = 1, ncol_local
@@ -1154,6 +910,9 @@ CONTAINS
                             b_first_row=1, &
                             c_first_col=virtual_offset + 1, &
                             c_first_row=1)
+
+         IF (homo(ispin) + virtual(ispin) > nmo) THEN
+         END IF
          CALL timestop(handle2)
 
          ! Calculate occ-virt block of the lagrangian in MO
@@ -1164,6 +923,7 @@ CONTAINS
          CALL cp_fm_create(mp2_env%ri_grad%L_jb(ispin), fm_struct_tmp, name="fm_L_jb")
          CALL cp_fm_struct_release(fm_struct_tmp)
 
+         ! occupied-virtual block (if T>0, this includes the occupied-partial block)
          ! first Virtual
          CALL parallel_gemm('T', 'N', homo(ispin), virtual(ispin), nao, 2.0_dp*factor, &
                             L_mu_q(ispin), mo_coeff(ispin), 0.0_dp, mp2_env%ri_grad%L_jb(ispin), &
@@ -1183,6 +943,28 @@ CONTAINS
                             c_first_col=1, &
                             c_first_row=1)
 
+         IF (homo(ispin) + virtual(ispin) > nmo) THEN
+            ! partial-virtual block
+            ! first Virtual
+            CALL parallel_gemm('T', 'N', homo(ispin) + virtual(ispin) - nmo, virtual(ispin), nao, 2.0_dp*factor, &
+                               L_mu_q(ispin), mo_coeff(ispin), 0.0_dp, mp2_env%ri_grad%L_jb(ispin), &
+                               a_first_col=1, &
+                               a_first_row=virtual_offset + 1, &
+                               b_first_col=homo(ispin) + 1, &
+                               b_first_row=1, &
+                               c_first_col=homo(ispin) + virtual(ispin) - nmo + 1, &
+                               c_first_row=1)
+            ! then occupied
+            CALL parallel_gemm('T', 'N', homo(ispin) + virtual(ispin) - nmo, virtual(ispin), nao, 2.0_dp*factor, &
+                               mo_coeff(ispin), L_mu_q(ispin), 1.0_dp, mp2_env%ri_grad%L_jb(ispin), &
+                               a_first_col=1, &
+                               a_first_row=virtual_offset + 1, &
+                               b_first_col=homo(ispin) + 1, &
+                               b_first_row=1, &
+                               c_first_col=homo(ispin) + virtual(ispin) - nmo + 1, &
+                               c_first_row=1)
+         END IF
+
          ! finally release L_mu_q
          CALL timestop(handle2)
 
@@ -1193,394 +975,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE create_W_P
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param mp2_env ...
-!> \param mo_coeff ...
-!> \param homo ...
-!> \param virtual ...
-!> \param para_env ...
-!> \param para_env_sub ...
-!> \param blacs_env_sub ...
-!> \param Eigenval ...
-!> \param LagG1_mu_i ...
-!> \param LagG1_nu_a ...
-!> \param LagG2_mu_i ...
-!> \param LagG2_nu_a ...
-!> \param LagL1_mu_i ...
-!> \param LagL1_nu_a ...
-!> \param LagL2_mu_i ...
-!> \param LagL2_nu_a ...
-! **************************************************************************************************
-   SUBROUTINE create_W_P_FT(qs_env, mp2_env, mo_coeff, homo, virtual, para_env, para_env_sub, blacs_env_sub, &
-                            Eigenval, LagG1_mu_i, LagG1_nu_a, LagG2_mu_i, LagG2_nu_a, LagL1_mu_i, LagL1_nu_a, &
-                            LagL2_mu_i, LagL2_nu_a)
-      TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(mp2_type)                                     :: mp2_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_sub
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
-      TYPE(dbcsr_type), ALLOCATABLE, DIMENSION(:)        :: LagG1_mu_i, LagG1_nu_a, LagG2_mu_i, &
-                                                            LagG2_nu_a, LagL1_mu_i, LagL1_nu_a, &
-                                                            LagL2_mu_i, LagL2_nu_a
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'create_W_P_FT'
-
-      INTEGER :: handle, handle2, i_global, iiB, ispin, itmp(2), j_global, jjB, my_B_virtual_end, &
-         my_B_virtual_start, mypcol, myprow, nao, ncol_local, nmo, nrow_local, nspins, &
-         proc_receive, proc_send, proc_shift, send_col_size, send_pcol, send_prow, send_row_size, &
-         virtual_offset
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: mepos_2_grid, sizes
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: factor
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: ab_rec, ab_send
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env
-      TYPE(cp_fm_struct_type), POINTER                   :: fm_struct_tmp
-      TYPE(cp_fm_type)                                   :: fm_P_ij
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: LG1_mu_q, LG2_mu_q, LL1_mu_q, LL2_mu_q
-
-      CALL timeset(routineN, handle)
-
-      MARK_USED(Eigenval)
-
-      ! At finite temperatures, we need to consider the weights to prevent double-counting from the different orbital pairs
-      ! Thus, there are two different Lagrangians, one for which the sum ran over all fully occupied/unoccupied orbitals
-      ! and one running over partially occupied orbitals
-      ! Secondly, we need the matrix with occupation and without. This is not necessary at T=0 as these weights are one anyways
-
-      nspins = SIZE(homo)
-
-      ! create the globally distributed mixed lagrangian
-      NULLIFY (blacs_env)
-      CALL get_qs_env(qs_env, blacs_env=blacs_env)
-      CALL merge_Lagrangian_matrices(blacs_env, mo_coeff, para_env, para_env_sub, blacs_env_sub, &
-                                     LagG1_mu_i, LagG1_nu_a, LG1_mu_q)
-      CALL merge_Lagrangian_matrices(blacs_env, mo_coeff, para_env, para_env_sub, blacs_env_sub, &
-                                     LagG2_mu_i, LagG2_nu_a, LG2_mu_q)
-      CALL merge_Lagrangian_matrices(blacs_env, mo_coeff, para_env, para_env_sub, blacs_env_sub, &
-                                     LagL1_mu_i, LagL1_nu_a, LL1_mu_q)
-      CALL merge_Lagrangian_matrices(blacs_env, mo_coeff, para_env, para_env_sub, blacs_env_sub, &
-                                     LagL2_mu_i, LagL2_nu_a, LL2_mu_q)
-
-      ! Set the factor to multiply P_ij (depends on the open or closed shell)
-      factor = 1.0_dp
-      IF (nspins == 2) factor = 0.50_dp
-      CALL cp_fm_get_info(mo_coeff(1), nrow_global=nao, ncol_global=nmo)
-
-      ALLOCATE (mp2_env%ri_grad%P_mo(SIZE(mp2_env%ri_grad%mo_coeff_o)))
-      ALLOCATE (mp2_env%ri_grad%P_mo_FTab(SIZE(mp2_env%ri_grad%mo_coeff_o)))
-      ALLOCATE (mp2_env%ri_grad%W_mo(SIZE(mp2_env%ri_grad%mo_coeff_o)))
-
-      DO ispin = 1, nspins
-
-         virtual_offset = nmo - virtual(ispin)
-
-         ! update the P_ij block of P_MP2 with the
-         ! non-singular ij pairs
-         CALL timeset(routineN//"_Pij", handle2)
-         NULLIFY (fm_struct_tmp)
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
-                                  nrow_global=homo(ispin), ncol_global=homo(ispin))
-         CALL cp_fm_create(fm_P_ij, fm_struct_tmp, name="fm_P_ij")
-         CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(fm_P_ij, 0.0_dp)
-
-         ! we have it, update P_ij local
-         CALL cp_fm_get_info(matrix=fm_P_ij, &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices)
-
-         IF (.NOT. mp2_env%method == ri_rpa_method_gpw) THEN
-            CPABORT("Finite Temperature MP2 not implemented yet")
-         ELSE IF (ALLOCATED(mp2_env%ri_grad%P_ij(ispin)%array)) THEN
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
-                  fm_P_ij%local_data(iiB, jjB) = mp2_env%ri_grad%P_ij(ispin)%array(i_global, j_global)
-               END DO
-            END DO
-         END IF
-         ! deallocate the local P_ij
-         IF (ALLOCATED(mp2_env%ri_grad%P_ij(ispin)%array)) DEALLOCATE (mp2_env%ri_grad%P_ij(ispin)%array)
-         CALL timestop(handle2)
-
-         CALL timeset(routineN//"_PMO", handle2)
-         ! Now create and fill the P matrix (MO)
-         ! FOR NOW WE ASSUME P_ab AND P_ij ARE REPLICATED OVER EACH MPI RANK
-
-         NULLIFY (fm_struct_tmp)
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
-                                  nrow_global=nmo, ncol_global=nmo)
-         CALL cp_fm_create(mp2_env%ri_grad%P_mo(ispin), fm_struct_tmp, name="P_MP2_MO")
-         CALL cp_fm_set_all(mp2_env%ri_grad%P_mo(ispin), 0.0_dp)
-
-         ! start with the (easy) occ-occ block and locally held P_ab elements
-         itmp = get_limit(virtual(ispin), para_env_sub%num_pe, para_env_sub%mepos)
-         my_B_virtual_start = itmp(1)
-         my_B_virtual_end = itmp(2)
-
-         ! Fill occ-occ block
-         CALL cp_fm_geadd(1.0_dp, "N", fm_P_ij, 1.0_dp, mp2_env%ri_grad%P_mo(ispin))
-         CALL cp_fm_release(fm_P_ij)
-
-         CALL cp_fm_create(mp2_env%ri_grad%P_mo_FTab(ispin), mp2_env%ri_grad%P_mo(ispin)%matrix_struct, name="P_MP2_MO")
-         CALL cp_fm_set_all(mp2_env%ri_grad%P_mo_FTab(ispin), 0.0_dp)
-
-         CALL cp_fm_get_info(mp2_env%ri_grad%P_mo(ispin), &
-                             nrow_local=nrow_local, &
-                             ncol_local=ncol_local, &
-                             row_indices=row_indices, &
-                             col_indices=col_indices)
-
-         IF (mp2_env%method == ri_mp2_laplace .OR. mp2_env%method == ri_mp2_method_gpw) THEN
-            CPABORT("NIY")
-         ELSE IF (mp2_env%method == ri_rpa_method_gpw) THEN
-            ! With MP2 and RPA, we have already calculated the density matrix elements
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               IF (j_global <= virtual_offset) CYCLE
-               DO iiB = 1, nrow_local
-                  i_global = row_indices(iiB)
-                  IF (my_B_virtual_start <= i_global - virtual_offset .AND. &
-                      i_global - virtual_offset <= my_B_virtual_end) THEN
-                     mp2_env%ri_grad%P_mo_FTab(ispin)%local_data(iiB, jjB) = &
-                        mp2_env%ri_grad%P_ab(ispin)%array(i_global - virtual_offset - &
-                                                          my_B_virtual_start + 1, j_global - virtual_offset)
-                  END IF
-               END DO
-            END DO
-         END IF
-
-         ! send around the sub_group the local data and check if we
-         ! have to update our block with external elements
-         ALLOCATE (mepos_2_grid(2, 0:para_env_sub%num_pe - 1))
-         myprow = mp2_env%ri_grad%P_mo(ispin)%matrix_struct%context%mepos(1)
-         mypcol = mp2_env%ri_grad%P_mo(ispin)%matrix_struct%context%mepos(2)
-         CALL para_env_sub%allgather([myprow, mypcol], mepos_2_grid)
-
-         ALLOCATE (sizes(2, 0:para_env_sub%num_pe - 1))
-         CALL para_env_sub%allgather([nrow_local, ncol_local], sizes)
-
-         ALLOCATE (ab_rec(nrow_local, ncol_local))
-         DO proc_shift = 1, para_env_sub%num_pe - 1
-            proc_send = MODULO(para_env_sub%mepos + proc_shift, para_env_sub%num_pe)
-            proc_receive = MODULO(para_env_sub%mepos - proc_shift, para_env_sub%num_pe)
-
-            send_prow = mepos_2_grid(1, proc_send)
-            send_pcol = mepos_2_grid(2, proc_send)
-
-            send_row_size = sizes(1, proc_send)
-            send_col_size = sizes(2, proc_send)
-
-            ALLOCATE (ab_send(send_row_size, send_col_size))
-            ab_send = 0.0_dp
-
-            ! first loop over row since in this way we can cycle
-            DO iiB = 1, send_row_size
-               i_global = mp2_env%ri_grad%P_mo(ispin)%matrix_struct%l2g_row(iiB, send_prow)
-               IF (i_global <= virtual_offset) CYCLE
-               i_global = i_global - virtual_offset
-               IF (.NOT. (my_B_virtual_start <= i_global .AND. i_global <= my_B_virtual_end)) CYCLE
-               DO jjB = 1, send_col_size
-                  j_global = mp2_env%ri_grad%P_mo(ispin)%matrix_struct%l2g_col(jjB, send_pcol)
-                  IF (j_global > virtual_offset) THEN
-                     j_global = j_global - virtual_offset
-                     ab_send(iiB, jjB) = mp2_env%ri_grad%P_ab(ispin)%array(i_global - my_B_virtual_start + 1, j_global)
-                  END IF
-               END DO
-            END DO
-
-            ab_rec = 0.0_dp
-            CALL para_env_sub%sendrecv(ab_send, proc_send, ab_rec, proc_receive)
-            mp2_env%ri_grad%P_mo_FTab(ispin)%local_data(1:nrow_local, 1:ncol_local) = &
-               ab_rec(1:nrow_local, 1:ncol_local)
-
-            DEALLOCATE (ab_send)
-         END DO
-         DEALLOCATE (ab_rec)
-         DEALLOCATE (mepos_2_grid)
-         DEALLOCATE (sizes)
-
-         ! deallocate the local P_ab
-         DEALLOCATE (mp2_env%ri_grad%P_ab(ispin)%array)
-         CALL timestop(handle2)
-
-         ! create also W_MP2_MO
-         CALL timeset(routineN//"_WMO", handle2)
-
-         CALL cp_fm_create(mp2_env%ri_grad%W_mo(ispin), fm_struct_tmp, name="W_MP2_MO")
-         CALL cp_fm_struct_release(fm_struct_tmp)
-
-         ! all block
-         CALL parallel_gemm('T', 'N', nmo, nmo, nao, 2.0_dp*factor, &
-                            LG1_mu_q(ispin), mo_coeff(ispin), 0.0_dp, mp2_env%ri_grad%W_mo(ispin), &
-                            a_first_col=1, &
-                            a_first_row=1, &
-                            b_first_col=1, &
-                            b_first_row=1, &
-                            c_first_col=1, &
-                            c_first_row=1)
-         CALL parallel_gemm('T', 'N', nmo, nmo, nao, 2.0_dp*factor, &
-                            LG2_mu_q(ispin), mo_coeff(ispin), 1.0_dp, mp2_env%ri_grad%W_mo(ispin), &
-                            a_first_col=1, &
-                            a_first_row=1, &
-                            b_first_col=1, &
-                            b_first_row=1, &
-                            c_first_col=1, &
-                            c_first_row=1)
-         CALL parallel_gemm('T', 'N', homo(ispin) + virtual(ispin) - nmo, homo(ispin) + virtual(ispin) - nmo, &
-                            nao, 2.0_dp*factor*(SQRT(0.5_dp) - 1.0_dp), &
-                            LG2_mu_q(ispin), mo_coeff(ispin), 1.0_dp, mp2_env%ri_grad%W_mo(ispin), &
-                            a_first_col=1, &
-                            a_first_row=virtual_offset + 1, &
-                            b_first_col=virtual_offset + 1, &
-                            b_first_row=1, &
-                            c_first_col=virtual_offset + 1, &
-                            c_first_row=virtual_offset + 1)
-
-         ! occ-occ block
-         CALL parallel_gemm('T', 'N', homo(ispin), homo(ispin), nao, -2.0_dp*factor, &
-                            LG1_mu_q(ispin), mo_coeff(ispin), 1.0_dp, mp2_env%ri_grad%W_mo(ispin), &
-                            a_first_col=1, &
-                            a_first_row=1, &
-                            b_first_col=1, &
-                            b_first_row=1, &
-                            c_first_col=1, &
-                            c_first_row=1)
-         CALL parallel_gemm('T', 'N', nmo - virtual(ispin), nmo - virtual(ispin), nao, -2.0_dp*factor, &
-                            LG2_mu_q(ispin), mo_coeff(ispin), 1.0_dp, mp2_env%ri_grad%W_mo(ispin), &
-                            a_first_col=1, &
-                            a_first_row=1, &
-                            b_first_col=1, &
-                            b_first_row=1, &
-                            c_first_col=1, &
-                            c_first_row=1)
-         CALL parallel_gemm('T', 'N', homo(ispin) + virtual(ispin) - nmo, homo(ispin) + virtual(ispin) - nmo, &
-                            nao, -2.0_dp*factor*(1.0_dp - SQRT(0.5_dp)), &
-                            LG2_mu_q(ispin), mo_coeff(ispin), 1.0_dp, mp2_env%ri_grad%W_mo(ispin), &
-                            a_first_col=virtual_offset + 1, &
-                            a_first_row=1, &
-                            b_first_col=virtual_offset + 1, &
-                            b_first_row=1, &
-                            c_first_col=virtual_offset + 1, &
-                            c_first_row=virtual_offset + 1)
-
-         ! occ-virt block
-         CALL parallel_gemm('T', 'N', homo(ispin), virtual(ispin), nao, 2.0_dp*factor, &
-                            mo_coeff(ispin), LG1_mu_q(ispin), 1.0_dp, mp2_env%ri_grad%W_mo(ispin), &
-                            a_first_col=1, &
-                            a_first_row=1, &
-                            b_first_col=virtual_offset + 1, &
-                            b_first_row=1, &
-                            c_first_col=virtual_offset + 1, &
-                            c_first_row=1)
-         CALL parallel_gemm('T', 'N', homo(ispin), virtual(ispin), nao, 2.0_dp*factor, &
-                            mo_coeff(ispin), LG2_mu_q(ispin), 1.0_dp, mp2_env%ri_grad%W_mo(ispin), &
-                            a_first_col=1, &
-                            a_first_row=1, &
-                            b_first_col=virtual_offset + 1, &
-                            b_first_row=1, &
-                            c_first_col=virtual_offset + 1, &
-                            c_first_row=1)
-         CALL parallel_gemm('T', 'N', homo(ispin) + virtual(ispin) - nmo, homo(ispin) + virtual(ispin) - nmo, &
-                            nao, 2.0_dp*factor, &
-                            mo_coeff(ispin), LG2_mu_q(ispin), 1.0_dp, mp2_env%ri_grad%W_mo(ispin), &
-                            a_first_col=virtual_offset + 1, &
-                            a_first_row=1, &
-                            b_first_col=virtual_offset + 1, &
-                            b_first_row=1, &
-                            c_first_col=virtual_offset + 1, &
-                            c_first_row=1)
-         CALL timestop(handle2)
-
-         ! Calculate occ-virt block of the lagrangian in MO
-         CALL timeset(routineN//"_Ljb", handle2)
-         IF (.NOT. ALLOCATED(mp2_env%ri_grad%L_jb)) THEN
-            ALLOCATE (mp2_env%ri_grad%L_jb(SIZE(mp2_env%ri_grad%mo_coeff_o)))
-         END IF
-
-         CALL cp_fm_struct_create(fm_struct_tmp, para_env=para_env, context=blacs_env, &
-                                  nrow_global=homo(ispin), ncol_global=virtual(ispin))
-         CALL cp_fm_create(mp2_env%ri_grad%L_jb(ispin), fm_struct_tmp, name="fm_L_jb")
-         CALL cp_fm_struct_release(fm_struct_tmp)
-         CALL cp_fm_set_all(mp2_env%ri_grad%L_jb(ispin), 0.0_dp)
-
-         IF (.FALSE.) THEN
-            ! first Virtual
-            CALL parallel_gemm('T', 'N', homo(ispin), virtual(ispin), nao, 2.0_dp*factor, &
-                               LL1_mu_q(ispin), mo_coeff(ispin), 0.0_dp, mp2_env%ri_grad%L_jb(ispin), &
-                               a_first_col=1, &
-                               a_first_row=1, &
-                               b_first_col=virtual_offset + 1, &
-                               b_first_row=1, &
-                               c_first_col=1, &
-                               c_first_row=1)
-            CALL parallel_gemm('T', 'N', homo(ispin), virtual(ispin), nao, 2.0_dp*factor, &
-                               LL2_mu_q(ispin), mo_coeff(ispin), 0.0_dp, mp2_env%ri_grad%L_jb(ispin), &
-                               a_first_col=1, &
-                               a_first_row=1, &
-                               b_first_col=virtual_offset + 1, &
-                               b_first_row=1, &
-                               c_first_col=1, &
-                               c_first_row=1)
-            CALL parallel_gemm('T', 'N', homo(ispin) + virtual(ispin) - nmo, homo(ispin) + virtual(ispin) - nmo, &
-                               nao, 2.0_dp*factor*(SQRT(0.5_dp) - 1.0_dp), &
-                               LL2_mu_q(ispin), mo_coeff(ispin), 0.0_dp, mp2_env%ri_grad%L_jb(ispin), &
-                               a_first_col=virtual_offset + 1, &
-                               a_first_row=1, &
-                               b_first_col=virtual_offset + 1, &
-                               b_first_row=1, &
-                               c_first_col=virtual_offset + 1, &
-                               c_first_row=1)
-            ! then occupied
-            CALL parallel_gemm('T', 'N', homo(ispin), virtual(ispin), nao, 2.0_dp*factor, &
-                               mo_coeff(ispin), LL1_mu_q(ispin), 1.0_dp, mp2_env%ri_grad%L_jb(ispin), &
-                               a_first_col=1, &
-                               a_first_row=1, &
-                               b_first_col=virtual_offset + 1, &
-                               b_first_row=1, &
-                               c_first_col=1, &
-                               c_first_row=1)
-            CALL parallel_gemm('T', 'N', homo(ispin), virtual(ispin), nao, 2.0_dp*factor, &
-                               mo_coeff(ispin), LL2_mu_q(ispin), 1.0_dp, mp2_env%ri_grad%L_jb(ispin), &
-                               a_first_col=1, &
-                               a_first_row=1, &
-                               b_first_col=virtual_offset + 1, &
-                               b_first_row=1, &
-                               c_first_col=1, &
-                               c_first_row=1)
-            CALL parallel_gemm('T', 'N', homo(ispin), virtual(ispin), nao, 2.0_dp*factor*(SQRT(0.5_dp) - 1.0_dp), &
-                               mo_coeff(ispin), LL2_mu_q(ispin), 1.0_dp, mp2_env%ri_grad%L_jb(ispin), &
-                               a_first_col=virtual_offset + 1, &
-                               a_first_row=1, &
-                               b_first_col=virtual_offset + 1, &
-                               b_first_row=1, &
-                               c_first_col=virtual_offset + 1, &
-                               c_first_row=1)
-         END IF
-
-         ! finally release LL1_mu_q
-         CALL cp_fm_release(LG1_mu_q(ispin))
-         CALL cp_fm_release(LG2_mu_q(ispin))
-         CALL cp_fm_release(LL1_mu_q(ispin))
-         CALL cp_fm_release(LL2_mu_q(ispin))
-         CALL timestop(handle2)
-      END DO
-      DEALLOCATE (LG1_mu_q)
-      DEALLOCATE (LG2_mu_q)
-      DEALLOCATE (LL1_mu_q)
-      DEALLOCATE (LL2_mu_q)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE create_W_P_FT
 
 ! **************************************************************************************************
 !> \brief ...

@@ -501,7 +501,7 @@ CONTAINS
                                       dimen_RI, 1, 1, 1, 1, exchange_work%fm_mat_U%matrix_struct%context)
 
       IF (mp2_env%ri_rpa%use_hfx_implementation) THEN
-         CALL exchange_work%compute_hfx(fm_mat_S, eig, occupation, temperature, omega, e_exchange_corr)
+         CALL exchange_work%compute_hfx(fm_mat_S, eig, occupation, mp2_env%eps_canonical, temperature, omega, e_exchange_corr)
       ELSE
          CALL exchange_work%compute_fm(fm_mat_S, eig, occupation, temperature, omega, e_exchange_corr, mp2_env)
       END IF
@@ -524,7 +524,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rpa_exchange_work_compute_fm(exchange_work, fm_mat_S, eig, occupation, temperature, omega, &
                                            e_exchange_corr, mp2_env)
-      CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
+      CLASS(rpa_exchange_work_type), INTENT(INOUT)       :: exchange_work
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig, occupation
       REAL(KIND=dp), INTENT(IN)                          :: temperature, omega
@@ -549,10 +549,12 @@ CONTAINS
       TYPE(cp_fm_type)        :: fm_mat_Gamma_3
       TYPE(mp_para_env_type), POINTER :: para_env
       TYPE(group_dist_d1_type)                           :: virt_dist
+      REAL(KIND=dp) :: eps_canonical
 
       CALL timeset(routineN, handle)
 
       nspins = SIZE(fm_mat_S)
+      eps_canonical = mp2_env%eps_canonical
 
       CALL get_group_dist(exchange_work%aux_func_dist, exchange_work%color_sub, sizes=my_aux_size)
 
@@ -589,13 +591,15 @@ CONTAINS
          CALL create_group_dist(virt_dist, exchange_work%para_env_sub%num_pe, virt)
 
          ! Remove extra factor from S after the multiplication (to return to the original matrix)
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), hom, virt, eig(:, ispin), occupation(:, ispin), temperature, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), hom, virt, eig(:, ispin), occupation(:, ispin), &
+                                        eps_canonical, temperature, omega)
 
          CALL exchange_work%redistribute_into_subgroups(fm_mat_Gamma_3, mat_Gamma_3_3D, ispin, virt_dist)
          CALL cp_fm_release(fm_mat_Gamma_3)
 
          ! We need only the pure matrix
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), hom, virt, eig(:, ispin), occupation(:, ispin), temperature, omega)
+         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), hom, virt, eig(:, ispin), occupation(:, ispin), &
+                                        eps_canonical, temperature, omega)
 
          ! Reorder matrix from (P, i*a) -> (a, i, P) with P being distributed within subgroups
          CALL exchange_work%redistribute_into_subgroups(fm_mat_S(ispin), mat_B_iaP, ispin, virt_dist)
@@ -684,17 +688,19 @@ CONTAINS
 !> \param fm_mat_S ...
 !> \param eig ...
 !> \param occupation ...
+!> \param eps_canonical ...
 !> \param temperature ...
 !> \param omega ...
 !> \param e_exchange_corr ...
 !> \author Vladimir Rybkin, 08/2016
 ! **************************************************************************************************
-   SUBROUTINE rpa_exchange_work_compute_hfx(exchange_work, fm_mat_S, eig, occupation, temperature, omega, e_exchange_corr)
-      CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT) :: fm_mat_S
+   SUBROUTINE rpa_exchange_work_compute_hfx(exchange_work, fm_mat_S, eig, occupation, eps_canonical, &
+                                            temperature, omega, e_exchange_corr)
+      CLASS(rpa_exchange_work_type), INTENT(INOUT)       :: exchange_work
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig, occupation
-      REAL(KIND=dp), INTENT(IN)                          :: temperature, omega
-      REAL(KIND=dp), INTENT(OUT) :: e_exchange_corr
+      REAL(KIND=dp), INTENT(IN)                          :: eps_canonical, temperature, omega
+      REAL(KIND=dp), INTENT(OUT)                         :: e_exchange_corr
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rpa_exchange_work_compute_hfx'
 
@@ -738,7 +744,7 @@ CONTAINS
                             matrix_c=fm_mat_Gamma_3)
 
          ! Remove extra factor from S after the multiplication (to return to the original matrix)
-         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), hom, virt, eig(:, ispin), occupation(:, ispin), temperature, omega)
+  CALL remove_scaling_factor_rpa(fm_mat_S(ispin), hom, virt, eig(:, ispin), occupation(:, ispin), eps_canonical, temperature, omega)
 
          ! Copy Gamma_ia_P^3 to dbcsr matrix set
          CALL gamma_fm_to_dbcsr(fm_mat_Gamma_3, dbcsr_Gamma_3(ispin)%matrix_set, &

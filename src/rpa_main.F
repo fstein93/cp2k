@@ -1090,7 +1090,7 @@ CONTAINS
          do_periodic, do_print, do_ri_Sigma_x, exit_ev_gw, first_cycle, &
          first_cycle_periodic_correction, my_open_shell, print_ic_values
       LOGICAL, ALLOCATABLE, DIMENSION(:, :, :, :, :)     :: has_mat_P_blocks
-      REAL(KIND=dp) :: alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_filter, &
+      REAL(KIND=dp) :: alpha, dbcsr_time, e_exchange, e_exchange_corr, eps_canonical, eps_filter, &
          eps_filter_im_time, ext_scaling, fermi_level_offset, fermi_level_offset_input, &
          my_flop_rate, omega, omega_max_fit, omega_old, tau, tau_old
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: delta_corr, e_fermi, tau_tj, tau_wj, tj, &
@@ -1145,6 +1145,7 @@ CONTAINS
       do_periodic = mp2_env%ri_g0w0%do_periodic
       do_kpoints_cubic_RPA = mp2_env%ri_rpa_im_time%do_im_time_kpoints
       extrapolation_order = mp2_env%ri_rpa%extrapolation_order
+      eps_canonical = mp2_env%eps_canonical
 
       ! For SOS-MP2 only gemm is implemented
       mm_style = wfc_mm_style_gemm
@@ -1452,13 +1453,13 @@ CONTAINS
                      DO ispin = 1, nspins
                         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), homo(ispin), virtual(ispin), &
                                                        Eigenval_last(:, 1, ispin), occupation_numbers(:, ispin), &
-                                                       scf_control%smear%electronic_temperature, omega_old)
+                                                       eps_canonical, scf_control%smear%electronic_temperature, omega_old)
                      END DO
                   ELSE
                      DO ispin = 1, nspins
                         CALL remove_scaling_factor_rpa(fm_mat_S(ispin), homo(ispin), virtual(ispin), &
                                                        Eigenval_scf(:, 1, ispin), occupation_numbers(:, ispin), &
-                                                       scf_control%smear%electronic_temperature, omega_old)
+                                                       eps_canonical, scf_control%smear%electronic_temperature, omega_old)
                      END DO
                   END IF
                END IF
@@ -1467,7 +1468,7 @@ CONTAINS
                   DO ispin = 1, nspins
                      CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
                                      Eigenval_scf(:, 1, ispin), occupation_numbers(:, ispin), &
-                                     scf_control%smear%electronic_temperature, homo(ispin), &
+                                     eps_canonical, scf_control%smear%electronic_temperature, homo(ispin), &
                                      omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
                                      fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
                                      num_integ_points, count_ev_sc_GW)
@@ -1483,7 +1484,7 @@ CONTAINS
                   DO ispin = 1, nspins
                      CALL calc_mat_Q(fm_mat_S(ispin), do_ri_sos_laplace_mp2, first_cycle, virtual(ispin), &
                                      Eigenval(:, 1, ispin), occupation_numbers(:, ispin), &
-                                     scf_control%smear%electronic_temperature, homo(ispin), &
+                                     eps_canonical, scf_control%smear%electronic_temperature, homo(ispin), &
                                      omega, omega_old, jquad, mm_style, dimen_RI_red, dimen_ia(ispin), alpha, fm_mat_Q(ispin), &
                                      fm_mat_Q_gemm(ispin), do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
                                      num_integ_points, count_ev_sc_GW)
@@ -1748,11 +1749,11 @@ CONTAINS
          IF (iter_sc_gw0 == 1) THEN
             CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, homo(1), virtual(1), &
                                            Eigenval_last(:, 1, 1), occupation_numbers(:, 1), &
-                                           scf_control%smear%electronic_temperature, omega)
+                                           eps_canonical, scf_control%smear%electronic_temperature, omega)
          ELSE
             CALL remove_scaling_factor_rpa(fm_mat_S_ia_bse, homo(1), virtual(1), &
                                            Eigenval_scf(:, 1, 1), occupation_numbers(:, 1), &
-                                           scf_control%smear%electronic_temperature, omega)
+                                           eps_canonical, scf_control%smear%electronic_temperature, omega)
          END IF
          ! Main routine for all BSE postprocessing
          CALL start_bse_calculation(fm_mat_S_ia_bse, fm_mat_S_ij_bse, fm_mat_S_ab_bse, &
