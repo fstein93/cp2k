@@ -1014,9 +1014,12 @@ CONTAINS
       END DO
 
       IF (do_smearing) THEN
-         CALL solve_z_vector_smearing(qs_env, mp2_env, unit_nr, &
-                                      mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
-                                      L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+         IF (.FALSE.) CALL solve_z_vector_minres(qs_env, mp2_env, unit_nr, &
+                                                 mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+                                                 L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+         CALL solve_z_vector_cr(qs_env, mp2_env, unit_nr, &
+                                mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+                                L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
       ELSE
          SELECT CASE (mp2_env%ri_grad%z_solver_method)
          CASE (z_solver_pople)
@@ -1054,9 +1057,9 @@ CONTAINS
 !> \param P_ia ...
 !> \param precond ...
 ! **************************************************************************************************
-   SUBROUTINE solve_z_vector_smearing(qs_env, mp2_env, unit_nr, &
-                                      mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
-                                      L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+   SUBROUTINE solve_z_vector_minres(qs_env, mp2_env, unit_nr, &
+                                    mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+                                    L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
@@ -1067,14 +1070,15 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
       TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia, precond
 
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_smearing'
+      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_minres'
 
       INTEGER                                            :: handle, iiter, ispin, max_num_iter, nmo, &
-                                                            nspins, transf_type_in
+                                                            nspins, restart_every, transf_type_in
       LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: alpha_k1, beta_k1, beta_k2, conv, &
                                                             eps_conv, t1, t2
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: p_k, p_k1, p_k2, r_k, s_k, s_k1, s_k2
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: p_k, p_k1, p_k2, precond_s_k1, &
+                                                            precond_s_k2, r_k, s_k, s_k1, s_k2
 
       CALL timeset(routineN, handle)
 
@@ -1086,6 +1090,7 @@ CONTAINS
       IF (accurate_dot_product_spin(L_jb, L_jb) >= (eps_conv*eps_conv)) THEN
 
          max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
+         restart_every = 1! mp2_env%ri_grad%cphf_restart
 
          ! set the transformation type (equal for all methods all updates)
          transf_type_in = 3
@@ -1093,12 +1098,13 @@ CONTAINS
          ! set convergence flag
          converged = .FALSE.
 
-         ALLOCATE (r_k(nspins), s_k(nspins), s_k1(nspins), s_k2(nspins), p_k(nspins), p_k1(nspins), p_k2(nspins))
+         ALLOCATE (r_k(nspins), s_k(nspins), s_k1(nspins), s_k2(nspins), &
+                   p_k(nspins), p_k1(nspins), p_k2(nspins), &
+                   precond_s_k1(nspins), precond_s_k2(nspins))
          DO ispin = 1, nspins
             ! Residual vector
             CALL cp_fm_create(r_k(ispin), P_ia(ispin)%matrix_struct, name="r_k")
             CALL cp_fm_set_all(r_k(ispin), 0.0_dp)
-            CALL cp_fm_to_fm(L_jb(ispin), r_k(ispin))
 
             ! columns of the basis in Krylov space/descent direction
             CALL cp_fm_create(p_k(ispin), P_ia(ispin)%matrix_struct, name="p_k")
@@ -1107,7 +1113,6 @@ CONTAINS
             CALL cp_fm_set_all(p_k1(ispin), 0.0_dp)
             CALL cp_fm_create(p_k2(ispin), P_ia(ispin)%matrix_struct, name="p_k2")
             CALL cp_fm_set_all(p_k2(ispin), 0.0_dp)
-            p_k1(ispin)%local_data(:, :) = precond(ispin)%local_data(:, :)*r_k(ispin)%local_data(:, :)
 
             ! image vectors
             CALL cp_fm_create(s_k(ispin), P_ia(ispin)%matrix_struct, name="s_k")
@@ -1116,12 +1121,13 @@ CONTAINS
             CALL cp_fm_set_all(s_k1(ispin), 0.0_dp)
             CALL cp_fm_create(s_k2(ispin), P_ia(ispin)%matrix_struct, name="s_k2")
             CALL cp_fm_set_all(s_k2(ispin), 0.0_dp)
-         END DO
 
-         CALL cphf_like_update(qs_env, mo_coeff_o, &
-                               mo_coeff_v, Eigenval, occupation, p_env, &
-                               p_k1, fm_G_mu_nu, fm_back, transf_type_in, &
-                               s_k1)
+            ! Preconditioner applied to s_k (for the history)
+            CALL cp_fm_create(precond_s_k1(ispin), P_ia(ispin)%matrix_struct, name="precond_s_k1")
+            CALL cp_fm_set_all(precond_s_k1(ispin), 0.0_dp)
+            CALL cp_fm_create(precond_s_k2(ispin), P_ia(ispin)%matrix_struct, name="precond_s_k2")
+            CALL cp_fm_set_all(precond_s_k2(ispin), 0.0_dp)
+         END DO
 
          IF (unit_nr > 0) THEN
             WRITE (unit_nr, *)
@@ -1136,8 +1142,56 @@ CONTAINS
          DO iiter = 1, max_num_iter
 
             t1 = m_walltime()
+
+            ! Check whether we need to (re-)setup the arrays
+            IF (MOD(iiter - 1, restart_every) == 0) THEN
+               DO ispin = 1, nspins
+                  CALL cp_fm_set_all(r_k(ispin), 0.0_dp)
+                  CALL cp_fm_set_all(p_k(ispin), 0.0_dp)
+                  CALL cp_fm_set_all(p_k1(ispin), 0.0_dp)
+                  CALL cp_fm_set_all(p_k2(ispin), 0.0_dp)
+                  CALL cp_fm_set_all(s_k(ispin), 0.0_dp)
+                  CALL cp_fm_set_all(s_k1(ispin), 0.0_dp)
+                  CALL cp_fm_set_all(s_k2(ispin), 0.0_dp)
+                  CALL cp_fm_set_all(precond_s_k1(ispin), 0.0_dp)
+                  CALL cp_fm_set_all(precond_s_k2(ispin), 0.0_dp)
+               END DO
+
+               IF (iiter > 1) THEN
+                  ! If we need to restart, re-apply the second order kernel to the density matrix
+                  CALL cphf_like_update(qs_env, mo_coeff_o, &
+                                        mo_coeff_v, Eigenval, occupation, p_env, &
+                                        P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
+                                        r_k)
+
+                  ! Calculate the residual
+                  DO ispin = 1, nspins
+                     CALL cp_fm_scale_and_add(-1.0_dp, r_k(ispin), 1.0_dp, L_jb(ispin))
+                  END DO
+                  WRITE (*, *) "CHECK CONV", SQRT(accurate_dot_product_spin(r_k, r_k))
+               ELSE
+                  ! If it is the first iteration, just copy the Lagrangian
+                  DO ispin = 1, nspins
+                     CALL cp_fm_to_fm(L_jb(ispin), r_k(ispin))
+                  END DO
+               END IF
+
+               ! The search direction is obtained by applying the preconditioner to the residual
+               DO ispin = 1, nspins
+                  p_k1(ispin)%local_data(:, :) = precond(ispin)%local_data(:, :)*r_k(ispin)%local_data(:, :)
+               END DO
+
+               ! Apply the second order kernel once
+               CALL cphf_like_update(qs_env, mo_coeff_o, &
+                                     mo_coeff_v, Eigenval, occupation, p_env, &
+                                     p_k1, fm_G_mu_nu, fm_back, transf_type_in, &
+                                     s_k1)
+            END IF
+
+            ! Calculate the next search direction
             DO ispin = 1, nspins
                p_k(ispin)%local_data = s_k1(ispin)%local_data*precond(ispin)%local_data
+               CALL cp_fm_to_fm(p_k(ispin), precond_s_k1(ispin))
             END DO
 
             CALL cphf_like_update(qs_env, mo_coeff_o, &
@@ -1145,28 +1199,34 @@ CONTAINS
                                   p_k, fm_G_mu_nu, fm_back, transf_type_in, &
                                   s_k)
 
+            ! Update the density matrix and the residual
             alpha_k1 = accurate_dot_product_spin(r_k, p_k)/accurate_dot_product_spin(s_k1, p_k)
             DO ispin = 1, nspins
                P_ia(ispin)%local_data = P_ia(ispin)%local_data + alpha_k1*p_k1(ispin)%local_data/precond(ispin)%local_data
                CALL cp_fm_scale_and_add(1.0_dp, r_k(ispin), -alpha_k1, s_k1(ispin))
             END DO
+
+            ! Orthogonalize the search directions
             beta_k1 = accurate_dot_product_spin(s_k, p_k)/accurate_dot_product_spin(s_k1, p_k)
             DO ispin = 1, nspins
                CALL cp_fm_scale_and_add(1.0_dp, p_k(ispin), -beta_k1, p_k1(ispin))
                CALL cp_fm_scale_and_add(1.0_dp, s_k(ispin), -beta_k1, s_k1(ispin))
             END DO
-            IF (iiter > 1) THEN
-               beta_k2 = accurate_dot_product_spin(r_k, p_k1)/accurate_dot_product_spin(s_k2, p_k1)
+            IF (MOD(iiter - 1, restart_every) > 0) THEN
+               beta_k2 = accurate_dot_product_spin(r_k, p_k1)/accurate_dot_product_spin(s_k2, precond_s_k2)
                DO ispin = 1, nspins
                   CALL cp_fm_scale_and_add(1.0_dp, p_k(ispin), -beta_k2, p_k2(ispin))
                   CALL cp_fm_scale_and_add(1.0_dp, s_k(ispin), -beta_k2, s_k2(ispin))
                END DO
             END IF
+
+            ! Push them back
             DO ispin = 1, nspins
                CALL cp_fm_to_fm(p_k1(ispin), p_k2(ispin))
                CALL cp_fm_to_fm(p_k(ispin), p_k1(ispin))
                CALL cp_fm_to_fm(s_k1(ispin), s_k2(ispin))
                CALL cp_fm_to_fm(s_k(ispin), s_k1(ispin))
+               CALL cp_fm_to_fm(precond_s_k1(ispin), precond_s_k2(ispin))
             END DO
 
             t2 = m_walltime()
@@ -1199,6 +1259,8 @@ CONTAINS
          CALL cp_fm_release(s_k)
          CALL cp_fm_release(s_k1)
          CALL cp_fm_release(s_k2)
+         CALL cp_fm_release(precond_s_k1)
+         CALL cp_fm_release(precond_s_k2)
 
       ELSE
          IF (unit_nr > 0) THEN
@@ -1209,7 +1271,217 @@ CONTAINS
 
       CALL timestop(handle)
 
-   END SUBROUTINE solve_z_vector_smearing
+   END SUBROUTINE solve_z_vector_minres
+
+! **************************************************************************************************
+!> \brief ...
+!> \param qs_env ...
+!> \param mp2_env ...
+!> \param unit_nr ...
+!> \param mo_coeff_o ...
+!> \param mo_coeff_v ...
+!> \param Eigenval ...
+!> \param occupation ...
+!> \param p_env ...
+!> \param L_jb ...
+!> \param fm_G_mu_nu ...
+!> \param fm_back ...
+!> \param P_ia ...
+!> \param precond ...
+! **************************************************************************************************
+   SUBROUTINE solve_z_vector_cr(qs_env, mp2_env, unit_nr, &
+                                mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+                                L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
+      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
+      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
+      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia, precond
+
+      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_cr'
+
+      INTEGER                                            :: handle, iiter, ispin, max_num_iter, nmo, &
+                                                            nspins, restart_every, transf_type_in
+      LOGICAL                                            :: converged
+      REAL(KIND=dp)                                      :: alpha_k, beta_k, conv, eps_conv, &
+                                                            rk_A_rk, rk_A_rk_new, t1, t2
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: Ap_k, Ar_k, p_k, precond_Ap_k, r_k
+
+      CALL timeset(routineN, handle)
+
+      nmo = SIZE(eigenval, 1)
+      nspins = SIZE(eigenval, 2)
+
+      eps_conv = mp2_env%ri_grad%cphf_eps_conv
+
+      IF (accurate_dot_product_spin(L_jb, L_jb) >= (eps_conv*eps_conv)) THEN
+
+         max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
+         restart_every = mp2_env%ri_grad%cphf_restart
+
+         ! set the transformation type (equal for all methods all updates)
+         transf_type_in = 3
+
+         ! set convergence flag
+         converged = .FALSE.
+
+         ALLOCATE (r_k(nspins), Ar_k(nspins), p_k(nspins), Ap_k(nspins), precond_Ap_k(nspins))
+         DO ispin = 1, nspins
+            ! Residual vector
+            CALL cp_fm_create(r_k(ispin), P_ia(ispin)%matrix_struct, name="r_k")
+            CALL cp_fm_set_all(r_k(ispin), 0.0_dp)
+
+            ! image of p_k
+            CALL cp_fm_create(Ar_k(ispin), P_ia(ispin)%matrix_struct, name="Ar_k")
+            CALL cp_fm_set_all(Ar_k(ispin), 0.0_dp)
+
+            ! columns of the basis in Krylov space/descent direction
+            CALL cp_fm_create(p_k(ispin), P_ia(ispin)%matrix_struct, name="p_k")
+            CALL cp_fm_set_all(p_k(ispin), 0.0_dp)
+
+            ! image of p_k
+            CALL cp_fm_create(Ap_k(ispin), P_ia(ispin)%matrix_struct, name="Ap_k")
+            CALL cp_fm_set_all(Ap_k(ispin), 0.0_dp)
+
+            ! preconditioner applied to p_k
+            CALL cp_fm_create(precond_Ap_k(ispin), P_ia(ispin)%matrix_struct, name="precond_Ap_k")
+            CALL cp_fm_set_all(precond_Ap_k(ispin), 0.0_dp)
+         END DO
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, *)
+            WRITE (unit_nr, '(T3,A)') "MP2_CPHF| Iterative solution of Z-Vector equations (Conjugate Residual method)"
+            WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Convergence threshold:', eps_conv
+            WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Maximum number of iterations: ', max_num_iter
+            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+            WRITE (unit_nr, '(T4,A,T15,A,T33,A)') 'Step', 'Time', 'Convergence'
+            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+         END IF
+
+         DO iiter = 1, max_num_iter
+
+            t1 = m_walltime()
+
+            ! Check whether we need to (re-)setup the arrays
+            IF (MOD(iiter - 1, restart_every) == 0) THEN
+               DO ispin = 1, nspins
+                  CALL cp_fm_set_all(r_k(ispin), 0.0_dp)
+                  CALL cp_fm_set_all(Ar_k(ispin), 0.0_dp)
+                  CALL cp_fm_set_all(p_k(ispin), 0.0_dp)
+                  CALL cp_fm_set_all(Ap_k(ispin), 0.0_dp)
+                  CALL cp_fm_set_all(precond_Ap_k(ispin), 0.0_dp)
+               END DO
+
+               IF (iiter > 1) THEN
+                  ! If we need to restart, re-apply the second order kernel to the density matrix
+                  CALL cphf_like_update(qs_env, mo_coeff_o, &
+                                        mo_coeff_v, Eigenval, occupation, p_env, &
+                                        P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
+                                        r_k)
+
+                  ! Calculate the residual
+                  DO ispin = 1, nspins
+                     CALL cp_fm_scale_and_add(-1.0_dp, r_k(ispin), 1.0_dp, L_jb(ispin))
+                  END DO
+                  WRITE (*, *) "CHECK CONV", SQRT(accurate_dot_product_spin(r_k, r_k))
+               ELSE
+                  ! If it is the first iteration, just copy the Lagrangian
+                  DO ispin = 1, nspins
+                     CALL cp_fm_to_fm(L_jb(ispin), r_k(ispin))
+                  END DO
+               END IF
+
+
+               ! The search direction is obtained by applying the preconditioner to the residual
+                  DO ispin = 1, nspins
+                     r_k(ispin)%local_data = r_k(ispin)%local_data*precond(ispin)%local_data
+                  END DO
+
+               CALL cphf_like_update(qs_env, mo_coeff_o, &
+                                     mo_coeff_v, Eigenval, occupation, p_env, &
+                                     r_k, fm_G_mu_nu, fm_back, transf_type_in, &
+                                     Ar_k)
+
+               rk_A_rk = accurate_dot_product_spin(r_k, Ar_k)
+               DO ispin = 1, nspins
+                  CALL cp_fm_to_fm(r_k(ispin), p_k(ispin))
+                  CALL cp_fm_to_fm(Ar_k(ispin), Ap_k(ispin))
+               END DO
+            END IF
+
+            DO ispin = 1, nspins
+               precond_Ap_k(ispin)%local_data = Ap_k(ispin)%local_data*precond(ispin)%local_data
+            END DO
+
+            ! Update the density matrix and the residual
+            alpha_k = rk_A_rk/accurate_dot_product_spin(Ap_k, precond_Ap_k)
+            DO ispin = 1, nspins
+               CALL cp_fm_scale_and_add(1.0_dp, P_ia(ispin), alpha_k, p_k(ispin))
+               CALL cp_fm_scale_and_add(1.0_dp, r_k(ispin), -alpha_k, precond_Ap_k(ispin))
+            END DO
+
+            CALL cphf_like_update(qs_env, mo_coeff_o, &
+                                  mo_coeff_v, Eigenval, occupation, p_env, &
+                                  r_k, fm_G_mu_nu, fm_back, transf_type_in, &
+                                  Ar_k)
+
+            rk_A_rk_new = accurate_dot_product_spin(r_k, Ar_k)
+
+            ! Orthogonalize the search directions
+            beta_k = rk_A_rk_new/rk_A_rk
+            DO ispin = 1, nspins
+               CALL cp_fm_scale_and_add(beta_k, p_k(ispin), 1.0_dp, r_k(ispin))
+               CALL cp_fm_scale_and_add(beta_k, Ap_k(ispin), 1.0_dp, Ar_k(ispin))
+            END DO
+
+            ! Push them back
+            DO ispin = 1, nspins
+               rk_A_rk = rk_A_rk_new
+            END DO
+
+            conv = SQRT(accurate_dot_product_spin(r_k, r_k))
+
+            t2 = m_walltime()
+
+            IF (unit_nr > 0) THEN
+               WRITE (unit_nr, '(T3,I5,T13,F6.1,11X,F14.8)') iiter, t2 - t1, conv
+               CALL m_flush(unit_nr)
+            END IF
+            IF (conv < eps_conv) THEN
+               converged = .TRUE.
+               EXIT
+            END IF
+         END DO
+
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+            IF (converged) THEN
+               WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations converged in', iiter - 1, ' steps'
+            ELSE
+               WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations NOT converged in', iiter - 1, ' steps'
+            END IF
+         END IF
+
+         CALL cp_fm_release(r_k)
+         CALL cp_fm_release(Ar_k)
+         CALL cp_fm_release(p_k)
+         CALL cp_fm_release(Ap_k)
+         CALL cp_fm_release(precond_Ap_k)
+
+      ELSE
+         IF (unit_nr > 0) THEN
+            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
+            WRITE (unit_nr, '(T3,A)') 'Residual smaller than EPS_CONV. Skip solution of Z-vector equation.'
+         END IF
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE solve_z_vector_cr
 
 ! **************************************************************************************************
 !> \brief ...
