@@ -1321,7 +1321,7 @@ CONTAINS
       IF (accurate_dot_product_spin(L_jb, L_jb) >= (eps_conv*eps_conv)) THEN
 
          max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
-         restart_every = mp2_env%ri_grad%cphf_restart
+         restart_every = 1!mp2_env%ri_grad%cphf_restart
 
          ! set the transformation type (equal for all methods all updates)
          transf_type_in = 3
@@ -1395,11 +1395,10 @@ CONTAINS
                   END DO
                END IF
 
-
                ! The search direction is obtained by applying the preconditioner to the residual
-                  DO ispin = 1, nspins
-                     r_k(ispin)%local_data = r_k(ispin)%local_data*precond(ispin)%local_data
-                  END DO
+               DO ispin = 1, nspins
+                  r_k(ispin)%local_data = r_k(ispin)%local_data*precond(ispin)%local_data
+               END DO
 
                CALL cphf_like_update(qs_env, mo_coeff_o, &
                                      mo_coeff_v, Eigenval, occupation, p_env, &
