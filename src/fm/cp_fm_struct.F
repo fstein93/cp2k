@@ -34,8 +34,14 @@ MODULE cp_fm_struct
 ! consider using #ifdefs to give them the optimal values
 ! these can be changed using scf_control
 ! *** these are used by default
+#if defined(__OFFLOAD)
+   ! GPUs should employ larger block sizes for performance
+   INTEGER, PRIVATE :: optimal_blacs_col_block_size = 256
+   INTEGER, PRIVATE :: optimal_blacs_row_block_size = 256
+#else
    INTEGER, PRIVATE :: optimal_blacs_col_block_size = 64
    INTEGER, PRIVATE :: optimal_blacs_row_block_size = 64
+#endif
    LOGICAL, PRIVATE :: force_block_size = .FALSE.
 
    PUBLIC :: cp_fm_struct_type, cp_fm_struct_p_type
