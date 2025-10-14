@@ -1269,10 +1269,8 @@ CONTAINS
       IF (eri_env%eri_gpw%group_size == para_env%num_pe) THEN
          para_env_sub => para_env
          CALL para_env_sub%retain()
-         IF (eri_env%method == eri_method_gpw_ht) THEN
-            blacs_env_sub => blacs_env
-            CALL blacs_env_sub%retain()
-         END IF
+         blacs_env_sub => blacs_env
+         CALL blacs_env_sub%retain()
          number_of_subgroups = 1
          color = 0
       ELSE
@@ -1280,10 +1278,8 @@ CONTAINS
          color = para_env%mepos/eri_env%eri_gpw%group_size
          ALLOCATE (para_env_sub)
          CALL para_env_sub%from_split(para_env, color)
-         IF (eri_env%method == eri_method_gpw_ht) THEN
-            NULLIFY (blacs_env_sub)
-            CALL cp_blacs_env_create(blacs_env_sub, para_env_sub, BLACS_GRID_SQUARE, .TRUE.)
-         END IF
+         NULLIFY (blacs_env_sub)
+         CALL cp_blacs_env_create(blacs_env_sub, para_env_sub, BLACS_GRID_SQUARE, .TRUE.)
       END IF
 
       ! This should be done differently! Copied from MP2 code
@@ -1687,9 +1683,9 @@ CONTAINS
          END DO
          DEALLOCATE (matrix_pq_rnu, fm_matrix_pq_rnu, fm_matrix_pq_rs)
          CALL deallocate_task_list(task_list_sub)
-         CALL release_neighbor_list_sets(sab_orb_sub)
-         CALL cp_blacs_env_release(blacs_env_sub)
       END IF
+      CALL release_neighbor_list_sets(sab_orb_sub)
+      CALL cp_blacs_env_release(blacs_env_sub)
       CALL dbcsr_release(mat_munu%matrix)
       DEALLOCATE (mat_munu%matrix)
       DO ispin = 1, nspins

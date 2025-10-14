@@ -157,7 +157,7 @@ CONTAINS
       TYPE(block_ind_type), ALLOCATABLE, &
          DIMENSION(:, :, :)                              :: t_3c_O_ind
       TYPE(cell_type), POINTER                           :: cell
-      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub, blacs_env_sub_mat_munu
+      TYPE(cp_blacs_env_type), POINTER                   :: blacs_env_sub
       TYPE(cp_fm_type)                                   :: fm_matrix_PQ
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_L_kpoints, fm_matrix_Minv, &
@@ -322,14 +322,12 @@ CONTAINS
                                blacs_grid_layout, &
                                blacs_repeatable)
 
-      blacs_env_sub_mat_munu => blacs_env_sub
-
       matrix_s(1:1) => matrix_s_kp(1:1, 1)
 
       CALL get_eps_old(dft_control, eps_pgf_orb_old, eps_rho_rspace_old, eps_gvg_rspace_old)
 
       CALL create_mat_munu(mat_munu, qs_env, mp2_env%mp2_gpw%eps_grid, &
-                           blacs_env_sub_mat_munu, do_alloc_blocks_from_nbl=.NOT. do_im_time, sab_orb_sub=sab_orb_sub, &
+                           blacs_env_sub, do_alloc_blocks_from_nbl=.NOT. do_im_time, sab_orb_sub=sab_orb_sub, &
                            do_kpoints=mp2_env%ri_rpa_im_time%do_im_time_kpoints, &
                            dbcsr_sym_type=dbcsr_type_symmetric)
 
