@@ -22,7 +22,9 @@ MODULE qs_active_space_types
    USE input_constants,                 ONLY: eri_method_gpw_ht
    USE kinds,                           ONLY: default_path_length,&
                                               dp
-   USE message_passing,                 ONLY: mp_comm_type
+   USE message_passing,                 ONLY: mp_comm_type,&
+                                              mp_para_env_release,&
+                                              mp_para_env_type
    USE qs_mo_types,                     ONLY: deallocate_mo_set,&
                                               mo_set_type
 #include "./base/base_uses.f90"
@@ -59,6 +61,9 @@ MODULE qs_active_space_types
       REAL(KIND=dp)                 :: cutoff_radius = 0.0_dp
       REAL(KIND=dp)                 :: eps_integral = 0.0_dp
       TYPE(eri_gpw_type)            :: eri_gpw = eri_gpw_type()
+      INTEGER, DIMENSION(2, 2)      :: range_first_pair = 0
+      TYPE(mp_para_env_type), POINTER :: para_env_sub => NULL()
+      TYPE(mp_para_env_type), POINTER :: para_env_exchange => NULL()
       TYPE(dbcsr_csr_p_type), &
          DIMENSION(:), POINTER      :: eri => NULL()
       INTEGER                       :: norb = 0
@@ -213,6 +218,8 @@ CONTAINS
             CALL dbcsr_csr_destroy(eri_env%eri(i)%csr_mat)
             DEALLOCATE (eri_env%eri(i)%csr_mat)
          END DO
+         IF (ASSOCIATED(eri_env%para_env_sub)) CALL mp_para_env_release(eri_env%para_env_sub)
+         IF (ASSOCIATED(eri_env%para_env_exchange)) CALL mp_para_env_release(eri_env%para_env_exchange)
          DEALLOCATE (eri_env%eri)
 
       END IF
@@ -316,22 +323,28 @@ CONTAINS
 !> \param fobj The function object from which to call `func(i, j, k, l, val)`
 !> \param spin1 the first spin value
 !> \param spin2 the second spin value
+!> \param irange ...
 !> \par History
 !>      04.2016 created [JHU]
 !>      06.2016 factored out from qs_a_s_methods:fcidump [TMU]
 !> \note Calls MPI, must be executed on all ranks.
 ! **************************************************************************************************
-   SUBROUTINE eri_type_eri_foreach(this, nspin, active_orbitals, fobj, spin1, spin2)
+   SUBROUTINE eri_type_eri_foreach(this, nspin, active_orbitals, fobj, spin1, spin2, irange)
       CLASS(eri_type), INTENT(in)              :: this
       CLASS(eri_type_eri_element_func)         :: fobj
       INTEGER, DIMENSION(:, :), INTENT(IN)     :: active_orbitals
       INTEGER, OPTIONAL                        :: spin1, spin2
+
+      CHARACTER(len=*), PARAMETER                        :: routineN = 'eri_type_eri_foreach'
+
       INTEGER                                  :: i1, i12, i12l, i2, i3, i34, i34l, i4, m1, m2, m3, m4, &
-                                                  irange(2), irptr, nspin, nindex, nmo, proc, nonzero_elements_local
+                                                  irange(2), irptr, nspin, nindex, nmo, proc, nonzero_elements_local, handle
       INTEGER, ALLOCATABLE, DIMENSION(:)       :: colind, offsets, nonzero_elements_global
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:) :: erival
       REAL(KIND=dp)                            :: erint
       TYPE(mp_comm_type) :: mp_group
+
+      CALL timeset(routineN, handle)
 
       IF (.NOT. PRESENT(spin1)) THEN
          spin1 = nspin
@@ -345,7 +358,6 @@ CONTAINS
          CALL mp_group%set_handle(eri%mp_group%get_handle())
          nmo = SIZE(active_orbitals, 1)
          ! Irrelevant in case of half-transformed integrals
-         irange = get_irange_csr(nindex, mp_group)
          ALLOCATE (erival(nindex), colind(nindex))
 
          IF (this%method == eri_method_gpw_ht) THEN
@@ -426,6 +438,8 @@ CONTAINS
             END DO
          END DO
       END ASSOCIATE
+
+      CALL timestop(handle)
    END SUBROUTINE eri_type_eri_foreach
 
 END MODULE qs_active_space_types

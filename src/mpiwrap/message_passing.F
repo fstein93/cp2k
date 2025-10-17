@@ -743,6 +743,7 @@ MODULE message_passing
    CONTAINS
       PROCEDURE, PUBLIC, PASS(comm_cart), NON_OVERRIDABLE :: create => mp_cart_create
       PROCEDURE, PUBLIC, PASS(sub_comm), NON_OVERRIDABLE :: from_sub => mp_cart_sub
+      PROCEDURE, PUBLIC, PASS(comm), NON_OVERRIDABLE :: create_sub => mp_create_sub
 
       PROCEDURE, PRIVATE, PASS(comm), NON_OVERRIDABLE :: get_info_cart => mp_cart_get
 
@@ -1630,6 +1631,42 @@ CONTAINS
          CALL mp_timestop(handle)
 
       END SUBROUTINE mp_cart_sub
+
+! **************************************************************************************************
+!> \brief wrapper to MPI_Cart_sub
+!> \param comm ...
+!> \param rdim ...
+!> \param sub_comm ...
+! **************************************************************************************************
+      SUBROUTINE mp_create_sub(comm, rdim, sub_comm)
+
+         CLASS(mp_cart_type)                                            :: comm
+         LOGICAL, DIMENSION(:), CONTIGUOUS, INTENT(IN)                  :: rdim
+         CLASS(mp_comm_type), INTENT(INOUT)                               :: sub_comm
+
+         CHARACTER(len=*), PARAMETER :: routineN = 'mp_create_sub'
+
+         INTEGER                                            :: handle
+#if defined(__parallel)
+         INTEGER :: ierr
+#endif
+
+         CALL mp_timeset(routineN, handle)
+
+#if defined(__parallel)
+         CALL mpi_cart_sub(comm%handle, rdim, sub_comm%handle, ierr)
+         IF (ierr /= 0) CALL mp_stop(ierr, "mpi_cart_sub @ mp_create_sub")
+#else
+         MARK_USED(comm)
+         MARK_USED(rdim)
+         sub_comm%handle = mp_comm_default_handle
+#endif
+         sub_comm%ndims = COUNT(rdim)
+         debug_comm_count = debug_comm_count + 1
+         CALL sub_comm%init()
+         CALL mp_timestop(handle)
+
+      END SUBROUTINE mp_create_sub
 
 ! **************************************************************************************************
 !> \brief wrapper to MPI_Comm_free

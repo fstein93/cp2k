@@ -36,6 +36,7 @@
 !>      Ole Schuett (2020)
 ! **************************************************************************************************
 MODULE qs_collocate_density
+   USE ISO_FORTRAN_ENV, ONLY: error_unit
    USE admm_types, ONLY: get_admm_env
    USE ao_util, ONLY: exp_radius_very_extended
    USE atomic_kind_types, ONLY: atomic_kind_type, &
