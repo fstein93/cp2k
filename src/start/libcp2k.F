@@ -628,7 +628,8 @@ CONTAINS
                EXIT try
 
             CALL active_space_env%eri%eri_foreach(1, active_space_env%active_orbitals, eri2array(buf_coords, buf_values), &
-                                                  irange=active_space_env%eri%range_first_pair)
+                                                  irange=active_space_env%eri%range_first_pair(:, 1), &
+                                                  para_env_sub=active_space_env%eri%para_env_sub)
 
             nelem = INT(nze, KIND(nelem))
          END ASSOCIATE

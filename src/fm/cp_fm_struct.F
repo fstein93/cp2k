@@ -142,14 +142,17 @@ CONTAINS
       LOGICAL, OPTIONAL, INTENT(in)                :: square_blocks
       LOGICAL, OPTIONAL, INTENT(in)                :: force_block
 
-      INTEGER                                      :: i, nmax_block, vlen
+      CHARACTER(LEN=*), PARAMETER                  :: routineN = 'cp_fm_struct_create'
+
+      INTEGER                                      :: handle, i, nmax_block, vlen
 #if defined(__parallel)
       INTEGER                                      :: iunit, stat
       INTEGER, EXTERNAL                            :: numroc
       TYPE(cp_logger_type), POINTER                :: logger
 #endif
-
       LOGICAL :: my_square_blocks, my_force_block
+
+      CALL timeset(routineN, handle)
 
       ALLOCATE (fmstruct)
 
@@ -324,6 +327,8 @@ CONTAINS
          CPASSERT(stat == 0)
 #endif
       END IF
+
+      CALL timestop(handle)
    END SUBROUTINE cp_fm_struct_create
 
 ! **************************************************************************************************
