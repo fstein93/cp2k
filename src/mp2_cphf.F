@@ -156,20 +156,21 @@ CONTAINS
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_eq(qs_env, mp2_env, para_env, dft_control, &
-                                mo_coeff, homo, virtual, Eigenval, occupation, unit_nr)
+                                mo_coeff, homo, Eigenval, unit_nr)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
       TYPE(dft_control_type), INTENT(IN), POINTER        :: dft_control
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, INTENT(IN)                                :: unit_nr
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_eq'
 
       INTEGER :: bin, handle, handle2, i, i_global, i_thread, iiB, irep, ispin, j_global, jjB, &
          my_bin_size, n_rep_hf, n_threads, nao, ncol_local, nmo, nrow_local, nspins, transf_type_in
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: virtual
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
       LOGICAL                                            :: alpha_beta, do_dynamic_load_balancing, &
                                                             do_exx, do_hfx, restore_p_screen
@@ -219,6 +220,9 @@ CONTAINS
       CALL MOVE_ALLOC(mp2_env%ri_grad%W_mo, W_mo)
       CALL MOVE_ALLOC(mp2_env%ri_grad%L_jb, L_jb)
 
+      ALLOCATE (virtual(nspins))
+      virtual(:) = nmo - homo(:)
+
       NULLIFY (P_mu_nu)
       CALL dbcsr_allocate_matrix_set(P_mu_nu, nspins)
       DO ispin = 1, nspins
@@ -257,7 +261,7 @@ CONTAINS
          CALL cp_fm_set_all(mo_coeff_v(ispin), 0.0_dp)
          CALL cp_fm_to_fm_submat(msource=mo_coeff(ispin), mtarget=mo_coeff_v(ispin), &
                                  nrow=nao, ncol=virtual(ispin), &
-                                 s_firstrow=1, s_firstcol=nmo - virtual(ispin) + 1, &
+                                 s_firstrow=1, s_firstcol=homo(ispin) + 1, &
                                  t_firstrow=1, t_firstcol=1)
       END DO
 
@@ -332,6 +336,7 @@ CONTAINS
 
          focc = 1.0_dp
          IF (nspins == 1) focc = 2.0_dp
+         !focc = 0.0_dp
          DO ispin = 1, nspins
             CALL dbcsr_add(P_mu_nu(ispin)%matrix, matrix_ks(ispin)%matrix, 1.0_dp, -1.0_dp)
             CALL copy_dbcsr_to_fm(matrix=P_mu_nu(ispin)%matrix, fm=fm_G_mu_nu)
@@ -374,8 +379,8 @@ CONTAINS
       ! Complete in closed shell case, alpha-alpha (Coulomb and XC)
       ! part of L_bj(alpha) for open shell
 
-      CALL cphf_like_update(qs_env, mo_coeff_o, mo_coeff_v, Eigenval, occupation, &
-                            p_env, P_mo, fm_G_mu_nu, fm_back, transf_type_in, L_jb, &
+      CALL cphf_like_update(qs_env, mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                            P_mo, fm_G_mu_nu, fm_back, transf_type_in, L_jb, &
                             recalc_hfx_integrals=(.NOT. do_exx .AND. mp2_env%ri_grad%free_hfx_buffer) &
                             .OR. (do_exx .AND. .NOT. mp2_env%ri_rpa%reuse_hfx))
 
@@ -392,12 +397,8 @@ CONTAINS
       END DO
 
       CALL solve_z_vector_eq_low(qs_env, mp2_env, unit_nr, &
-                                 mo_coeff_o, mo_coeff_v, Eigenval, occupation, &
-                                 p_env, L_jb, fm_G_mu_nu, fm_back, P_ia)
-
-      DO ispin = 1, nspins
-         CALL remove_trace(P_ia(ispin), nmo)
-      END DO
+                                 mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                 L_jb, fm_G_mu_nu, fm_back, P_ia)
 
       ! release fm stuff
       CALL cp_fm_release(fm_G_mu_nu)
@@ -407,128 +408,55 @@ CONTAINS
 
       CALL cp_fm_create(fm_mo_mo, P_mo(1)%matrix_struct)
 
+      DO ispin = 1, nspins
+         ! update the MP2-MO density matrix with the occ-virt block
+         CALL cp_fm_to_fm_submat(msource=P_ia(ispin), mtarget=P_mo(ispin), &
+                                 nrow=homo(ispin), ncol=virtual(ispin), &
+                                 s_firstrow=1, s_firstcol=1, &
+                                 t_firstrow=1, t_firstcol=homo(ispin) + 1)
+         ! transpose P_MO matrix (easy way to symmetrize)
+         CALL cp_fm_set_all(fm_mo_mo, 0.0_dp)
+         ! P_mo now is ready
+         CALL cp_fm_uplo_to_full(matrix=P_mo(ispin), work=fm_mo_mo)
+      END DO
+      CALL cp_fm_release(P_ia)
+      CALL cp_fm_release(fm_mo_mo)
+
       ! do the final update to the energy weighted matrix W_MO
-      IF (ANY(homo + virtual > nmo)) THEN
-         ! In the FT case, it is a bit more complicated as we need to separate the different contributions
-         DO ispin = 1, nspins
-            CALL cp_fm_get_info(matrix=W_mo(ispin), &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-
-            ! Bring P_ia to the correct format
-            CALL cp_fm_set_all(fm_mo_mo, 0.0_dp)
-            CALL cp_fm_to_fm_submat(msource=P_ia(ispin), mtarget=fm_mo_mo, &
-                                    nrow=homo(ispin), ncol=virtual(ispin), &
-                                    s_firstrow=1, s_firstcol=1, &
-                                    t_firstrow=1, t_firstcol=nmo - virtual(ispin) + 1)
-
-            ! Update the occupied-occupied and virtual-virtual block with the direct contributions from the density matrix
-            ! Beware that both blocks will overlap here
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               IF (j_global <= homo(ispin)) THEN
-                  ! This is the contribution from the SCF density
-                  DO iiB = 1, nrow_local
-                     i_global = row_indices(iiB)
-                     IF (i_global == j_global .AND. nspins == 1) W_mo(ispin)%local_data(iiB, jjB) = &
-                        W_mo(ispin)%local_data(iiB, jjB) - 2.0_dp*Eigenval(j_global, ispin)*occupation(j_global, ispin)
-                     IF (i_global == j_global .AND. nspins == 2) W_mo(ispin)%local_data(iiB, jjB) = &
-                        W_mo(ispin)%local_data(iiB, jjB) - Eigenval(j_global, ispin)*occupation(j_global, ispin)
-                     IF (i_global < homo(ispin)) THEN
-                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
-                                                           - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
-                     END IF
-                     IF (i_global > nmo - virtual(ispin)) THEN
-                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
-                                                           - fm_mo_mo%local_data(iiB, jjB)*Eigenval(j_global, ispin)
-                     END IF
-                  END DO
-               END IF
-               IF (j_global > nmo - virtual(ispin)) THEN
-                  DO iiB = 1, nrow_local
-                     i_global = row_indices(iiB)
-                     IF (i_global > nmo - virtual(ispin)) THEN
-                        ! virt-virt
-                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
-                                                           - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
-                     END IF
-                  END DO
-               END IF
-            END DO
-            CALL cp_fm_scale_and_add(1.0_dp, P_mo(ispin), 1.0_dp, fm_mo_mo)
-
-            CALL cp_fm_set_all(fm_mo_mo, 0.0_dp)
-            CALL cp_fm_geadd(1.0_dp, "T", P_ia(ispin), 0.0_dp, fm_mo_mo, &
-                             virtual(ispin), homo(ispin), 1, 1, 1, nmo - virtual(ispin) + 1)
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               IF (j_global > nmo - virtual(ispin)) THEN
-                  DO iiB = 1, nrow_local
-                     i_global = row_indices(iiB)
-                     IF (i_global <= homo(ispin)) THEN
-                        ! virt-occ
-                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
-                                                           - fm_mo_mo%local_data(iiB, jjB)*Eigenval(i_global, ispin)
-                     END IF
-                  END DO
-               END IF
-            END DO
-            CALL cp_fm_scale_and_add(1.0_dp, P_mo(ispin), 1.0_dp, fm_mo_mo)
-         END DO
-         CALL cp_fm_release(P_ia)
-         CALL cp_fm_release(fm_mo_mo)
-      ELSE
-         DO ispin = 1, nspins
-            ! update the MP2-MO density matrix with the occ-virt block
-            CALL cp_fm_to_fm_submat(msource=P_ia(ispin), mtarget=P_mo(ispin), &
-                                    nrow=homo(ispin), ncol=virtual(ispin), &
-                                    s_firstrow=1, s_firstcol=1, &
-                                    t_firstrow=1, t_firstcol=homo(ispin) + 1)
-            ! transpose P_MO matrix (easy way to symmetrize)
-            CALL cp_fm_set_all(fm_mo_mo, 0.0_dp)
-            ! P_mo now is ready
-            CALL cp_fm_uplo_to_full(matrix=P_mo(ispin), work=fm_mo_mo)
-         END DO
-         CALL cp_fm_release(P_ia)
-         CALL cp_fm_release(fm_mo_mo)
-
-         DO ispin = 1, nspins
-            CALL cp_fm_get_info(matrix=W_mo(ispin), &
-                                nrow_local=nrow_local, &
-                                ncol_local=ncol_local, &
-                                row_indices=row_indices, &
-                                col_indices=col_indices)
-            DO jjB = 1, ncol_local
-               j_global = col_indices(jjB)
-               IF (j_global <= homo(ispin)) THEN
-                  DO iiB = 1, nrow_local
-                     i_global = row_indices(iiB)
+      DO ispin = 1, nspins
+         CALL cp_fm_get_info(matrix=W_mo(ispin), &
+                             nrow_local=nrow_local, &
+                             ncol_local=ncol_local, &
+                             row_indices=row_indices, &
+                             col_indices=col_indices)
+         DO jjB = 1, ncol_local
+            j_global = col_indices(jjB)
+            IF (j_global <= homo(ispin)) THEN
+               DO iiB = 1, nrow_local
+                  i_global = row_indices(iiB)
+                  W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                     - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
+                  IF (i_global == j_global .AND. nspins == 1) W_mo(ispin)%local_data(iiB, jjB) = &
+                     W_mo(ispin)%local_data(iiB, jjB) - 2.0_dp*Eigenval(j_global, ispin)
+                  IF (i_global == j_global .AND. nspins == 2) W_mo(ispin)%local_data(iiB, jjB) = &
+                     W_mo(ispin)%local_data(iiB, jjB) - Eigenval(j_global, ispin)
+               END DO
+            ELSE
+               DO iiB = 1, nrow_local
+                  i_global = row_indices(iiB)
+                  IF (i_global <= homo(ispin)) THEN
+                     ! virt-occ
+                     W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
+                                                        - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(i_global, ispin)
+                  ELSE
+                     ! virt-virt
                      W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
                                                         - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
-                     IF (i_global == j_global .AND. nspins == 1) W_mo(ispin)%local_data(iiB, jjB) = &
-                        W_mo(ispin)%local_data(iiB, jjB) - 2.0_dp*Eigenval(j_global, ispin)
-                     IF (i_global == j_global .AND. nspins == 2) W_mo(ispin)%local_data(iiB, jjB) = &
-                        W_mo(ispin)%local_data(iiB, jjB) - Eigenval(j_global, ispin)
-                  END DO
-               ELSE
-                  DO iiB = 1, nrow_local
-                     i_global = row_indices(iiB)
-                     IF (i_global <= homo(ispin)) THEN
-                        ! virt-occ
-                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
-                                                           - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(i_global, ispin)
-                     ELSE
-                        ! virt-virt
-                        W_mo(ispin)%local_data(iiB, jjB) = W_mo(ispin)%local_data(iiB, jjB) &
-                                                           - P_mo(ispin)%local_data(iiB, jjB)*Eigenval(j_global, ispin)
-                     END IF
-                  END DO
-               END IF
-            END DO
+                  END IF
+               END DO
+            END IF
          END DO
-      END IF
+      END DO
 
       ! create the MP2 energy weighted density matrix
       NULLIFY (p_env%w1)
@@ -604,7 +532,6 @@ CONTAINS
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
-!> \param occupation ...
 !> \param p_env ...
 !> \param fm_mo ...
 !> \param fm_ao ...
@@ -614,36 +541,31 @@ CONTAINS
 !> \param recalc_hfx_integrals ...
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
-   SUBROUTINE cphf_like_update(qs_env, mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+   SUBROUTINE cphf_like_update(qs_env, mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                fm_mo, fm_ao, fm_back, transf_type_in, &
                                fm_mo_out, recalc_hfx_integrals)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type)                                :: p_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mo
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_ao, fm_back
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_ao
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_back
       INTEGER, INTENT(IN)                                :: transf_type_in
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mo_out
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cphf_like_update'
 
       INTEGER                                            :: handle, homo, i_global, iiB, ispin, &
-                                                            j_global, jjB, nao, ncol_local, nmo, &
+                                                            j_global, jjB, nao, ncol_local, &
                                                             nrow_local, nspins, virtual
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: eps_canonical
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: rho1_ao
-      TYPE(mp2_type), POINTER                            :: mp2_env
 
       CALL timeset(routineN, handle)
 
-      nmo = SIZE(Eigenval, 1)
       nspins = SIZE(Eigenval, 2)
-
-      CALL get_qs_env(qs_env, mp2_env=mp2_env)
-      eps_canonical = mp2_env%eps_canonical
 
       CALL qs_rho_get(p_env%rho1, rho_ao=rho1_ao)
 
@@ -666,72 +588,19 @@ CONTAINS
                ! virt-virt block
                CALL parallel_gemm('N', 'N', nao, virtual, virtual, 1.0_dp, &
                                   mo_coeff_v(ispin), mat_in, 0.0_dp, fm_back, &
-                                  b_first_col=nmo - virtual + 1, &
-                                  b_first_row=nmo - virtual + 1)
+                                  b_first_col=homo + 1, &
+                                  b_first_row=homo + 1)
                CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), virtual, 1.0_dp, .TRUE.)
-               IF (homo + virtual > nmo) THEN
-                  ! We added the partial-partial block twice
-                  CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), &
-                                             homo + virtual - nmo, -1.0_dp, .TRUE.)
-               END IF
 
             CASE (3)
-
-               ! In case of smearing, we have to ensure that the input matrix is trace-free
-               CALL remove_trace(mat_in, nmo)
-               IF (homo + virtual > nmo) THEN
-
-                  ! Misuse the output array as buffer
-                  CALL cp_fm_get_info(matrix=fm_mo_out(ispin), &
-                                      nrow_local=nrow_local, &
-                                      ncol_local=ncol_local, &
-                                      row_indices=row_indices, &
-                                      col_indices=col_indices)
-                  DO jjB = 1, ncol_local
-                     j_global = col_indices(jjB) + nmo - virtual
-                     DO iiB = 1, nrow_local
-                        i_global = row_indices(iiB)
-                        ! The different blocks need separate scaling factors
-                        IF (j_global <= homo) THEN
-                           ! The orbital in which we excite is partially occupied
-                           IF (i_global > nmo - virtual) THEN
-                              ! Partial-partial block: Reverse sign
-                              fm_mo_out(ispin)%local_data(iiB, jjB) = &
-                                 -0.5_dp*mat_in%local_data(iiB, jjB)
-                           ELSE
-                              ! homo-partial block: scale by negated occupation number
-                              fm_mo_out(ispin)%local_data(iiB, jjB) = mat_in%local_data(iiB, jjB)* &
-                                                                      (1.0_dp - occupation(j_global, ispin))
-                           END IF
-                        ELSE
-                           ! The orbital in which we excite is purely virtual
-                           IF (i_global > nmo - virtual) THEN
-                              ! Virtual-partial block: scale by complementary occupation number
-                              fm_mo_out(ispin)%local_data(iiB, jjB) = &
-                                 mat_in%local_data(iiB, jjB)*occupation(i_global, ispin)
-                           ELSE
-                              ! Occupied-virtual block: simple copy
-                              fm_mo_out(ispin)%local_data(iiB, jjB) = mat_in%local_data(iiB, jjB)
-                           END IF
-                        END IF
-                     END DO
-                  END DO
-                  CALL parallel_gemm('N', 'N', nao, virtual, homo, 1.0_dp, &
-                                     mo_coeff_o(ispin), fm_mo_out(ispin), 0.0_dp, fm_back)
-                  CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), virtual, 1.0_dp, .TRUE.)
-                  ! and symmetrize (here again multiply instead of transposing)
-                  CALL parallel_gemm('N', 'T', nao, homo, virtual, 1.0_dp, &
-                                     mo_coeff_v(ispin), fm_mo_out(ispin), 0.0_dp, fm_back)
-                  CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin), homo, 1.0_dp, .TRUE.)
-               ELSE
-                  CALL parallel_gemm('N', 'N', nao, virtual, homo, 1.0_dp, &
-                                     mo_coeff_o(ispin), mat_in, 0.0_dp, fm_back)
-                  CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), virtual, 1.0_dp, .TRUE.)
-                  ! and symmetrize (here again multiply instead of transposing)
-                  CALL parallel_gemm('N', 'T', nao, homo, virtual, 1.0_dp, &
-                                     mo_coeff_v(ispin), mat_in, 0.0_dp, fm_back)
-                  CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin), homo, 1.0_dp, .TRUE.)
-               END IF
+               ! virt-occ blocks
+               CALL parallel_gemm('N', 'N', nao, virtual, homo, 1.0_dp, &
+                                  mo_coeff_o(ispin), mat_in, 0.0_dp, fm_back)
+               CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_v(ispin), virtual, 1.0_dp, .TRUE.)
+               ! and symmetrize (here again multiply instead of transposing)
+               CALL parallel_gemm('N', 'T', nao, homo, virtual, 1.0_dp, &
+                                  mo_coeff_v(ispin), mat_in, 0.0_dp, fm_back)
+               CALL cp_dbcsr_plus_fm_fm_t(p_env%p1(ispin)%matrix, fm_back, mo_coeff_o(ispin), homo, 1.0_dp, .TRUE.)
 
             CASE DEFAULT
                ! nothing
@@ -758,23 +627,11 @@ CONTAINS
                                 row_indices=row_indices, &
                                 col_indices=col_indices)
             DO jjB = 1, ncol_local
-               j_global = col_indices(jjB) + nmo - virtual
+               j_global = col_indices(jjB)
                DO iiB = 1, nrow_local
                   i_global = row_indices(iiB)
-                  ! These factors should be positive (or at least non-negative)
-                  IF (j_global <= homo .AND. i_global > nmo - virtual) THEN
-                     IF (ABS(occupation(j_global, ispin) - occupation(i_global, ispin)) > eps_canonical) THEN
-                        fm_mo_out(ispin)%local_data(iiB, jjB) = &
-                           fm_mo(ispin)%local_data(iiB, jjB)*(Eigenval(j_global, ispin) - Eigenval(i_global, ispin))/ &
-                           (occupation(i_global, ispin) - occupation(j_global, ispin))
-                     ELSE
-                        fm_mo_out(ispin)%local_data(iiB, jjB) = fm_mo(ispin)%local_data(iiB, jjB)/ &
-                                                                occupation(i_global, ispin)*(1.0_dp - occupation(i_global, ispin))
-                     END IF
-                  ELSE
-                     fm_mo_out(ispin)%local_data(iiB, jjB) = &
-                        fm_mo(ispin)%local_data(iiB, jjB)*(Eigenval(j_global, ispin) - Eigenval(i_global, ispin))
-                  END IF
+                  fm_mo_out(ispin)%local_data(iiB, jjB) = fm_mo(ispin)%local_data(iiB, jjB)* &
+                                                          (Eigenval(j_global + homo, ispin) - Eigenval(i_global, ispin))
                END DO
             END DO
          END IF
@@ -789,137 +646,17 @@ CONTAINS
 
             ! transform to MO basis, here we always sum the result into the input matrix
 
-            IF (transf_type_in == 3) THEN
-               ! occ-virt block
-               CALL parallel_gemm('T', 'N', homo, nao, nao, 1.0_dp, &
-                                  mo_coeff_o(ispin), fm_ao, 0.0_dp, fm_back)
-               CALL parallel_gemm('N', 'N', homo, virtual, nao, 1.0_dp, &
-                                  fm_back, mo_coeff_v(ispin), 1.0_dp, mat_out)
-               IF (homo + virtual > nmo) THEN
-                  ! With partially occupied orbitals, the partial-partial block needs the opposite sign
-                  ! So, we substract it with a factor of 2
-                  CALL parallel_gemm('N', 'N', homo + virtual - nmo, homo + virtual - nmo, nao, -2.0_dp, &
-                                     fm_back, mo_coeff_v(ispin), 1.0_dp, mat_out, &
-                                     a_first_row=nmo - virtual + 1, &
-                                     c_first_row=nmo - virtual + 1)
-               END IF
-
-               CALL remove_trace(mat_out, nmo)
-            ELSE
-               ! occ-virt block
-               CALL parallel_gemm('T', 'N', homo, nao, nao, 1.0_dp, &
-                                  mo_coeff_o(ispin), fm_ao, 0.0_dp, fm_back)
-               CALL parallel_gemm('N', 'N', nmo - virtual, nmo - homo, nao, 1.0_dp, &
-                                  fm_back, mo_coeff_v(ispin), 1.0_dp, mat_out, &
-                                  b_first_col=homo + virtual - nmo + 1, &
-                                  c_first_col=homo + virtual - nmo + 1)
-               IF (homo + virtual > nmo) THEN
-                  ! partial-partial block
-                  CALL parallel_gemm('N', 'N', homo, virtual, nao, 0.5_dp, &
-                                     fm_back, mo_coeff_v(ispin), 1.0_dp, mat_out, &
-                                     a_first_row=nmo - virtual + 1, &
-                                     c_first_row=nmo - virtual + 1)
-
-                  ! scale for the orbital energy differences for the diagonal elements
-                  CALL cp_fm_get_info(matrix=fm_back, &
-                                      nrow_local=nrow_local, &
-                                      ncol_local=ncol_local, &
-                                      row_indices=row_indices, &
-                                      col_indices=col_indices)
-                  DO jjB = 1, nrow_local
-                     j_global = row_indices(jjB)
-                     IF (i_global <= nmo - homo) CYCLE
-                     fm_back%local_data(jjB, :) = fm_back%local_data(jjB, :)*occupation(j_global, ispin)
-                  END DO
-
-                  ! partial-virtual block
-                  CALL parallel_gemm('N', 'N', homo + virtual - nmo, nmo - homo, nao, 1.0_dp, &
-                                     fm_back, mo_coeff_v(ispin), 1.0_dp, mat_out, &
-                                     a_first_row=nmo - virtual + 1, &
-                                     b_first_col=homo + virtual - nmo + 1, &
-                                     c_first_row=nmo - virtual + 1, &
-                                     c_first_col=homo + virtual - nmo + 1)
-
-                  ! For the other two blocks, we need the second order kernel multiplied with the virtual orbital coefficients
-                  ! to scale them later
-                  CALL parallel_gemm('N', 'N', virtual, nao, nao, 1.0_dp, &
-                                     fm_ao, mo_coeff_v(ispin), 0.0_dp, fm_back)
-
-                  ! scale for the orbital energy differences for the diagonal elements
-                  CALL cp_fm_get_info(matrix=fm_back, &
-                                      nrow_local=nrow_local, &
-                                      ncol_local=ncol_local, &
-                                      row_indices=row_indices, &
-                                      col_indices=col_indices)
-                  DO jjB = 1, ncol_local
-                     j_global = col_indices(jjB) + nmo - virtual
-                     IF (j_global <= homo) THEN
-                        fm_back%local_data(:, jjB) = fm_back%local_data(:, jjB)*(1.0_dp - occupation(j_global, ispin))
-                     END IF
-                  END DO
-
-                  ! occupied-virtual block
-                  CALL parallel_gemm('N', 'N', homo, virtual, nao, 1.0_dp, &
-                                     mo_coeff_o(ispin), fm_back, 1.0_dp, mat_out)
-               END IF
-            END IF
+            ! occ-virt block
+            CALL parallel_gemm('T', 'N', homo, nao, nao, 1.0_dp, &
+                               mo_coeff_o(ispin), fm_ao, 0.0_dp, fm_back)
+            CALL parallel_gemm('N', 'N', homo, virtual, nao, 1.0_dp, &
+                               fm_back, mo_coeff_v(ispin), 1.0_dp, mat_out)
          END ASSOCIATE
       END DO
 
       CALL timestop(handle)
 
    END SUBROUTINE cphf_like_update
-
-! **************************************************************************************************
-!> \brief ...
-!> \param mat ...
-!> \param nmo ...
-! **************************************************************************************************
-   SUBROUTINE remove_trace(mat, nmo)
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: mat
-      INTEGER, INTENT(IN)                                :: nmo
-
-      INTEGER                                            :: homo, i_global, iiB, j_global, jjB, &
-                                                            ncol_local, nrow_local, virtual
-      INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      REAL(KIND=dp)                                      :: trace
-
-      ! Step 1: Determine the trace (Beware that indices are shifted)
-      trace = 0.0_dp
-      CALL cp_fm_get_info(matrix=mat, &
-                          nrow_local=nrow_local, &
-                          ncol_local=ncol_local, &
-                          row_indices=row_indices, &
-                          col_indices=col_indices, &
-                          nrow_global=homo, &
-                          ncol_global=virtual)
-      IF (homo + virtual > nmo) THEN
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB) + nmo - virtual
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               ! These factors should be positive (or at least non-negative)
-               IF (j_global == i_global) THEN
-                  trace = trace + mat%local_data(iiB, jjB)
-               END IF
-            END DO
-         END DO
-         CALL mat%matrix_struct%para_env%sum(trace)
-         ! Normalize with respect to global size
-         trace = trace/(homo + virtual - nmo)
-         ! Remove from the diagonal elements
-         DO jjB = 1, ncol_local
-            j_global = col_indices(jjB) + nmo - virtual
-            DO iiB = 1, nrow_local
-               i_global = row_indices(iiB)
-               ! These factors should be positive (or at least non-negative)
-               IF (j_global == i_global) THEN
-                  mat%local_data(iiB, jjB) = mat%local_data(iiB, jjB) - trace
-               END IF
-            END DO
-         END DO
-      END IF
-   END SUBROUTINE remove_trace
 
 ! **************************************************************************************************
 !> \brief Low level subroutine for the iterative solution of a large
@@ -930,7 +667,6 @@ CONTAINS
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
-!> \param occupation ...
 !> \param p_env ...
 !> \param L_jb ...
 !> \param fm_G_mu_nu ...
@@ -939,26 +675,25 @@ CONTAINS
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_eq_low(qs_env, mp2_env, unit_nr, &
-                                    mo_coeff_o, mo_coeff_v, Eigenval, occupation, &
-                                    p_env, L_jb, fm_G_mu_nu, fm_back, P_ia)
+                                    mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                    L_jb, fm_G_mu_nu, fm_back, P_ia)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_back
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: P_ia
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low'
 
-      INTEGER                                            :: handle, homo, i_global, iiB, ispin, &
-                                                            j_global, jjB, ncol_local, nmo, &
-                                                            nrow_local, nspins, virtual
+      INTEGER                                            :: handle, i_global, iiB, ispin, j_global, &
+                                                            jjB, ncol_local, nmo, nrow_local, &
+                                                            nspins, virtual
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
-      LOGICAL                                            :: do_smearing
-      REAL(KIND=dp)                                      :: eps_canonical
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: precond
 
       CALL timeset(routineN, handle)
@@ -966,15 +701,11 @@ CONTAINS
       nmo = SIZE(eigenval, 1)
       nspins = SIZE(eigenval, 2)
 
-      eps_canonical = mp2_env%eps_canonical
-
       ! Pople method
       ! change sign to L_jb
       DO ispin = 1, nspins
          L_jb(ispin)%local_data(:, :) = -L_jb(ispin)%local_data(:, :)
       END DO
-
-      do_smearing = .TRUE.
 
       ! create fm structure
       ALLOCATE (precond(nspins))
@@ -987,53 +718,28 @@ CONTAINS
                              ncol_local=ncol_local, &
                              row_indices=row_indices, &
                              col_indices=col_indices, &
-                             ncol_global=virtual, &
-                             nrow_global=homo)
-
-         do_smearing = do_smearing .OR. (homo + virtual > nmo)
-
+                             ncol_global=virtual)
          DO jjB = 1, ncol_local
-            j_global = col_indices(jjB) + nmo - virtual
+            j_global = col_indices(jjB)
             DO iiB = 1, nrow_local
                i_global = row_indices(iiB)
-               IF (j_global <= homo .AND. i_global > nmo - virtual) THEN
-                  IF (ABS(occupation(j_global, ispin) - occupation(i_global, ispin)) > eps_canonical) THEN
-                     precond(ispin)%local_data(iiB, jjB) = &
-                        (occupation(i_global, ispin) - occupation(j_global, ispin))/ &
-                        (Eigenval(j_global, ispin) - Eigenval(i_global, ispin))
-
-                  ELSE
-                     precond(ispin)%local_data(iiB, jjB) = (occupation(i_global, ispin)*(1.0_dp - occupation(i_global, ispin)))
-                  END IF
-               ELSE
-                  precond(ispin)%local_data(iiB, jjB) = 1.0_dp/(Eigenval(j_global, ispin) - Eigenval(i_global, ispin))
-               END IF
+               precond(ispin)%local_data(iiB, jjB) = 1.0_dp/(Eigenval(j_global + nmo - virtual, ispin) - Eigenval(i_global, ispin))
             END DO
          END DO
-         CPASSERT(ALL(precond(ispin)%local_data > 0.0_dp))
       END DO
 
-      IF (do_smearing) THEN
-         IF (.FALSE.) CALL solve_z_vector_minres(qs_env, mp2_env, unit_nr, &
-                                                 mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
-                                                 L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
-         CALL solve_z_vector_cr(qs_env, mp2_env, unit_nr, &
-                                mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
-                                L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
-      ELSE
-         SELECT CASE (mp2_env%ri_grad%z_solver_method)
-         CASE (z_solver_pople)
-            CALL solve_z_vector_pople(qs_env, mp2_env, unit_nr, &
-                                      mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
-                                      L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
-         CASE (z_solver_cg, z_solver_richardson, z_solver_sd)
-            CALL solve_z_vector_cg(qs_env, mp2_env, unit_nr, &
-                                   mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+      SELECT CASE (mp2_env%ri_grad%z_solver_method)
+      CASE (z_solver_pople)
+         CALL solve_z_vector_pople(qs_env, mp2_env, unit_nr, &
+                                   mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                    L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
-         CASE DEFAULT
-            CPABORT("Unknown solver")
-         END SELECT
-      END IF
+      CASE (z_solver_cg, z_solver_richardson, z_solver_sd)
+         CALL solve_z_vector_cg(qs_env, mp2_env, unit_nr, &
+                                mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
+                                L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
+      CASE DEFAULT
+         CPABORT("Unknown solver")
+      END SELECT
 
       CALL cp_fm_release(precond)
 
@@ -1049,448 +755,6 @@ CONTAINS
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
-!> \param occupation ...
-!> \param p_env ...
-!> \param L_jb ...
-!> \param fm_G_mu_nu ...
-!> \param fm_back ...
-!> \param P_ia ...
-!> \param precond ...
-! **************************************************************************************************
-   SUBROUTINE solve_z_vector_minres(qs_env, mp2_env, unit_nr, &
-                                    mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
-                                    L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
-      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
-      INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia, precond
-
-      CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_minres'
-
-      INTEGER                                            :: handle, iiter, ispin, max_num_iter, nmo, &
-                                                            nspins, restart_every, transf_type_in
-      LOGICAL                                            :: converged
-      REAL(KIND=dp)                                      :: alpha_k1, beta_k1, beta_k2, conv, &
-                                                            eps_conv, t1, t2
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: p_k, p_k1, p_k2, precond_s_k1, &
-                                                            precond_s_k2, r_k, s_k, s_k1, s_k2
-
-      CALL timeset(routineN, handle)
-
-      nmo = SIZE(eigenval, 1)
-      nspins = SIZE(eigenval, 2)
-
-      eps_conv = mp2_env%ri_grad%cphf_eps_conv
-
-      IF (accurate_dot_product_spin(L_jb, L_jb) >= (eps_conv*eps_conv)) THEN
-
-         max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
-         restart_every = 1! mp2_env%ri_grad%cphf_restart
-
-         ! set the transformation type (equal for all methods all updates)
-         transf_type_in = 3
-
-         ! set convergence flag
-         converged = .FALSE.
-
-         ALLOCATE (r_k(nspins), s_k(nspins), s_k1(nspins), s_k2(nspins), &
-                   p_k(nspins), p_k1(nspins), p_k2(nspins), &
-                   precond_s_k1(nspins), precond_s_k2(nspins))
-         DO ispin = 1, nspins
-            ! Residual vector
-            CALL cp_fm_create(r_k(ispin), P_ia(ispin)%matrix_struct, name="r_k")
-            CALL cp_fm_set_all(r_k(ispin), 0.0_dp)
-
-            ! columns of the basis in Krylov space/descent direction
-            CALL cp_fm_create(p_k(ispin), P_ia(ispin)%matrix_struct, name="p_k")
-            CALL cp_fm_set_all(p_k(ispin), 0.0_dp)
-            CALL cp_fm_create(p_k1(ispin), P_ia(ispin)%matrix_struct, name="p_k1")
-            CALL cp_fm_set_all(p_k1(ispin), 0.0_dp)
-            CALL cp_fm_create(p_k2(ispin), P_ia(ispin)%matrix_struct, name="p_k2")
-            CALL cp_fm_set_all(p_k2(ispin), 0.0_dp)
-
-            ! image vectors
-            CALL cp_fm_create(s_k(ispin), P_ia(ispin)%matrix_struct, name="s_k")
-            CALL cp_fm_set_all(s_k(ispin), 0.0_dp)
-            CALL cp_fm_create(s_k1(ispin), P_ia(ispin)%matrix_struct, name="s_k1")
-            CALL cp_fm_set_all(s_k1(ispin), 0.0_dp)
-            CALL cp_fm_create(s_k2(ispin), P_ia(ispin)%matrix_struct, name="s_k2")
-            CALL cp_fm_set_all(s_k2(ispin), 0.0_dp)
-
-            ! Preconditioner applied to s_k (for the history)
-            CALL cp_fm_create(precond_s_k1(ispin), P_ia(ispin)%matrix_struct, name="precond_s_k1")
-            CALL cp_fm_set_all(precond_s_k1(ispin), 0.0_dp)
-            CALL cp_fm_create(precond_s_k2(ispin), P_ia(ispin)%matrix_struct, name="precond_s_k2")
-            CALL cp_fm_set_all(precond_s_k2(ispin), 0.0_dp)
-         END DO
-
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, *)
-            WRITE (unit_nr, '(T3,A)') "MP2_CPHF| Iterative solution of Z-Vector equations (Minimal Residual method)"
-            WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Convergence threshold:', eps_conv
-            WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Maximum number of iterations: ', max_num_iter
-            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
-            WRITE (unit_nr, '(T4,A,T15,A,T33,A)') 'Step', 'Time', 'Convergence'
-            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
-         END IF
-
-         DO iiter = 1, max_num_iter
-
-            t1 = m_walltime()
-
-            ! Check whether we need to (re-)setup the arrays
-            IF (MOD(iiter - 1, restart_every) == 0) THEN
-               DO ispin = 1, nspins
-                  CALL cp_fm_set_all(r_k(ispin), 0.0_dp)
-                  CALL cp_fm_set_all(p_k(ispin), 0.0_dp)
-                  CALL cp_fm_set_all(p_k1(ispin), 0.0_dp)
-                  CALL cp_fm_set_all(p_k2(ispin), 0.0_dp)
-                  CALL cp_fm_set_all(s_k(ispin), 0.0_dp)
-                  CALL cp_fm_set_all(s_k1(ispin), 0.0_dp)
-                  CALL cp_fm_set_all(s_k2(ispin), 0.0_dp)
-                  CALL cp_fm_set_all(precond_s_k1(ispin), 0.0_dp)
-                  CALL cp_fm_set_all(precond_s_k2(ispin), 0.0_dp)
-               END DO
-
-               IF (iiter > 1) THEN
-                  ! If we need to restart, re-apply the second order kernel to the density matrix
-                  CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                        mo_coeff_v, Eigenval, occupation, p_env, &
-                                        P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
-                                        r_k)
-
-                  ! Calculate the residual
-                  DO ispin = 1, nspins
-                     CALL cp_fm_scale_and_add(-1.0_dp, r_k(ispin), 1.0_dp, L_jb(ispin))
-                  END DO
-                  WRITE (*, *) "CHECK CONV", SQRT(accurate_dot_product_spin(r_k, r_k))
-               ELSE
-                  ! If it is the first iteration, just copy the Lagrangian
-                  DO ispin = 1, nspins
-                     CALL cp_fm_to_fm(L_jb(ispin), r_k(ispin))
-                  END DO
-               END IF
-
-               ! The search direction is obtained by applying the preconditioner to the residual
-               DO ispin = 1, nspins
-                  p_k1(ispin)%local_data(:, :) = precond(ispin)%local_data(:, :)*r_k(ispin)%local_data(:, :)
-               END DO
-
-               ! Apply the second order kernel once
-               CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                     mo_coeff_v, Eigenval, occupation, p_env, &
-                                     p_k1, fm_G_mu_nu, fm_back, transf_type_in, &
-                                     s_k1)
-            END IF
-
-            ! Calculate the next search direction
-            DO ispin = 1, nspins
-               p_k(ispin)%local_data = s_k1(ispin)%local_data*precond(ispin)%local_data
-               CALL cp_fm_to_fm(p_k(ispin), precond_s_k1(ispin))
-            END DO
-
-            CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                  mo_coeff_v, Eigenval, occupation, p_env, &
-                                  p_k, fm_G_mu_nu, fm_back, transf_type_in, &
-                                  s_k)
-
-            ! Update the density matrix and the residual
-            alpha_k1 = accurate_dot_product_spin(r_k, p_k)/accurate_dot_product_spin(s_k1, p_k)
-            DO ispin = 1, nspins
-               P_ia(ispin)%local_data = P_ia(ispin)%local_data + alpha_k1*p_k1(ispin)%local_data/precond(ispin)%local_data
-               CALL cp_fm_scale_and_add(1.0_dp, r_k(ispin), -alpha_k1, s_k1(ispin))
-            END DO
-
-            ! Orthogonalize the search directions
-            beta_k1 = accurate_dot_product_spin(s_k, p_k)/accurate_dot_product_spin(s_k1, p_k)
-            DO ispin = 1, nspins
-               CALL cp_fm_scale_and_add(1.0_dp, p_k(ispin), -beta_k1, p_k1(ispin))
-               CALL cp_fm_scale_and_add(1.0_dp, s_k(ispin), -beta_k1, s_k1(ispin))
-            END DO
-            IF (MOD(iiter - 1, restart_every) > 0) THEN
-               beta_k2 = accurate_dot_product_spin(r_k, p_k1)/accurate_dot_product_spin(s_k2, precond_s_k2)
-               DO ispin = 1, nspins
-                  CALL cp_fm_scale_and_add(1.0_dp, p_k(ispin), -beta_k2, p_k2(ispin))
-                  CALL cp_fm_scale_and_add(1.0_dp, s_k(ispin), -beta_k2, s_k2(ispin))
-               END DO
-            END IF
-
-            ! Push them back
-            DO ispin = 1, nspins
-               CALL cp_fm_to_fm(p_k1(ispin), p_k2(ispin))
-               CALL cp_fm_to_fm(p_k(ispin), p_k1(ispin))
-               CALL cp_fm_to_fm(s_k1(ispin), s_k2(ispin))
-               CALL cp_fm_to_fm(s_k(ispin), s_k1(ispin))
-               CALL cp_fm_to_fm(precond_s_k1(ispin), precond_s_k2(ispin))
-            END DO
-
-            t2 = m_walltime()
-
-            conv = SQRT(accurate_dot_product_spin(r_k, r_k))
-
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, '(T3,I5,T13,F6.1,11X,F14.8)') iiter, t2 - t1, conv
-               CALL m_flush(unit_nr)
-            END IF
-            IF (conv < eps_conv) THEN
-               converged = .TRUE.
-               EXIT
-            END IF
-         END DO
-
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
-            IF (converged) THEN
-               WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations converged in', iiter - 1, ' steps'
-            ELSE
-               WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations NOT converged in', iiter - 1, ' steps'
-            END IF
-         END IF
-
-         CALL cp_fm_release(r_k)
-         CALL cp_fm_release(p_k)
-         CALL cp_fm_release(p_k1)
-         CALL cp_fm_release(p_k2)
-         CALL cp_fm_release(s_k)
-         CALL cp_fm_release(s_k1)
-         CALL cp_fm_release(s_k2)
-         CALL cp_fm_release(precond_s_k1)
-         CALL cp_fm_release(precond_s_k2)
-
-      ELSE
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
-            WRITE (unit_nr, '(T3,A)') 'Residual smaller than EPS_CONV. Skip solution of Z-vector equation.'
-         END IF
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE solve_z_vector_minres
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param mp2_env ...
-!> \param unit_nr ...
-!> \param mo_coeff_o ...
-!> \param mo_coeff_v ...
-!> \param Eigenval ...
-!> \param occupation ...
-!> \param p_env ...
-!> \param L_jb ...
-!> \param fm_G_mu_nu ...
-!> \param fm_back ...
-!> \param P_ia ...
-!> \param precond ...
-! **************************************************************************************************
-   SUBROUTINE solve_z_vector_cr(qs_env, mp2_env, unit_nr, &
-                                mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
-                                L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
-      TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
-      TYPE(mp2_type), INTENT(IN)                         :: mp2_env
-      INTEGER, INTENT(IN)                                :: unit_nr
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
-      TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia, precond
-
-      CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_cr'
-
-      INTEGER                                            :: handle, iiter, ispin, max_num_iter, nmo, &
-                                                            nspins, restart_every, transf_type_in
-      LOGICAL                                            :: converged
-      REAL(KIND=dp)                                      :: alpha_k, beta_k, conv, eps_conv, &
-                                                            rk_A_rk, rk_A_rk_new, t1, t2
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: Ap_k, Ar_k, p_k, precond_Ap_k, r_k
-
-      CALL timeset(routineN, handle)
-
-      nmo = SIZE(eigenval, 1)
-      nspins = SIZE(eigenval, 2)
-
-      eps_conv = mp2_env%ri_grad%cphf_eps_conv
-
-      IF (accurate_dot_product_spin(L_jb, L_jb) >= (eps_conv*eps_conv)) THEN
-
-         max_num_iter = mp2_env%ri_grad%cphf_max_num_iter
-         restart_every = 1!mp2_env%ri_grad%cphf_restart
-
-         ! set the transformation type (equal for all methods all updates)
-         transf_type_in = 3
-
-         ! set convergence flag
-         converged = .FALSE.
-
-         ALLOCATE (r_k(nspins), Ar_k(nspins), p_k(nspins), Ap_k(nspins), precond_Ap_k(nspins))
-         DO ispin = 1, nspins
-            ! Residual vector
-            CALL cp_fm_create(r_k(ispin), P_ia(ispin)%matrix_struct, name="r_k")
-            CALL cp_fm_set_all(r_k(ispin), 0.0_dp)
-
-            ! image of p_k
-            CALL cp_fm_create(Ar_k(ispin), P_ia(ispin)%matrix_struct, name="Ar_k")
-            CALL cp_fm_set_all(Ar_k(ispin), 0.0_dp)
-
-            ! columns of the basis in Krylov space/descent direction
-            CALL cp_fm_create(p_k(ispin), P_ia(ispin)%matrix_struct, name="p_k")
-            CALL cp_fm_set_all(p_k(ispin), 0.0_dp)
-
-            ! image of p_k
-            CALL cp_fm_create(Ap_k(ispin), P_ia(ispin)%matrix_struct, name="Ap_k")
-            CALL cp_fm_set_all(Ap_k(ispin), 0.0_dp)
-
-            ! preconditioner applied to p_k
-            CALL cp_fm_create(precond_Ap_k(ispin), P_ia(ispin)%matrix_struct, name="precond_Ap_k")
-            CALL cp_fm_set_all(precond_Ap_k(ispin), 0.0_dp)
-         END DO
-
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, *)
-            WRITE (unit_nr, '(T3,A)') "MP2_CPHF| Iterative solution of Z-Vector equations (Conjugate Residual method)"
-            WRITE (unit_nr, '(T3,A,T45,ES8.1)') 'MP2_CPHF| Convergence threshold:', eps_conv
-            WRITE (unit_nr, '(T3,A,T45,I8)') 'MP2_CPHF| Maximum number of iterations: ', max_num_iter
-            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
-            WRITE (unit_nr, '(T4,A,T15,A,T33,A)') 'Step', 'Time', 'Convergence'
-            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
-         END IF
-
-         DO iiter = 1, max_num_iter
-
-            t1 = m_walltime()
-
-            ! Check whether we need to (re-)setup the arrays
-            IF (MOD(iiter - 1, restart_every) == 0) THEN
-               DO ispin = 1, nspins
-                  CALL cp_fm_set_all(r_k(ispin), 0.0_dp)
-                  CALL cp_fm_set_all(Ar_k(ispin), 0.0_dp)
-                  CALL cp_fm_set_all(p_k(ispin), 0.0_dp)
-                  CALL cp_fm_set_all(Ap_k(ispin), 0.0_dp)
-                  CALL cp_fm_set_all(precond_Ap_k(ispin), 0.0_dp)
-               END DO
-
-               IF (iiter > 1) THEN
-                  ! If we need to restart, re-apply the second order kernel to the density matrix
-                  CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                        mo_coeff_v, Eigenval, occupation, p_env, &
-                                        P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
-                                        r_k)
-
-                  ! Calculate the residual
-                  DO ispin = 1, nspins
-                     CALL cp_fm_scale_and_add(-1.0_dp, r_k(ispin), 1.0_dp, L_jb(ispin))
-                  END DO
-                  WRITE (*, *) "CHECK CONV", SQRT(accurate_dot_product_spin(r_k, r_k))
-               ELSE
-                  ! If it is the first iteration, just copy the Lagrangian
-                  DO ispin = 1, nspins
-                     CALL cp_fm_to_fm(L_jb(ispin), r_k(ispin))
-                  END DO
-               END IF
-
-               ! The search direction is obtained by applying the preconditioner to the residual
-               DO ispin = 1, nspins
-                  r_k(ispin)%local_data = r_k(ispin)%local_data*precond(ispin)%local_data
-               END DO
-
-               CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                     mo_coeff_v, Eigenval, occupation, p_env, &
-                                     r_k, fm_G_mu_nu, fm_back, transf_type_in, &
-                                     Ar_k)
-
-               rk_A_rk = accurate_dot_product_spin(r_k, Ar_k)
-               DO ispin = 1, nspins
-                  CALL cp_fm_to_fm(r_k(ispin), p_k(ispin))
-                  CALL cp_fm_to_fm(Ar_k(ispin), Ap_k(ispin))
-               END DO
-            END IF
-
-            DO ispin = 1, nspins
-               precond_Ap_k(ispin)%local_data = Ap_k(ispin)%local_data*precond(ispin)%local_data
-            END DO
-
-            ! Update the density matrix and the residual
-            alpha_k = rk_A_rk/accurate_dot_product_spin(Ap_k, precond_Ap_k)
-            DO ispin = 1, nspins
-               CALL cp_fm_scale_and_add(1.0_dp, P_ia(ispin), alpha_k, p_k(ispin))
-               CALL cp_fm_scale_and_add(1.0_dp, r_k(ispin), -alpha_k, precond_Ap_k(ispin))
-            END DO
-
-            CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                  mo_coeff_v, Eigenval, occupation, p_env, &
-                                  r_k, fm_G_mu_nu, fm_back, transf_type_in, &
-                                  Ar_k)
-
-            rk_A_rk_new = accurate_dot_product_spin(r_k, Ar_k)
-
-            ! Orthogonalize the search directions
-            beta_k = rk_A_rk_new/rk_A_rk
-            DO ispin = 1, nspins
-               CALL cp_fm_scale_and_add(beta_k, p_k(ispin), 1.0_dp, r_k(ispin))
-               CALL cp_fm_scale_and_add(beta_k, Ap_k(ispin), 1.0_dp, Ar_k(ispin))
-            END DO
-
-            ! Push them back
-            DO ispin = 1, nspins
-               rk_A_rk = rk_A_rk_new
-            END DO
-
-            conv = SQRT(accurate_dot_product_spin(r_k, r_k))
-
-            t2 = m_walltime()
-
-            IF (unit_nr > 0) THEN
-               WRITE (unit_nr, '(T3,I5,T13,F6.1,11X,F14.8)') iiter, t2 - t1, conv
-               CALL m_flush(unit_nr)
-            END IF
-            IF (conv < eps_conv) THEN
-               converged = .TRUE.
-               EXIT
-            END IF
-         END DO
-
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
-            IF (converged) THEN
-               WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations converged in', iiter - 1, ' steps'
-            ELSE
-               WRITE (unit_nr, '(T3,A,I5,A)') 'Z-Vector equations NOT converged in', iiter - 1, ' steps'
-            END IF
-         END IF
-
-         CALL cp_fm_release(r_k)
-         CALL cp_fm_release(Ar_k)
-         CALL cp_fm_release(p_k)
-         CALL cp_fm_release(Ap_k)
-         CALL cp_fm_release(precond_Ap_k)
-
-      ELSE
-         IF (unit_nr > 0) THEN
-            WRITE (unit_nr, '(T4,A)') REPEAT("-", 40)
-            WRITE (unit_nr, '(T3,A)') 'Residual smaller than EPS_CONV. Skip solution of Z-vector equation.'
-         END IF
-      END IF
-
-      CALL timestop(handle)
-
-   END SUBROUTINE solve_z_vector_cr
-
-! **************************************************************************************************
-!> \brief ...
-!> \param qs_env ...
-!> \param mp2_env ...
-!> \param unit_nr ...
-!> \param mo_coeff_o ...
-!> \param mo_coeff_v ...
-!> \param Eigenval ...
-!> \param occupation ...
 !> \param p_env ...
 !> \param L_jb ...
 !> \param fm_G_mu_nu ...
@@ -1499,22 +763,23 @@ CONTAINS
 !> \param precond ...
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_pople(qs_env, mp2_env, unit_nr, &
-                                   mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+                                   mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                    L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia, precond
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_back
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: P_ia, precond
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_pople'
 
       INTEGER                                            :: cycle_counter, handle, iiB, iiter, &
-                                                            ispin, max_num_iter, nmo, nspins, &
+                                                            ispin, max_num_iter, nspins, &
                                                             transf_type_in
       LOGICAL                                            :: converged
       REAL(KIND=dp)                                      :: conv, eps_conv, scale_cphf, t1, t2
@@ -1527,7 +792,6 @@ CONTAINS
 
       CALL timeset(routineN, handle)
 
-      nmo = SIZE(eigenval, 1)
       nspins = SIZE(eigenval, 2)
 
       eps_conv = mp2_env%ri_grad%cphf_eps_conv
@@ -1550,6 +814,7 @@ CONTAINS
             CALL cp_fm_create(b_i(ispin), fm_struct_tmp(ispin)%struct, name="b_i")
             CALL cp_fm_set_all(b_i(ispin), 0.0_dp)
             b_i(ispin)%local_data(:, :) = precond(ispin)%local_data(:, :)*L_jb(ispin)%local_data(:, :)
+
             ! create the residual vector (r), we check convergence on the norm of
             ! this vector r=(Ax-b)
             CALL cp_fm_create(residual(ispin), fm_struct_tmp(ispin)%struct, name="residual")
@@ -1613,7 +878,7 @@ CONTAINS
             END DO
 
             CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                  mo_coeff_v, Eigenval, occupation, p_env, &
+                                  mo_coeff_v, Eigenval, p_env, &
                                   xn(:, iiter), fm_G_mu_nu, fm_back, transf_type_in, &
                                   Ax(:, iiter))
 
@@ -1736,7 +1001,6 @@ CONTAINS
 !> \param mo_coeff_o ...
 !> \param mo_coeff_v ...
 !> \param Eigenval ...
-!> \param occupation ...
 !> \param p_env ...
 !> \param L_jb ...
 !> \param fm_G_mu_nu ...
@@ -1745,21 +1009,22 @@ CONTAINS
 !> \param precond ...
 ! **************************************************************************************************
    SUBROUTINE solve_z_vector_cg(qs_env, mp2_env, unit_nr, &
-                                mo_coeff_o, mo_coeff_v, Eigenval, occupation, p_env, &
+                                mo_coeff_o, mo_coeff_v, Eigenval, p_env, &
                                 L_jb, fm_G_mu_nu, fm_back, P_ia, precond)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(mp2_type), INTENT(IN)                         :: mp2_env
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
-      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval, occupation
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia, precond
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_back
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: P_ia, precond
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_cg'
 
-      INTEGER :: cycles_passed, handle, iiter, ispin, max_num_iter, nmo, nspins, restart_counter, &
+      INTEGER :: cycles_passed, handle, iiter, ispin, max_num_iter, nspins, restart_counter, &
          restart_every, transf_type_in, z_solver_method
       LOGICAL                                            :: converged, do_restart
       REAL(KIND=dp) :: eps_conv, norm_residual, norm_residual_old, &
@@ -1779,7 +1044,6 @@ CONTAINS
       restart_every = mp2_env%ri_grad%cphf_restart
       scale_step_size = mp2_env%ri_grad%scale_step_size
       transf_type_in = 3
-      nmo = SIZE(eigenval, 1)
       nspins = SIZE(eigenval, 2)
 
       IF (unit_nr > 0) THEN
@@ -1842,7 +1106,7 @@ CONTAINS
             IF (.NOT. mp2_env%ri_grad%recalc_residual .OR. (iiter == 1)) THEN
                IF (iiter > 1) THEN
                   CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                        mo_coeff_v, Eigenval, occupation, p_env, &
+                                        mo_coeff_v, Eigenval, p_env, &
                                         P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
                                         residual)
                ELSE
@@ -1873,7 +1137,7 @@ CONTAINS
          residual_dot_diff_search_vec_old = accurate_dot_product_spin(residual, diff_search_vector)
 
          CALL cphf_like_update(qs_env, mo_coeff_o, &
-                               mo_coeff_v, Eigenval, occupation, p_env, &
+                               mo_coeff_v, Eigenval, p_env, &
                                search_vector, fm_G_mu_nu, fm_back, transf_type_in, &
                                A_dot_search_vector)
 
@@ -1908,7 +1172,7 @@ CONTAINS
             END DO
          ELSE
             CALL cphf_like_update(qs_env, mo_coeff_o, &
-                                  mo_coeff_v, Eigenval, occupation, p_env, &
+                                  mo_coeff_v, Eigenval, p_env, &
                                   P_ia, fm_G_mu_nu, fm_back, transf_type_in, &
                                   residual)
 
