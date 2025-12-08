@@ -1,3 +1,0 @@
-"RPA_smearing_H2O.inp"                      = [{matcher="M011", tol=1e-06, ref=-17.08407764767353}]
-"RPA_smearing_CH3.inp"                      = [{matcher="M011", tol=1e-06, ref=-7.231004780921329}]
-#EOF
