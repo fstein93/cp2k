@@ -289,7 +289,7 @@ CONTAINS
             CPABORT("Smearing only available with RPA calculations")
          IF (mp2_env%ri_rpa%do_ri_g0w0) &
             CPABORT("Smearing not available with GW calculations")
-            IF (calc_forces) &
+         IF (calc_forces) &
             CPABORT("Gradients with smearing are not implemented")
       END IF
 

@@ -793,8 +793,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: homo, virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), OPTIONAL  :: occupation_numbers
-      REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_canonical, temperature
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: occupation_numbers
+      REAL(KIND=dp), INTENT(IN)                          :: eps_canonical, temperature
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'calc_fm_mat_S_rpa'
 
@@ -825,12 +825,7 @@ CONTAINS
             iocc = MAX(1, i_global - 1)/virtual + 1
             avirt = i_global - (iocc - 1)*virtual + nmo - virtual
             eigen_diff = Eigenval(avirt) - Eigenval(iocc)
-            IF (PRESENT(occupation_numbers) .AND. PRESENT(temperature)) THEN
-               occ_diff = occupation_numbers(avirt) - occupation_numbers(iocc)
-               WRITE (*, *) "occ_diff", avirt, iocc, occ_diff
-            ELSE
-               occ_diff = 1.0_dp
-            END IF
+            occ_diff = occupation_numbers(avirt) - occupation_numbers(iocc)
 
             ! Ensure that all energy differences are nonnegative
             IF (ABS(eigen_diff) > eps_canonical) THEN

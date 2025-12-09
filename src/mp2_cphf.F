@@ -28,9 +28,7 @@ MODULE mp2_cphf
                                               cp_dbcsr_plus_fm_fm_t,&
                                               dbcsr_allocate_matrix_set,&
                                               dbcsr_deallocate_matrix_set
-   USE cp_fm_basic_linalg,              ONLY: cp_fm_geadd,&
-                                              cp_fm_scale_and_add,&
-                                              cp_fm_uplo_to_full
+   USE cp_fm_basic_linalg,              ONLY: cp_fm_uplo_to_full
    USE cp_fm_struct,                    ONLY: cp_fm_struct_create,&
                                               cp_fm_struct_p_type,&
                                               cp_fm_struct_release,&
@@ -39,7 +37,6 @@ MODULE mp2_cphf
                                               cp_fm_get_info,&
                                               cp_fm_release,&
                                               cp_fm_set_all,&
-                                              cp_fm_to_fm,&
                                               cp_fm_to_fm_submat,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
@@ -149,9 +146,7 @@ CONTAINS
 !> \param dft_control ...
 !> \param mo_coeff ...
 !> \param homo ...
-!> \param virtual ...
 !> \param Eigenval ...
-!> \param occupation ...
 !> \param unit_nr ...
 !> \author Mauro Del Ben, Vladimir Rybkin
 ! **************************************************************************************************
