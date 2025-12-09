@@ -35,10 +35,11 @@
       &XC_FUNCTIONAL PBE
       &END XC_FUNCTIONAL
       &WF_CORRELATION
+        # For testing only
+        EPS_CANONICAL 0.1
         MEMORY 500.0
         NUMBER_PROC 1
         &CANONICAL_GRADIENTS
-          EPS_CANONICAL 0.1
           FREE_HFX_BUFFER .TRUE.
         &END CANONICAL_GRADIENTS
         &INTEGRALS

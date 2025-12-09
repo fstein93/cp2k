@@ -51,12 +51,10 @@
         &END SCREENING
       &END HF
       &WF_CORRELATION
+        # Just for testing, use it only if you need the accuracy
+        EPS_CANONICAL 0.1
         MEMORY 200.
         NUMBER_PROC 1
-        &CANONICAL_GRADIENTS
-          # Just for testing, use it only if you need the accuracy
-          EPS_CANONICAL 0.1
-        &END CANONICAL_GRADIENTS
         &INTEGRALS
           ERI_METHOD GPW
           &WFC_GPW

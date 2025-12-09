@@ -31,10 +31,11 @@
     &END SCF
     &XC
       &WF_CORRELATION
+        # Just for testing
+        EPS_CANONICAL 0.1
         MEMORY 500.0
         NUMBER_PROC 1
         &CANONICAL_GRADIENTS
-          EPS_CANONICAL 0.1
           FREE_HFX_BUFFER .TRUE.
         &END CANONICAL_GRADIENTS
         &INTEGRALS

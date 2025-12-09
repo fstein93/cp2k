@@ -30,9 +30,9 @@
     &END SCF
     &XC
       &WF_CORRELATION
+        EPS_CANONICAL 0.0001
         MEMORY 1.00
         NUMBER_PROC 1
-          EPS_CANONICAL 0.0001
         &CANONICAL_GRADIENTS
           FREE_HFX_BUFFER .TRUE.
           &CPHF
