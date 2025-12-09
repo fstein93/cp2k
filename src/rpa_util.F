@@ -750,20 +750,21 @@ CONTAINS
 
          iocc = MAX(1, i_global - 1)/virtual + 1
          avirt = i_global - (iocc - 1)*virtual + nmo - virtual
-         eigen_diff = ABS(Eigenval_last(avirt) - Eigenval_last(iocc))
-         occ_diff = ABS(occupation(avirt) - occupation(iocc))
+         eigen_diff = Eigenval_last(avirt) - Eigenval_last(iocc)
+         occ_diff = occupation(avirt) - occupation(iocc)
 
          IF (ABS(eigen_diff) > eps_canonical) THEN
             IF (iocc <= nmo - virtual .OR. avirt > homo) THEN
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
-                                             SQRT(eigen_diff*occ_diff/(eigen_diff**2 + omega_old**2))
+                                             SQRT(ABS(eigen_diff*occ_diff)/(eigen_diff**2 + omega_old**2))
             ELSE
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
-                                             SQRT(eigen_diff*occ_diff/(eigen_diff**2 + omega_old**2)/2.0_dp)
+                                             SQRT(ABS(eigen_diff*occ_diff)/(eigen_diff**2 + omega_old**2)/2.0_dp)
             END IF
          ELSE IF (omega_old <= 0.0_dp) THEN
             fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)/ &
-                                          SQRT(occupation(iocc)*(1.0_dp - occupation(iocc))/temperature/2.0_dp)
+                                          SQRT(0.5_dp*occupation(iocc)*(1.0_dp - occupation(iocc))/ &
+                                               temperature*(1.0_dp - (1.0_dp - 2.0_dp*occupation(iocc))*eigen_diff/temperature))
          ELSE
             fm_mat_S%local_data(:, iiB) = 0.0_dp
          END IF
@@ -827,21 +828,25 @@ CONTAINS
             eigen_diff = Eigenval(avirt) - Eigenval(iocc)
             occ_diff = occupation_numbers(avirt) - occupation_numbers(iocc)
 
-            ! Ensure that all energy differences are nonnegative
+            ! If the energy difference is large enough, use the direct equation
             IF (ABS(eigen_diff) > eps_canonical) THEN
                IF (avirt > homo .OR. iocc <= nmo - virtual) THEN
                   fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                                 SQRT(ABS(eigen_diff*occ_diff)/(eigen_diff**2 + omega**2))
                ELSE
-                  ! These terms need to be reduced by two to prevent double-counting
+                  ! These terms need to be reduced by two to prevent double-counting (we have them twice)
                   fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
                                                 SQRT(ABS(eigen_diff*occ_diff)/(eigen_diff**2 + omega**2)/2.0_dp)
                END IF
             ELSE IF (omega <= 0.0_dp) THEN
-               ! Diagonal elements need a factor of two to prevent double-counting
+               ! Otherwise, use the first three terms of the Taylor expansion exploiting
+               ! df/de = -f*(1-f)/T
+               ! d2f/de2 = f*(1-f)*(1-2*f)/T**2
+               ! delta f/delta e = f*(1-f)/T*(1-(1-2*f)*delta e/T)
+               ! Diagonal elements need a factor of two to prevent double-counting (only with partially occupied orbitals)
                fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
-                                             SQRT(occupation_numbers(iocc)*(1.0_dp - occupation_numbers(iocc))/ &
-                                                  temperature/2.0_dp)
+                                             SQRT(0.5_dp*occupation_numbers(iocc)*(1.0_dp - occupation_numbers(iocc))/ &
+                                           temperature*(1.0_dp - (1.0_dp - 2.0_dp*occupation_numbers(iocc))*eigen_diff/temperature))
             ELSE
                fm_mat_S%local_data(:, iiB) = 0.0_dp
             END IF
@@ -859,13 +864,8 @@ CONTAINS
             avirt = i_global - (iocc - 1)*virtual
             eigen_diff = Eigenval(avirt + nmo - virtual) - Eigenval(iocc)
 
-            IF (ABS(eigen_diff) > eps_canonical) THEN
-               fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
-                                             SQRT((eigen_diff**2 + omega_old**2)/(eigen_diff**2 + omega**2))
-            ELSE
-               WRITE (*, *) "Set elements to zero", avirt + nmo - virtual, iocc
-               fm_mat_S%local_data(:, iiB) = 0.0_dp
-            END IF
+            fm_mat_S%local_data(:, iiB) = fm_mat_S%local_data(:, iiB)* &
+                                          SQRT((eigen_diff**2 + omega_old**2)/(eigen_diff**2 + omega**2))
 
          END DO
       END IF
