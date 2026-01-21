@@ -328,6 +328,8 @@ CONTAINS
                CALL dbcsr_add(ls_scf_env%matrix_p(ispin), ls_scf_env%scf_history%matrix(ispin, istore), 1.0_dp, alpha)
             END DO
          END DO
+      CASE (mala_guess)
+         CPABORT("NIY")
       END SELECT
 
       ! which cases need getting purified and non-orthogonal ?
