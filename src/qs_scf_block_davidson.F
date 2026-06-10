@@ -948,7 +948,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE reduce_extended_space(s_block, h_block, v_block, w_block, evals, ndim)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: s_block, h_block, v_block, w_block
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: s_block, h_block, v_block, w_block
       REAL(dp), DIMENSION(:)                             :: evals
       INTEGER                                            :: ndim
 

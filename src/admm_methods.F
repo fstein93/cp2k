@@ -829,7 +829,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff, mo_coeff_aux_fit
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_derivs, mo_derivs_aux_fit
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: mo_derivs, mo_derivs_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'admm_mo_merge_derivs'
@@ -1563,7 +1563,7 @@ CONTAINS
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff, mo_coeff_aux_fit
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_derivs, mo_derivs_aux_fit
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: mo_derivs, mo_derivs_aux_fit
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_diag'
@@ -2645,7 +2645,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_derivs
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: mo_derivs
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_ks_aux_fit
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'merge_mo_derivs_no_diag'

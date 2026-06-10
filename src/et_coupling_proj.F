@@ -453,8 +453,7 @@ CONTAINS
 
       ! Routine arguments
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: mat_t, mat_i
-      TYPE(cp_fm_type), INTENT(IN)                       :: mat_w
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: mat_t, mat_i, mat_w
 
       INTEGER                                            :: n_deps
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: mat_s
@@ -501,7 +500,7 @@ CONTAINS
       TYPE(cp_fm_struct_type), POINTER                   :: fm_s
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(OUT)                                     :: mat_t
-      TYPE(cp_fm_type), INTENT(IN)                       :: mat_w
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: mat_w
       INTEGER                                            :: n_ao, n_spins
 
       INTEGER                                            :: i
@@ -1487,8 +1486,6 @@ CONTAINS
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
       TYPE(scf_control_type), POINTER                    :: scf_control
       TYPE(section_vals_type), POINTER                   :: et_proj_sec
-
-! Routine name for debug purposes
 
       ! Pointer initialization
       NULLIFY (logger)

@@ -383,7 +383,8 @@ CONTAINS
    SUBROUTINE backtransform_matrix(Eval, eigenvec, matrix)
 
       REAL(dp), DIMENSION(:), INTENT(in)                 :: Eval
-      TYPE(cp_fm_type), INTENT(IN)                       :: eigenvec, matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: eigenvec
+      TYPE(cp_fm_type), INTENT(INOUT)                       :: matrix
 
       CHARACTER(len=*), PARAMETER :: routineN = 'backtransform_matrix'
       REAL(KIND=dp), PARAMETER                           :: one = 1.0_dp, zero = 0.0_dp

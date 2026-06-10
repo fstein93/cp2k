@@ -100,7 +100,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE DKH_full_transformation(qs_env, matrix_s, matrix_v, matrix_t, matrix_pVp, n, dkh_order)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_s, matrix_v, matrix_t, matrix_pVp
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_s
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_v, matrix_t, matrix_pVp
       INTEGER, INTENT(IN)                                :: n, dkh_order
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'DKH_full_transformation'
@@ -243,15 +244,6 @@ CONTAINS
 
          IF (dkh_order >= 4) THEN
             CPABORT("DKH order greater than 3 not yet available")
-            !          CALL even4a(n,matrix_ev4%local_data,matrix_ev2%local_data,matrix_pe1p%local_data,matrix_v%local_data,&
-            !                      matrix_pvp%local_data,aa,rr,tt,e)
-
-            !-----------------------------------------------------------------------
-            !     Transform even4 back to position space
-            !-----------------------------------------------------------------------
-
-            !        CALL parallel_gemm("N","N",n,n,n,1.0_dp,matrix_rev,matrix_ev4,0.0_dp,matrix_aux)
-            !        CALL parallel_gemm("N","T",n,n,n,1.0_dp,matrix_aux,matrix_rev,0.0_dp,matrix_ev4)
 
          END IF
       END IF
@@ -360,9 +352,10 @@ CONTAINS
 !> \param matrix_aux2 ...
 ! **************************************************************************************************
    SUBROUTINE even1(matrix_ev1, matrix_v, matrix_pvp, aa, rr, matrix_aux, matrix_aux2)
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ev1, matrix_v, matrix_pVp
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_ev1
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_v, matrix_pVp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux, matrix_aux2
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_aux, matrix_aux2
 
       CALL cp_fm_to_fm(matrix_v, matrix_aux)
       CALL cp_fm_column_scale(matrix_aux, aa)
@@ -395,8 +388,8 @@ CONTAINS
    SUBROUTINE peven1p(n, matrix_pe1p, matrix_v, matrix_pvp, matrix_aux, matrix_aux2, aa, rr, tt)
 
       INTEGER, INTENT(IN)                                :: n
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_pe1p, matrix_v, matrix_pvp, &
-                                                            matrix_aux, matrix_aux2
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_v, matrix_pvp
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_pe1p, matrix_aux, matrix_aux2
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr, tt
 
       INTEGER                                            :: i, nrow_local
@@ -475,9 +468,10 @@ CONTAINS
       !***********************************************************************
 
       INTEGER, INTENT(IN)                                :: n
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ev2, matrix_v, matrix_pVp
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_ev2
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_v, matrix_pVp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr, tt, e
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_aux
 
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_full
@@ -558,9 +552,6 @@ CONTAINS
 
       CALL cp_fm_struct_release(matrix_full)
 
-!    WRITE (*,*) "CAW:  DKH2 with even2c (Alex)"
-!    WRITE (*,*) "JT:  Now available in cp2k"
-
    END SUBROUTINE even2c
 
 ! **************************************************************************************************
@@ -617,10 +608,11 @@ CONTAINS
       !***********************************************************************
 
       INTEGER, INTENT(IN)                                :: n
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ev3, matrix_ev1, matrix_pe1p, &
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_ev3
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ev1, matrix_pe1p, &
                                                             matrix_v, matrix_pVp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr, tt, e
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_aux
 
       TYPE(cp_blacs_env_type), POINTER                   :: context
       TYPE(cp_fm_struct_type), POINTER                   :: matrix_full
@@ -693,9 +685,6 @@ CONTAINS
       CALL cp_fm_release(matrix_w1e1w1)
 
       CALL cp_fm_struct_release(matrix_full)
-
-!    WRITE (*,*) "CAW:  DKH3 with even3b (Alex)"
-!    WRITE (*,*) "JT:  Now available in cp2k"
 
    END SUBROUTINE even3b
 
@@ -785,23 +774,6 @@ CONTAINS
       pvph(1:n, 1:n) = gg(1:n, 1:n)
 
       ev4 = 0.0_dp
-      !  Calculate  v = A V A:
-
-      !     CALL mat_axa(v,n,aa)
-
-      !  Calculate  pvp = A P V P A:
-
-      !     CALL mat_arxra(pvp,n,aa,rr)
-
-      !  Calculate  vh = A V~ A:
-
-      !     CALL mat_1_over_h(vh,n,e)
-      !     CALL mat_axa(vh,n,aa)
-
-      !  Calculate  pvph = A P V~ P A:
-
-      !     CALL mat_1_over_h(pvph,n,e)
-      !     CALL mat_arxra(pvph,n,aa,rr)
 
       !  Create/Initialize necessary matrices:
       ALLOCATE (w1w1(n, n))
@@ -833,19 +805,13 @@ CONTAINS
 
       !  Calculate w1w1:
       CALL dgemm("N", "N", n, n, n, 1.0_dp, pvph, n, vh, n, 0.0_dp, w1w1, n)
-      !      CALL mat_muld(w1w1,pvph,pvph,n, -1.0_dp,1.0_dp,tt,rr)
-      !      CALL mat_mulm(w1w1,vh,  vh,n,   -1.0_dp,1.0_dp,tt,rr)
       CALL dgemm("N", "N", n, n, n, 1.0_dp, vh, n, pvph, n, 1.0_dp, w1w1, n)
 
       !  Calculate w1o1:
       CALL dgemm("N", "N", n, n, n, -1.0_dp, pvph, n, v, n, 0.0_dp, w1o1, n)
-      !      CALL mat_muld(w1o1,pvph,pvp,n,  1.0_dp,1.0_dp,tt,rr)
-      !      CALL mat_mulm(w1o1,vh,  v,n,    1.0_dp,1.0_dp,tt,rr)
       CALL dgemm("N", "N", n, n, n, -1.0_dp, vh, n, pvp, n, 1.0_dp, w1o1, n)
       !  Calculate o1w1:
       CALL dgemm("N", "N", n, n, n, 1.0_dp, pvp, n, vh, n, 0.0_dp, o1w1, n)
-      !      CALL mat_muld(o1w1,pvp,pvph,n,  -1.0_dp,1.0_dp,tt,rr)
-      !      CALL mat_mulm(o1w1,v,  vh,n,    -1.0_dp,1.0_dp,tt,rr)
       CALL dgemm("N", "N", n, n, n, 1.0_dp, v, n, pvph, n, 1.0_dp, o1w1, n)
 
       !-----------------------------------------------------------------------
@@ -857,74 +823,42 @@ CONTAINS
       CALL dgemm("N", "N", n, n, n, 1.0_dp, vh, n, e1, n, 0.0_dp, scr_1, n)
       CALL dgemm("N", "N", n, n, n, 1.0_dp, pvph, n, e1, n, 0.0_dp, scr_2, n)
       CALL dgemm("N", "N", n, n, n, 1.0_dp, pe1p, n, vh, n, 0.0_dp, scr_3, n)
-      !      CALL mat_muld(scr_4, pe1p,pvph,n,1.0_dp,0.0_dp,tt,rr)
 
-      !      CALL mat_muld(scrh_1,pvph,pe1p,n,1.0_dp,0.0_dp,tt,rr)
-      !      CALL mat_1_over_h(scrh_1,n,e)
       CALL dgemm("N", "N", n, n, n, 1.0_dp, vh, n, pe1p, n, 0.0_dp, scrh_2, n)
-      !      CALL mat_1_over_h(scrh_2,n,e)
       CALL dgemm("N", "N", n, n, n, 1.0_dp, e1, n, pvph, n, 0.0_dp, scrh_3, n)
-      !      CALL mat_1_over_h(scrh_3,n,e)
       CALL dgemm("N", "N", n, n, n, 1.0_dp, e1, n, vh, n, 0.0_dp, scrh_4, n)
-      !      CALL mat_1_over_h(scrh_4,n,e)
 
       !  2a)  sum_1 = 1/2 W2W1E1               ( [1]-[8] )
 
       CALL dgemm("N", "N", n, n, n, 0.5_dp, scrh_1, n, scr_1, n, 0.0_dp, sum_1, n)
-      !      CALL mat_muld(sum_1,scrh_1,scr_2,n,-0.5_dp,1.0_dp,tt,rr)
       CALL dgemm("N", "N", n, n, n, -0.5_dp, scrh_2, n, scr_1, n, 1.0_dp, sum_1, n)
-      !      CALL mat_muld(sum_1,scrh_2,scr_2,n, 0.5_dp,1.0_dp,tt,rr)
       CALL dgemm("N", "N", n, n, n, -0.5_dp, scrh_3, n, scr_1, n, 1.0_dp, sum_1, n)
-      !      CALL mat_muld(sum_1,scrh_3,scr_2,n, 0.5_dp,1.0_dp,tt,rr)
-      !      CALL mat_mulm(sum_1,scrh_4,scr_1,n, 0.5_dp,1.0_dp,tt,rr)
       CALL dgemm("N", "N", n, n, n, -0.5_dp, scrh_4, n, scr_2, n, 1.0_dp, sum_1, n)
 
       !  2b)  sum_1 = - 1/2 W2E1W1 (+ sum_1)   ( [9]-[16] )
 
-      !      CALL mat_muld(sum_1,scrh_1,scr_3,n,-0.5_dp,1.0_dp,tt,rr)
-      !      CALL mat_muld(sum_1,scrh_1,scr_4,n, 0.5_dp,1.0_dp,tt,rr)
-      !      CALL mat_muld(sum_1,scrh_2,scr_3,n, 0.5_dp,1.0_dp,tt,rr)
-      !      CALL mat_muld(sum_1,scrh_2,scr_4,n,-0.5_dp,1.0_dp,tt,rr)
-      !      CALL mat_muld(sum_1,scrh_3,scr_3,n, 0.5_dp,1.0_dp,tt,rr)
-      !      CALL mat_muld(sum_1,scrh_3,scr_4,n,-0.5_dp,1.0_dp,tt,rr)
       CALL dgemm("N", "N", n, n, n, -0.5_dp, scrh_4, n, scr_3, n, 1.0_dp, sum_1, n)
       CALL dgemm("N", "N", n, n, n, 0.5_dp, scrh_4, n, scr_4, n, 1.0_dp, sum_1, n)
 
       !  scr_i & scrh_i  for steps 2c (W1E1W2)  and 2d (E1W1W2):
 
-      !      CALL mat_muld(scr_1, pvph,pe1p,n,1.0_dp,0.0_dp,tt,rr)
       CALL dgemm("N", "N", n, n, n, 1.0_dp, vh, n, pe1p, n, 0.0_dp, scr_2, n)
       CALL dgemm("N", "N", n, n, n, 1.0_dp, e1, n, pvph, n, 0.0_dp, scr_3, n)
       CALL dgemm("N", "N", n, n, n, 1.0_dp, e1, n, vh, n, 0.0_dp, scr_4, n)
 
       CALL dgemm("N", "N", n, n, n, 1.0_dp, vh, n, e1, n, 0.0_dp, scrh_1, n)
-      !      CALL mat_1_over_h(scrh_1,n,e)
       CALL dgemm("N", "N", n, n, n, 1.0_dp, pvph, n, e1, n, 0.0_dp, scrh_2, n)
-      !      CALL mat_1_over_h(scrh_2,n,e)
       CALL dgemm("N", "N", n, n, n, 1.0_dp, pe1p, n, vh, n, 0.0_dp, scr_3, n)
-      !      CALL mat_1_over_h(scrh_3,n,e)
-      !      CALL mat_muld(scrh_4,pe1p,pvph,n,1.0_dp,0.0_dp,tt,rr)
-      !      CALL mat_1_over_h(scrh_4,n,e)
 
       !  2c)  sum_1 = - 1/2 W1E1W2 (+ sum_1)   ( [17]-[24] )
 
       CALL dgemm("N", "N", n, n, n, 0.5_dp, scr_1, n, scrh_1, n, 0.0_dp, sum_1, n)
-      !      CALL mat_muld(sum_1,scr_1,scrh_2,n,-0.5_dp,1.0_dp,tt,rr)
       CALL dgemm("N", "N", n, n, n, -0.5_dp, scr_2, n, scrh_1, n, 1.0_dp, sum_1, n)
-      !      CALL mat_muld(sum_1,scr_2,scrh_2,n, 0.5_dp,1.0_dp,tt,rr)
-      !      CALL mat_muld(sum_1,scr_1,scrh_3,n,-0.5_dp,1.0_dp,tt,rr)
-      !      CALL mat_muld(sum_1,scr_1,scrh_4,n, 0.5_dp,1.0_dp,tt,rr)
-      !      CALL mat_muld(sum_1,scr_2,scrh_3,n, 0.5_dp,1.0_dp,tt,rr)
-      !      CALL mat_muld(sum_1,scr_2,scrh_4,n,-0.5_dp,1.0_dp,tt,rr)
 
       !  2d)  sum_1 = 1/2 E1W1W2 (+ sum_1)     ( [25]-[32] )
 
       CALL dgemm("N", "N", n, n, n, -0.5_dp, scr_3, n, scrh_1, n, 0.0_dp, sum_1, n)
-      !      CALL mat_muld(sum_1,scr_3,scrh_2,n, 0.5_dp,1.0_dp,tt,rr)
-      !      CALL mat_mulm(sum_1,scr_4,scrh_1,n, 0.5_dp,1.0_dp,tt,rr)
       CALL dgemm("N", "N", n, n, n, -0.5_dp, scr_4, n, scrh_2, n, 1.0_dp, sum_1, n)
-      !      CALL mat_muld(sum_1,scr_3,scrh_3,n, 0.5_dp,1.0_dp,tt,rr)
-      !      CALL mat_muld(sum_1,scr_3,scrh_4,n,-0.5_dp,1.0_dp,tt,rr)
       CALL dgemm("N", "N", n, n, n, -0.5_dp, scr_4, n, scrh_3, n, 1.0_dp, sum_1, n)
       CALL dgemm("N", "N", n, n, n, 0.5_dp, scr_4, n, scrh_4, n, 1.0_dp, sum_1, n)
 
@@ -951,9 +885,6 @@ CONTAINS
 
       DEALLOCATE (v, pvp, vh, pvph, w1w1, w1o1, o1w1, sum_1, sum_2)
       DEALLOCATE (scr_1, scr_2, scr_3, scr_4, scrh_1, scrh_2, scrh_3, scrh_4)
-
-!    WRITE (*,*) "CAW:  DKH4 with even4a (Alex)"
-!    WRITE (*,*) "JT:   Now available in cp2k"
 
    END SUBROUTINE even4a
 
@@ -991,9 +922,10 @@ CONTAINS
       !                                                                      *
       !***********************************************************************
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_p, matrix_pp
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_p
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_pp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: e
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_aux
 
       INTEGER                                            :: i, j, ncol_local, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: col_indices, row_indices
@@ -1031,10 +963,11 @@ CONTAINS
       !C                                                                      *
       !C***********************************************************************
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_x, matrix_axa
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_x
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_axa
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_aux
 
       INTEGER                                            :: i, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
@@ -1060,12 +993,6 @@ CONTAINS
       CALL cp_fm_syrk('U', 'N', 1, 1.0_dp, vec_a, 1, 1, 0.0_dp, matrix_aux)
       CALL cp_fm_uplo_to_full(matrix_aux, matrix_axa)
       CALL cp_fm_schur_product(matrix_x, matrix_aux, matrix_axa)
-
-      !     DO i=1,n
-      !       DO j=1,n
-      !          p(i,j)=p(i,j)*a(i)*a(j)
-      !       END DO
-      !     END DO
 
       CALL cp_fm_release(vec_a)
       CALL cp_fm_struct_release(vec_full)
@@ -1094,10 +1021,11 @@ CONTAINS
       !C                                                                      *
       !C***********************************************************************
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_x, matrix_axa
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_x
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_axa
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: a, r
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_aux
 
       INTEGER                                            :: i, nrow_local
       INTEGER, DIMENSION(:), POINTER                     :: row_indices
@@ -1160,11 +1088,12 @@ CONTAINS
       !C                                                                      *
       !C***********************************************************************
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_p, matrix_q, matrix_r
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_p
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_q, matrix_r
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: t, rr
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_aux
 
       INTEGER                                            :: i
       REAL(KIND=dp), DIMENSION(n)                        :: vec
@@ -1211,11 +1140,12 @@ CONTAINS
       !C                                                                      *
       !C***********************************************************************
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_p, matrix_q, matrix_r
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_p
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_q, matrix_r
       INTEGER, INTENT(IN)                                :: n
       REAL(KIND=dp), INTENT(IN)                          :: alpha, beta
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: t, rr
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_aux
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_aux
 
       INTEGER                                            :: i
       REAL(KIND=dp), DIMENSION(n)                        :: vec
@@ -1723,9 +1653,6 @@ CONTAINS
 
       DEALLOCATE (v, vh, pvp, pvph, w1o1, o1w1)
 
-!    WRITE (*,*) "CAW:  DKH2 with even2c (Alex)"
-!    WRITE (*,*) "!JT:  Now available in cp2k"
-
    END SUBROUTINE even2c_a
 
 ! **************************************************************************************************
@@ -1847,9 +1774,6 @@ CONTAINS
       !-----------------------------------------------------------------------
 
       DEALLOCATE (vh, pvph, w1w1, w1e1w1, scr_1, scr_2)
-
-!    WRITE (*,*) "CAW:  DKH3 with even3b (Alex)"
-!    WRITE (*,*) "JT:  Now available in cp2k"
 
    END SUBROUTINE even3b_a
 

@@ -55,8 +55,8 @@ CONTAINS
    SUBROUTINE assign_state(qs_env, matrix_s, evects, psi0, wfn_history, my_state)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
-      TYPE(cp_fm_type), DIMENSION(:, :)                  :: evects
-      TYPE(cp_fm_type), DIMENSION(:)                     :: psi0
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: psi0
       TYPE(wfn_history_type)                             :: wfn_history
       INTEGER, INTENT(INOUT)                             :: my_state
 
@@ -159,7 +159,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lowdin_orthogonalization(vmatrix, xmatrix, ncol, matrix_s)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix, xmatrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: xmatrix
       INTEGER, INTENT(IN)                                :: ncol
       TYPE(dbcsr_type)                                   :: matrix_s
 
@@ -231,7 +232,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE wfn_align(gmatrix, vmatrix, xmatrix, rdiag, matrix_s)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: gmatrix, vmatrix, xmatrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: gmatrix, vmatrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: xmatrix
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: rdiag
       TYPE(dbcsr_type)                                   :: matrix_s
 

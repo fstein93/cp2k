@@ -231,7 +231,7 @@ CONTAINS
       TYPE(qs_diis_buffer_type), POINTER                 :: diis_buffer
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mo_array
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: kc
-      TYPE(cp_fm_type), INTENT(IN)                       :: sc
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: sc
       REAL(KIND=dp), INTENT(IN)                          :: delta
       REAL(KIND=dp), INTENT(OUT)                         :: error_max
       LOGICAL, INTENT(OUT)                               :: diis_step

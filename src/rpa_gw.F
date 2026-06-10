@@ -824,8 +824,9 @@ CONTAINS
          INTENT(INOUT)                                   :: vec_W_gw
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: wj
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_R_gw
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_gw, fm_mat_S_gw_work
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q, fm_mat_R_gw
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S_gw
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S_gw_work
       TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_RPA
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_berry_im_mo_mo, &
@@ -952,8 +953,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_W_cubic_GW(fm_mat_W, fm_mat_Q, fm_mat_work, dimen_RI, fm_mat_L, num_integ_points, &
                                  tj, tau_tj, weights_cos_tf_w_to_t, jquad, omega)
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_work
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)         :: fm_mat_W
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q, fm_mat_work
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: fm_mat_L
       INTEGER, INTENT(IN)                                :: num_integ_points
@@ -1066,7 +1067,8 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: delta_corr, vec_omega_fit_gw
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: vec_W_gw
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wj
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_S_gw, fm_mat_S_gw_work
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_S_gw
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S_gw_work
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'compute_GW_self_energy_deep'
 
@@ -1260,11 +1262,12 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: weights_cos_tf_t_to_w, &
                                                             weights_sin_tf_t_to_w
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_scaled_dm_occ_tau, &
-                                                            fm_scaled_dm_virt_tau, mo_coeff
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_scaled_dm_occ_tau, &
+                                                            fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: fm_mat_W
       TYPE(mp_para_env_type), POINTER                    :: para_env, para_env_RPA
@@ -5410,7 +5413,8 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj, tj
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_s
-      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_fm_type), INTENT(INOUT) :: fm_mo_coeff_occ_scaled, &
          fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
@@ -6821,7 +6825,8 @@ CONTAINS
                                            eps_filter, e_fermi, tau, para_env)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_greens_fct_occ, mat_greens_fct_virt
-      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt, fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_fm_type), INTENT(INOUT) :: fm_mo_coeff_occ_scaled, &
          fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: nmo

@@ -104,14 +104,14 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_orthogonalize_psi1_psi0(evects, S_C0_C0T, qs_env, gs_mos, evals, &
                                              tddfpt_control, S_C0)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(in)         :: S_C0_C0T
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: evects
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: S_C0_C0T
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
-         INTENT(in)                                      :: gs_mos
-      REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
-      TYPE(tddfpt2_control_type), INTENT(in), POINTER    :: tddfpt_control
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(in)         :: S_C0
+         INTENT(IN)                                      :: gs_mos
+      REAL(kind=dp), DIMENSION(:), INTENT(IN)            :: evals
+      TYPE(tddfpt2_control_type), INTENT(IN), POINTER    :: tddfpt_control
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: S_C0
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_orthogonalize_psi1_psi0'
 
@@ -277,8 +277,8 @@ CONTAINS
 !>       \endparblock
 ! **************************************************************************************************
    SUBROUTINE tddfpt_orthonormalize_psi1_psi1(evects, nvects_new, S_evects, matrix_s)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
-      INTEGER, INTENT(in)                                :: nvects_new
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: evects
+      INTEGER, INTENT(IN)                                :: nvects_new
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: S_evects
       TYPE(dbcsr_type), POINTER                          :: matrix_s
 
@@ -592,7 +592,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_compute_ritz_vects(ritz_vects, Aop_ritz, evals, krylov_vects, Aop_krylov, &
                                         Atilde, nkvo, nkvn)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: ritz_vects, Aop_ritz
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: ritz_vects, Aop_ritz
       REAL(kind=dp), DIMENSION(:), INTENT(out)           :: evals
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: krylov_vects, Aop_krylov
       REAL(kind=dp), DIMENSION(:, :), POINTER            :: Atilde
@@ -696,11 +696,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_compute_residual_vects(residual_vects, evals, ritz_vects, Aop_ritz, gs_mos, &
                                             matrix_s, tddfpt_control)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: residual_vects
-      REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: ritz_vects, Aop_ritz
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: residual_vects
+      REAL(kind=dp), DIMENSION(:), INTENT(IN)            :: evals
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: ritz_vects, Aop_ritz
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
-         INTENT(in)                                      :: gs_mos
+         INTENT(IN)                                      :: gs_mos
       TYPE(dbcsr_type), POINTER                          :: matrix_s
       TYPE(tddfpt2_control_type), POINTER                :: tddfpt_control
 

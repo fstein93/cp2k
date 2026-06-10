@@ -1660,7 +1660,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE pm_localization(zij_fm_set, vectors, order, accuracy, unit_nr)
 
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: zij_fm_set
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: zij_fm_set
       TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER, INTENT(IN)                                :: order
       REAL(KIND=dp), INTENT(IN)                          :: accuracy

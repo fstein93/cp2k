@@ -2370,7 +2370,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE negf_init_rho_equiv_residuals(rho_ao_fm, v_shift, ignore_bias, negf_env, &
                                             negf_control, sub_env, ispin, base_contact, just_contact)
-      TYPE(cp_fm_type), INTENT(IN)                       :: rho_ao_fm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: rho_ao_fm
       REAL(kind=dp), INTENT(in)                          :: v_shift
       LOGICAL, INTENT(in)                                :: ignore_bias
       TYPE(negf_env_type), INTENT(in)                    :: negf_env
@@ -2507,7 +2507,7 @@ CONTAINS
    SUBROUTINE negf_add_rho_equiv_low(rho_ao_fm, stats, v_shift, ignore_bias, negf_env, negf_control, sub_env, &
                                      ispin, base_contact, integr_lbound, integr_ubound, matrix_s_global, &
                                      is_circular, g_surf_cache, just_contact)
-      TYPE(cp_fm_type), INTENT(IN)                       :: rho_ao_fm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: rho_ao_fm
       TYPE(integration_status_type), INTENT(inout)       :: stats
       REAL(kind=dp), INTENT(in)                          :: v_shift
       LOGICAL, INTENT(in)                                :: ignore_bias
@@ -2838,7 +2838,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE negf_add_rho_nonequiv(rho_ao_fm, stats, v_shift, negf_env, negf_control, sub_env, &
                                     ispin, base_contact, matrix_s_global, g_surf_cache)
-      TYPE(cp_fm_type), INTENT(IN)                       :: rho_ao_fm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: rho_ao_fm
       TYPE(integration_status_type), INTENT(inout)       :: stats
       REAL(kind=dp), INTENT(in)                          :: v_shift
       TYPE(negf_env_type), INTENT(in)                    :: negf_env

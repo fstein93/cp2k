@@ -183,7 +183,8 @@ CONTAINS
                                  eps_iter, ispin, check_moconv_only)
 
       TYPE(krylov_space_type), POINTER                   :: krylov_space
-      TYPE(cp_fm_type), INTENT(IN)                       :: ks, c0, c1
+      TYPE(cp_fm_type), INTENT(IN)                       :: ks
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: c0, c1
       REAL(dp), DIMENSION(:), POINTER                    :: eval
       INTEGER, INTENT(IN)                                :: nao
       REAL(dp), INTENT(IN)                               :: eps_iter
@@ -518,7 +519,8 @@ CONTAINS
                                     eps_iter, ispin, check_moconv_only)
 
       TYPE(krylov_space_type), POINTER                   :: krylov_space
-      TYPE(cp_fm_type), INTENT(IN)                       :: ks, c0, c1
+      TYPE(cp_fm_type), INTENT(IN)                       :: ks
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: c0, c1
       REAL(dp), DIMENSION(:), POINTER                    :: eval
       INTEGER, INTENT(IN)                                :: nao
       REAL(dp), INTENT(IN)                               :: eps_iter

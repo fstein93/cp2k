@@ -602,9 +602,10 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fb_env_eigensolver(fm_KS, fm_S, mo_set, fm_ortho, &
                                  fm_work, eps_eigval, ndep, method)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_KS, fm_S
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_KS
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_S
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_ortho, fm_work
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_ortho, fm_work
       REAL(KIND=dp), INTENT(IN)                          :: eps_eigval
       INTEGER, INTENT(OUT)                               :: ndep
       INTEGER, INTENT(IN)                                :: method

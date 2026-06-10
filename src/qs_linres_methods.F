@@ -217,7 +217,8 @@ CONTAINS
                             should_stop, silent)
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: psi1, h1_psi0, psi0_order
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: psi1
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: h1_psi0, psi0_order
       INTEGER, INTENT(IN)                                :: iounit
       LOGICAL, INTENT(OUT)                               :: should_stop
       LOGICAL, INTENT(IN), OPTIONAL                      :: silent
@@ -710,7 +711,8 @@ CONTAINS
    SUBROUTINE preortho(v, psi0, S_psi0)
       !v = (I-PS)v
       !
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: v, psi0, S_psi0
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: v
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: psi0, S_psi0
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'preortho'
 
@@ -762,7 +764,8 @@ CONTAINS
    SUBROUTINE postortho(v, psi0, S_psi0)
       !v = (I-SP)v
       !
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: v, psi0, S_psi0
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: v
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: psi0, S_psi0
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'postortho'
 

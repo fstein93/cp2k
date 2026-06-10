@@ -143,7 +143,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: wkp_W
       LOGICAL, INTENT(IN)                                :: do_gw_im_time, do_ri_Sigma_x, &
                                                             do_kpoints_from_Gamma
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: ikp_local
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega, mat_P_omega_kp
       TYPE(qs_environment_type), POINTER                 :: qs_env
@@ -152,7 +152,7 @@ CONTAINS
       TYPE(kpoint_type), POINTER                         :: kpoints
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_mat_Minv_L_kpoints, &
                                                             fm_matrix_L_kpoints
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_W
       TYPE(cp_fm_type)                                   :: fm_mat_RI_global_work
       TYPE(dbcsr_p_type), INTENT(IN)                     :: mat_MinvVMinv
       TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :)     :: fm_matrix_Minv, &
@@ -995,8 +995,8 @@ CONTAINS
                                            ikp, tj, tau_tj, weights_cos_tf_w_to_t, ikp_local, &
                                            para_env, kpoints, qs_env, wkp_W)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_W_tau
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_W_tau
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat_Q
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L_re, fm_mat_L_im
       INTEGER, INTENT(IN)                                :: dimen_RI, num_integ_points, jquad, ikp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tj

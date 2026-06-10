@@ -544,10 +544,9 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type)                                :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_ao
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_back
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_ao, fm_back
       INTEGER, INTENT(IN)                                :: transf_type_in
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo_out
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mo_out
       LOGICAL, INTENT(IN), OPTIONAL                      :: recalc_hfx_integrals
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cphf_like_update'
@@ -678,10 +677,9 @@ CONTAINS
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff_o, mo_coeff_v
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_back
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: P_ia
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: L_jb
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_eq_low'
 
@@ -767,8 +765,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_back
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: P_ia, precond
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_pople'
@@ -1013,8 +1010,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_back
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: P_ia, precond
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_cg'

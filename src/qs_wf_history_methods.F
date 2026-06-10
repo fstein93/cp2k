@@ -2208,7 +2208,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE reorthogonalize_vectors(qs_env, v_matrix, n_col)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: v_matrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: v_matrix
       INTEGER, INTENT(in), OPTIONAL                      :: n_col
 
       CHARACTER(len=*), PARAMETER :: routineN = 'reorthogonalize_vectors'

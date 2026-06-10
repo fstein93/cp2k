@@ -167,7 +167,7 @@ CONTAINS
                               homo, virtual, mp2_env, Eigenval, unit_nr, do_ri_sos_laplace_mp2)
       TYPE(rpa_grad_type), INTENT(OUT)                   :: rpa_grad
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
@@ -230,7 +230,7 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), INTENT(IN)                          :: eps_degenerate
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'sos_mp2_work_type_create'
 
@@ -582,7 +582,7 @@ CONTAINS
    SUBROUTINE prepare_comm_Pab(sos_mp2_work, virtual, fm_mat_S)
       TYPE(sos_mp2_grad_work_type), INTENT(INOUT)        :: sos_mp2_work
       INTEGER, INTENT(IN)                                :: virtual
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'prepare_comm_Pab'
 
@@ -738,9 +738,9 @@ CONTAINS
       TYPE(mp2_type), INTENT(INOUT)                      :: mp2_env
       TYPE(rpa_grad_type), INTENT(INOUT)                 :: rpa_grad
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_Q, fm_mat_Q_gemm
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_Q, fm_mat_Q_gemm
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S
       REAL(KIND=dp), INTENT(IN)                          :: omega
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo, virtual
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval

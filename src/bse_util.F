@@ -113,7 +113,7 @@ CONTAINS
 
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S_ij_bse, fm_mat_S_ia_bse
       TYPE(cp_fm_type), INTENT(OUT)                      :: fm_mat_S_bar_ia_bse, fm_mat_S_bar_ij_bse
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q_static_bse_gemm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q_static_bse_gemm
       INTEGER, INTENT(IN)                                :: dimen_RI, homo, virtual
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'mult_B_with_W'

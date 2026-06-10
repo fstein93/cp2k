@@ -52,7 +52,8 @@ CONTAINS
    SUBROUTINE apply_preconditioner_fm(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_out
 
       CHARACTER(len=*), PARAMETER :: routineN = 'apply_preconditioner_fm'
 
@@ -135,7 +136,8 @@ CONTAINS
    SUBROUTINE apply_full_single(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_full_single'
 
@@ -186,7 +188,8 @@ CONTAINS
    SUBROUTINE apply_full_direct(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_full_direct'
 
@@ -217,7 +220,8 @@ CONTAINS
    SUBROUTINE apply_full_all(preconditioner_env, matrix_in, matrix_out)
 
       TYPE(preconditioner_type)                          :: preconditioner_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in, matrix_out
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_in
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'apply_full_all'
 

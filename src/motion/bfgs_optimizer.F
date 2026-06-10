@@ -766,7 +766,8 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: ndf
       REAL(KIND=dp), INTENT(INOUT)                       :: eigval(ndf)
-      TYPE(cp_fm_type), INTENT(IN)                       :: eigvec_mat, hess_tmp
+      TYPE(cp_fm_type), INTENT(IN)                       :: eigvec_mat
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: hess_tmp
       REAL(KIND=dp), INTENT(INOUT)                       :: dr(ndf), g(ndf)
       TYPE(mp_para_env_type), OPTIONAL, POINTER          :: para_env
       LOGICAL                                            :: use_rfo

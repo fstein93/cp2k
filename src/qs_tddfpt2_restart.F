@@ -75,7 +75,7 @@ CONTAINS
 !>    * 08.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_write_restart(evects, evals, gs_mos, logger, tddfpt_print_section)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)      :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
@@ -315,7 +315,7 @@ CONTAINS
    SUBROUTINE tddfpt_write_newtonx_output(evects, evals, gs_mos, logger, tddfpt_print_section, &
                                           matrix_s, S_evects, sub_env)
 
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
@@ -522,7 +522,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE tddfpt_check_orthonormality(evects, ounit, S_evects, matrix_s)
 
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: evects
       INTEGER, INTENT(in)                                :: ounit
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: S_evects
       TYPE(dbcsr_type), INTENT(in), POINTER              :: matrix_s

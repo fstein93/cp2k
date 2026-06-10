@@ -165,9 +165,9 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: method
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vectors
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: zij_fm_set
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: zij_fm_set
       TYPE(mp_para_env_type), POINTER                    :: para_env
       TYPE(cell_type), POINTER                           :: cell
       REAL(dp), DIMENSION(:)                             :: weights
@@ -356,7 +356,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: method
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
       TYPE(cp_fm_type), INTENT(IN)                       :: vectors
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: zij_fm_set
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: zij_fm_set
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(section_vals_type), POINTER                   :: print_loc_section
 
@@ -510,7 +510,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE jacobi_rotation_pipek(zij_fm_set, vectors, sweeps)
 
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: zij_fm_set
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: zij_fm_set
       TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER                                            :: sweeps
 

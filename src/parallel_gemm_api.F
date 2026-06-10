@@ -70,7 +70,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_a, matrix_b
       REAL(KIND=dp), INTENT(IN)                          :: beta
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_c
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_c
       INTEGER, INTENT(IN), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
                                                             b_first_row, c_first_col, c_first_row
 
@@ -223,7 +223,7 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_a, matrix_b
       REAL(KIND=dp), INTENT(IN)                          :: beta
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_c
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_c
       INTEGER, INTENT(IN), OPTIONAL                      :: a_first_col, a_first_row, b_first_col, &
                                                             b_first_row, c_first_col, c_first_row
 

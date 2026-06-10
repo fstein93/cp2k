@@ -470,7 +470,7 @@ CONTAINS
 !>      the value of a_ij is independent of the number of cpus
 ! **************************************************************************************************
    SUBROUTINE cp_fm_init_random(matrix, ncol, start_col)
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
       INTEGER, INTENT(IN), OPTIONAL                      :: ncol, start_col
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_fm_init_random'
@@ -554,7 +554,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_set_all(matrix, alpha, beta)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: beta
 
@@ -589,11 +589,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_get_diag(matrix, diag)
 
-      ! arguments
       TYPE(cp_fm_type), INTENT(IN)             :: matrix
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: diag
 
-      ! locals
       INTEGER :: i, nrow_global
 
 #if defined(__parallel)
@@ -663,8 +661,8 @@ CONTAINS
    SUBROUTINE cp_fm_get_element(matrix, irow_global, icol_global, alpha, local)
 
       ! arguments
-      TYPE(cp_fm_type), INTENT(IN)          :: matrix
-      REAL(KIND=dp), INTENT(OUT)                     :: alpha
+      TYPE(cp_fm_type), INTENT(IN)              :: matrix
+      REAL(KIND=dp), INTENT(OUT)                :: alpha
       INTEGER, INTENT(IN)                       :: icol_global, &
                                                    irow_global
       LOGICAL, INTENT(OUT), OPTIONAL            :: local
@@ -718,7 +716,7 @@ CONTAINS
 !>      (otherwise one should use local_data tricks)
 ! **************************************************************************************************
    SUBROUTINE cp_fm_set_element(matrix, irow_global, icol_global, alpha)
-      TYPE(cp_fm_type), INTENT(IN)          :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix
       INTEGER, INTENT(IN)                      :: irow_global, icol_global
       REAL(KIND=dp), INTENT(IN)                :: alpha
 
@@ -786,7 +784,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_set_submatrix(fm, new_values, start_row, &
                                   start_col, n_rows, n_cols, alpha, beta, transpose)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm
       REAL(KIND=dp), DIMENSION(:, :), INTENT(in)         :: new_values
       INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
       REAL(KIND=dp), INTENT(in), OPTIONAL                :: alpha, beta
@@ -907,9 +905,9 @@ CONTAINS
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE cp_fm_set_all_submatrix(fm, new_value, start_row, start_col, n_rows, n_cols)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm
-      REAL(KIND=dp), INTENT(in)                          :: new_value
-      INTEGER, INTENT(in)                                :: start_row, start_col, n_rows, n_cols
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm
+      REAL(KIND=dp), INTENT(IN)                          :: new_value
+      INTEGER, INTENT(IN)                                :: start_row, start_col, n_rows, n_cols
 
       INTEGER                                            :: i, i0, j, j0, ncol_global, ncol_local, &
                                                             nrow_global, nrow_local, this_col, &
@@ -971,8 +969,8 @@ CONTAINS
                                   start_col, n_rows, n_cols, transpose)
       TYPE(cp_fm_type), INTENT(IN)                       :: fm
       REAL(KIND=dp), DIMENSION(:, :), INTENT(out)        :: target_m
-      INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
-      LOGICAL, INTENT(in), OPTIONAL                      :: transpose
+      INTEGER, INTENT(IN), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
+      LOGICAL, INTENT(IN), OPTIONAL                      :: transpose
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_get_submatrix'
 
@@ -1381,7 +1379,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_to_fm_matrix(source, destination)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: source, destination
+      TYPE(cp_fm_type), INTENT(IN)                       :: source
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: destination
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_matrix'
 
@@ -1449,7 +1448,8 @@ CONTAINS
    SUBROUTINE cp_fm_to_fm_columns(msource, mtarget, ncol, source_start, &
                                   target_start)
 
-      TYPE(cp_fm_type), INTENT(IN)          :: msource, mtarget
+      TYPE(cp_fm_type), INTENT(IN)             :: msource
+      TYPE(cp_fm_type), INTENT(INOUT)          :: mtarget
       INTEGER, INTENT(IN)                      :: ncol
       INTEGER, INTENT(IN), OPTIONAL            :: source_start, target_start
 
@@ -1499,7 +1499,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_to_fm_triangular(msource, mtarget, uplo)
 
-      TYPE(cp_fm_type), INTENT(IN)             :: msource, mtarget
+      TYPE(cp_fm_type), INTENT(IN)             :: msource
+      TYPE(cp_fm_type), INTENT(INOUT)          :: mtarget
       CHARACTER(LEN=1), OPTIONAL, INTENT(IN)   :: uplo
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_to_fm_triangular'
@@ -1548,7 +1549,8 @@ CONTAINS
 
    SUBROUTINE cp_fm_to_fm_submat(msource, mtarget, nrow, ncol, s_firstrow, s_firstcol, t_firstrow, t_firstcol)
 
-      TYPE(cp_fm_type), INTENT(IN)             :: msource, mtarget
+      TYPE(cp_fm_type), INTENT(IN)             :: msource
+      TYPE(cp_fm_type), INTENT(INOUT)          :: mtarget
       INTEGER, INTENT(IN)                      :: nrow, ncol, s_firstrow, &
                                                   s_firstcol, t_firstrow, &
                                                   t_firstcol
@@ -1612,7 +1614,8 @@ CONTAINS
 !>      31-Jan-2017 : Re-implemented using non-blocking MPI [IainB, MarkT]
 ! **************************************************************************************************
    SUBROUTINE cp_fm_copy_general(source, destination, para_env)
-      TYPE(cp_fm_type), INTENT(IN)                       :: source, destination
+      TYPE(cp_fm_type), INTENT(IN)                       :: source
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: destination
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_copy_general'
@@ -1640,9 +1643,11 @@ CONTAINS
 !> \param para_env parallel environment corresponding to the BLACS env that covers all parts
 !>                        of the input and output matrices
 !> \param info all of the data that will be needed to complete the copy operation
+!> \note If ASYNCHRONOUS is available for communication: Asynchronous section should start before the call to this function
 ! **************************************************************************************************
    SUBROUTINE cp_fm_start_copy_general(source, destination, para_env, info)
-      TYPE(cp_fm_type), INTENT(IN)                       :: source, destination
+      TYPE(cp_fm_type), INTENT(IN)                       :: source
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: destination
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       TYPE(copy_info_type), INTENT(OUT)                  :: info
 
@@ -1954,9 +1959,10 @@ CONTAINS
 !> \brief Completes the copy operation: wait for comms, unpack, clean up MPI state
 !> \param destination output fm matrix
 !> \param info all of the data that will be needed to complete the copy operation
+!> \note If ASYNCHRONOUS is available for communication: Asynchronous section ends after this call
 ! **************************************************************************************************
    SUBROUTINE cp_fm_finish_copy_general(destination, info)
-      TYPE(cp_fm_type), INTENT(IN)                       :: destination
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: destination
       TYPE(copy_info_type), INTENT(INOUT)                :: info
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_finish_copy_general'
@@ -2078,7 +2084,8 @@ CONTAINS
                                          d_firstcol, &
                                          global_context)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: source, destination
+      TYPE(cp_fm_type), INTENT(IN)                       :: source
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: destination
       INTEGER, INTENT(IN)                                :: nrows, ncols, s_firstrow, s_firstcol, &
                                                             d_firstrow, d_firstcol
 
@@ -2173,7 +2180,7 @@ CONTAINS
 
       ! - Creation (05.05.06,MK)
 
-      TYPE(cp_fm_type), INTENT(IN)          :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix
       INTEGER, INTENT(IN)                      :: irow_global, icol_global
       REAL(KIND=dp), INTENT(IN)                :: alpha
 

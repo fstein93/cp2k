@@ -248,9 +248,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE build_full_dm(qs_env, dm, open_shell, open_shell_embed, dm_beta)
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: dm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: dm
       LOGICAL                                            :: open_shell, open_shell_embed
-      TYPE(cp_fm_type), INTENT(IN)                       :: dm_beta
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: dm_beta
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'build_full_dm'
 

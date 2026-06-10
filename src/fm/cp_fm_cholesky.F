@@ -60,7 +60,7 @@ CONTAINS
 !> \author Joost
 ! **************************************************************************************************
    SUBROUTINE cp_fm_cholesky_decompose(matrix, n, info_out)
-      TYPE(cp_fm_type), INTENT(IN)             :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)          :: matrix
       INTEGER, INTENT(in), OPTIONAL            :: n
       INTEGER, INTENT(out), OPTIONAL           :: info_out
 
@@ -139,7 +139,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE cp_fm_cholesky_invert(matrix, n, info_out)
-      TYPE(cp_fm_type), INTENT(IN)              :: matrix
+      TYPE(cp_fm_type), INTENT(INOUT)           :: matrix
       INTEGER, INTENT(in), OPTIONAL             :: n
       INTEGER, INTENT(OUT), OPTIONAL            :: info_out
 
@@ -226,7 +226,7 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE cp_fm_cholesky_reduce(matrix, matrixb, itype)
-      TYPE(cp_fm_type), INTENT(IN)              :: matrix, matrixb
+      TYPE(cp_fm_type), INTENT(INOUT)           :: matrix, matrixb
       INTEGER, OPTIONAL                         :: itype
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_cholesky_reduce'
@@ -284,7 +284,8 @@ CONTAINS
 !> \param transa ...
 ! **************************************************************************************************
    SUBROUTINE cp_fm_cholesky_restore(fm_matrix, neig, fm_matrixb, fm_matrixout, op, pos, transa)
-      TYPE(cp_fm_type), INTENT(IN)              :: fm_matrix, fm_matrixb, fm_matrixout
+      TYPE(cp_fm_type), INTENT(IN)              :: fm_matrix
+      TYPE(cp_fm_type), INTENT(INOUT)           :: fm_matrixb, fm_matrixout
       INTEGER, INTENT(IN)                       :: neig
       CHARACTER(LEN=*), INTENT(IN)              :: op
       CHARACTER(LEN=*), INTENT(IN), OPTIONAL    :: pos

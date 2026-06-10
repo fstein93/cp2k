@@ -86,7 +86,7 @@ CONTAINS
 !>      03.2006 created [Joost VandeVondele]
 ! **************************************************************************************************
    SUBROUTINE make_basis_sm(vmatrix, ncol, matrix_s)
-      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
       TYPE(dbcsr_type), POINTER                          :: matrix_s
 
@@ -135,9 +135,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_basis_sv_fm(vmatrix, ncol, svmatrix)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
-      TYPE(cp_fm_type), INTENT(IN)                       :: svmatrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: svmatrix
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'make_basis_sv_fm'
       REAL(KIND=dp), PARAMETER                           :: rone = 1.0_dp, rzero = 0.0_dp
@@ -247,7 +247,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_basis_cholesky(vmatrix, ncol, ortho)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
       TYPE(cp_fm_type), INTENT(IN)                       :: ortho
 
@@ -354,7 +354,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_basis_simple(vmatrix, ncol)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'make_basis_simple'

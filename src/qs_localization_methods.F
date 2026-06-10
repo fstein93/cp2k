@@ -776,7 +776,6 @@ CONTAINS
          ! initialize c_tilde
          SELECT CASE (icinit)
          CASE (1) ! random coefficients
-            !WRITE (*, *) "RANDOM INITIAL GUESS FOR C"
             CALL cp_fm_create(tmp_fm, c_tilde%matrix_struct)
             CALL cp_fm_init_random(tmp_fm, nextra)
             CALL ortho_vectors(tmp_fm)
@@ -1246,7 +1245,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE ortho_vectors(vmatrix)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vmatrix
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'ortho_vectors'
 
@@ -1613,7 +1612,8 @@ CONTAINS
    SUBROUTINE crazy_rotations(weights, zij, vectors, max_iter, max_crazy_angle, crazy_scale, crazy_use_diag, &
                               eps_localization, iterations, converged)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: zij(:, :)
+      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: max_crazy_angle
       REAL(KIND=dp)                                      :: crazy_scale
@@ -3022,7 +3022,7 @@ CONTAINS
 
       TYPE(cp_fm_type), INTENT(IN)                       :: vectors
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: op_sm_set
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: zij_fm_set
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: zij_fm_set
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'zij_matrix'
 
@@ -3057,7 +3057,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scdm_qrfact(vectors)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      TYPE(cp_fm_type), INTENT(INOUT)                       :: vectors
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'scdm_qrfact'
 

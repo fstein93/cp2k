@@ -193,7 +193,8 @@ CONTAINS
    SUBROUTINE add_smearing_aterm(qs_env, Aop_evects, evects, S_evects, mos_occ, fermia, matrix_s)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), INTENT(in)                       :: Aop_evects, evects, S_evects, mos_occ
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: Aop_evects
+      TYPE(cp_fm_type), INTENT(IN)                       :: evects, S_evects, mos_occ
       REAL(kind=dp), DIMENSION(:), POINTER               :: fermia
       TYPE(dbcsr_type), POINTER                          :: matrix_s
 
@@ -428,9 +429,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE orthogonalize_smeared_occupation(evects, qs_env, mos_occ, S_C0)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(in)         :: evects
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)         :: evects
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(in)         :: mos_occ, S_C0
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mos_occ, S_C0
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'orthogonalize_smeared_occupation'
 

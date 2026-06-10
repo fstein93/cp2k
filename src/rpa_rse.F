@@ -311,8 +311,8 @@ CONTAINS
          POINTER                                         :: mat_mu_nu
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_P_mu_nu
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_X_ao
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_X_mo
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_X_ao_mo
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_X_mo
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_X_ao_mo
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'exchange_contribution'
 
@@ -409,8 +409,9 @@ CONTAINS
    SUBROUTINE xc_contribution(qs_env, fm_XC_ao, fm_XC_ao_mo, fm_XC_mo, mo_coeff)
       TYPE(qs_environment_type), INTENT(IN), POINTER     :: qs_env
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_XC_ao
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_XC_ao_mo
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_XC_mo, mo_coeff
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_XC_ao_mo
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_XC_mo
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mo_coeff
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'xc_contribution'
 

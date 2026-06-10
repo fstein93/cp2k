@@ -1462,7 +1462,7 @@ CONTAINS
    SUBROUTINE tddfpt_resvec3(qs_env, cpmos, work)
 
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: cpmos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: cpmos
       TYPE(tddfpt_work_matrices)                         :: work
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_resvec3'

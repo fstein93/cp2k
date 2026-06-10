@@ -37,7 +37,7 @@ CONTAINS
 !> \author Ole Schuett
 ! **************************************************************************************************
    SUBROUTINE cp_fm_diag_cusolver(matrix, eigenvectors, eigenvalues)
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_diag_cusolver'
@@ -111,7 +111,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_general_cusolver(aMatrix, bMatrix, eigenvectors, eigenvalues)
       USE ISO_C_BINDING, ONLY: C_INT, C_DOUBLE
-      TYPE(cp_fm_type), INTENT(IN)                       :: aMatrix, bMatrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: aMatrix, bMatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_fm_general_cusolver'

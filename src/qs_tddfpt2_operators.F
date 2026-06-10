@@ -553,7 +553,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: work_rho_ia_ao_asymm
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          TARGET                                          :: work_hmat_asymm
-      TYPE(cp_fm_type), INTENT(IN)                       :: wfm_rho_orb
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: wfm_rho_orb
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'tddfpt_apply_hfx'
 
@@ -708,9 +708,10 @@ CONTAINS
    SUBROUTINE tddfpt_apply_hfxsr_kernel(Aop_evects, evects, gs_mos, qs_env, admm_env, &
                                         hfx_section, x_data, symmetry, recalc_integrals, &
                                         work_rho_ia_ao, work_hmat, wfm_rho_orb)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(in)      :: Aop_evects, evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: Aop_evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: evects
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
-         INTENT(in)                                      :: gs_mos
+         INTENT(IN)                                      :: gs_mos
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(admm_type), POINTER                           :: admm_env
       TYPE(section_vals_type), POINTER                   :: hfx_section
@@ -720,7 +721,7 @@ CONTAINS
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT)    :: work_rho_ia_ao
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(INOUT), &
          TARGET                                          :: work_hmat
-      TYPE(cp_fm_type), INTENT(IN)                       :: wfm_rho_orb
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: wfm_rho_orb
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_apply_hfxsr_kernel'
 

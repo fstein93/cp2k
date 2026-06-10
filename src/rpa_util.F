@@ -666,9 +666,9 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: omega, omega_old
       INTEGER, INTENT(IN)                                :: jquad, mm_style, dimen_RI, dimen_ia
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q, fm_mat_Q_gemm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q, fm_mat_Q_gemm
       LOGICAL, INTENT(IN)                                :: do_bse
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q_static_bse_gemm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q_static_bse_gemm
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
       INTEGER, INTENT(IN)                                :: num_integ_points, count_ev_sc_GW
 
@@ -834,7 +834,8 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: mm_style, dimen_RI, dimen_ia
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_Q
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q_gemm
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_S_to_Q'
@@ -929,7 +930,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(IN)     :: trace_Qomega
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env_RPA
       REAL(KIND=dp), INTENT(INOUT)                       :: Erpa
       REAL(KIND=dp), INTENT(IN)                          :: wjquad
@@ -1269,7 +1270,8 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter_im_time
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_work
       INTEGER, INTENT(IN)                                :: dimen_RI, dimen_RI_red
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L, fm_mat_Q
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_L
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'contract_P_omega_with_mat_L'
 

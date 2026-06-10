@@ -501,7 +501,7 @@ CONTAINS
    SUBROUTINE rt_convergence(rtp, matrix_s, delta_mos, delta_eps)
       TYPE(rt_prop_type), POINTER                        :: rtp
       TYPE(dbcsr_type), POINTER                          :: matrix_s
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: delta_mos
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: delta_mos
       REAL(dp), INTENT(out)                              :: delta_eps
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'rt_convergence'
