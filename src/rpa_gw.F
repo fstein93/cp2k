@@ -953,7 +953,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE compute_W_cubic_GW(fm_mat_W, fm_mat_Q, fm_mat_work, dimen_RI, fm_mat_L, num_integ_points, &
                                  tj, tau_tj, weights_cos_tf_w_to_t, jquad, omega)
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)         :: fm_mat_W
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_W
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q, fm_mat_work
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: fm_mat_L
@@ -5413,9 +5413,11 @@ CONTAINS
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), &
          INTENT(IN)                                      :: tau_tj, tj
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_s
-      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), INTENT(INOUT) :: fm_mo_coeff_occ_scaled, &
-         fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mo_coeff_occ_scaled, &
+                                                            fm_mo_coeff_virt_scaled, &
+                                                            fm_scaled_dm_occ_tau, &
+                                                            fm_scaled_dm_virt_tau
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter
       REAL(KIND=dp), INTENT(INOUT)                       :: e_fermi
@@ -6825,9 +6827,11 @@ CONTAINS
                                            eps_filter, e_fermi, tau, para_env)
 
       TYPE(dbcsr_type), INTENT(INOUT)                    :: mat_greens_fct_occ, mat_greens_fct_virt
-      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), INTENT(INOUT) :: fm_mo_coeff_occ_scaled, &
-         fm_mo_coeff_virt_scaled, fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mo_coeff_occ_scaled, &
+                                                            fm_mo_coeff_virt_scaled, &
+                                                            fm_scaled_dm_occ_tau, &
+                                                            fm_scaled_dm_virt_tau
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
       INTEGER, INTENT(IN)                                :: nmo
       REAL(KIND=dp), INTENT(IN)                          :: eps_filter, e_fermi, tau

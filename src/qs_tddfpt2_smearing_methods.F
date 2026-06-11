@@ -429,7 +429,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE orthogonalize_smeared_occupation(evects, qs_env, mos_occ, S_C0)
 
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)         :: evects
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: evects
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: mos_occ, S_C0
 

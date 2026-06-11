@@ -152,7 +152,7 @@ CONTAINS
    SUBROUTINE cp_cfm_schur_product(matrix_a, matrix_b, matrix_c)
 
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_a, matrix_b
-      TYPE(cp_cfm_type), INTENT(INOUT)                      :: matrix_c
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product'
 
@@ -191,7 +191,7 @@ CONTAINS
    SUBROUTINE cp_cfm_schur_product_cc(matrix_a, matrix_b, matrix_c)
 
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix_a, matrix_b
-      TYPE(cp_cfm_type), INTENT(INOUT)                      :: matrix_c
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix_c
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_schur_product_cc'
 

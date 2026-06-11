@@ -328,7 +328,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE check_diag(matrix, eigenvectors, nvec)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: eigenvectors
       INTEGER, INTENT(IN)                                :: nvec
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'check_diag'

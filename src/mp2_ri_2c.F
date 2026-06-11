@@ -182,8 +182,11 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num, do_svd
       REAL(KIND=dp), INTENT(IN)                          :: eps_svd
       TYPE(libint_potential_type), INTENT(IN)            :: potential, ri_metric
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :), INTENT(INOUT)  :: fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
-         fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :), &
+         INTENT(INOUT)                                   :: fm_matrix_L_kpoints, &
+                                                            fm_matrix_Minv_L_kpoints, &
+                                                            fm_matrix_Minv, &
+                                                            fm_matrix_Minv_Vtrunc_Minv
       LOGICAL, INTENT(IN)                                :: do_im_time, do_kpoints
       REAL(KIND=dp), INTENT(IN)                          :: mp2_eps_pgf_orb_S
       TYPE(qs_kind_type), DIMENSION(:), POINTER          :: qs_kind_set
@@ -1531,7 +1534,8 @@ CONTAINS
    SUBROUTINE Gamma_only_inversion_of_M_and_mult_with_chol_dec_of_Vtrunc(fm_matrix_Minv_Vtrunc_Minv, &
                                                                          fm_matrix_Minv, qs_env)
 
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: fm_matrix_Minv_Vtrunc_Minv, fm_matrix_Minv
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: fm_matrix_Minv_Vtrunc_Minv, &
+                                                            fm_matrix_Minv
       TYPE(qs_environment_type), POINTER                 :: qs_env
 
       CHARACTER(LEN=*), PARAMETER :: &

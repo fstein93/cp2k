@@ -262,7 +262,7 @@ CONTAINS
 !> \author Rocco Meli
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_diag_gen_dlaf_base(amatrix, bmatrix, eigenvectors, eigenvalues)
-      TYPE(cp_cfm_type), INTENT(INOUT)                      :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: amatrix, bmatrix, eigenvectors
       REAL(kind=dp), DIMENSION(:), INTENT(OUT), TARGET   :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: dlaf_name = 'pzhegvd_dlaf', &

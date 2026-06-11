@@ -3047,7 +3047,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE scdm_qrfact(vectors)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                       :: vectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vectors
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'scdm_qrfact'
 

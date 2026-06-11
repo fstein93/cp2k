@@ -673,7 +673,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &
@@ -1224,7 +1224,7 @@ CONTAINS
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_scaled_dm_occ_tau, &
                                                             fm_scaled_dm_virt_tau
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mo_coeff_occ, fm_mo_coeff_virt
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
       INTEGER, DIMENSION(:), INTENT(IN)                  :: starts_array_mc, ends_array_mc, &
                                                             starts_array_mc_block, &

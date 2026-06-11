@@ -169,7 +169,7 @@ CONTAINS
    SUBROUTINE cp_pspotri_dlaf(uplo, n, a, ia, ja, desca, info)
       CHARACTER, INTENT(IN)                              :: uplo
       INTEGER, INTENT(IN)                                :: n
-      REAL(KIND=sp), DIMENSION(:, :), TARGET                      :: a
+      REAL(KIND=sp), DIMENSION(:, :), TARGET             :: a
       INTEGER, INTENT(IN)                                :: ia, ja
       INTEGER, DIMENSION(9)                              :: desca
       INTEGER, TARGET                                    :: info
@@ -203,7 +203,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_diag_dlaf(matrix, eigenvectors, eigenvalues)
 
-      TYPE(cp_fm_type), INTENT(INOUT)                       :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_fm_diag_dlaf'

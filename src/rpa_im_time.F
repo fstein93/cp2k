@@ -137,9 +137,11 @@ CONTAINS
                                   has_mat_P_blocks, do_ri_sos_laplace_mp2, &
                                   dbcsr_time, dbcsr_nflop)
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(IN)    :: mat_P_omega
-      TYPE(cp_fm_type), INTENT(INOUT) :: fm_scaled_dm_occ_tau, fm_scaled_dm_virt_tau
-      TYPE(cp_fm_type), INTENT(IN) :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
-         fm_mo_coeff_occ_scaled, fm_mo_coeff_virt_scaled
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_scaled_dm_occ_tau, &
+                                                            fm_scaled_dm_virt_tau
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mo_coeff_occ_scaled, &
+                                                            fm_mo_coeff_virt_scaled
       TYPE(dbcsr_p_type), INTENT(INOUT)                  :: mat_P_global
       TYPE(dbcsr_p_type), DIMENSION(:), POINTER          :: matrix_s
       INTEGER, INTENT(IN)                                :: ispin

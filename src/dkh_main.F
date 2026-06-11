@@ -388,8 +388,9 @@ CONTAINS
    SUBROUTINE peven1p(n, matrix_pe1p, matrix_v, matrix_pvp, matrix_aux, matrix_aux2, aa, rr, tt)
 
       INTEGER, INTENT(IN)                                :: n
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_pe1p
       TYPE(cp_fm_type), INTENT(IN)                       :: matrix_v, matrix_pvp
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_pe1p, matrix_aux, matrix_aux2
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_aux, matrix_aux2
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr, tt
 
       INTEGER                                            :: i, nrow_local
@@ -609,8 +610,8 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: n
       TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_ev3
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ev1, matrix_pe1p, &
-                                                            matrix_v, matrix_pVp
+      TYPE(cp_fm_type), INTENT(IN)                       :: matrix_ev1, matrix_pe1p, matrix_v, &
+                                                            matrix_pVp
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: aa, rr, tt, e
       TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_aux
 

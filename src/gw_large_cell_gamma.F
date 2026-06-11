@@ -1283,7 +1283,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_extrapol_factor(bs_env, fm_W_MIC_time)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: fm_W_MIC_time
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), &
+         INTENT(INOUT)                                   :: fm_W_MIC_time
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_extrapol_factor'
 

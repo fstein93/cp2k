@@ -1075,7 +1075,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: num_integ_points, num_integ_group, &
                                                             color_rpa_group
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_PQ
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, fm_mat_S_gw
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S, fm_mat_Q_gemm, fm_mat_Q, &
+                                                            fm_mat_S_gw
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_R_gw, fm_mat_S_ij_bse, &
                                                             fm_mat_S_ab_bse
       LOGICAL, INTENT(IN)                                :: my_do_gw, do_bse

@@ -164,9 +164,9 @@ CONTAINS
    SUBROUTINE eigensolver(matrix_ks_fm, mo_set, ortho, work, &
                           cholesky_method, do_level_shift, &
                           level_shift, matrix_u_fm, use_jacobi)
-      TYPE(cp_fm_type), INTENT(INOUT)                       :: matrix_ks_fm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix_ks_fm
       TYPE(mo_set_type), INTENT(IN)                      :: mo_set
-      TYPE(cp_fm_type), INTENT(INOUT)                       :: ortho, work
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: ortho, work
       INTEGER, INTENT(inout)                             :: cholesky_method
       LOGICAL, INTENT(in)                                :: do_level_shift
       REAL(KIND=dp), INTENT(in)                          :: level_shift

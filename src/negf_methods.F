@@ -1888,8 +1888,8 @@ CONTAINS
          OPTIONAL                                        :: g_ret_s
       COMPLEX(kind=dp), DIMENSION(:), INTENT(IN), &
          OPTIONAL                                        :: g_ret_scale
-      TYPE(cp_cfm_type), DIMENSION(:, :), INTENT(INOUT), &
-         OPTIONAL                                        :: gamma_contacts, gret_gamma_gadv
+      TYPE(cp_cfm_type), DIMENSION(:, :), &
+         INTENT(INOUT), OPTIONAL                         :: gamma_contacts, gret_gamma_gadv
       REAL(kind=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: dos
       COMPLEX(kind=dp), DIMENSION(:), INTENT(OUT), &
          OPTIONAL                                        :: transm_coeff

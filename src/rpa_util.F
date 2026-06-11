@@ -658,7 +658,7 @@ CONTAINS
                          Eigenval, homo, omega, omega_old, jquad, mm_style, dimen_RI, dimen_ia, alpha, fm_mat_Q, fm_mat_Q_gemm, &
                          do_bse, fm_mat_Q_static_bse_gemm, dgemm_counter, &
                          num_integ_points, count_ev_sc_GW)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: do_ri_sos_laplace_mp2, first_cycle
       INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval
@@ -835,7 +835,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: mm_style, dimen_RI, dimen_ia
       REAL(KIND=dp), INTENT(IN)                          :: alpha
       TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q, fm_mat_Q_gemm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q_gemm, fm_mat_Q
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_S_to_Q'
@@ -879,7 +879,7 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: dimen_RI
       REAL(KIND=dp), DIMENSION(dimen_RI), INTENT(OUT)    :: trace_Qomega
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_Q
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'Q_trace_and_add_unit_matrix'
 

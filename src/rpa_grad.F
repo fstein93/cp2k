@@ -895,7 +895,7 @@ CONTAINS
    SUBROUTINE calc_P_sos_mp2(homo, fm_mat_S, fm_work_iaP, sos_mp2_work_occ, sos_mp2_work_virt, &
                              omega, weight, virtual, Eigenval, dot_blksize)
       INTEGER, INTENT(IN)                                :: homo
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_work_iaP
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S, fm_work_iaP
       TYPE(sos_mp2_grad_work_type), INTENT(INOUT)        :: sos_mp2_work_occ, sos_mp2_work_virt
       REAL(KIND=dp), INTENT(IN)                          :: omega, weight
       INTEGER, INTENT(IN)                                :: virtual

@@ -193,7 +193,7 @@ CONTAINS
          CPASSERT(PRESENT(matrix_b))
          IF (ASSOCIATED(matrix_a%local_data, matrix_b%local_data)) THEN
             CPWARN("Bad use of routine. Call cp_fm_scale instead")
-            my_beta = alpha+beta
+            my_beta = alpha + beta
             CALL cp_fm_scale(my_beta, matrix_a)
             CALL timestop(handle)
             RETURN

@@ -519,8 +519,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rpa_exchange_work_compute_fm(exchange_work, fm_mat_S, eig, omega, &
                                            e_exchange_corr, mp2_env)
-      CLASS(rpa_exchange_work_type), INTENT(INOUT) :: exchange_work
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_mat_S
+      CLASS(rpa_exchange_work_type), INTENT(INOUT)       :: exchange_work
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_mat_S
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eig
       REAL(KIND=dp), INTENT(IN)                          :: omega
       REAL(KIND=dp), INTENT(INOUT)                       :: e_exchange_corr

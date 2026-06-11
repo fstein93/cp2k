@@ -75,7 +75,7 @@ CONTAINS
 !>    * 08.2016 created [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_write_restart(evects, evals, gs_mos, logger, tddfpt_print_section)
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)      :: evects
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: evects
       REAL(kind=dp), DIMENSION(:), INTENT(in)            :: evals
       TYPE(tddfpt_ground_state_mos), DIMENSION(:), &
          INTENT(in)                                      :: gs_mos
