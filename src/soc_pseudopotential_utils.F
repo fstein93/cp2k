@@ -120,8 +120,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cfm_add_on_diag(cfm, alpha)
 
-      TYPE(cp_cfm_type)                                  :: cfm
-      REAL(KIND=dp), DIMENSION(:)                        :: alpha
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: alpha
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cfm_add_on_diag'
 

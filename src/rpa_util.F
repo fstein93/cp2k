@@ -708,7 +708,7 @@ CONTAINS
 !> \param omega_old ...
 ! **************************************************************************************************
    SUBROUTINE remove_scaling_factor_rpa(fm_mat_S, virtual, Eigenval_last, homo, omega_old)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S
       INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval_last
       INTEGER, INTENT(IN)                                :: homo
@@ -758,7 +758,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE calc_fm_mat_S_rpa(fm_mat_S, first_cycle, virtual, Eigenval, homo, &
                                 omega, omega_old)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_S
       LOGICAL, INTENT(IN)                                :: first_cycle
       INTEGER, INTENT(IN)                                :: virtual
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: Eigenval

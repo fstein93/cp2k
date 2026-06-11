@@ -1251,7 +1251,7 @@ CONTAINS
 !> \param cfm_mat ...
 ! **************************************************************************************************
    SUBROUTINE clean_lower_part(cfm_mat)
-      TYPE(cp_cfm_type)                                  :: cfm_mat
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'clean_lower_part'
 
@@ -1283,7 +1283,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE apply_extrapol_factor(bs_env, fm_W_MIC_time)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:)        :: fm_W_MIC_time
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:), INTENT(INOUT) :: fm_W_MIC_time
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'apply_extrapol_factor'
 
@@ -1532,8 +1532,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cfm_add_on_diag(cfm, alpha)
 
-      TYPE(cp_cfm_type)                                  :: cfm
-      COMPLEX(KIND=dp)                                   :: alpha
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm
+      COMPLEX(KIND=dp), INTENT(IN)                       :: alpha
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cfm_add_on_diag'
 

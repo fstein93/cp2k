@@ -481,7 +481,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE non_diag_rse(fm_F_mo, eigenval, homo, para_env, &
                            blacs_env, rse_corr)
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fm_F_mo
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_F_mo
       REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: Eigenval
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env

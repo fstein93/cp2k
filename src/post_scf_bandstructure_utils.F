@@ -2549,8 +2549,8 @@ CONTAINS
                                         cfm_W_ikp_freq_j, ikp, kpoints, basis_type, wkp_ext)
       TYPE(post_scf_bandstructure_type), POINTER         :: bs_env
       TYPE(qs_environment_type), POINTER                 :: qs_env
-      TYPE(cp_fm_type)                                   :: fm_W_MIC_freq_j
-      TYPE(cp_cfm_type)                                  :: cfm_W_ikp_freq_j
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_W_MIC_freq_j
+      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_W_ikp_freq_j
       INTEGER, INTENT(IN)                                :: ikp
       TYPE(kpoint_type), POINTER                         :: kpoints
       CHARACTER(LEN=*)                                   :: basis_type

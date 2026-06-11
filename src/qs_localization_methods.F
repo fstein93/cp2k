@@ -1995,14 +1995,6 @@ CONTAINS
          IF (new_direction) THEN
             ! energy converged up to machine precision ?
             line_searches = line_searches + 1
-            ! DO i=1,line_search_count
-            !   write(15,*) pos(i),energy(i)
-            ! ENDDO
-            ! write(15,*) ""
-            ! CALL m_flush(15)
-            !write(16,*) evals(:)
-            !write(17,*) matrix_A%local_data(:,:)
-            !write(18,*) matrix_G%local_data(:,:)
             IF (output_unit > 0) THEN
                WRITE (output_unit, '(T5,I10,T18,I10,T31,2F20.6,F10.3)') line_searches, Iterations, Omega, tol, ds_min
                CALL m_flush(output_unit)

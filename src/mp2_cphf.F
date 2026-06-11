@@ -766,7 +766,8 @@ CONTAINS
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: P_ia, precond
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)         :: P_ia
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: precond
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'solve_z_vector_pople'
 
@@ -1011,7 +1012,8 @@ CONTAINS
       TYPE(qs_p_env_type), INTENT(IN), POINTER           :: p_env
       TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: L_jb
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_G_mu_nu, fm_back
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: P_ia, precond
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: P_ia
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: precond
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'solve_z_vector_cg'
 

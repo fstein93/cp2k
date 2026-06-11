@@ -1216,7 +1216,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fill_fm_L_from_L_loc_non_blocking(fm_matrix_L, L_local_col, para_env, my_group_L_start, &
                                                 my_group_L_end, dimen_RI)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_matrix_L
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_matrix_L
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :), &
          INTENT(IN)                                      :: L_local_col
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env

@@ -834,25 +834,6 @@ CONTAINS
             WRITE (*, *) 'PRESENT (matrix_g)', PRESENT(matrix_g)
             WRITE (*, *) 'matrix_type=', dbcsr_get_matrix_type(sparse_matrix)
             WRITE (*, *) 'norm(sm+alpha*v*g^t - fm+alpha*v*g^t)/n=', norm/REAL(nao, dp)
-            IF (norm/REAL(nao, dp) > 1e-12_dp) THEN
-               !WRITE(*,*) 'fm_matrix'
-               !DO j=1,SIZE(fm_matrix%local_data,2)
-               !   DO i=1,SIZE(fm_matrix%local_data,1)
-               !      WRITE(*,'(A,I3,A,I3,A,E26.16,A)') 'a(',i,',',j,')=',fm_matrix%local_data(i,j),';'
-               !   ENDDO
-               !ENDDO
-               !WRITE(*,*) 'mat_v'
-               !CALL dbcsr_print(mat_v)
-               !WRITE(*,*) 'mat_g'
-               !CALL dbcsr_print(mat_g)
-               !WRITE(*,*) 'sparse_matrix'
-               !CALL dbcsr_print(sparse_matrix)
-               !WRITE(*,*) 'sparse_matrix2 (-sm + sparse(fm))'
-               !CALL dbcsr_print(sparse_matrix2)
-               !WRITE(*,*) 'sparse_matrix3 (copy of sm input)'
-               !CALL dbcsr_print(sparse_matrix3)
-               !stop
-            END IF
             CALL dbcsr_release(sparse_matrix2)
             CALL dbcsr_release(sparse_matrix3)
             CALL cp_fm_release(fm_matrix)

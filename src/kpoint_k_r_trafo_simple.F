@@ -266,7 +266,7 @@ CONTAINS
 !>    11.2025 Moved to general file [Stepan Marek]
 ! **************************************************************************************************
    SUBROUTINE fm_rs_to_kp(cfm_kp, fm_rs, kpoints, ikp)
-      TYPE(cp_cfm_type)                                  :: cfm_kp
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_kp
       TYPE(cp_fm_type), DIMENSION(:)                     :: fm_rs
       TYPE(kpoint_type), POINTER                         :: kpoints
       INTEGER                                            :: ikp

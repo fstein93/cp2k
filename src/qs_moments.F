@@ -2036,7 +2036,6 @@ CONTAINS
                            CMPLX(op_fm_set(1, ispin)%local_data(:, idim), &
                                  -op_fm_set(2, ispin)%local_data(:, idim), dp)
                      END DO
-                     ! CALL cp_cfm_lu_decompose(eigrmat(ispin), zdeta)
                      CALL cp_cfm_det(eigrmat(ispin), zdeta)
                      zdet = zdet*zdeta
                      IF (dft_control%nspins == 1) THEN
@@ -2174,7 +2173,7 @@ CONTAINS
 
       TYPE(dbcsr_type), POINTER                          :: cosmat, sinmat
       TYPE(mo_set_type), DIMENSION(:), INTENT(IN)        :: mos
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: op_fm_set
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: op_fm_set
       TYPE(cp_fm_type), DIMENSION(:), POINTER            :: mos_new
 
       INTEGER                                            :: i, icol, lcol, nao, newdim, nmo

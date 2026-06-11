@@ -188,10 +188,10 @@ CONTAINS
 !> \param E_LUMO ...
 ! **************************************************************************************************
    SUBROUTINE remove_soc_outside_energy_window_mo(cfm_ks_spinor, e_win, eigenval, E_HOMO, E_LUMO)
-      TYPE(cp_cfm_type)                                  :: cfm_ks_spinor
-      REAL(KIND=dp)                                      :: e_win
-      REAL(KIND=dp), DIMENSION(:)                        :: eigenval
-      REAL(KIND=dp)                                      :: E_HOMO, E_LUMO
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_ks_spinor
+      REAL(KIND=dp), INTENT(IN)                          :: e_win
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenval
+      REAL(KIND=dp), INTENT(IN)                          :: E_HOMO, E_LUMO
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'remove_soc_outside_energy_window_mo'
 

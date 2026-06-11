@@ -667,8 +667,8 @@ CONTAINS
                                                             fm_scaled_dm_virt_tau
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: tau_tj
       INTEGER, INTENT(IN)                                :: num_integ_points, nmo
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ, fm_mo_coeff_virt, &
-                                                            fm_mo_coeff_occ_scaled, &
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mo_coeff_occ, fm_mo_coeff_virt
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mo_coeff_occ_scaled, &
                                                             fm_mo_coeff_virt_scaled
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: mat_dm_occ_global, mat_dm_virt_global
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(IN)       :: matrix_s

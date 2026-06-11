@@ -839,7 +839,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE local_array_to_fm(array_S, fm_S, weight, add)
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)     :: array_S
-      TYPE(cp_fm_type), DIMENSION(:)                     :: fm_S
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fm_S
       REAL(KIND=dp), OPTIONAL                            :: weight
       LOGICAL, OPTIONAL                                  :: add
 

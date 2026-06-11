@@ -1331,7 +1331,7 @@ CONTAINS
 
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: charges
       REAL(KIND=dp), INTENT(INOUT)                       :: lambda, eeq_energy
-      TYPE(cp_fm_type)                                   :: eeq_mat
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: eeq_mat
       TYPE(particle_type), DIMENSION(:), INTENT(IN)      :: particle_set
       INTEGER, DIMENSION(:), INTENT(IN)                  :: kind_of
       TYPE(cell_type), POINTER                           :: cell

@@ -1210,7 +1210,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER                                            :: dimen_aux
       TYPE(pw_r3d_rs_type), INTENT(IN)                   :: rho_r, rho_spin
-      TYPE(cp_fm_type), INTENT(IN)                       :: embed_pot_grad
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: embed_pot_grad
       LOGICAL                                            :: open_shell_embed
       TYPE(lri_kind_type), DIMENSION(:), POINTER         :: lri
 
