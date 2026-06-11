@@ -182,8 +182,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calc_PQ_cond_num, do_svd
       REAL(KIND=dp), INTENT(IN)                          :: eps_svd
       TYPE(libint_potential_type), INTENT(IN)            :: potential, ri_metric
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :), INTENT(IN)     :: fm_matrix_L_kpoints
-      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :), INTENT(INOUT)     :: fm_matrix_Minv_L_kpoints, &
+      TYPE(cp_fm_type), ALLOCATABLE, DIMENSION(:, :), INTENT(INOUT)  :: fm_matrix_L_kpoints, fm_matrix_Minv_L_kpoints, &
          fm_matrix_Minv, fm_matrix_Minv_Vtrunc_Minv
       LOGICAL, INTENT(IN)                                :: do_im_time, do_kpoints
       REAL(KIND=dp), INTENT(IN)                          :: mp2_eps_pgf_orb_S
@@ -1466,7 +1465,7 @@ CONTAINS
    SUBROUTINE inversion_of_M_and_mult_with_chol_dec_of_V(fm_matrix_Minv_L_kpoints, fm_matrix_L_kpoints, &
                                                          dimen_RI, kpoints, eps_eigval_S)
 
-      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(IN)      :: fm_matrix_Minv_L_kpoints, &
+      TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: fm_matrix_Minv_L_kpoints, &
                                                             fm_matrix_L_kpoints
       INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(kpoint_type), POINTER                         :: kpoints

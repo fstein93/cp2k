@@ -146,7 +146,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE rotate_state_to_ref(mo_new, mo_ref, matrix_S)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: mo_new, mo_ref
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: mo_new
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_ref
       TYPE(dbcsr_type), POINTER                          :: matrix_S
 
       CHARACTER(len=*), PARAMETER :: routineN = 'rotate_state_to_ref'
@@ -197,10 +198,6 @@ CONTAINS
       CALL cp_fm_to_fm(smo, mo_new)
 
       ! XXXXXXX testing
-      ! CALL parallel_gemm('N','T',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1)
-      ! WRITE(*,*) o1%local_data
-      ! CALL parallel_gemm('T','N',ncol,ncol,ncol,1.0_dp,o3,o3,0.0_dp,o1)
-      ! WRITE(*,*) o1%local_data
 
       CALL cp_fm_release(o1)
       CALL cp_fm_release(o2)

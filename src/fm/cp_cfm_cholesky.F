@@ -50,7 +50,7 @@ CONTAINS
 !> \author Joost
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_cholesky_decompose(matrix, n, info_out)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
       INTEGER, INTENT(in), OPTIONAL                      :: n
       INTEGER, INTENT(out), OPTIONAL                     :: info_out
 
@@ -121,7 +121,7 @@ CONTAINS
 !> \author Lianheng Tong
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_cholesky_invert(matrix, n, info_out)
-      TYPE(cp_cfm_type), INTENT(IN)              :: matrix
+      TYPE(cp_cfm_type), INTENT(INOUT)           :: matrix
       INTEGER, INTENT(in), OPTIONAL              :: n
       INTEGER, INTENT(out), OPTIONAL             :: info_out
 

@@ -99,7 +99,7 @@ CONTAINS
 !> \param sweeps ...
 ! **************************************************************************************************
    SUBROUTINE approx_l1_norm_sd(C, iterations, eps, converged, sweeps)
-      TYPE(cp_fm_type), INTENT(IN)                       :: C
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: C
       INTEGER, INTENT(IN)                                :: iterations
       REAL(KIND=dp), INTENT(IN)                          :: eps
       LOGICAL, INTENT(INOUT)                             :: converged
@@ -306,7 +306,7 @@ CONTAINS
                                eps_localization, sweeps, out_each, target_time, start_time, restricted)
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: zij(:, :), vectors
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
@@ -340,7 +340,7 @@ CONTAINS
    SUBROUTINE jacobi_rotations_serial(weights, zij, vectors, max_iter, eps_localization, sweeps, &
                                       out_each, restricted)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: zij(:, :), vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: sweeps
@@ -458,12 +458,12 @@ CONTAINS
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
       TYPE(cp_cfm_type), INTENT(IN)                      :: c_zij(:)
       INTEGER, INTENT(IN)                                :: max_iter
-      TYPE(cp_cfm_type), INTENT(IN)                      :: c_rmat
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: c_rmat
       REAL(KIND=dp), INTENT(IN), OPTIONAL                :: eps_localization
       REAL(KIND=dp), INTENT(OUT), OPTIONAL               :: tol_out
       INTEGER, INTENT(OUT), OPTIONAL                     :: jsweeps
       INTEGER, INTENT(IN), OPTIONAL                      :: out_each
-      TYPE(cp_cfm_type), INTENT(IN), OPTIONAL            :: c_zij_out(:)
+      TYPE(cp_cfm_type), INTENT(INOUT), OPTIONAL         :: c_zij_out(:)
       TYPE(cp_fm_type), INTENT(OUT), OPTIONAL, POINTER   :: grad_final
 
       CHARACTER(len=*), PARAMETER :: routineN = 'jacobi_rotations_serial_1'
@@ -603,7 +603,7 @@ CONTAINS
                                iter, out_each, nextra, do_cg, nmo, vectors_2, mos_guess)
       TYPE(mp_para_env_type), POINTER                    :: para_env
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: zij(:, :), vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: iter
@@ -891,9 +891,6 @@ CONTAINS
       mintol = 1.0E+10_dp
       miniter = 0
 
-      !IF (nextra > 0) WRITE(*,*) 'random_guess, MO_guess, U_guess, conjugate_gradient: ', &
-      !                            do_cinit_random, do_cinit_mo, do_U_guess_mo, do_cg
-
       ! do conjugate gradient until converged
       DO WHILE (iter < max_iter)
          iter = iter + 1
@@ -1095,7 +1092,6 @@ CONTAINS
             END IF
 
             line_search_count = line_search_count + 1
-            !WRITE(*,*) 'line_search_count = ', line_search_count
             energy(line_search_count) = spread_sum
 
             ! gold line search
@@ -1309,7 +1305,7 @@ CONTAINS
    SUBROUTINE rotate_rmat(istate, jstate, st, ct, rmat)
       INTEGER, INTENT(IN)                                :: istate, jstate
       REAL(KIND=dp), INTENT(IN)                          :: st, ct
-      TYPE(cp_cfm_type), INTENT(IN)                      :: rmat
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: rmat
 
       CALL cp_cfm_rot_cols(rmat, istate, jstate, ct, st)
 
@@ -1404,7 +1400,8 @@ CONTAINS
 !> \param vectors ...
 ! **************************************************************************************************
    SUBROUTINE rotate_orbitals(rmat, vectors)
-      TYPE(cp_fm_type), INTENT(IN)                       :: rmat, vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: rmat
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vectors
 
       INTEGER                                            :: k, n
       TYPE(cp_fm_type)                                   :: wf
@@ -1422,7 +1419,8 @@ CONTAINS
 !> \param vectors ...
 ! **************************************************************************************************
    SUBROUTINE rotate_orbitals_cfm(rmat, vectors)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: rmat, vectors
+      TYPE(cp_cfm_type), INTENT(IN)                      :: rmat
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: vectors
 
       INTEGER                                            :: k, n
       TYPE(cp_cfm_type)                                  :: wf
@@ -1441,7 +1439,8 @@ CONTAINS
 !> \param vectors ...
 ! **************************************************************************************************
    SUBROUTINE rotate_orbitals_edf(rmat, vec_all, vectors)
-      TYPE(cp_fm_type), INTENT(IN)                       :: rmat, vec_all, vectors
+      TYPE(cp_fm_type), INTENT(IN)                       :: rmat, vec_all
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vectors
 
       INTEGER                                            :: k, l, n
       TYPE(cp_fm_type)                                   :: wf
@@ -1612,8 +1611,7 @@ CONTAINS
    SUBROUTINE crazy_rotations(weights, zij, vectors, max_iter, max_crazy_angle, crazy_scale, crazy_use_diag, &
                               eps_localization, iterations, converged)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: zij(:, :)
-      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: zij(:, :), vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: max_crazy_angle
       REAL(KIND=dp)                                      :: crazy_scale
@@ -1811,7 +1809,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE direct_mini(weights, zij, vectors, max_iter, eps_localization, iterations)
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: zij(:, :), vectors
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
       INTEGER                                            :: iterations
@@ -2218,7 +2216,7 @@ CONTAINS
                               sweeps, out_each, target_time, start_time, restricted)
 
       REAL(KIND=dp), INTENT(IN)                          :: weights(:)
-      TYPE(cp_fm_type), INTENT(IN)                       :: zij(:, :), vectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: zij(:, :), vectors
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
       REAL(KIND=dp), INTENT(IN)                          :: eps_localization
@@ -2375,7 +2373,7 @@ CONTAINS
       TYPE(cp_cfm_type), INTENT(IN)                      :: czij(:)
       TYPE(mp_para_env_type), POINTER                    :: para_env
       INTEGER, INTENT(IN)                                :: max_iter
-      TYPE(cp_cfm_type), INTENT(IN)                      :: rmat
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: rmat
       REAL(dp), INTENT(OUT), OPTIONAL                    :: tol_out
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'jacobi_rot_para_1'

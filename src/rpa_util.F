@@ -834,8 +834,8 @@ CONTAINS
 
       INTEGER, INTENT(IN)                                :: mm_style, dimen_RI, dimen_ia
       REAL(KIND=dp), INTENT(IN)                          :: alpha
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S, fm_mat_Q
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q_gemm
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_mat_S
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_Q, fm_mat_Q_gemm
       TYPE(dgemm_counter_type), INTENT(INOUT)            :: dgemm_counter
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'contract_S_to_Q'

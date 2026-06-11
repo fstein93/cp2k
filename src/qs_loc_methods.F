@@ -355,7 +355,7 @@ CONTAINS
       TYPE(qs_environment_type), POINTER                 :: qs_env
       INTEGER, INTENT(IN)                                :: method
       TYPE(qs_loc_env_type), POINTER                     :: qs_loc_env
-      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vectors
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: zij_fm_set
       INTEGER, INTENT(IN)                                :: ispin
       TYPE(section_vals_type), POINTER                   :: print_loc_section
@@ -511,7 +511,7 @@ CONTAINS
    SUBROUTINE jacobi_rotation_pipek(zij_fm_set, vectors, sweeps)
 
       TYPE(cp_fm_type), DIMENSION(:, :), INTENT(INOUT)   :: zij_fm_set
-      TYPE(cp_fm_type), INTENT(IN)                       :: vectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vectors
       INTEGER                                            :: sweeps
 
       INTEGER                                            :: iatom, istate, jstate, natom, nstate

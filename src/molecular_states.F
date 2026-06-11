@@ -93,7 +93,8 @@ CONTAINS
                                          loc_print_section, particles, tag, marked_states, ispin)
 
       TYPE(molecule_type), DIMENSION(:), POINTER         :: molecule_set
-      TYPE(cp_fm_type), INTENT(IN)                       :: mo_localized, mo_coeff
+      TYPE(cp_fm_type), INTENT(INOUT)                       :: mo_localized
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_coeff
       REAL(KIND=dp), DIMENSION(:), POINTER               :: mo_eigenvalues
       TYPE(dbcsr_type), POINTER                          :: Hks, matrix_S
       TYPE(qs_environment_type), POINTER                 :: qs_env

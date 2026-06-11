@@ -190,7 +190,7 @@ CONTAINS
    SUBROUTINE negf_copy_sym_dbcsr_to_fm_submat(matrix, fm, atomlist_row, atomlist_col, subsys, &
                                                mpi_comm_global, do_upper_diag, do_lower)
       TYPE(dbcsr_type), POINTER                          :: matrix
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm
       INTEGER, DIMENSION(:), INTENT(in)                  :: atomlist_row, atomlist_col
       TYPE(qs_subsys_type), POINTER                      :: subsys
 
@@ -302,8 +302,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE negf_copy_contact_matrix(fm_cell0, fm_cell1, direction_axis, matrix_kp, &
                                        atom_list0, atom_list1, subsys, mpi_comm_global, kpoints)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_cell0
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_cell1
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_cell0, fm_cell1
       INTEGER, INTENT(in)                                :: direction_axis
       TYPE(dbcsr_p_type), DIMENSION(:), INTENT(in), &
          POINTER                                         :: matrix_kp

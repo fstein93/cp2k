@@ -615,7 +615,8 @@ CONTAINS
 !> \param unit_nr ...
 ! **************************************************************************************************
    SUBROUTINE align_vectors(cpmos, mo_ref, mo_occ, matrix_s, orbrot_index, phase_index, unit_nr)
-      TYPE(cp_fm_type), INTENT(IN)                       :: cpmos, mo_ref, mo_occ
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: cpmos, mo_ref
+      TYPE(cp_fm_type), INTENT(IN)                       :: mo_occ
       TYPE(dbcsr_type), POINTER                          :: matrix_s
       REAL(KIND=dp), INTENT(OUT)                         :: orbrot_index, phase_index
       INTEGER, INTENT(IN)                                :: unit_nr

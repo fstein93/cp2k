@@ -1745,7 +1745,7 @@ CONTAINS
       TYPE(dbcsr_type), POINTER                          :: tempmat
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: fmwork
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: fmwork
       LOGICAL, OPTIONAL                                  :: for_aux_fit
       TYPE(cp_fm_type), DIMENSION(:, :, :), INTENT(IN), &
          OPTIONAL                                        :: pmat_ext

@@ -830,7 +830,7 @@ CONTAINS
    SUBROUTINE prep_for_ot(guess, ortho, precond, neig, do_sf, donor_state, xas_tdp_env, &
                           xas_tdp_control, qs_env)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: guess, ortho
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: guess, ortho
       TYPE(dbcsr_type)                                   :: precond
       INTEGER                                            :: neig
       LOGICAL                                            :: do_sf

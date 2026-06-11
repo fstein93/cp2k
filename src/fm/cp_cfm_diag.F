@@ -72,7 +72,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_heevd(matrix, eigenvectors, eigenvalues)
 
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_heevd'
@@ -112,7 +112,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_heevd_base(matrix, eigenvectors, eigenvalues)
 
-      TYPE(cp_cfm_type), INTENT(IN)            :: matrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(INOUT)         :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT) :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_heevd_base'
@@ -307,9 +307,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_geeig(amatrix, bmatrix, eigenvectors, eigenvalues, work)
 
-      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:)                        :: eigenvalues
-      TYPE(cp_cfm_type), INTENT(IN)                      :: work
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: work
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_geeig'
 
@@ -412,7 +412,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_geeig_scalapack(amatrix, bmatrix, eigenvectors, eigenvalues)
 
-      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_geeig_scalapack'
@@ -532,9 +532,9 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_geeig_canon(amatrix, bmatrix, eigenvectors, eigenvalues, work, epseig)
 
-      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
-      TYPE(cp_cfm_type), INTENT(IN)                      :: work
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: work
       REAL(KIND=dp), INTENT(IN)                          :: epseig
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_geeig_canon'

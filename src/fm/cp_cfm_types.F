@@ -199,9 +199,9 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_set_all(matrix, alpha, beta)
-      TYPE(cp_cfm_type), INTENT(IN)                   :: matrix
-      COMPLEX(kind=dp), INTENT(in)                       :: alpha
-      COMPLEX(kind=dp), INTENT(in), OPTIONAL             :: beta
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
+      COMPLEX(kind=dp), INTENT(IN)                       :: alpha
+      COMPLEX(kind=dp), INTENT(IN), OPTIONAL             :: beta
 
       INTEGER                                            :: irow_local, nrow_local
 #if defined(__parallel)
@@ -250,11 +250,12 @@ CONTAINS
 !> \par History
 !>      , TCH, created
 !>      always return the answer
+!> \note global operation
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_get_element(matrix, irow_global, icol_global, alpha)
       TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
-      INTEGER, INTENT(in)                                :: irow_global, icol_global
-      COMPLEX(kind=dp), INTENT(out)                      :: alpha
+      INTEGER, INTENT(IN)                                :: irow_global, icol_global
+      COMPLEX(kind=dp), INTENT(OUT)                      :: alpha
 
 #if defined(__parallel)
       INTEGER                                            :: icol_local, ipcol, iprow, irow_local, &
@@ -299,9 +300,9 @@ CONTAINS
 !> \version 1.0
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_set_element(matrix, irow_global, icol_global, alpha)
-      TYPE(cp_cfm_type), INTENT(IN)                   :: matrix
-      INTEGER, INTENT(in)                                :: irow_global, icol_global
-      COMPLEX(kind=dp), INTENT(in)                       :: alpha
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
+      INTEGER, INTENT(IN)                                :: irow_global, icol_global
+      COMPLEX(kind=dp), INTENT(IN)                       :: alpha
 
 #if defined(__parallel)
       INTEGER                                            :: icol_local, ipcol, iprow, irow_local, &
@@ -490,11 +491,11 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_set_submatrix(matrix, new_values, start_row, &
                                    start_col, n_rows, n_cols, alpha, beta, transpose)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix
-      COMPLEX(kind=dp), DIMENSION(:, :), INTENT(in)      :: new_values
-      INTEGER, INTENT(in), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
-      COMPLEX(kind=dp), INTENT(in), OPTIONAL             :: alpha, beta
-      LOGICAL, INTENT(in), OPTIONAL                      :: transpose
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix
+      COMPLEX(kind=dp), DIMENSION(:, :), INTENT(IN)      :: new_values
+      INTEGER, INTENT(IN), OPTIONAL                      :: start_row, start_col, n_rows, n_cols
+      COMPLEX(kind=dp), INTENT(IN), OPTIONAL             :: alpha, beta
+      LOGICAL, INTENT(IN), OPTIONAL                      :: transpose
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_set_submatrix'
 
@@ -657,7 +658,8 @@ CONTAINS
 !> \author Joost VandeVondele
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_to_cfm_matrix(source, destination)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: source, destination
+      TYPE(cp_cfm_type), INTENT(IN)                      :: source
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: destination
 
       INTEGER                                            :: npcol, nprow
 
@@ -698,7 +700,8 @@ CONTAINS
    SUBROUTINE cp_cfm_to_cfm_columns(msource, mtarget, ncol, source_start, &
                                     target_start)
 
-      TYPE(cp_cfm_type), INTENT(IN)                   :: msource, mtarget
+      TYPE(cp_cfm_type), INTENT(IN)                      :: msource
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: mtarget
       INTEGER, INTENT(IN)                                :: ncol
       INTEGER, INTENT(IN), OPTIONAL                      :: source_start, target_start
 
@@ -745,7 +748,8 @@ CONTAINS
 !> \param uplo    'U' for upper triangular, 'L' for lower triangular
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_to_cfm_triangular(msource, mtarget, uplo)
-      TYPE(cp_cfm_type), INTENT(IN)                   :: msource, mtarget
+      TYPE(cp_cfm_type), INTENT(IN)                      :: msource
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: mtarget
       CHARACTER(len=*), INTENT(IN)                       :: uplo
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_to_cfm_triangular'
@@ -787,7 +791,7 @@ CONTAINS
    SUBROUTINE cp_cfm_to_fm(msource, mtargetr, mtargeti)
 
       TYPE(cp_cfm_type), INTENT(IN)                      :: msource
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: mtargetr, mtargeti
+      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: mtargetr, mtargeti
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_cfm_to_fm'
 
@@ -838,7 +842,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_to_cfm(msourcer, msourcei, mtarget)
       TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: msourcer, msourcei
-      TYPE(cp_cfm_type), INTENT(IN)                      :: mtarget
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: mtarget
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'cp_fm_to_cfm'
 
@@ -897,11 +901,13 @@ CONTAINS
 !> \param info         all of the data that will be needed to complete the copy operation
 !> \note a slightly modified version of the subroutine cp_fm_start_copy_general() that uses
 !>       allocatable arrays instead of pointers wherever possible.
+!>       If we implement the ASYNCHRONOUS keyword, the Asynchronous block starts before the call to this function
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_start_copy_general(source, destination, para_env, info)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: source, destination
+      TYPE(cp_cfm_type), INTENT(IN)                      :: source
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: destination
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env
-      TYPE(copy_cfm_info_type), INTENT(out)              :: info
+      TYPE(copy_cfm_info_type), INTENT(OUT)              :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_start_copy_general'
 
@@ -1209,10 +1215,11 @@ CONTAINS
 !> \param info         all of the data that will be needed to complete the copy operation
 !> \note a slightly modified version of the subroutine cp_fm_finish_copy_general() that uses
 !>       allocatable arrays instead of pointers wherever possible.
+!>       If we implement the ASYNCHRONOUS keyword, the ASYNCHRONOUS ends after the call to this function
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_finish_copy_general(destination, info)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: destination
-      TYPE(copy_cfm_info_type), INTENT(inout)            :: info
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: destination
+      TYPE(copy_cfm_info_type), INTENT(INOUT)            :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_finish_copy_general'
 
@@ -1278,7 +1285,7 @@ CONTAINS
 !>       allocatable arrays instead of pointers wherever possible.
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_cleanup_copy_general(info)
-      TYPE(copy_cfm_info_type), INTENT(inout)            :: info
+      TYPE(copy_cfm_info_type), INTENT(INOUT)            :: info
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp_cfm_cleanup_copy_general'
 

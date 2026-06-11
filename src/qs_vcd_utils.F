@@ -507,7 +507,7 @@ CONTAINS
    SUBROUTINE vcd_read_restart(qs_env, linres_section, vec, lambda, beta, tag)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: linres_section
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: vec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: vec
       INTEGER, INTENT(IN)                                :: lambda, beta
       CHARACTER(LEN=*)                                   :: tag
 

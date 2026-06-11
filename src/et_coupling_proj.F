@@ -401,7 +401,7 @@ CONTAINS
 
       ! Routine arguments
       TYPE(et_cpl), POINTER                              :: ec
-      TYPE(cp_fm_type), INTENT(IN)                       :: mat_h, mat_w
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: mat_h, mat_w
 
       INTEGER                                            :: ic, ir, jc, jr, kc, kr, mc, mr, nc, nr
       REAL(KIND=dp)                                      :: xh

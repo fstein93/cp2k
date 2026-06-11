@@ -1876,24 +1876,24 @@ CONTAINS
                                                  g_surf_contacts, &
                                                  g_ret_s, g_ret_scale, gamma_contacts, gret_gamma_gadv, dos, &
                                                  transm_coeff, transm_contact1, transm_contact2, just_contact)
-      COMPLEX(kind=dp), DIMENSION(:), INTENT(in)         :: omega
-      REAL(kind=dp), INTENT(in)                          :: v_shift
-      LOGICAL, INTENT(in)                                :: ignore_bias
-      TYPE(negf_env_type), INTENT(in)                    :: negf_env
+      COMPLEX(kind=dp), DIMENSION(:), INTENT(IN)         :: omega
+      REAL(kind=dp), INTENT(IN)                          :: v_shift
+      LOGICAL, INTENT(IN)                                :: ignore_bias
+      TYPE(negf_env_type), INTENT(IN)                    :: negf_env
       TYPE(negf_control_type), POINTER                   :: negf_control
-      TYPE(negf_subgroup_env_type), INTENT(in)           :: sub_env
-      INTEGER, INTENT(in)                                :: ispin
-      TYPE(cp_cfm_type), DIMENSION(:, :), INTENT(in)     :: g_surf_contacts
-      TYPE(cp_cfm_type), DIMENSION(:), INTENT(in), &
+      TYPE(negf_subgroup_env_type), INTENT(IN)           :: sub_env
+      INTEGER, INTENT(IN)                                :: ispin
+      TYPE(cp_cfm_type), DIMENSION(:, :), INTENT(IN)     :: g_surf_contacts
+      TYPE(cp_cfm_type), DIMENSION(:), INTENT(INOUT), &
          OPTIONAL                                        :: g_ret_s
-      COMPLEX(kind=dp), DIMENSION(:), INTENT(in), &
+      COMPLEX(kind=dp), DIMENSION(:), INTENT(IN), &
          OPTIONAL                                        :: g_ret_scale
-      TYPE(cp_cfm_type), DIMENSION(:, :), INTENT(in), &
+      TYPE(cp_cfm_type), DIMENSION(:, :), INTENT(INOUT), &
          OPTIONAL                                        :: gamma_contacts, gret_gamma_gadv
-      REAL(kind=dp), DIMENSION(:), INTENT(out), OPTIONAL :: dos
-      COMPLEX(kind=dp), DIMENSION(:), INTENT(out), &
+      REAL(kind=dp), DIMENSION(:), INTENT(OUT), OPTIONAL :: dos
+      COMPLEX(kind=dp), DIMENSION(:), INTENT(OUT), &
          OPTIONAL                                        :: transm_coeff
-      INTEGER, INTENT(in), OPTIONAL                      :: transm_contact1, transm_contact2, &
+      INTEGER, INTENT(IN), OPTIONAL                      :: transm_contact1, transm_contact2, &
                                                             just_contact
 
       CHARACTER(len=*), PARAMETER :: routineN = 'negf_retarded_green_function_batch'

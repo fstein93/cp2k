@@ -117,7 +117,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_diag_dlaf(matrix, eigenvectors, eigenvalues)
 
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_cfm_diag_dlaf'
@@ -155,7 +155,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_diag_gen_dlaf(amatrix, bmatrix, eigenvectors, eigenvalues)
 
-      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: amatrix, bmatrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_cfm_diag_gen_dlaf'
@@ -191,7 +191,7 @@ CONTAINS
 !> \author Rocco Meli
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_diag_dlaf_base(matrix, eigenvectors, eigenvalues)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: matrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: matrix, eigenvectors
       REAL(kind=dp), DIMENSION(:), INTENT(OUT), TARGET   :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: dlaf_name = 'pzheevd_dlaf', routineN = 'cp_cfm_diag_dlaf_base'
@@ -262,7 +262,7 @@ CONTAINS
 !> \author Rocco Meli
 ! **************************************************************************************************
    SUBROUTINE cp_cfm_diag_gen_dlaf_base(amatrix, bmatrix, eigenvectors, eigenvalues)
-      TYPE(cp_cfm_type), INTENT(IN)                      :: amatrix, bmatrix, eigenvectors
+      TYPE(cp_cfm_type), INTENT(INOUT)                      :: amatrix, bmatrix, eigenvectors
       REAL(kind=dp), DIMENSION(:), INTENT(OUT), TARGET   :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: dlaf_name = 'pzhegvd_dlaf', &

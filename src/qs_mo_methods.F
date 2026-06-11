@@ -298,7 +298,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE make_basis_lowdin(vmatrix, ncol, matrix_s)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vmatrix
       INTEGER, INTENT(IN)                                :: ncol
       TYPE(dbcsr_type)                                   :: matrix_s
 
@@ -409,13 +409,13 @@ CONTAINS
    SUBROUTINE subspace_eigenvalues_ks_fm(orbitals, ks_matrix, evals_arg, ionode, scr, &
                                          do_rotation, co_rotate, co_rotate_dbcsr)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: orbitals
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: orbitals
       TYPE(dbcsr_type), POINTER                          :: ks_matrix
       REAL(KIND=dp), DIMENSION(:), OPTIONAL              :: evals_arg
       LOGICAL, INTENT(IN), OPTIONAL                      :: ionode
       INTEGER, INTENT(IN), OPTIONAL                      :: scr
       LOGICAL, INTENT(IN), OPTIONAL                      :: do_rotation
-      TYPE(cp_fm_type), INTENT(IN), OPTIONAL             :: co_rotate
+      TYPE(cp_fm_type), INTENT(INOUT), OPTIONAL          :: co_rotate
       TYPE(dbcsr_type), OPTIONAL, POINTER                :: co_rotate_dbcsr
 
       CHARACTER(len=*), PARAMETER :: routineN = 'subspace_eigenvalues_ks_fm'

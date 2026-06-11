@@ -2027,7 +2027,8 @@ CONTAINS
 !> \param ncol number of columns to copy
 ! **************************************************************************************************
    SUBROUTINE copy_wannier90_mo_window(source, destination, ncol)
-      TYPE(cp_fm_type), INTENT(IN)                       :: source, destination
+      TYPE(cp_fm_type), INTENT(IN)                       :: source
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: destination
       INTEGER, INTENT(IN)                                :: ncol
 
       INTEGER                                            :: ncol_source, nrow
@@ -2063,8 +2064,8 @@ CONTAINS
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
       TYPE(neighbor_list_set_p_type), DIMENSION(:), &
          POINTER                                         :: sab_nl
-      TYPE(cp_fm_type), INTENT(IN)                       :: coeff_real, coeff_imag, result_real, &
-                                                            result_imag
+      TYPE(cp_fm_type), INTENT(IN)                       :: coeff_real, coeff_imag
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: result_real, result_imag
 
       INTEGER                                            :: nao, ncol
       TYPE(cp_cfm_type)                                  :: coeff_cfm, kmat_cfm, result_cfm
@@ -2150,7 +2151,7 @@ CONTAINS
                                                 xkp, cell_to_index, sab_nl, ispin, eigenvalues, &
                                                 degenerate_band_tol, success, reason, aligned_blocks, &
                                                 aligned_max_size, aligned_min_svalue, max_residual)
-      TYPE(cp_fm_type), INTENT(IN)                       :: dst_real, dst_imag
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: dst_real, dst_imag
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_ks
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -2379,7 +2380,8 @@ CONTAINS
                                                 matrix_ks, xkp, cell_to_index, sab_nl, ispin, &
                                                 eigenvalues, nmo_export, success, reason, min_svalue, &
                                                 max_residual)
-      TYPE(cp_fm_type), INTENT(IN)                       :: src_real, src_imag, dst_real, dst_imag
+      TYPE(cp_fm_type), INTENT(IN)                       :: src_real, src_imag
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: dst_real, dst_imag
       TYPE(dbcsr_p_type), DIMENSION(:, :), POINTER       :: matrix_s, matrix_ks
       REAL(KIND=dp), DIMENSION(3), INTENT(IN)            :: xkp
       INTEGER, DIMENSION(:, :, :), POINTER               :: cell_to_index
@@ -2655,7 +2657,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE transform_wannier90_scf_mo(src_real, src_imag, dst_real, dst_imag, qs_kpoint, ikred, &
                                          isym, para_env, success, reason)
-      TYPE(cp_fm_type), INTENT(IN)                       :: src_real, src_imag, dst_real, dst_imag
+      TYPE(cp_fm_type), INTENT(IN)                       :: src_real, src_imag
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: dst_real, dst_imag
       TYPE(kpoint_type), POINTER                         :: qs_kpoint
       INTEGER, INTENT(IN)                                :: ikred, isym
       TYPE(mp_para_env_type), POINTER                    :: para_env

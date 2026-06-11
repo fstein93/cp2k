@@ -6452,7 +6452,7 @@ CONTAINS
    SUBROUTINE dbcsr_to_cfm(dbcsr_re, dbcsr_im, cfm_mat)
 
       TYPE(dbcsr_type), POINTER                          :: dbcsr_re, dbcsr_im
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'dbcsr_to_cfm'
 

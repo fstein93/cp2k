@@ -159,8 +159,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE lowdin_orthogonalization(vmatrix, xmatrix, ncol, matrix_s)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: vmatrix
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: xmatrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vmatrix, xmatrix
       INTEGER, INTENT(IN)                                :: ncol
       TYPE(dbcsr_type)                                   :: matrix_s
 
@@ -232,8 +231,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE wfn_align(gmatrix, vmatrix, xmatrix, rdiag, matrix_s)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: gmatrix, vmatrix
-      TYPE(cp_fm_type), INTENT(INOUT)                    :: xmatrix
+      TYPE(cp_fm_type), INTENT(IN)                       :: gmatrix
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: vmatrix, xmatrix
       REAL(KIND=dp), DIMENSION(:), INTENT(INOUT)         :: rdiag
       TYPE(dbcsr_type)                                   :: matrix_s
 

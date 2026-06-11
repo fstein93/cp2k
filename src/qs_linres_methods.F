@@ -934,7 +934,7 @@ CONTAINS
    SUBROUTINE linres_read_restart(qs_env, linres_section, vec, ivec, tag, ind)
       TYPE(qs_environment_type), POINTER                 :: qs_env
       TYPE(section_vals_type), POINTER                   :: linres_section
-      TYPE(cp_fm_type), DIMENSION(:), INTENT(IN)         :: vec
+      TYPE(cp_fm_type), DIMENSION(:), INTENT(INOUT)      :: vec
       INTEGER, INTENT(IN)                                :: ivec
       CHARACTER(LEN=*)                                   :: tag
       INTEGER, INTENT(INOUT), OPTIONAL                   :: ind

@@ -169,7 +169,7 @@ CONTAINS
    SUBROUTINE cp_pspotri_dlaf(uplo, n, a, ia, ja, desca, info)
       CHARACTER, INTENT(IN)                              :: uplo
       INTEGER, INTENT(IN)                                :: n
-      REAL, DIMENSION(:, :), TARGET                      :: a
+      REAL(KIND=sp), DIMENSION(:, :), TARGET                      :: a
       INTEGER, INTENT(IN)                                :: ia, ja
       INTEGER, DIMENSION(9)                              :: desca
       INTEGER, TARGET                                    :: info
@@ -203,7 +203,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_diag_dlaf(matrix, eigenvectors, eigenvalues)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)                       :: matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
 
       CHARACTER(LEN=*), PARAMETER                        :: routineN = 'cp_fm_diag_dlaf'
@@ -239,7 +239,7 @@ CONTAINS
 !> \author Rocco Meli
 ! **************************************************************************************************
    SUBROUTINE cp_fm_diag_dlaf_base(matrix, eigenvectors, eigenvalues)
-      TYPE(cp_fm_type), INTENT(IN)                       :: matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: matrix, eigenvectors
       REAL(kind=dp), DIMENSION(:), INTENT(OUT), TARGET   :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: dlaf_name = 'pdsyevd_dlaf', routineN = 'cp_fm_diag_dlaf_base'
@@ -311,7 +311,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cp_fm_diag_gen_dlaf(a_matrix, b_matrix, eigenvectors, eigenvalues)
 
-      TYPE(cp_fm_type), INTENT(IN)                       :: a_matrix, b_matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: a_matrix, b_matrix, eigenvectors
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: eigenvalues
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'cp_fm_diag_gen_dlaf'
@@ -348,7 +348,7 @@ CONTAINS
 !> \author Rocco Meli
 ! **************************************************************************************************
    SUBROUTINE cp_fm_diag_gen_dlaf_base(a_matrix, b_matrix, eigenvectors, eigenvalues)
-      TYPE(cp_fm_type), INTENT(IN)                       :: a_matrix, b_matrix, eigenvectors
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: a_matrix, b_matrix, eigenvectors
       REAL(kind=dp), DIMENSION(:), INTENT(OUT), TARGET   :: eigenvalues
 
       CHARACTER(len=*), PARAMETER :: dlaf_name = 'pdsygvd_dlaf', &

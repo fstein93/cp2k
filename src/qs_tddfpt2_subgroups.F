@@ -829,7 +829,8 @@ CONTAINS
 !>   * 01.2017 moved from qs_tddfpt2_methods [Sergey Chulkov]
 ! **************************************************************************************************
    SUBROUTINE tddfpt_fm_replicate_across_subgroups(fm_src, fm_dest_sub, sub_env)
-      TYPE(cp_fm_type), INTENT(IN)                       :: fm_src, fm_dest_sub
+      TYPE(cp_fm_type), INTENT(IN)                       :: fm_src
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_dest_sub
       TYPE(tddfpt_subgroup_env_type), INTENT(in)         :: sub_env
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'tddfpt_fm_replicate_across_subgroups'

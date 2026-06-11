@@ -339,7 +339,7 @@ CONTAINS
                                fm_mat_RI_global_work, dimen_RI, ikp, nkp, ikp_local, para_env, &
                                make_chi_pos_definite)
 
-      TYPE(cp_cfm_type)                                  :: cfm_mat_Q
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat_Q
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega_kp
       TYPE(cp_fm_type)                                   :: fm_mat_L_re, fm_mat_L_im, &
                                                             fm_mat_RI_global_work
@@ -410,7 +410,7 @@ CONTAINS
 
       TYPE(dbcsr_p_type), DIMENSION(:, :), INTENT(INOUT) :: mat_P_omega_kp
       TYPE(cp_fm_type), INTENT(INOUT)                    :: fm_mat_RI_global_work, fm_mat_work
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat_Q
       INTEGER, INTENT(IN)                                :: ikp, nkp, ikp_local
       TYPE(mp_para_env_type), POINTER                    :: para_env
 
@@ -501,7 +501,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE cholesky_decomp_Q(cfm_mat_Q, para_env, trace_Qomega, dimen_RI)
 
-      TYPE(cp_cfm_type), INTENT(IN)                      :: cfm_mat_Q
+      TYPE(cp_cfm_type), INTENT(INOUT)                   :: cfm_mat_Q
       TYPE(mp_para_env_type), INTENT(IN)                 :: para_env
       REAL(KIND=dp), DIMENSION(:), INTENT(OUT)           :: trace_Qomega
       INTEGER, INTENT(IN)                                :: dimen_RI

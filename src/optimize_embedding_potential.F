@@ -729,7 +729,7 @@ CONTAINS
       TYPE(pw_r3d_rs_type), INTENT(INOUT)                :: embed_pot
       TYPE(pw_r3d_rs_type), INTENT(IN), POINTER          :: spin_embed_pot
       TYPE(section_vals_type), POINTER                   :: section
-      TYPE(cp_fm_type), INTENT(IN)                       :: embed_pot_coef
+      TYPE(cp_fm_type), INTENT(INOUT)                    :: embed_pot_coef
       LOGICAL, INTENT(IN)                                :: open_shell_embed
 
       CHARACTER(LEN=default_path_length)                 :: filename
