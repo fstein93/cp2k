@@ -410,6 +410,7 @@ list(
   mp2_ri_libint.F
   mp2_setup.F
   mp2_types.F
+  mp2_gpu/mp2_gpu_api.F
   mscfg_methods.F
   mscfg_types.F
   mulliken.F
@@ -1413,6 +1414,7 @@ list(
   APPEND
   CP2K_SRCS_C
   sockets.c
+  mp2_gpu/mp2_gpu.c
   base/machine_cpuid.c
   base/openmp_trace.c
   base/openmp_trace.c
