@@ -13,19 +13,20 @@
 
 #include "../offload/offload_library.h"
 
+
 #if defined(__OFFLOAD_CUDA)
 #include <cublas_v2.h>
 #include <cuda_runtime.h>
 #endif
 
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
-#include <cuda_runtime.h>
 #include <spla/spla.h>
 #endif
 
 /*******************************************************************************
  * Error-checking macros
  ******************************************************************************/
+
 #if defined(__OFFLOAD_CUDA)
 #define CUDA_CHECK(cmd)                                                        \
   do {                                                                         \
@@ -76,9 +77,20 @@
       abort();                                                                 \
     }                                                                          \
   } while (0)
+
+
+#define CUDA_CHECK(cmd)                                                        \
+  do {                                                                         \
+    cudaError_t status__ = (cmd);                                              \
+    if (status__ != cudaSuccess) {                                             \
+      fprintf(stderr, "CUDA_ERROR: %s %s:%d\n", cudaGetErrorString(status__),  \
+              __FILE__, __LINE__);                                             \
+      abort();                                                                 \
+    }                                                                          \
+  } while (0)
 #else
-#define CUDA_CHECK(cmd) ((void)0)
 #define CUBLAS_CHECK(cmd) ((void)0)
+#define CUDA_CHECK(cmd) ((void)0)
 #endif
 
 #if defined(__SPLA) && defined(__OFFLOAD_GEMM)
@@ -116,6 +128,7 @@ struct gemm_ctx {
   gemm_pu_t pu;   /**< Processing unit */
   int uses_gpu;   /**< 1 if GPU is used for computation */
 
+
 #if defined(__OFFLOAD_CUDA)
   cublasHandle_t cublas_handle; /**< cuBLAS handle */
 #endif
@@ -147,6 +160,7 @@ static void blas_sgemm(char transa, char transb, int m, int n, int k,
  * Backend: cuBLAS (compiled when __CUDA is defined)
  ******************************************************************************/
 #if defined(__OFFLOAD_CUDA)
+
 
 static void cublas_activate_device(void) { offload_activate_chosen_device(); }
 
@@ -313,6 +327,7 @@ void gemm_init(gemm_lib_t lib) {
   (void)lib;
 #endif
 }
+
 
 gemm_ctx_t *gemm_ctx_create(gemm_pu_t pu, gemm_lib_t lib) {
   gemm_ctx_t *ctx = (gemm_ctx_t *)calloc(1, sizeof(gemm_ctx_t));
@@ -504,6 +519,7 @@ const char *gemm_ctx_get_backend_name(gemm_ctx_t *ctx) {
     return "NULL";
 
   switch (ctx->lib) {
+
 #if defined(__OFFLOAD_CUDA)
   case GEMM_LIB_CUBLAS:
     return ctx->uses_gpu ? "cuBLAS" : "cuBLAS(CPU fallback)";
