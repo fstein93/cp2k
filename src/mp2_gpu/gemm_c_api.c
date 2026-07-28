@@ -28,15 +28,6 @@
  ******************************************************************************/
 
 #if defined(__OFFLOAD_CUDA)
-#define CUDA_CHECK(cmd)                                                        \
-  do {                                                                         \
-    cudaError_t status__ = (cmd);                                              \
-    if (status__ != cudaSuccess) {                                             \
-      fprintf(stderr, "CUDA_ERROR: %s:%d: %s\n", __FILE__, __LINE__,           \
-              cudaGetErrorString(status__));                                   \
-      abort();                                                                 \
-    }                                                                          \
-  } while (0)
 
 #define CUBLAS_CHECK(cmd)                                                      \
   do {                                                                         \

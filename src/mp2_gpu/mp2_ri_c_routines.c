@@ -388,7 +388,7 @@ void c_mp2_ri_create_group(
     cp_mpi_comm_t comm_para_env_c_comm = cp_mpi_comm_f2c(para_env_comm);
     cp_mpi_comm_t comm_para_env_sub_c_comm = cp_mpi_comm_f2c(para_env_sub_comm);
 
-    comm_exchange_out = comm_para_env_c_comm;
+    *comm_exchange_out = comm_para_env_c_comm;
 
     // Get rank and size of the sub-communicator
     int para_env_rank = cp_mpi_comm_rank(comm_para_env_c_comm);
@@ -445,7 +445,7 @@ void c_mp2_ri_create_group(
     MPI_Comm_split(comm_para_env_c_comm, sub_sub_color, exchange_key, &comm_rep_c);
 
     // Assign replication communicator var
-    comm_rep_out = comm_rep_c;
+    *comm_rep_out = comm_rep_c;
 
     // Get info about replication communicator
     comm_rep_rank = cp_mpi_comm_rank(comm_rep_c);
@@ -1125,7 +1125,7 @@ void c_mp2_ri_communication(
     int total_ij_block = ij_block_counter;
     int num_block_per_group = total_ij_block / ngroup;
     int assigned_blocks = num_block_per_group * ngroup;
-    int total_ij_pairs_blocks = assigned_blocks + (total_ij_pairs - assigned_blocks * (block_size * block_size));
+    int total_ij_pairs_blocks = assigned_blocks + ((*total_ij_pairs) - assigned_blocks * (block_size * block_size));
 
     /**
      * ALLOCATE (ij_marker(homo, homo))
