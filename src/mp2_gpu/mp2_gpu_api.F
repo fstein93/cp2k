@@ -6,10 +6,10 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE mp2_gpu_api
-   USE ISO_C_BINDING,                   ONLY: C_DOUBLE,&
-                                              C_INT
-   USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_type
+   USE ISO_C_BINDING, ONLY   : C_DOUBLE, C_INT, C_BOOL, C_PTR, C_NULL_PTR, C_F_POINTER
+   USE kinds, ONLY           : dp
+   USE message_passing, ONLY : mp_comm_type
+   USE group_dist_types, ONLY: group_dist_d1_type, get_group_dist
 
    IMPLICIT NONE
 
@@ -37,34 +37,195 @@ CONTAINS
 !> \param n_aux ...
 !> \param preferred_dgemm_lib ...
 ! **************************************************************************************************
-   SUBROUTINE calc_ri_mp2_energy(E_cou, E_ex, E_s, E_t, BIb_C, comm_all, comm_sub, eigenval, n_homo, &
+   SUBROUTINE calc_ri_mp2_energy(E_cou, E_ex, E_s, E_t, BIb_C, comm_all, comm_sub, eigenval, homo, &
+                                 nmo, dimen_RI, calc_forces, unit_nr, gd_array, gd_B_virtual, &
                                  virtual_start, virtual_size, aux_start, aux_size, n_aux, &
                                  preferred_dgemm_lib)
       REAL(KIND=dp), INTENT(OUT)                         :: E_cou, E_ex, E_s, E_t
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: BIb_C
+      CLASS(mp_comm_type), INTENT(IN)                    :: comm_all, comm_sub
+      REAL(KIND=dp), DIMENSION(:, :), INTENT(IN)         :: eigenval
+      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, INTENT(IN)                                :: nmo, dimen_RI
+      LOGICAL, INTENT(IN)                                :: calc_forces
+      INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
+      TYPE(group_dist_d1_type), DIMENSION(SIZE(homo)), &
+         INTENT(INOUT)                                   :: gd_B_virtual
+      INTEGER, INTENT(IN)                                :: virtual_start, virtual_size, &
+                                                         aux_start, aux_size, n_aux
+      INTEGER, INTENT(IN)                                :: preferred_dgemm_lib
 
-      CLASS(mp_comm_type), INTENT(IN) :: comm_all, comm_sub
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN) :: eigenval
-      INTEGER, INTENT(IN) :: n_homo, virtual_start, virtual_size, aux_start, aux_size, n_aux
-      INTEGER, INTENT(IN) :: preferred_dgemm_lib
+      INTEGER(C_INT)  :: comm_all_handle, comm_sub_handle
+      INTEGER(C_INT)  :: homo_i, homo_j, nmo_c, dimen_RI_c
+      INTEGER(C_INT)  :: my_B_size_i, my_B_size_j
+      INTEGER(C_INT)  :: my_B_virtual_start_i, my_B_virtual_end_i
+      INTEGER(C_INT)  :: my_B_virtual_start_j, my_B_virtual_end_j
+      INTEGER(C_INT)  :: color_sub, gd_array_size
+      INTEGER(C_INT)  :: my_group_L_start, my_group_L_end, my_group_L_size
+      INTEGER(C_INT)  :: maxsize_gd_array, maxsize_gd_B_virtual, maxval_gd_B_virtual
+      INTEGER(C_INT), ALLOCATABLE, &
+      TARGET          :: gd_array_sizes(:)
+      INTEGER(C_INT), ALLOCATABLE, &
+      TARGET          :: gd_B_virtual_sizes(:)
+      REAL(C_DOUBLE)  :: mp2_memory
+      LOGICAL(C_BOOL) :: calc_forces_c
+      INTEGER(C_INT)  :: unit_nr_c, preferred_dgemm_lib_c
+      INTEGER(C_INT)  :: nspins, jspin, ispin
 
       INTERFACE
-         SUBROUTINE calc_ri_mp2_energy_c(E_cou, E_ex, E_s, E_t, BIb_C, comm_all, comm_sub, eigenval, n_homo, &
-                                         virtual_start, virtual_size, aux_start, aux_size, n_aux, &
-                                         preferred_dgemm_lib) &
+         SUBROUTINE calc_ri_mp2_energy_c(
+            E_cou, E_ex, E_s, E_t, BIb_C_j, &
+            BIb_C_i, mp2_memory, user_block_size, &
+            double scale_S, double scale_T, comm_all_f, &
+            comm_sub_f, color_sub, gd_array, &
+            gd_array_sizes, gd_array_sizes_size, &
+            gd_B_virtual_sizes, gd_B_virtual_sizes_size, &
+            eigenval_j, eigenval_i, homo_j, homo_i, &
+            nmo, dimen_RI, calc_forces, unit_nr, &
+            my_B_size_j, my_B_size_i, my_B_virtual_start_j, &
+            my_B_virtual_end_j, my_B_virtual_start_i, &
+            my_B_virtual_end_i, aux_start, aux_size, &
+            maxsize_gd_array, maxsize_gd_B_virtual, &
+            maxval_gd_B_virtual, rec_B_virtual_start_j, &
+            rec_B_virtual_start_i, rec_B_virtual_end_j, &
+            rec_B_virtual_end_i, rec_B_sizes_j, &
+            rec_B_sizes_i, num_pe, my_group_L_start, &
+            my_group_L_end, my_group_L_size, n_aux, &
+            int preferred_dgemm_lib) &
+         !TO DO: needs to be the same as in mp2_gpu.c
             BIND(C, name="calc_ri_mp2_energy")
-            IMPORT :: C_DOUBLE, C_INT
-            REAL(C_DOUBLE) :: E_cou, E_ex, E_s, E_t
-            REAL(C_DOUBLE), DIMENSION(*) :: BIb_C
-            INTEGER(C_INT), VALUE :: comm_all, comm_sub
-            REAL(C_DOUBLE), DIMENSION(*) :: eigenval
-            INTEGER(C_INT), VALUE :: n_homo, virtual_start, virtual_size, aux_start, aux_size, n_aux
-            INTEGER(C_INT), VALUE :: preferred_dgemm_lib
+            IMPORT :: C_DOUBLE, C_INT, C_BOOL
+            ! REAL(C_DOUBLE)               :: E_cou, E_ex, E_s, E_t
+            REAL(C_DOUBLE), DIMENSION(*) :: BIb_C_j, BIb_C_i
+            REAL(C_DOUBLE), VALUE        :: scale_S, mp2_env
+            INTEGER(C_INT), VALUE        :: user_block_size
+            ! INTEGER(C_INT), VALUE        :: comm_all, comm_sub
+            REAL(C_DOUBLE), DIMENSION(*) :: eigenval_j, eigenval_i
+            ! INTEGER(C_INT), VALUE        :: homo_j, homo_i
+            ! INTEGER(C_INT), VALUE        :: my_B_virtual_start_j, my_B_virtual_start_i
+            ! INTEGER(C_INT), VALUE        :: my_B_size_j, my_B_size_i
+            ! INTEGER(C_INT), VALUE        :: my_group_L_start, my_group_L_size
+            ! INTEGER(C_INT), VALUE        :: dimen_RI
+            ! LOGICAL(C_BOOL), VALUE       :: calc_forces
+            ! INTEGER(C_INT), VALUE        :: unit_nr
+            ! INTEGER(C_INT), DIMENSION(*) :: gd_array_sizes
+            ! INTEGER(C_INT), VALUE        :: gd_array_sizes_size
+            ! INTEGER(C_INT), DIMENSION(*) :: gd_B_virtual_sizes
+            ! INTEGER(C_INT), VALUE        :: gd_B_virtual_sizes_size
+            ! INTEGER(C_INT), VALUE        :: maxsize_gd_array
+            ! INTEGER(C_INT), VALUE        :: maxsize_gd_B_virtual
+            ! INTEGER(C_INT), VALUE        :: maxval_gd_B_virtual
+            ! INTEGER(C_INT), VALUE        :: color_sub
+            ! INTEGER(C_INT), VALUE        :: preferred_dgemm_lib
          END SUBROUTINE calc_ri_mp2_energy_c
       END INTERFACE
 
-      CALL calc_ri_mp2_energy_c(E_cou, E_ex, E_s, E_t, BIb_C, comm_all%get_handle(), comm_sub%get_handle(), eigenval, n_homo, &
-                                virtual_start, virtual_size, aux_start, aux_size, n_aux, preferred_dgemm_lib)
+      ! MPI communicators
+      comm_all_handle = comm_all%get_handle()
+      comm_sub_handle = comm_sub%get_handle()
+
+      nspins = SIZE(homo)
+
+      ALLOCATE(gd_array_sizes(SIZE(gd_array%sizes)))
+      gd_array_sizes = gd_array%sizes
+
+      ALLOCATE(gd_B_virtual_sizes(nspins))
+
+      ! DO ispin = 1, nspins
+      !    CALL get_group_dist(gd_B_virtual(ispin), para_env_sub%mepos, &
+      !                        my_B_virtual_start(ispin), my_B_virtual_end(ispin), my_B_size(ispin))
+      ! END DO
+
+      CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
+
+      maxsize_gd_array = maxsize(gd_B_virtual)
+      gd_array_sizes = gd_array%sizes
+      mp2_memory = mp2_env%mp2_memory
+      scale_S = mp2_env%scale_S
+      scale_T = mp2_env%scale_T
+      user_block_size = mp2_env%ri_mp2%block_size
+
+      maxsize_gd_array = maxsize(gd_array)
+      maxsize_gd_B_virtual = MAXVAL(gd_B_virtual_sizes)
+      maxval_gd_B_virtual = maxsize_gd_B_virtual
+
+
+      DO jspin = 1, nspins
+         homo_j = homo(jspin)
+
+         DO ispin = 1, jspins
+            homo_i = homo(ispin)
+
+            ! ============= COULD BE USED THIS?
+            CALL get_group_dist(gd_B_virtual(jspin), para_env_sub%mepos, &
+                             my_B_virtual_start_j, my_B_virtual_end_j, my_B_size_j)
+            CALL get_group_dist(gd_B_virtual(ispin), para_env_sub%mepos, &
+                             my_B_virtual_start_i, my_B_virtual_end_i, my_B_size_i)
+
+            ! ============== Should I convert to 0-based for C (Fortran is 1-based)
+            my_B_virtual_start_j = my_B_virtual_start_j - 1
+            my_B_virtual_start_i = my_B_virtual_start_i - 1
+            
+
+            ! CALL calc_ri_mp2_energy_c(E_cou, E_ex, E_s, E_t, BIb_C, comm_all%get_handle(), comm_sub%get_handle(), eigenval, n_homo, &
+            !                           virtual_start, virtual_size, aux_start, aux_size, n_aux, preferred_dgemm_lib)
+            ! ==== REVIEW:{virtual_start, virtual_size}
+            CALL calc_ri_mp2_energy_c(
+               E_cou,
+               E_ex,
+               E_s,
+               E_t,
+               BIb_C(jspin)%array,
+               BIb_C(ispin)%array,
+               mp2_memory,
+               user_block_size,
+               scale_S,
+               scale_T,
+               comm_all%get_handle(),
+               comm_sub%get_handle(),
+               color_sub, gd_array,
+               gd_array_sizes,
+               gd_array_sizes_size,
+               gd_B_virtual_sizes,
+               gd_B_virtual_sizes_size,
+               eigenval(:,jspin),
+               eigenval(:,ispin),
+               homo_j,
+               homo_i,
+               nmo,
+               dimen_RI,
+               calc_forces,
+               unit_nr,
+               my_B_size_j,
+               my_B_size_i,
+               my_B_virtual_start_j,
+               my_B_virtual_end_j,
+               my_B_virtual_start_i,
+               my_B_virtual_end_i,
+               aux_start,
+               aux_size,
+               maxsize_gd_array,
+               maxsize_gd_B_virtual,
+               maxval_gd_B_virtual,
+               rec_B_virtual_start_j,
+               rec_B_virtual_start_i,
+               rec_B_virtual_end_j,
+               rec_B_virtual_end_i,
+               rec_B_sizes_j,
+               rec_B_sizes_i,
+               num_pe,
+               my_group_L_start,
+               my_group_L_end,
+               my_group_L_size,
+               n_aux,
+               int preferred_dgemm_lib)
+            !TO DO: needs to be the same as in mp2_gpu.c
+         END DO
+      END DO
+
+      DEALLOCATE(gd_array_sizes)
+      DEALLOCATE(gd_B_virtual_sizes)
 
    END SUBROUTINE calc_ri_mp2_energy
 END MODULE mp2_gpu_api

@@ -1516,7 +1516,7 @@ void fill_local_i_aL(
  */
 void mp2_ri_gpw_compute_en(
     double* Emp2_Cou, double* Emp2_EX, double* Emp2_S,
-    double* Emp2_T, double*** BIb_C, int* BIb_C_dims,
+    double* Emp2_T, double* BIb_C_j, double* BIb_C_i, int* BIb_C_dims,
     double mp2_memory, int user_block_size, bool print_dgemm_info,
     double scale_S, double scale_T, cp_mpi_comm_t para_env_comm,
     cp_mpi_comm_t para_env_sub_comm,  int color_sub, const int* gd_array_sizes,
@@ -1636,29 +1636,34 @@ void mp2_ri_gpw_compute_en(
     double my_Emp2_S = 0.0;
     double my_Emp2_T = 0.0;
     
+    // ADD TO FORTRAN-INTERFACE
     for (int jspin = 1; jspin < nspins; jspin++) {
         int j = jspin - 1;
         int current_L_size = BIb_C_dims[3*j + 0];
         int current_virtual = BIb_C_dims[3*j + 1];
         int current_occupied = BIb_C_dims[3*j + 2];
         
+        // REVIEW THE BIb_C_j and BIb_C_i use 
         c_replicate_iaK_2intgroup(
-            &BIb_C[j], &current_L_size, &current_virtual, &current_occupied,
+            &BIb_C_j, &current_L_size, &current_virtual, &current_occupied,
             comm_exchange_out, comm_rep_out,
             homo[j], gd_array_sizes, gd_array_sizes_size,
             my_B_size[j], my_group_L_size,
             ranges_info_array, 4, comm_rep_size, comm_exchange_size
         );
         
+        // ========== IGNORE LOOP (extract and put outside)
         for (int ispin = 1; ispin < jspin; ispin++) {
             int i = ispin - 1;
             
+            // ========== IGNORE LOOP
             // Determine spin cases
             bool my_open_shell_ss = (nspins == 2) && (ispin == jspin);
             bool my_alpha_beta_case = (ispin != jspin);
             bool my_beta_beta_case = my_open_shell_ss && (ispin == 2);
             
             double amp_fac = scale_S + scale_T;
+            // =========== IGNORE IT
             if (my_alpha_beta_case || my_open_shell_ss) {
                 amp_fac = scale_T;
             }
@@ -1780,7 +1785,7 @@ void mp2_ri_gpw_compute_en(
                         my_block_size,                 // local_i_aL_block
                         ranges_info_array,             // ranges_info_array
                         ranges_info_rep_size,
-                        BIb_C[i],                      // Source: BIb_C_rec
+                        BIb_C_i,                      // Source: BIb_C_rec
                         L_size,                        // BIb_C_rec_L_size
                         my_B_size[i],                  // BIb_C_rec_virtual
                         my_block_size                  // BIb_C_rec_block
@@ -1791,9 +1796,9 @@ void mp2_ri_gpw_compute_en(
                         dimen_RI,                      // local_j_aL_L_size
                         my_B_size[j],                  // local_j_aL_virtual
                         my_block_size,                 // local_j_aL_block
-                        ranges_info_array,             // ranges_info_array
+                        ranges_info_array,num_pe             // ranges_info_array
                         ranges_info_rep_size,
-                        BIb_C[j],                      // Source: BIb_C_rec
+                        BIb_C_j,                      // Source: BIb_C_rec
                         L_size,                        // BIb_C_rec_L_size
                         my_B_size[j],                  // BIb_C_rec_virtual
                         my_block_size                  // BIb_C_rec_block
@@ -1801,6 +1806,7 @@ void mp2_ri_gpw_compute_en(
 
                     // Handle 3
                     offload_timeset("mp2_ri_gpw_compute_en_RI_comm\0");
+                    //====== use rec_B_virtual 
                     for (int proc_shift = 1; proc_shift < comm_exchange_size; proc_shift++) {
                         // Calculate send and receive process ranks
                         int proc_send = (comm_exchange_rank + proc_shift) % comm_exchange_size;
@@ -1833,7 +1839,7 @@ void mp2_ri_gpw_compute_en(
                             //                        proc_send, BI_C_rec, proc_receive, tag)
                             size_t send_size_i = (size_t)my_group_L_size * my_B_size[i] * my_block_size;
                             // size_t offser_i = ((size_t)(send_i - 1) * my_B_size[i]);
-                            double* send_buffer_i = &BIb_C[i][((size_t)(send_i - 1) * my_B_size[i]) * my_group_L_size];
+                            double* send_buffer_i = &BIb_C_i[((size_t)(send_i - 1) * my_B_size[i]) * my_group_L_size];
 
                             /*========= VERSION 1
                             cp_mpi_sendrecv_double(
@@ -2043,7 +2049,7 @@ void mp2_ri_gpw_compute_en(
                     for (int iiB = 1; iiB < my_block_size; iiB++) {
                         for (int jjB = 1; jjB < my_block_size; jjB++) {
                             // ====== EXPASION BLOCK
-                            offload_timeset("mp2_ri_gpw_compute_en_RI_expasion\0");
+                            offload_timeset("mp2_ri_gpw_compute_en_RI_expansion\0");
                             memset(local_ab, 0, (size_t)my_B_size[i] * my_B_size[i] * sizeof(double));
                             // Use pointer to replace ASSOCIATE block
                             double* my_local_i_aL = &local_i_aL[(size_t)(iiB - 1) * my_B_size[i] * dimen_RI];
@@ -2138,10 +2144,11 @@ void mp2_ri_gpw_compute_en(
                                 // DO a = 1, virtual(ispin)
                                 for (int a = 0; a < virtual[i]; a++) {
                                     double integral = local_ab[a * my_B_size[j] + b];
-                                    double divi_part = Eigenval[(homo[i] + a) * nspins + i] + 
-                                        Eigenval[(homo[j] + b_global) * nspins + j] -
-                                        Eigenval[(my_i + iiB - 1) * nspins + i] -
-                                        Eigenval[(my_j + jjB - 1) * nspins + j];
+                                    double divi_part = Eigenval_i[(homo_i + a)] + 
+                                        // Eigenval[(homo_j + b_global) * nspins + j] -
+                                        Eigenval_j[(homo_j + b_global)] -
+                                        Eigenval_i[(my_i + iiB - 1)] -
+                                        Eigenval_j[(my_j + jjB - 1)];
                                     my_Emp2_Cou -= sym_fac * 2.0 * integral * integral / divi_part;
                                 }
                             }
