@@ -42,8 +42,6 @@ void c_mp2_ri_get_integ_group_size(
 
     mem_real = mp2_memory;
     
-    // Calculate memory components (based on Fortran logic)
-    
     // BIB_C_copy: MAX(MAX(homo*maxsize(gd_array)), dimen_RI) * maxsize(gd_B_virtual)
     double max_homo_gd = 0.0;
     for (int i = 0; i < homo_size; i++) {
@@ -124,9 +122,6 @@ void c_mp2_ri_get_integ_group_size(
     int temp = (int)(min_homo / sqrt(2.0 * ngroup));
     block_size = (block_size < temp) ? block_size : temp;
     block_size = (block_size < 1) ? 1 : block_size;
-    
-    // User-provided block size would be set here
-    // if (user_block_size > 0) block_size = user_block_size;
     
     mem_min = mem_base + mem_per_repl + (mem_per_blk + mem_per_repl_blk) * block_size;
     
@@ -447,13 +442,7 @@ void c_replicate_iaK_2intgroup(
     offload_timestop();
 }
 
-// void c_mp2_ri_allocate_no_blk(
-//     double** local_ab, double** t_ab, double** local_ba,
-//     const int* homo, const int* virtual, const int* my_B_size,
-//     int my_group_L_size, bool cal_forces, int ispin, int jspin,
-//     double** P_ij, double** P_ab, double** Gamma_P_ia,
-//     bool* P_ij_allocated, bool* P_ab_allocated,bool* Gamma_P_ij_allocated 
-// )
+
 void c_mp2_ri_allocate_no_blk(
     double** local_ab, double** t_ab, double** local_ba,
     const int* homo, const int* virtual, const int* my_B_size,
@@ -463,10 +452,6 @@ void c_mp2_ri_allocate_no_blk(
 ) {
     //Start timer
     offload_timeset("mp2_ri_allocate_no_blk\0");
-
-    // From fortran index (1) to C (0)
-    // int i_c = ispin - 1;
-    // int j_c = jspin - 1;
 
     // ALLOCATE(local_ab(virtual(ispin), my_B_size(jspin)))
     // local_ab = 0.0_dp
@@ -699,17 +684,6 @@ void c_mp2_ri_communication(
     offload_timestop();
 }
 
-// void c_mp2_ri_allocate_blk(
-//     int dimen_RI,
-//     const int* my_B_size,
-//     int block_size,
-//     int ispin,
-//     int jspin,
-//     double** local_i_aL,
-//     double** local_j_aL,
-//     double** Y_i_aP,
-//     double** Y_j_aP
-// )
 void c_mp2_ri_allocate_blk(
     int dimen_RI,
     const int* my_B_size,
@@ -720,10 +694,6 @@ void c_mp2_ri_allocate_blk(
     double** Y_j_aP
 ){
     offload_timeset("mp2_ri_allocate_blk\0");
-
-    // Convert Fortran 1-based to C 0-based
-    // int i = ispin - 1;
-    // int j = jspin - 1;
 
     *local_i_aL = (double*)calloc(block_size * my_B_size[1] * dimen_RI, sizeof(double));
     *local_j_aL = (double*)calloc(block_size * my_B_size[0] * dimen_RI, sizeof(double));
@@ -986,14 +956,6 @@ void calc_ri_mp2_energy(
         if (gd_array_sizes[i] > max_L_size) max_L_size = gd_array_sizes[i];
     }
 
-    // c_replicate_iaK_2intgroup(
-    //     double** BIb_C, int* BIb_C_L_size, int* BIb_C_virtual,
-    //     int* BIb_C_occupied, int comm_exchange, int comm_rep,
-    //     int homo, const int* sizes_array, int sizes_array_size,
-    //     int my_B_size, int my_group_L_size, const int* ranges_info_array,
-    //     int ranges_info_dim1, int ranges_info_dim2, int ranges_info_dim3
-    // )
-
     double my_E_cou = 0.0;
     double my_E_ex = 0.0;
     double my_E_s = 0.0;
@@ -1048,16 +1010,6 @@ void calc_ri_mp2_energy(
     bool P_ij_allocated = false;
     bool P_ab_allocated = false;
     bool Gamma_P_ia_allocated = false;
-    
-    // =========== OLD 
-    // c_mp2_ri_allocate_no_blk(
-    //     &local_ab, &t_ab, &local_ba,
-    //     homo, virtual, my_B_size,
-    //     my_group_L_size,
-    //     calc_forces, ispin, jspin,
-    //     &P_ij, &P_ab, &Gamma_P_ia,
-    //     &P_ij_allocated, &P_ab_allocated, &Gamma_P_ia_allocated
-    // );
 
     c_mp2_ri_allocate_no_blk(
         &local_ab, &t_ab, &local_ba,
