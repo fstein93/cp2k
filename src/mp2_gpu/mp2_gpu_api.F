@@ -226,8 +226,6 @@ CONTAINS
       maxsize_gd_B_virtual = MAXVAL(gd_B_virtual_sizes)
       maxval_gd_B_virtual = maxsize_gd_B_virtual
 
-      num_pe = comm_all%num_pe
-
       DO jspin = 1, nspins
          homo_j = homo(jspin)
 
@@ -287,7 +285,7 @@ CONTAINS
                my_group_L_start, &
                my_group_L_end, &
                my_group_L_size, &
-               int preferred_dgemm_lib)
+               preferred_dgemm_lib)
          END DO
       END DO
 
