@@ -262,7 +262,7 @@ CONTAINS
                comm_all_handle, &
                comm_sub_handle, &
                color_sub, &
-               ! gd_array, &
+               gd_array, &
                gd_array_sizes, &
                ! gd_array_sizes_size, &
                SIZE(gd_array_sizes), &
