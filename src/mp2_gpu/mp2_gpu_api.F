@@ -157,12 +157,12 @@ CONTAINS
             INTEGER(C_INT), VALUE        :: maxsize_gd_array
             INTEGER(C_INT), VALUE        :: maxsize_gd_B_virtual
             INTEGER(C_INT), VALUE        :: maxval_gd_B_virtual
-            REAL(C_INT), DIMENSION(*)    :: rec_B_virtual_start_j
-            REAL(C_INT), DIMENSION(*)    :: rec_B_virtual_start_i
-            REAL(C_INT), DIMENSION(*)    :: rec_B_virtual_end_j
-            REAL(C_INT), DIMENSION(*)    :: rec_B_virtual_end_i
-            REAL(C_INT), DIMENSION(*)    :: rec_B_sizes_j
-            REAL(C_INT), DIMENSION(*)    :: rec_B_sizes_i
+            INTEGER(C_INT), DIMENSION(*) :: rec_B_virtual_start_j
+            INTEGER(C_INT), DIMENSION(*) :: rec_B_virtual_start_i
+            INTEGER(C_INT), DIMENSION(*) :: rec_B_virtual_end_j
+            INTEGER(C_INT), DIMENSION(*) :: rec_B_virtual_end_i
+            INTEGER(C_INT), DIMENSION(*) :: rec_B_sizes_j
+            INTEGER(C_INT), DIMENSION(*) :: rec_B_sizes_i
             INTEGER(C_INT), VALUE        :: num_pe
             INTEGER(C_INT), VALUE        :: my_group_L_start
             INTEGER(C_INT), VALUE        :: my_group_L_end
