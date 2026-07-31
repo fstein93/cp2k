@@ -1551,7 +1551,7 @@ void calc_ri_mp2_energy(
     // ======== IGNORE LOOP
     
     // ======== END LOOP
-    free(virtual);
+    // free(virtual);
     // free(my_B_size);
     // free(my_B_virtual_start);
     // free(my_B_virtual_end);
