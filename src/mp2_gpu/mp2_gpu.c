@@ -794,8 +794,8 @@ void calc_ri_mp2_energy(
     int my_B_virtual_end_j,
     int my_B_virtual_start_i,
     int my_B_virtual_end_i,
-    int aux_start,         // May I delete?
-    int aux_size,          // May I delete?
+    int aux_start,
+    int aux_size,
     int maxsize_gd_array,
     int maxsize_gd_B_virtual,
     int maxval_gd_B_virtual,
@@ -855,7 +855,7 @@ void calc_ri_mp2_energy(
 
     int my_B_size[2];
     my_B_size[0] = my_B_size_j;
-    my_B_size[1] = my_B_size_i; 
+    my_B_size[1] = my_B_size_i;
 
     int para_env_size = cp_mpi_comm_size(comm_all);
     int para_env_sub_rank = cp_mpi_comm_rank(comm_sub);

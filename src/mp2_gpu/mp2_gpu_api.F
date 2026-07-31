@@ -132,10 +132,10 @@ CONTAINS
 
       ALLOCATE(gd_B_virtual_sizes(nspins))
 
-      ! DO ispin = 1, nspins
-      !    CALL get_group_dist(gd_B_virtual(ispin), para_env_sub%mepos, &
-      !                        my_B_virtual_start(ispin), my_B_virtual_end(ispin), my_B_size(ispin))
-      ! END DO
+      DO ispin = 1, nspins
+         CALL get_group_dist(gd_B_virtual(ispin), para_env_sub%mepos, &
+                             my_B_virtual_start(ispin), my_B_virtual_end(ispin), my_B_size(ispin))
+      END DO
 
       CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
 
@@ -157,20 +157,9 @@ CONTAINS
          DO ispin = 1, jspins
             homo_i = homo(ispin)
 
-            ! ============= COULD BE USED THIS?
-            CALL get_group_dist(gd_B_virtual(jspin), para_env_sub%mepos, &
-                             my_B_virtual_start_j, my_B_virtual_end_j, my_B_size_j)
-            CALL get_group_dist(gd_B_virtual(ispin), para_env_sub%mepos, &
-                             my_B_virtual_start_i, my_B_virtual_end_i, my_B_size_i)
-
-            ! ============== Should I convert to 0-based for C (Fortran is 1-based)
             my_B_virtual_start_j = my_B_virtual_start_j - 1
             my_B_virtual_start_i = my_B_virtual_start_i - 1
-            
 
-            ! CALL calc_ri_mp2_energy_c(E_cou, E_ex, E_s, E_t, BIb_C, comm_all%get_handle(), comm_sub%get_handle(), eigenval, n_homo, &
-            !                           virtual_start, virtual_size, aux_start, aux_size, n_aux, preferred_dgemm_lib)
-            ! ==== REVIEW:{virtual_start, virtual_size}
             CALL calc_ri_mp2_energy_c(
                E_cou,
                E_ex,
@@ -184,7 +173,8 @@ CONTAINS
                scale_T,
                comm_all%get_handle(),
                comm_sub%get_handle(),
-               color_sub, gd_array,
+               color_sub,
+               gd_array,
                gd_array_sizes,
                gd_array_sizes_size,
                gd_B_virtual_sizes,
@@ -219,8 +209,8 @@ CONTAINS
                my_group_L_end,
                my_group_L_size,
                n_aux,
-               int preferred_dgemm_lib)
-            !TO DO: needs to be the same as in mp2_gpu.c
+               int preferred_dgemm_lib
+            )
          END DO
       END DO
 
