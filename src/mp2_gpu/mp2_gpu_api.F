@@ -156,7 +156,7 @@ CONTAINS
             REAL(C_DOUBLE), VALUE        :: mp2_memory
             INTEGER(C_INT), VALUE        :: user_block_size
             REAL(C_DOUBLE), VALUE        :: scale_S, scale_T
-            REAL(C_DOUBLE), DIMENSION(*) :: mp2_env
+            ! REAL(C_DOUBLE), DIMENSION(*) :: mp2_env
             INTEGER(C_INT), VALUE        :: comm_all, comm_sub
             INTEGER(C_INT), VALUE        :: color_sub
             INTEGER(C_INT), DIMENSION(*) :: gd_array
