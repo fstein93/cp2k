@@ -108,7 +108,7 @@ CONTAINS
       INTEGER(C_INT), &
       ALLOCATABLE     :: rec_B_virtual_end_j(:)
       REAL(C_DOUBLE)  :: scale_S, scale_T, mp2_memory
-      INTEGER         :: user_block_size
+      INTEGER(C_INT)  :: user_block_size, my_B_virtual_start(2)
 
       INTERFACE
          SUBROUTINE calc_ri_mp2_energy_c( &
