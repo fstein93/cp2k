@@ -98,12 +98,17 @@ CONTAINS
       INTEGER(C_INT)  :: unit_nr_c, preferred_dgemm_lib_c
       INTEGER(C_INT)  :: nspins, jspin, ispin, num_pe
       INTEGER(C_INT), &
+      ALLOCATABLE     :: rec_B_virtual_start_i(:)
+      INTEGER(C_INT), &
+      ALLOCATABLE     :: rec_B_virtual_start_j(:)
+      INTEGER(C_INT), &
       ALLOCATABLE     :: rec_B_sizes_i(:), rec_B_sizes_j(:)
       INTEGER(C_INT), &
       ALLOCATABLE     :: rec_B_virtual_end_i(:)
       INTEGER(C_INT), &
       ALLOCATABLE     :: rec_B_virtual_end_j(:)
       REAL(C_DOUBLE)  :: scale_S, scale_T, mp2_memory
+      INTEGER         :: user_block_size
 
       INTERFACE
          SUBROUTINE calc_ri_mp2_energy_c( &
