@@ -139,7 +139,7 @@ CONTAINS
             BIb_C(1)%array = 0.0_dp
          END IF
          
-         CALL calc_ri_mp2_energy(
+         CALL calc_ri_mp2_energy( &
             Emp2_cou, &
             Emp2_EX, &
             Emp2_S, &
