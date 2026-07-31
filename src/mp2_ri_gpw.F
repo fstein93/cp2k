@@ -138,6 +138,7 @@ CONTAINS
             ALLOCATE (BIb_C(1)%array(my_group_L_size, my_B_size(1), homo(1)))
             BIb_C(1)%array = 0.0_dp
          END IF
+         
          CALL calc_ri_mp2_energy(
             Emp2_cou, &
             Emp2_EX, &
@@ -150,7 +151,7 @@ CONTAINS
             homo(1), &
             nmo, &
             dimen_RI, &
-            .false., &
+            calc_forces, &
             unit_nr, &
             mp2_env, &
             gd_array, &
