@@ -122,7 +122,7 @@ CONTAINS
             homo_i, &
             nmo, &
             dimen_RI, &
-            calc_forces, &
+            calc_forces_c, &
             unit_nr, &
             my_B_size_j, &
             my_B_size_i, &
@@ -165,7 +165,7 @@ CONTAINS
             INTEGER(C_INT), VALUE        :: homo_i
             INTEGER(C_INT), VALUE        :: nmo
             INTEGER(C_INT), VALUE        :: dimen_RI
-            LOGICAL(C_BOOL), VALUE       :: calc_forces
+            LOGICAL(C_BOOL), VALUE       :: calc_forces_c
             INTEGER(C_INT), VALUE        :: unit_nr
             INTEGER(C_INT), VALUE        :: my_B_size_j
             INTEGER(C_INT), VALUE        :: my_B_size_i
@@ -258,7 +258,7 @@ CONTAINS
                homo_i, &
                nmo, &
                dimen_RI, &
-               .FALSE., &
+               calc_forces_c, &
                unit_nr, &
                my_B_size_j, &
                my_B_size_i, &
