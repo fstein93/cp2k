@@ -145,7 +145,7 @@ CONTAINS
             my_group_L_end, &
             my_group_L_size, &
             preferred_dgemm_lib)
-            IMPORT :: C_DOUBLE, C_INT, C_BOOL
+            IMPORT :: C_DOUBLE, C_INT, C_BOOL, C_PTR
             BIND(C, name="calc_ri_mp2_energy")
             REAL(C_DOUBLE)               :: E_cou, E_ex, E_s, E_t
             REAL(C_DOUBLE), DIMENSION(*) :: BIb_C_j
