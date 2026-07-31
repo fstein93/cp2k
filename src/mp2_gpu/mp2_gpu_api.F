@@ -37,7 +37,7 @@ CONTAINS
 !> \param aux_size ...
 !> \param preferred_dgemm_lib ...
 ! **************************************************************************************************
-   SUBROUTINE calc_ri_mp2_energy(
+   SUBROUTINE calc_ri_mp2_energy( &
       E_cou, &
       E_ex, &
       E_s, &
