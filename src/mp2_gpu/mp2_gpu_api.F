@@ -111,6 +111,7 @@ CONTAINS
             comm_all, &
             comm_sub, &
             color_sub, &
+            gd_array_ptr, &
             gd_array_sizes, &
             gd_array_sizes_size, &
             gd_B_virtual_sizes, &
@@ -154,6 +155,7 @@ CONTAINS
             REAL(C_DOUBLE), VALUE        :: scale_S, scale_T
             INTEGER(C_INT), VALUE        :: comm_all, comm_sub
             INTEGER(C_INT), VALUE        :: color_sub
+            TYPE(C_PTR), VALUE           :: gd_array_ptr
             INTEGER(C_INT), DIMENSION(*) :: gd_array_sizes
             INTEGER(C_INT), VALUE        :: gd_array_sizes_size
             INTEGER(C_INT), DIMENSION(*) :: gd_B_virtual_sizes
@@ -236,8 +238,6 @@ CONTAINS
                E_ex, &
                E_s, &
                E_t, &
-               ! BIb_C(jspin)%array, &
-               ! BIb_C(ispin)%array, &
                BIb_C(:, :, jspin), &
                BIb_C(:, :, ispin), &
                mp2_memory, &
@@ -247,11 +247,10 @@ CONTAINS
                comm_all_handle, &
                comm_sub_handle, &
                color_sub, &
+               C_LOC(gd_array), &
                gd_array_sizes, &
-               ! gd_array_sizes_size, &
                SIZE(gd_array_sizes), &
                gd_B_virtual_sizes, &
-               ! gd_B_virtual_sizes_size, &
                SIZE(gd_B_virtual_sizes), &
                eigenval(:, jspin), &
                eigenval(:, ispin), &
@@ -282,8 +281,7 @@ CONTAINS
                my_group_L_start, &
                my_group_L_end, &
                my_group_L_size, &
-               preferred_dgemm_lib &
-            )
+               preferred_dgemm_lib)
          END DO
       END DO
 
