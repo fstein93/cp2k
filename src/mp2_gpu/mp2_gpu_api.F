@@ -77,48 +77,98 @@ CONTAINS
 
       INTERFACE
          SUBROUTINE calc_ri_mp2_energy_c( &
-            E_cou, E_ex, E_s, E_t, BIb_C_j, &
-            BIb_C_i, mp2_memory, user_block_size, &
-            scale_S, scale_T, comm_all_f, &
-            comm_sub_f, color_sub, gd_array, &
-            gd_array_sizes, gd_array_sizes_size, &
-            gd_B_virtual_sizes, gd_B_virtual_sizes_size, &
-            eigenval_j, eigenval_i, homo_j, homo_i, &
-            nmo, dimen_RI, calc_forces, unit_nr, &
-            my_B_size_j, my_B_size_i, my_B_virtual_start_j, &
-            my_B_virtual_end_j, my_B_virtual_start_i, &
-            my_B_virtual_end_i, aux_start, aux_size, &
-            maxsize_gd_array, maxsize_gd_B_virtual, &
-            maxval_gd_B_virtual, rec_B_virtual_start_j, &
-            rec_B_virtual_start_i, rec_B_virtual_end_j, &
-            rec_B_virtual_end_i, rec_B_sizes_j, &
-            rec_B_sizes_i, num_pe, my_group_L_start, &
-            my_group_L_end, my_group_L_size, n_aux, &
+            E_cou, &
+            E_ex, &
+            E_s, &
+            E_t, &
+            BIb_C_j, &
+            BIb_C_i, &
+            mp2_memory, &
+            user_block_size, &
+            scale_S, &
+            scale_T, &
+            comm_all, &
+            comm_sub, &
+            color_sub, &
+            gd_array, &
+            gd_array_sizes, &
+            gd_array_sizes_size, &
+            gd_B_virtual_sizes, &
+            gd_B_virtual_sizes_size, &
+            eigenval_j, &
+            eigenval_i, &
+            homo_j, &
+            homo_i, &
+            nmo, &
+            dimen_RI, &
+            calc_forces, &
+            unit_nr, &
+            my_B_size_j, &
+            my_B_size_i, &
+            my_B_virtual_start_j, &
+            my_B_virtual_end_j, &
+            my_B_virtual_start_i, &
+            my_B_virtual_end_i, &
+            aux_start, aux_size, &
+            maxsize_gd_array, &
+            maxsize_gd_B_virtual, &
+            maxval_gd_B_virtual, &
+            rec_B_virtual_start_j, &
+            rec_B_virtual_start_i, &
+            rec_B_virtual_end_j, &
+            rec_B_virtual_end_i, &
+            rec_B_sizes_j, &
+            rec_B_sizes_i, &
+            num_pe, &
+            my_group_L_start, &
+            my_group_L_end, &
+            my_group_L_size, &
+            n_aux, &
             preferred_dgemm_lib)
             IMPORT :: C_DOUBLE, C_INT, C_BOOL
             BIND(C, name="calc_ri_mp2_energy")
-            ! REAL(C_DOUBLE)               :: E_cou, E_ex, E_s, E_t
+            REAL(C_DOUBLE)               :: E_cou, E_ex, E_s, E_t
             REAL(C_DOUBLE), DIMENSION(*) :: BIb_C_j, BIb_C_i
-            REAL(C_DOUBLE), VALUE        :: scale_S, mp2_env
+            REAL(C_DOUBLE), VALUE        :: mp2_memory
             INTEGER(C_INT), VALUE        :: user_block_size
-            ! INTEGER(C_INT), VALUE        :: comm_all, comm_sub
+            REAL(C_DOUBLE), VALUE        :: scale_S, scale_T, mp2_env
+            INTEGER(C_INT), VALUE        :: comm_all, comm_sub
+            INTEGER(C_INT), VALUE        :: color_sub
+            INTEGER(C_INT), DIMENSION(*) :: gd_array
+            INTEGER(C_INT), DIMENSION(*) :: gd_array_sizes
+            INTEGER(C_INT), VALUE        :: gd_array_sizes_size
+            INTEGER(C_INT), DIMENSION(*) :: gd_B_virtual_sizes
+            INTEGER(C_INT), VALUE        :: gd_B_virtual_sizes_size
             REAL(C_DOUBLE), DIMENSION(*) :: eigenval_j, eigenval_i
-            ! INTEGER(C_INT), VALUE        :: homo_j, homo_i
-            ! INTEGER(C_INT), VALUE        :: my_B_virtual_start_j, my_B_virtual_start_i
-            ! INTEGER(C_INT), VALUE        :: my_B_size_j, my_B_size_i
-            ! INTEGER(C_INT), VALUE        :: my_group_L_start, my_group_L_size
-            ! INTEGER(C_INT), VALUE        :: dimen_RI
-            ! LOGICAL(C_BOOL), VALUE       :: calc_forces
-            ! INTEGER(C_INT), VALUE        :: unit_nr
-            ! INTEGER(C_INT), DIMENSION(*) :: gd_array_sizes
-            ! INTEGER(C_INT), VALUE        :: gd_array_sizes_size
-            ! INTEGER(C_INT), DIMENSION(*) :: gd_B_virtual_sizes
-            ! INTEGER(C_INT), VALUE        :: gd_B_virtual_sizes_size
-            ! INTEGER(C_INT), VALUE        :: maxsize_gd_array
-            ! INTEGER(C_INT), VALUE        :: maxsize_gd_B_virtual
-            ! INTEGER(C_INT), VALUE        :: maxval_gd_B_virtual
-            ! INTEGER(C_INT), VALUE        :: color_sub
-            ! INTEGER(C_INT), VALUE        :: preferred_dgemm_lib
+            INTEGER(C_INT), VALUE        :: homo_j
+            INTEGER(C_INT), VALUE        :: homo_i
+            INTEGER(C_INT), VALUE        :: nmo
+            INTEGER(C_INT), VALUE        :: dimen_RI
+            LOGICAL(C_BOOL), VALUE       :: calc_forces
+            INTEGER(C_INT), VALUE        :: unit_nr
+            INTEGER(C_INT), VALUE        :: my_B_size_j
+            INTEGER(C_INT), VALUE        :: my_B_size_i
+            INTEGER(C_INT), VALUE        :: my_B_virtual_start_j
+            INTEGER(C_INT), VALUE        :: my_B_virtual_end_j
+            INTEGER(C_INT), VALUE        :: my_B_virtual_start_i
+            INTEGER(C_INT), VALUE        :: my_B_virtual_end_i
+            INTEGER(C_INT), VALUE        :: aux_start
+            INTEGER(C_INT), VALUE        :: aux_size
+            INTEGER(C_INT), VALUE        :: maxsize_gd_array
+            INTEGER(C_INT), VALUE        :: maxsize_gd_B_virtual
+            INTEGER(C_INT), VALUE        :: maxval_gd_B_virtual
+            REAL(C_INT), DIMENSION(*)    :: rec_B_virtual_start_j
+            REAL(C_INT), DIMENSION(*)    :: rec_B_virtual_start_i
+            REAL(C_INT), DIMENSION(*)    :: rec_B_virtual_end_j
+            REAL(C_INT), DIMENSION(*)    :: rec_B_virtual_end_i
+            REAL(C_INT), DIMENSION(*)    :: rec_B_sizes_j
+            REAL(C_INT), DIMENSION(*)    :: rec_B_sizes_i
+            INTEGER(C_INT), VALUE        :: num_pe
+            INTEGER(C_INT), VALUE        :: my_group_L_start
+            INTEGER(C_INT), VALUE        :: my_group_L_end
+            INTEGER(C_INT), VALUE        :: my_group_L_size
+            INTEGER(C_INT), VALUE        :: n_aux
+            INTEGER(C_INT), VALUE        :: preferred_dgemm_lib
          END SUBROUTINE calc_ri_mp2_energy_c
       END INTERFACE
 
