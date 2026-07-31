@@ -414,7 +414,6 @@ list(
   mp2_setup.F
   mp2_types.F
   mp2_gpu/mp2_gpu_api.F
-  mp2_gpu/mp2_ri_c_interface.F
   mscfg_methods.F
   mscfg_types.F
   mulliken.F
