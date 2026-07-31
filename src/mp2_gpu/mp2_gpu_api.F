@@ -6,7 +6,7 @@
 !--------------------------------------------------------------------------------------------------!
 
 MODULE mp2_gpu_api
-   USE ISO_C_BINDING, ONLY   : C_DOUBLE, C_INT, C_BOOL, C_PTR, C_NULL_PTR, C_F_POINTER
+   USE ISO_C_BINDING, ONLY   : C_DOUBLE, C_INT, C_BOOL, C_PTR, C_LOC, C_NULL_PTR, C_F_POINTER
    USE kinds, ONLY           : dp
    USE message_passing,  ONLY: mp_comm_type, mp_para_env_type
    USE mp2_types,        ONLY: mp2_type
@@ -111,7 +111,7 @@ CONTAINS
             comm_all, &
             comm_sub, &
             color_sub, &
-            gd_array, &
+            gd_array_ptr, &
             gd_array_sizes, &
             gd_array_sizes_size, &
             gd_B_virtual_sizes, &
@@ -155,7 +155,7 @@ CONTAINS
             REAL(C_DOUBLE), VALUE        :: scale_S, scale_T
             INTEGER(C_INT), VALUE        :: comm_all, comm_sub
             INTEGER(C_INT), VALUE        :: color_sub
-            INTEGER(C_PTR), VALUE        :: gd_array
+            INTEGER(C_PTR), VALUE        :: gd_array_ptr
             INTEGER(C_INT), DIMENSION(*) :: gd_array_sizes
             INTEGER(C_INT), VALUE        :: gd_array_sizes_size
             INTEGER(C_INT), DIMENSION(*) :: gd_B_virtual_sizes
