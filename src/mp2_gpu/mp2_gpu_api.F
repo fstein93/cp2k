@@ -11,7 +11,7 @@ MODULE mp2_gpu_api
    USE message_passing,  ONLY: mp_comm_type, mp_para_env_type
    USE mp2_types,        ONLY: mp2_type
 
-   USE group_dist_types, ONLY: group_dist_d1_type, get_group_dist
+   USE group_dist_types, ONLY: group_dist_d1_type, get_group_dist, maxsize
 
    IMPLICIT NONE
 
@@ -94,10 +94,16 @@ CONTAINS
       TARGET          :: gd_array_sizes(:)
       INTEGER(C_INT), ALLOCATABLE, &
       TARGET          :: gd_B_virtual_sizes(:)
-      REAL(C_DOUBLE)  :: mp2_memory
       LOGICAL(C_BOOL) :: calc_forces_c
       INTEGER(C_INT)  :: unit_nr_c, preferred_dgemm_lib_c
-      INTEGER(C_INT)  :: nspins, jspin, ispin
+      INTEGER(C_INT)  :: nspins, jspin, ispin, num_pe
+      INTEGER(C_INT), &
+      ALLOCATABLE     :: rec_B_sizes_i(:), rec_B_sizes_j(:)
+      INTEGER(C_INT), &
+      ALLOCATABLE     :: rec_B_virtual_end_i(:)
+      INTEGER(C_INT), &
+      ALLOCATABLE     :: rec_B_virtual_end_j(:)
+      REAL(C_DOUBLE)  :: scale_S, scale_T, mp2_memory
 
       INTERFACE
          SUBROUTINE calc_ri_mp2_energy_c( &
@@ -156,7 +162,6 @@ CONTAINS
             REAL(C_DOUBLE), VALUE        :: mp2_memory
             INTEGER(C_INT), VALUE        :: user_block_size
             REAL(C_DOUBLE), VALUE        :: scale_S, scale_T
-            ! REAL(C_DOUBLE), DIMENSION(*) :: mp2_env
             INTEGER(C_INT), VALUE        :: comm_all, comm_sub
             INTEGER(C_INT), VALUE        :: color_sub
             INTEGER(C_INT), DIMENSION(*) :: gd_array
@@ -253,9 +258,11 @@ CONTAINS
                color_sub, &
                gd_array, &
                gd_array_sizes, &
-               gd_array_sizes_size, &
+               ! gd_array_sizes_size, &
+               SIZE(gd_array_sizes), &
                gd_B_virtual_sizes, &
-               gd_B_virtual_sizes_size, &
+               ! gd_B_virtual_sizes_size, &
+               SIZE(gd_B_virtual_sizes), &
                eigenval(:,jspin), &
                eigenval(:,ispin), &
                homo_j, &
