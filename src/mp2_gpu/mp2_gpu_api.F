@@ -151,7 +151,6 @@ CONTAINS
             IMPORT :: C_DOUBLE, C_INT, C_BOOL
             BIND(C, name="calc_ri_mp2_energy")
             REAL(C_DOUBLE)               :: E_cou, E_ex, E_s, E_t
-            REAL(C_DOUBLE), DIMENSION(*) :: BIb_C
             REAL(C_DOUBLE), DIMENSION(*) :: BIb_C_j
             REAL(C_DOUBLE), DIMENSION(*) :: BIb_C_i
             REAL(C_DOUBLE), VALUE        :: mp2_memory
@@ -222,10 +221,20 @@ CONTAINS
       scale_T = mp2_env%scale_T
       user_block_size = mp2_env%ri_mp2%block_size
 
+      ! set sizes
       maxsize_gd_array = maxsize(gd_array)
       maxsize_gd_B_virtual = MAXVAL(gd_B_virtual_sizes)
       maxval_gd_B_virtual = maxsize_gd_B_virtual
 
+      num_pe = comm_all%num_pe
+
+      ! Allocate rec_B_family arrays (size: comm_all%num_pe)
+      ALLOCATE(rec_B_virtual_start_j(0:num_pe-1))
+      ALLOCATE(rec_B_virtual_start_i(0:num_pe-1))
+      ALLOCATE(rec_B_virtual_end_j(0:num_pe-1))
+      ALLOCATE(rec_B_virtual_end_i(0:num_pe-1))
+      ALLOCATE(rec_B_sizes_j(0:num_pe-1))
+      ALLOCATE(rec_B_sizes_i(0:num_pe-1))
 
       DO jspin = 1, nspins
          homo_j = homo(jspin)
@@ -241,8 +250,10 @@ CONTAINS
                E_ex, &
                E_s, &
                E_t, &
-               BIb_C(jspin)%array, &
-               BIb_C(ispin)%array, &
+               ! BIb_C(jspin)%array, &
+               ! BIb_C(ispin)%array, &
+               BIb_C(:, :, jspin), &
+               BIb_C(:, :, ispin), &
                mp2_memory, &
                user_block_size, &
                scale_S, &
@@ -290,6 +301,9 @@ CONTAINS
 
       DEALLOCATE(gd_array_sizes)
       DEALLOCATE(gd_B_virtual_sizes)
+      DEALLOCATE(rec_B_virtual_start_j, rec_B_virtual_start_i)
+      DEALLOCATE(rec_B_virtual_end_j, rec_B_virtual_end_i)
+      DEALLOCATE(rec_B_sizes_j, rec_B_sizes_i)
 
    END SUBROUTINE calc_ri_mp2_energy
 END MODULE mp2_gpu_api
