@@ -8,7 +8,8 @@
 MODULE mp2_gpu_api
    USE ISO_C_BINDING, ONLY   : C_DOUBLE, C_INT, C_BOOL, C_PTR, C_NULL_PTR, C_F_POINTER
    USE kinds, ONLY           : dp
-   USE message_passing, ONLY : mp_comm_type, mp_para_env_type
+   USE message_passing,  ONLY: mp_comm_type, mp_para_env_type
+   USE mp2_types,        ONLY: mp2_type
 
    USE group_dist_types, ONLY: group_dist_d1_type, get_group_dist
 
@@ -51,6 +52,7 @@ CONTAINS
       dimen_RI, &
       calc_forces, &
       unit_nr, &
+      mp2_env, &
       gd_array, &
       gd_B_virtual, &
       virtual_start, &
@@ -68,6 +70,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: nmo, dimen_RI
       LOGICAL, INTENT(IN)                                :: calc_forces
       INTEGER, INTENT(IN)                                :: unit_nr
+      TYPE(mp2_type)                                     :: mp2_env
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       TYPE(group_dist_d1_type), DIMENSION(SIZE(homo)), &
          INTENT(INOUT)                                   :: gd_B_virtual

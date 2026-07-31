@@ -152,6 +152,7 @@ CONTAINS
             dimen_RI, &
             .false., &
             unit_nr, &
+            mp2_env, &
             gd_array, &
             gd_B_virtual, &
             my_B_virtual_start(1) - 1, &
