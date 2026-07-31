@@ -111,7 +111,6 @@ CONTAINS
             comm_all, &
             comm_sub, &
             color_sub, &
-            gd_array_ptr, &
             gd_array_sizes, &
             gd_array_sizes_size, &
             gd_B_virtual_sizes, &
@@ -155,7 +154,6 @@ CONTAINS
             REAL(C_DOUBLE), VALUE        :: scale_S, scale_T
             INTEGER(C_INT), VALUE        :: comm_all, comm_sub
             INTEGER(C_INT), VALUE        :: color_sub
-            INTEGER(C_PTR), VALUE        :: gd_array_ptr
             INTEGER(C_INT), DIMENSION(*) :: gd_array_sizes
             INTEGER(C_INT), VALUE        :: gd_array_sizes_size
             INTEGER(C_INT), DIMENSION(*) :: gd_B_virtual_sizes
@@ -249,7 +247,6 @@ CONTAINS
                comm_all_handle, &
                comm_sub_handle, &
                color_sub, &
-               C_LOC(gd_array), &      ! Pass as C pointer
                gd_array_sizes, &
                ! gd_array_sizes_size, &
                SIZE(gd_array_sizes), &
