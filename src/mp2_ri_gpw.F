@@ -147,8 +147,10 @@ CONTAINS
             BIb_C(1)%array, &
             para_env, &
             para_env_sub, &
-            Eigenval(:, 1), &
-            homo(1), &
+            ! Eigenval(:, 1), &
+            Eigenval, &
+            ! homo(1), &
+            homo, &
             nmo, &
             dimen_RI, &
             calc_forces, &
@@ -509,7 +511,7 @@ CONTAINS
                                                      send_B_virtual_start, send_B_virtual_end, send_B_size)
 
                                  external_ab(1:my_B_size(ispin), 1:rec_B_size) => &
-                                    buffer_1D(1:INT(rec_B_size, int_8)*my_B_size(ispin))
+                                                     buffer_1D(1:INT(rec_B_size, int_8)*my_B_size(ispin))
                                  external_ab = 0.0_dp
                       
                                  CALL para_env_sub%sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(ispin)), proc_send, &
