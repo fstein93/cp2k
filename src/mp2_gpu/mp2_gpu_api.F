@@ -233,56 +233,55 @@ CONTAINS
             my_B_virtual_start_j = my_B_virtual_start_j - 1
             my_B_virtual_start_i = my_B_virtual_start_i - 1
 
-            CALL calc_ri_mp2_energy_c(
-               E_cou,
-               E_ex,
-               E_s,
-               E_t,
-               BIb_C(jspin)%array,
-               BIb_C(ispin)%array,
-               mp2_memory,
-               user_block_size,
-               scale_S,
-               scale_T,
-               comm_all%get_handle(),
-               comm_sub%get_handle(),
-               color_sub,
-               gd_array,
-               gd_array_sizes,
-               gd_array_sizes_size,
-               gd_B_virtual_sizes,
-               gd_B_virtual_sizes_size,
-               eigenval(:,jspin),
-               eigenval(:,ispin),
-               homo_j,
-               homo_i,
-               nmo,
-               dimen_RI,
-               calc_forces,
-               unit_nr,
-               my_B_size_j,
-               my_B_size_i,
-               my_B_virtual_start_j,
-               my_B_virtual_end_j,
-               my_B_virtual_start_i,
-               my_B_virtual_end_i,
-               aux_start,
-               aux_size,
-               maxsize_gd_array,
-               maxsize_gd_B_virtual,
-               maxval_gd_B_virtual,
-               rec_B_virtual_start_j,
-               rec_B_virtual_start_i,
-               rec_B_virtual_end_j,
-               rec_B_virtual_end_i,
-               rec_B_sizes_j,
-               rec_B_sizes_i,
-               num_pe,
-               my_group_L_start,
-               my_group_L_end,
-               my_group_L_size,
-               int preferred_dgemm_lib
-            )
+            CALL calc_ri_mp2_energy_c( &
+               E_cou, &
+               E_ex, &
+               E_s, &
+               E_t, &
+               BIb_C(jspin)%array, &
+               BIb_C(ispin)%array, &
+               mp2_memory, &
+               user_block_size, &
+               scale_S, &
+               scale_T, &
+               comm_all%get_handle(), &
+               comm_sub%get_handle(), &
+               color_sub, &
+               gd_array, &
+               gd_array_sizes, &
+               gd_array_sizes_size, &
+               gd_B_virtual_sizes, &
+               gd_B_virtual_sizes_size, &
+               eigenval(:,jspin), &
+               eigenval(:,ispin), &
+               homo_j, &
+               homo_i, &
+               nmo, &
+               dimen_RI, &
+               calc_forces, &
+               unit_nr, &
+               my_B_size_j, &
+               my_B_size_i, &
+               my_B_virtual_start_j, &
+               my_B_virtual_end_j, &
+               my_B_virtual_start_i, &
+               my_B_virtual_end_i, &
+               aux_start, &
+               aux_size, &
+               maxsize_gd_array, &
+               maxsize_gd_B_virtual, &
+               maxval_gd_B_virtual, &
+               rec_B_virtual_start_j, &
+               rec_B_virtual_start_i, &
+               rec_B_virtual_end_j, &
+               rec_B_virtual_end_i, &
+               rec_B_sizes_j, &
+               rec_B_sizes_i, &
+               num_pe, &
+               my_group_L_start, &
+               my_group_L_end, &
+               my_group_L_size, &
+               int preferred_dgemm_lib)
          END DO
       END DO
 
