@@ -54,7 +54,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: calc_forces
       INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(mp2_type)                                     :: mp2_env
-      TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
+      TYPE(group_dist_d1_type), INTENT(IN), TARGET       :: gd_array
       TYPE(group_dist_d1_type), DIMENSION(SIZE(homo)), &
          INTENT(INOUT)                                   :: gd_B_virtual
       INTEGER, INTENT(IN)                                :: virtual_start
@@ -230,8 +230,8 @@ CONTAINS
             my_B_virtual_start_i = my_B_virtual_start(ispin) - 1
             my_B_virtual_end_j = my_B_virtual_end(jspin) - 1
             my_B_virtual_end_i = my_B_virtual_end(ispin) - 1
-            my_B_size_j = my_B_size(jspin) - 1
-            my_B_size_i = my_B_size(ispin) - 1
+            my_B_size_j = my_B_size(jspin)
+            my_B_size_i = my_B_size(ispin)
 
             CALL calc_ri_mp2_energy_c( &
                E_cou, &
