@@ -21,23 +21,6 @@ MODULE mp2_gpu_api
 
 CONTAINS
 
-! **************************************************************************************************
-!> \brief ...
-!> \param E_cou ...
-!> \param E_ex ...
-!> \param E_s ...
-!> \param E_t ...
-!> \param BIb_C ...
-!> \param comm_all ...
-!> \param comm_sub ...
-!> \param eigenval ...
-!> \param n_homo ...
-!> \param virtual_start ...
-!> \param virtual_size ...
-!> \param aux_start ...
-!> \param aux_size ...
-!> \param preferred_dgemm_lib ...
-! **************************************************************************************************
    SUBROUTINE calc_ri_mp2_energy( &
       E_cou, &
       E_ex, &
@@ -172,7 +155,7 @@ CONTAINS
             REAL(C_DOUBLE), VALUE        :: scale_S, scale_T
             INTEGER(C_INT), VALUE        :: comm_all, comm_sub
             INTEGER(C_INT), VALUE        :: color_sub
-            INTEGER(C_INT), DIMENSION(*) :: gd_array
+            INTEGER(C_PTR), VALUE        :: gd_array
             INTEGER(C_INT), DIMENSION(*) :: gd_array_sizes
             INTEGER(C_INT), VALUE        :: gd_array_sizes_size
             INTEGER(C_INT), DIMENSION(*) :: gd_B_virtual_sizes
@@ -243,8 +226,12 @@ CONTAINS
          DO ispin = 1, jspin
             homo_i = homo(ispin)
 
-            my_B_virtual_start_j = my_B_virtual_start_j - 1
-            my_B_virtual_start_i = my_B_virtual_start_i - 1
+            my_B_virtual_start_j = my_B_virtual_start(jspin) - 1
+            my_B_virtual_start_i = my_B_virtual_start(ispin) - 1
+            my_B_virtual_end_j = my_B_virtual_end(jspin) - 1
+            my_B_virtual_end_i = my_B_virtual_end(ispin) - 1
+            my_B_size_j = my_B_size(jspin) - 1
+            my_B_size_i = my_B_size(ispin) - 1
 
             CALL calc_ri_mp2_energy_c( &
                E_cou, &
@@ -262,7 +249,7 @@ CONTAINS
                comm_all_handle, &
                comm_sub_handle, &
                color_sub, &
-               gd_array, &
+               C_LOC(gd_array), &      ! Pass as C pointer
                gd_array_sizes, &
                ! gd_array_sizes_size, &
                SIZE(gd_array_sizes), &
@@ -294,7 +281,7 @@ CONTAINS
                rec_B_virtual_end_i, &
                rec_B_sizes_j, &
                rec_B_sizes_i, &
-               num_pe, &
+               comm_all%num_pe, &
                my_group_L_start, &
                my_group_L_end, &
                my_group_L_size, &
