@@ -228,14 +228,6 @@ CONTAINS
 
       num_pe = comm_all%num_pe
 
-      ! Allocate rec_B_family arrays (size: comm_all%num_pe)
-      ALLOCATE(rec_B_virtual_start_j(0:num_pe-1))
-      ALLOCATE(rec_B_virtual_start_i(0:num_pe-1))
-      ALLOCATE(rec_B_virtual_end_j(0:num_pe-1))
-      ALLOCATE(rec_B_virtual_end_i(0:num_pe-1))
-      ALLOCATE(rec_B_sizes_j(0:num_pe-1))
-      ALLOCATE(rec_B_sizes_i(0:num_pe-1))
-
       DO jspin = 1, nspins
          homo_j = homo(jspin)
 
@@ -301,9 +293,6 @@ CONTAINS
 
       DEALLOCATE(gd_array_sizes)
       DEALLOCATE(gd_B_virtual_sizes)
-      DEALLOCATE(rec_B_virtual_start_j, rec_B_virtual_start_i)
-      DEALLOCATE(rec_B_virtual_end_j, rec_B_virtual_end_i)
-      DEALLOCATE(rec_B_sizes_j, rec_B_sizes_i)
 
    END SUBROUTINE calc_ri_mp2_energy
 END MODULE mp2_gpu_api
