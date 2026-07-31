@@ -219,7 +219,6 @@ CONTAINS
       maxsize_gd_array = maxsize(gd_array)
       maxsize_gd_B_virtual = MAXVAL(gd_B_virtual_sizes)
       maxval_gd_B_virtual = maxsize_gd_B_virtual
-      calc_forces = .FALSE.
 
       DO jspin = 1, nspins
          homo_j = homo(jspin)
