@@ -259,7 +259,7 @@ CONTAINS
                homo_i, &
                nmo, &
                dimen_RI, &
-               calc_forces, &
+               .FALSE., &
                unit_nr, &
                my_B_size_j, &
                my_B_size_i, &
