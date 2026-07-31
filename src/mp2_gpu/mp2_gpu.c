@@ -898,7 +898,6 @@ void calc_ri_mp2_energy(
     int my_group_L_start,
     int my_group_L_end,
     int my_group_L_size,
-    int n_aux,
     int preferred_dgemm_lib
 ) {
     const cp_mpi_comm_t comm_all = cp_mpi_comm_f2c(comm_all_f);
@@ -907,7 +906,6 @@ void calc_ri_mp2_energy(
     (void)eigenval_j;
     (void)eigenval_i;
     (void)aux_start;
-    (void)n_aux;
     (void)comm_sub;
     (void)preferred_dgemm_lib;
     (void)rec_B_virtual_start_j;

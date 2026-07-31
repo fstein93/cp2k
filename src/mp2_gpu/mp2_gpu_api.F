@@ -35,13 +35,31 @@ CONTAINS
 !> \param virtual_size ...
 !> \param aux_start ...
 !> \param aux_size ...
-!> \param n_aux ...
 !> \param preferred_dgemm_lib ...
 ! **************************************************************************************************
-   SUBROUTINE calc_ri_mp2_energy(E_cou, E_ex, E_s, E_t, BIb_C, comm_all, comm_sub, eigenval, homo, &
-                                 nmo, dimen_RI, calc_forces, unit_nr, gd_array, gd_B_virtual, &
-                                 virtual_start, virtual_size, aux_start, aux_size, n_aux, &
-                                 preferred_dgemm_lib, para_env_sub)
+   SUBROUTINE calc_ri_mp2_energy(
+      E_cou, &
+      E_ex, &
+      E_s, &
+      E_t, &
+      BIb_C, &
+      comm_all, &
+      comm_sub, &
+      eigenval, &
+      homo, &
+      nmo, &
+      dimen_RI, &
+      calc_forces, &
+      unit_nr, &
+      gd_array, &
+      gd_B_virtual, &
+      virtual_start, &
+      virtual_size, &
+      aux_start, &
+      aux_size, &
+      preferred_dgemm_lib, &
+      para_env_sub, &
+      color_sub)
       REAL(KIND=dp), INTENT(OUT)                         :: E_cou, E_ex, E_s, E_t
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: BIb_C
       CLASS(mp_comm_type), INTENT(IN)                    :: comm_all, comm_sub
@@ -53,17 +71,20 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       TYPE(group_dist_d1_type), DIMENSION(SIZE(homo)), &
          INTENT(INOUT)                                   :: gd_B_virtual
-      INTEGER, INTENT(IN)                                :: virtual_start, virtual_size, &
-                                                         aux_start, aux_size, n_aux
+      INTEGER, INTENT(IN)                                :: virtual_start
+      INTEGER, INTENT(IN)                                :: virtual_size
+      INTEGER, INTENT(IN)                                :: aux_start
+      INTEGER, INTENT(IN)                                :: aux_size
       INTEGER, INTENT(IN)                                :: preferred_dgemm_lib
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
+      INTEGER, INTENT(IN)                                :: color_sub
 
       INTEGER(C_INT)  :: comm_all_handle, comm_sub_handle
       INTEGER(C_INT)  :: homo_i, homo_j, nmo_c, dimen_RI_c
       INTEGER(C_INT)  :: my_B_size_i, my_B_size_j
       INTEGER(C_INT)  :: my_B_virtual_start_i, my_B_virtual_end_i
       INTEGER(C_INT)  :: my_B_virtual_start_j, my_B_virtual_end_j
-      INTEGER(C_INT)  :: color_sub, gd_array_size
+      INTEGER(C_INT)  :: gd_array_size
       INTEGER(C_INT)  :: my_group_L_start, my_group_L_end, my_group_L_size
       INTEGER(C_INT)  :: maxsize_gd_array, maxsize_gd_B_virtual, maxval_gd_B_virtual
       INTEGER(C_INT), ALLOCATABLE, &
@@ -123,7 +144,6 @@ CONTAINS
             my_group_L_start, &
             my_group_L_end, &
             my_group_L_size, &
-            n_aux, &
             preferred_dgemm_lib)
             IMPORT :: C_DOUBLE, C_INT, C_BOOL
             BIND(C, name="calc_ri_mp2_energy")
@@ -167,7 +187,6 @@ CONTAINS
             INTEGER(C_INT), VALUE        :: my_group_L_start
             INTEGER(C_INT), VALUE        :: my_group_L_end
             INTEGER(C_INT), VALUE        :: my_group_L_size
-            INTEGER(C_INT), VALUE        :: n_aux
             INTEGER(C_INT), VALUE        :: preferred_dgemm_lib
          END SUBROUTINE calc_ri_mp2_energy_c
       END INTERFACE
@@ -259,7 +278,6 @@ CONTAINS
                my_group_L_start,
                my_group_L_end,
                my_group_L_size,
-               n_aux,
                int preferred_dgemm_lib
             )
          END DO
