@@ -227,8 +227,6 @@ CONTAINS
 
       CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
 
-      maxsize_gd_array = maxsize(gd_B_virtual)
-      gd_array_sizes = gd_array%sizes
       mp2_memory = mp2_env%mp2_memory
       scale_S = mp2_env%scale_S
       scale_T = mp2_env%scale_T
@@ -261,18 +259,18 @@ CONTAINS
                user_block_size, &
                scale_S, &
                scale_T, &
-               comm_all%get_handle(), &
-               comm_sub%get_handle(), &
+               comm_all_handle, &
+               comm_sub_handle, &
                color_sub, &
-               gd_array, &
+               ! gd_array, &
                gd_array_sizes, &
                ! gd_array_sizes_size, &
                SIZE(gd_array_sizes), &
                gd_B_virtual_sizes, &
                ! gd_B_virtual_sizes_size, &
                SIZE(gd_B_virtual_sizes), &
-               eigenval(:,jspin), &
-               eigenval(:,ispin), &
+               eigenval(:, jspin), &
+               eigenval(:, ispin), &
                homo_j, &
                homo_i, &
                nmo, &
@@ -300,7 +298,8 @@ CONTAINS
                my_group_L_start, &
                my_group_L_end, &
                my_group_L_size, &
-               preferred_dgemm_lib)
+               preferred_dgemm_lib &
+            )
          END DO
       END DO
 
