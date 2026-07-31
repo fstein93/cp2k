@@ -151,11 +151,13 @@ CONTAINS
             IMPORT :: C_DOUBLE, C_INT, C_BOOL
             BIND(C, name="calc_ri_mp2_energy")
             REAL(C_DOUBLE)               :: E_cou, E_ex, E_s, E_t
+            REAL(C_DOUBLE), DIMENSION(*) :: BIb_C
             REAL(C_DOUBLE), DIMENSION(*) :: BIb_C_j
             REAL(C_DOUBLE), DIMENSION(*) :: BIb_C_i
             REAL(C_DOUBLE), VALUE        :: mp2_memory
             INTEGER(C_INT), VALUE        :: user_block_size
-            REAL(C_DOUBLE), VALUE        :: scale_S, scale_T, mp2_env
+            REAL(C_DOUBLE), VALUE        :: scale_S, scale_T
+            REAL(C_DOUBLE), DIMENSION(*) :: mp2_env
             INTEGER(C_INT), VALUE        :: comm_all, comm_sub
             INTEGER(C_INT), VALUE        :: color_sub
             INTEGER(C_INT), DIMENSION(*) :: gd_array
