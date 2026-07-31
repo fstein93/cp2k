@@ -8,7 +8,8 @@
 MODULE mp2_gpu_api
    USE ISO_C_BINDING, ONLY   : C_DOUBLE, C_INT, C_BOOL, C_PTR, C_NULL_PTR, C_F_POINTER
    USE kinds, ONLY           : dp
-   USE message_passing, ONLY : mp_comm_type
+   USE message_passing, ONLY : mp_comm_type, mp_para_env_type
+
    USE group_dist_types, ONLY: group_dist_d1_type, get_group_dist
 
    IMPLICIT NONE
@@ -40,7 +41,7 @@ CONTAINS
    SUBROUTINE calc_ri_mp2_energy(E_cou, E_ex, E_s, E_t, BIb_C, comm_all, comm_sub, eigenval, homo, &
                                  nmo, dimen_RI, calc_forces, unit_nr, gd_array, gd_B_virtual, &
                                  virtual_start, virtual_size, aux_start, aux_size, n_aux, &
-                                 preferred_dgemm_lib)
+                                 preferred_dgemm_lib, para_env_sub)
       REAL(KIND=dp), INTENT(OUT)                         :: E_cou, E_ex, E_s, E_t
       REAL(KIND=dp), DIMENSION(:, :, :), INTENT(IN)      :: BIb_C
       CLASS(mp_comm_type), INTENT(IN)                    :: comm_all, comm_sub
@@ -55,6 +56,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: virtual_start, virtual_size, &
                                                          aux_start, aux_size, n_aux
       INTEGER, INTENT(IN)                                :: preferred_dgemm_lib
+      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
 
       INTEGER(C_INT)  :: comm_all_handle, comm_sub_handle
       INTEGER(C_INT)  :: homo_i, homo_j, nmo_c, dimen_RI_c
@@ -74,10 +76,10 @@ CONTAINS
       INTEGER(C_INT)  :: nspins, jspin, ispin
 
       INTERFACE
-         SUBROUTINE calc_ri_mp2_energy_c(
+         SUBROUTINE calc_ri_mp2_energy_c( &
             E_cou, E_ex, E_s, E_t, BIb_C_j, &
             BIb_C_i, mp2_memory, user_block_size, &
-            double scale_S, double scale_T, comm_all_f, &
+            scale_S, scale_T, comm_all_f, &
             comm_sub_f, color_sub, gd_array, &
             gd_array_sizes, gd_array_sizes_size, &
             gd_B_virtual_sizes, gd_B_virtual_sizes_size, &
@@ -92,10 +94,9 @@ CONTAINS
             rec_B_virtual_end_i, rec_B_sizes_j, &
             rec_B_sizes_i, num_pe, my_group_L_start, &
             my_group_L_end, my_group_L_size, n_aux, &
-            int preferred_dgemm_lib) &
-         !TO DO: needs to be the same as in mp2_gpu.c
-            BIND(C, name="calc_ri_mp2_energy")
+            preferred_dgemm_lib)
             IMPORT :: C_DOUBLE, C_INT, C_BOOL
+            BIND(C, name="calc_ri_mp2_energy")
             ! REAL(C_DOUBLE)               :: E_cou, E_ex, E_s, E_t
             REAL(C_DOUBLE), DIMENSION(*) :: BIb_C_j, BIb_C_i
             REAL(C_DOUBLE), VALUE        :: scale_S, mp2_env

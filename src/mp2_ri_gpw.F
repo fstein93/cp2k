@@ -140,7 +140,7 @@ CONTAINS
          END IF
          CALL calc_ri_mp2_energy(Emp2_cou, Emp2_EX, Emp2_S, Emp2_T, BIb_C(1)%array, para_env, para_env_sub, Eigenval(:, 1), &
                                 homo(1), my_B_virtual_start(1) - 1, my_B_size(1), my_group_L_start - 1, my_group_L_size, dimen_RI, &
-                                 local_gemm_get_library())
+                                 local_gemm_get_library(), para_env_sub)
          CALL timestop(handle)
          RETURN
       END IF

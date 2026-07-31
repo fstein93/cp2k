@@ -5,12 +5,101 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include <stdio.h>
+#include <stdlib.h>
+#include <math.h>
+#include <stdbool.h>
+#include <stdint.h>
+#include <string.h>
+
 #include "../mpiwrap/cp_mpi.h"
 #include "gemm_c_api.h"
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
+// I use it like a timer
+#include "../offload/offload_library.h"
+
+// Helper function to compute the maximum value in an array
+static int array_max(int *array, int size) {
+    int max_value = array[0];
+    for (int i = 1; i < size; i++) {
+        if (array[i] > max_value) {
+            max_value = array[i];
+        }
+    }
+    return max_value;
+}
+
+// Helper function to compute the sum of products
+static int sum_of_product(const int *array1, const int *array2, int size) {
+    int sum = 0;
+    for (int i = 0; i < size; i++) {
+        sum += array1[i] * array2[i];
+    }
+    return sum;
+}
+
+// Helper function to find integration group size
+static int find_integ_group_size(int ngroup, int max_repl_group_size) {
+    int integ_group_size = ngroup;
+    int min_repl_group_size = ngroup / max_repl_group_size;
+
+    if (max_repl_group_size < 1) {
+        max_repl_group_size = 1;
+    }
+
+    if(max_repl_group_size > ngroup) {
+        max_repl_group_size = ngroup;
+
+    }
+
+    if (min_repl_group_size < 1) {
+        min_repl_group_size = 1;
+    }
+
+    if (min_repl_group_size > ngroup) {
+        min_repl_group_size = ngroup;
+    }
+
+    // Find smallest divisor >= min_repl_group_size
+    for (int i = min_repl_group_size; i <= max_repl_group_size; i++) {
+        if (ngroup % i == 0) {
+            integ_group_size = i;
+            break;
+        }
+    }
+    return integ_group_size;
+}
+
+/**
+ * Helper: modulo operation that works like fortran MOD,
+ * ensuring non-negative results.
+ */
+static int modulo_frotran(int a, int b) {
+    int result = a % b;
+    if (result < 0) {
+        result += b;
+    }
+    return result;
+}
+
+/**
+ * Helper: allocate 4D arrays as flat array with dimensions:
+ * ranges_info_array[dim][rep_rank][exchange_rank]
+ */
+static int* allocate_ranges_info_array(int dim, int rep_size, int exchange_size) {
+    // int total_size = 4 * rep_size * exchange_size;
+    int total_size = dim * rep_size * exchange_size;
+    int* array = (int*)calloc(total_size, sizeof(int));
+    return array;
+}
+
+/**
+ * Helper: index into ranges_info_array
+ * ranges_info_array[dim * rep_size * exchange_size + rep_rank * exchange_size + exchange_rank]
+ */
+static int ranges_info_index(int dim, int rep_rank, int exchange_rank, int rep_size, int exchange_size) {
+    return dim * rep_size * exchange_size + rep_rank * exchange_size + exchange_rank;
+}
 
 void c_mp2_ri_get_integ_group_size(
     int* integ_group_size_out, int* ngroup_out, int* num_integ_group_out,
@@ -1065,7 +1154,7 @@ void calc_ri_mp2_energy(
     int* num_ij_pairs = (int*)malloc(comm_exchange_size * sizeof(int));
 
     //======================== Current point
-    cp_mpi_allgather_int(my_ij_pairs, 1, num_ij_pairs,
+    cp_mpi_allgather_int(&my_ij_pairs, 1, num_ij_pairs,
                   1, comm_all);
     
     int max_ij_pairs = my_ij_pairs;
@@ -1357,7 +1446,7 @@ void calc_ri_mp2_energy(
                         );
                     }
 
-                    offlad_timeset("mp2_ri_gpw_compute_en_RI_ener\0");
+                    offload_timeset("mp2_ri_gpw_compute_en_RI_ener\0");
                     // Calculate Coulomb only MP2
                     double sym_fac = (my_i == my_j) ? 1.0 : 2.0;
 
@@ -1382,7 +1471,7 @@ void calc_ri_mp2_energy(
 
         } else {
             int my_block_size = 1;
-            offlad_timeset("mp2_ri_gpw_compute_en_RI_comm\0");
+            offload_timeset("mp2_ri_gpw_compute_en_RI_comm\0");
             for (int proc_shift = 1; proc_shift < comm_exchange_size; proc_shift++) {
                 // Calculate send and receive process ranks
                 int proc_send = (comm_exchange_rank + proc_shift) % comm_exchange_size;
@@ -1479,7 +1568,7 @@ void calc_ri_mp2_energy(
     *E_ex += my_E_ex;
     *E_s += my_E_s;
     *E_t += my_E_t;
-    cp_mpi_comm_free(comm_exchange_c);
+    cp_mpi_comm_free(&comm_exchange_c);
 
     // Destroy context for all libraries
     gemm_ctx_destroy(ctx);

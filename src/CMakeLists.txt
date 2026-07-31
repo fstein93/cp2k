@@ -1421,7 +1421,6 @@ list(
   CP2K_SRCS_C
   sockets.c
   mp2_gpu/mp2_gpu.c
-  mp2_gpu/mp2_ri_c_routines.c
   mp2_gpu/gemm_c_api.c
   base/machine_cpuid.c
   base/openmp_trace.c
