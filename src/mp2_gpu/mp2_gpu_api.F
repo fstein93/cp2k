@@ -97,7 +97,7 @@ CONTAINS
       INTEGER(C_INT)  :: my_B_size(2)
 
       INTERFACE
-         SUBROUTINE calc_ri_mp2_energy_c( &
+         SUBROUTINE calc_ri_mp2_energy( &
             E_cou, &
             E_ex, &
             E_s, &
@@ -189,7 +189,7 @@ CONTAINS
             INTEGER(C_INT), VALUE        :: my_group_L_end
             INTEGER(C_INT), VALUE        :: my_group_L_size
             INTEGER(C_INT), VALUE        :: preferred_dgemm_lib
-         END SUBROUTINE calc_ri_mp2_energy_c
+         END SUBROUTINE calc_ri_mp2_energy
       END INTERFACE
 
       ! MPI communicators
@@ -233,7 +233,7 @@ CONTAINS
             my_B_size_j = my_B_size(jspin)
             my_B_size_i = my_B_size(ispin)
 
-            CALL calc_ri_mp2_energy_c( &
+            CALL calc_ri_mp2_energy( &
                E_cou, &
                E_ex, &
                E_s, &
