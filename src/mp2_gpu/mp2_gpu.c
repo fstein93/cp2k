@@ -850,7 +850,7 @@ void fill_local_i_aL(
     offload_timestop();
 }
 
-void calc_ri_mp2_energy(
+void calc_ri_mp2_energy_c(
     double *E_cou,
     double *E_ex,
     double *E_s,

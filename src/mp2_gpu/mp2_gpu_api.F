@@ -97,7 +97,7 @@ CONTAINS
       INTEGER(C_INT)  :: my_B_size(2)
 
       INTERFACE
-         SUBROUTINE calc_ri_mp2_energy( &
+         SUBROUTINE calc_ri_mp2_energy_c( &
             E_cou, &
             E_ex, &
             E_s, &
@@ -146,7 +146,7 @@ CONTAINS
             my_group_L_size, &
             preferred_dgemm_lib)
             IMPORT :: C_DOUBLE, C_INT, C_BOOL, C_PTR
-            BIND(C, name="calc_ri_mp2_energy")
+            BIND(C, name="calc_ri_mp2_energy_c")
             REAL(C_DOUBLE)               :: E_cou, E_ex, E_s, E_t
             REAL(C_DOUBLE), DIMENSION(*) :: BIb_C_j
             REAL(C_DOUBLE), DIMENSION(*) :: BIb_C_i
@@ -189,7 +189,7 @@ CONTAINS
             INTEGER(C_INT), VALUE        :: my_group_L_end
             INTEGER(C_INT), VALUE        :: my_group_L_size
             INTEGER(C_INT), VALUE        :: preferred_dgemm_lib
-         END SUBROUTINE calc_ri_mp2_energy
+         END SUBROUTINE calc_ri_mp2_energy_c
       END INTERFACE
 
       ! MPI communicators
@@ -233,7 +233,7 @@ CONTAINS
             my_B_size_j = my_B_size(jspin)
             my_B_size_i = my_B_size(ispin)
 
-            CALL calc_ri_mp2_energy( &
+            CALL calc_ri_mp2_energy_c( &
                E_cou, &
                E_ex, &
                E_s, &
