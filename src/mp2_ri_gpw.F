@@ -514,7 +514,10 @@ CONTAINS
                                                      buffer_1D(1:INT(rec_B_size, int_8)*my_B_size(ispin))
                                  external_ab = 0.0_dp
                       
-                                 CALL para_env_sub%sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size(ispin)), proc_send, external_ab(1:my_B_size(ispin), 1:rec_B_size), proc_receive, tag)
+                                 CALL para_env_sub%sendrecv(local_ab(send_B_virtual_start:send_B_virtual_end, &
+                                                                     1:my_B_size(ispin)), proc_send, &
+                                                                     external_ab(1:my_B_size(ispin), 1:rec_B_size), &
+                                                                     proc_receive, tag)
 
                                  DO b = 1, my_B_size(ispin)
                                     b_global = b + my_B_virtual_start(ispin) - 1
