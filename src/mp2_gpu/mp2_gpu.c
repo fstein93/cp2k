@@ -1590,7 +1590,7 @@ void calc_ri_mp2_energy(
 // Temporal wrapper for test
 void calc_ri_mp2_energy_c_(
     double *E_cou, double *E_ex, double *E_s, double *E_t,
-    const double *BIb_C_j, const double *BIb_C_i,
+    double *BIb_C_j, double *BIb_C_i,
     double mp2_memory, int user_block_size,
     double scale_S, double scale_T,
     int comm_all_f, int comm_sub_f, int color_sub,
