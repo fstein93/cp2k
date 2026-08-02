@@ -328,6 +328,7 @@ void c_mp2_ri_create_group(
 
     // Create the exchange communicator
     MPI_Comm_split(comm_para_env_c_comm, sub_sub_color_exchange, exchange_key, &comm_exchange_c);
+    *comm_exchange_out = cp_mpi_comm_c2f(comm_exchange_c); // convert back to Fortran communicator
 
     // Get info about exchange communicator
     comm_exchange_rank = cp_mpi_comm_rank(comm_exchange_c);
@@ -340,7 +341,8 @@ void c_mp2_ri_create_group(
     MPI_Comm_split(comm_para_env_c_comm, sub_sub_color, exchange_key, &comm_rep_c);
 
     // Assign replication communicator var
-    *comm_rep_out = comm_rep_c;
+    // *comm_rep_out = comm_rep_c;
+    *comm_rep_out = cp_mpi_comm_c2f(comm_rep_c);
 
     // Get info about replication communicator
     comm_rep_rank = cp_mpi_comm_rank(comm_rep_c);
@@ -398,6 +400,8 @@ void c_mp2_ri_create_group(
     
     // ALLOCATE (sizes_array(0:integ_group_size - 1))
     sizes_array = (int*)malloc(integ_group_size * sizeof(int));
+    // ============= SHOULD i REALLOCATE IN C-SIDE OR ONLY REQUIERE
+    // ============= ALLOCATION IN FORTRAN SIDE? =============
 
     // Copy data from new_sizes_array to size_array
     for (int i = 0; i < integ_group_size && i < comm_exchange_size; i++) {
@@ -812,7 +816,7 @@ void fill_local_i_aL(
 
         // Number of L-index copy
         // start_point:end_point
-        int L_size = end_point - start_point;
+        int L_size = end_point - start_point + 1; // Inclusive range
 
         /**
          * Copy data from BIb_c to local_i_aL
@@ -835,11 +839,12 @@ void fill_local_i_aL(
 
                 // Origin
                 // BIb_C_rec[(i_block * BIb_C_rec_virtual + v_pos) * BIb_C_rec_L_size + (start_point - 1)]
-                size_t src_idx = ((size_t)i_block * BIb_C_rec_virtual + v_pos) * local_i_aL_L_size + (start_point - 1);
+                size_t src_idx = ((size_t)i_block * BIb_C_rec_virtual + v_pos) * BIb_C_rec_L_size + (start_point - 1);
 
                 // Destination
                 // local_i_aL[(i_block * local_i_aL_virtual + v_pos) * BIb_C_rec_L_size + (Lstart_pos - 1)]
-                size_t dest_idx = ((size_t)i_block * local_i_aL_virtual + v_pos) * BIb_C_rec_L_size + (Lstart_pos - 1);
+                // size_t dest_idx = ((size_t)i_block * local_i_aL_virtual + v_pos) * BIb_C_rec_L_size + (Lstart_pos - 1);
+                size_t dest_idx = ((size_t)i_block * local_i_aL_virtual + v_pos) * local_i_aL_L_size + (Lstart_pos - 1);
 
                 // void *memcpy(void *dest, const void *src, size_t count);
                 memcpy(&local_i_aL[dest_idx], &BIb_C_rec[src_idx], L_size * sizeof(double));
@@ -1004,7 +1009,15 @@ void calc_ri_mp2_energy(
 
     int* gd_B_virtual_start = (int*)malloc(gd_B_virtual_sizes_size * sizeof(int));
     int* gd_B_virtual_end = (int*)malloc(gd_B_virtual_sizes_size * sizeof(int));
-    
+
+    // fill it
+    int cumulative_val = 1;
+    for (int i = 0; i < gd_B_virtual_sizes_size; i++) {
+        gd_B_virtual_start[i] = cumulative_val;
+        gd_B_virtual_end[i] = cumulative_val + gd_B_virtual_sizes[i] - 1;
+        cumulative_val += gd_B_virtual_sizes[i];
+    }
+
     // ranges_info_array dimensions: (4 x rep_size x exchange_size)
     int comm_rep_size = para_env_size / integ_group_size;
     int comm_exchange_size = integ_group_size;

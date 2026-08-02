@@ -214,6 +214,7 @@ CONTAINS
       scale_S = mp2_env%scale_S
       scale_T = mp2_env%scale_T
       user_block_size = mp2_env%ri_mp2%block_size
+      calc_forces_c = calc_forces
 
       ! set sizes
       maxsize_gd_array = maxsize(gd_array)
