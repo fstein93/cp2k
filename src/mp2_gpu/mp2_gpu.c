@@ -1572,3 +1572,60 @@ void calc_ri_mp2_energy(
     gemm_ctx_destroy(ctx);
     offload_timestop();
 }
+
+
+// Temporal wrapper for test
+void calc_ri_mp2_energy_c_(
+    double *E_cou, double *E_ex, double *E_s, double *E_t,
+    const double *BIb_C_j, const double *BIb_C_i,
+    double mp2_memory, int user_block_size,
+    double scale_S, double scale_T,
+    int comm_all_f, int comm_sub_f, int color_sub,
+    const double* gd_array, const int* gd_array_sizes,
+    int gd_array_sizes_size, const int* gd_B_virtual_sizes,
+    int gd_B_virtual_sizes_size,
+    const double *eigenval_j, const double *eigenval_i,
+    int homo_j, int homo_i, int nmo, int dimen_RI,
+    bool calc_forces, int unit_nr,
+    int my_B_size_j, int my_B_size_i,
+    int my_B_virtual_start_j, int my_B_virtual_end_j,
+    int my_B_virtual_start_i, int my_B_virtual_end_i,
+    int aux_start, int aux_size,
+    int maxsize_gd_array, int maxsize_gd_B_virtual,
+    int maxval_gd_B_virtual,
+    const int* rec_B_virtual_start_j,
+    const int* rec_B_virtual_start_i,
+    const int* rec_B_virtual_end_j,
+    const int* rec_B_virtual_end_i,
+    const int* rec_B_sizes_j, const int* rec_B_sizes_i,
+    int num_pe, int my_group_L_start,
+    int my_group_L_end, int my_group_L_size,
+    int preferred_dgemm_lib) {
+    
+    // Just forward to the main function
+    calc_ri_mp2_energy(E_cou, E_ex, E_s, E_t,
+                       BIb_C_j, BIb_C_i,
+                       mp2_memory, user_block_size,
+                       scale_S, scale_T,
+                       comm_all_f, comm_sub_f, color_sub,
+                       gd_array, gd_array_sizes,
+                       gd_array_sizes_size, gd_B_virtual_sizes,
+                       gd_B_virtual_sizes_size,
+                       eigenval_j, eigenval_i,
+                       homo_j, homo_i, nmo, dimen_RI,
+                       calc_forces, unit_nr,
+                       my_B_size_j, my_B_size_i,
+                       my_B_virtual_start_j, my_B_virtual_end_j,
+                       my_B_virtual_start_i, my_B_virtual_end_i,
+                       aux_start, aux_size,
+                       maxsize_gd_array, maxsize_gd_B_virtual,
+                       maxval_gd_B_virtual,
+                       rec_B_virtual_start_j,
+                       rec_B_virtual_start_i,
+                       rec_B_virtual_end_j,
+                       rec_B_virtual_end_i,
+                       rec_B_sizes_j, rec_B_sizes_i,
+                       num_pe, my_group_L_start,
+                       my_group_L_end, my_group_L_size,
+                       preferred_dgemm_lib);
+}
