@@ -298,9 +298,14 @@ void c_mp2_ri_create_group(
 
     *comm_exchange_out = comm_para_env_c_comm;
 
+    printf("Get cp_mpi_comm_rank 1st time\n");
+    flush(stdout);
     // Get rank and size of the sub-communicator
     int para_env_rank = cp_mpi_comm_rank(comm_para_env_c_comm);
     int para_env_size = cp_mpi_comm_size(comm_para_env_c_comm);
+    
+    printf("Get cp_mpi_comm_rank 2nd time\n");
+    flush(stdout);
     int para_env_sub_rank = cp_mpi_comm_rank(comm_para_env_sub_c_comm);
     int para_env_sub_size = cp_mpi_comm_size(comm_para_env_sub_c_comm);
 
@@ -331,6 +336,9 @@ void c_mp2_ri_create_group(
     *comm_exchange_out = cp_mpi_comm_c2f(comm_exchange_c); // convert back to Fortran communicator
 
     // Get info about exchange communicator
+    
+    printf("Get cp_mpi_comm_rank 3rd time\n");
+    flush(stdout);
     comm_exchange_rank = cp_mpi_comm_rank(comm_exchange_c);
     comm_exchange_size = cp_mpi_comm_size(comm_exchange_c);
 
@@ -345,6 +353,8 @@ void c_mp2_ri_create_group(
     *comm_rep_out = cp_mpi_comm_c2f(comm_rep_c);
 
     // Get info about replication communicator
+    printf("Get cp_mpi_comm_rank 4th time\n");
+    flush(stdout);
     comm_rep_rank = cp_mpi_comm_rank(comm_rep_c);
     comm_rep_size = cp_mpi_comm_size(comm_rep_c);
 
@@ -426,7 +436,13 @@ void c_replicate_iaK_2intgroup(
     cp_mpi_comm_t comm_rep_c = cp_mpi_comm_f2c(comm_rep);
     
     int comm_rep_size = cp_mpi_comm_size(comm_rep_c);
+    
+    printf("Get cp_mpi_comm_rank 5th time\n");
+    flush(stdout);
     int comm_exchange_rank = cp_mpi_comm_rank(comm_exchange_c);
+    
+    printf("Get cp_mpi_comm_rank 6th time\n");
+    flush(stdout);
     int comm_rep_rank = cp_mpi_comm_rank(comm_rep_c);
 
     offload_timeset("replicate_iaK_2intgroup\0");
@@ -950,6 +966,9 @@ void calc_ri_mp2_energy(
     my_B_size[1] = my_B_size_i;
 
     int para_env_size = cp_mpi_comm_size(comm_all);
+    
+    printf("Get cp_mpi_comm_rank 7th time\n");
+    flush(stdout);
     int para_env_sub_rank = cp_mpi_comm_rank(comm_sub);
     int para_env_sub_size = cp_mpi_comm_size(comm_sub);
 
@@ -1045,7 +1064,12 @@ void calc_ri_mp2_energy(
     cp_mpi_comm_t comm_exchange_c = cp_mpi_comm_f2c(comm_exchange_out);
     cp_mpi_comm_t comm_rep_c = cp_mpi_comm_f2c(comm_rep_out);
     
+    printf("Get cp_mpi_comm_rank 8th time\n");
+    flush(stdout);
     int comm_exchange_rank = cp_mpi_comm_rank(comm_exchange_c);
+    
+    printf("Get cp_mpi_comm_rank 9th time\n");
+    flush(stdout);
     int comm_rep_rank = cp_mpi_comm_rank(comm_rep_c);
     int comm_rep_size_c = cp_mpi_comm_size(comm_rep_c);
     int tag = 42;
