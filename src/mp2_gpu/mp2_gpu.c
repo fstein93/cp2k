@@ -337,17 +337,22 @@ void c_mp2_ri_create_group(
     *comm_exchange_out = cp_mpi_comm_c2f(comm_exchange_c); // convert back to Fortran communicator
 
     // Get info about exchange communicator
-    
     printf("Get cp_mpi_comm_rank 3rd time\n");
+    printf("Get cp_mpi_comm_rank call: color %d\n", sub_sub_color_exchange);
+    printf("Get cp_mpi_comm_rank call: key %d\n", exchange_key);
+    printf("Get cp_mpi_comm_rank call: comm_exchange_out %d\n", comm_exchange_out);
     fflush(stdout);
+
     comm_exchange_rank = cp_mpi_comm_rank(comm_exchange_c);
+    printf("Get cp_mpi_comm_rank 3.1 time: comm_exchange_rank %d\n", comm_exchange_rank);
+    fflush(stdout);
     comm_exchange_size = cp_mpi_comm_size(comm_exchange_c);
 
     offload_timeset("mp2_ri_create_group\0");
     int sub_sub_color = para_env_sub_rank * comm_exchange_size + comm_exchange_rank;
 
     // Create replication communicator
-    MPI_Comm_split(comm_para_env_c_comm, sub_sub_color, exchange_key, &comm_rep_c);
+    cp_mpi_comm_split(comm_para_env_c_comm, sub_sub_color, exchange_key, &comm_rep_c);
 
     // Assign replication communicator var
     // *comm_rep_out = comm_rep_c;
