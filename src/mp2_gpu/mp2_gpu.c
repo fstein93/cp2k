@@ -313,8 +313,8 @@ void c_mp2_ri_create_group(
     int ngroup = para_env_size / integ_group_size;
 
     // Local variables
-    cp_mpi_comm_t comm_exchange_c;
-    cp_mpi_comm_t comm_rep_c;
+    cp_mpi_comm_t comm_exchange_c = cp_mpi_comm_null;
+    cp_mpi_comm_t comm_rep_c = cp_mpi_comm_null;
 
     int comm_exchange_rank = 0;
     int comm_exchange_size = 0;

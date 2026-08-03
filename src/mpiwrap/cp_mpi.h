@@ -14,8 +14,10 @@
 #if defined(__parallel)
 #include <mpi.h>
 typedef MPI_Comm cp_mpi_comm_t;
+const cp_mpi_comm_t cp_mpi_comm_null = MPI_COMM_NULL;
 #else
 typedef int cp_mpi_comm_t;
+const cp_mpi_comm_t cp_mpi_comm_null = -1;
 #endif
 
 /*******************************************************************************
