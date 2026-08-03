@@ -749,4 +749,18 @@ void cp_mpi_send_int(const int *sendbuf, const int sendcount,
 #endif
 }
 
+void cp_mpi_comm_split(const cp_mpi_comm_t comm, const int color, const int key, cp_mpi_comm_t *newcomm) {
+#if defined(__parallel)
+  if (MPI_COMM_NULL != comm) {
+    CHECK(MPI_Comm_split(comm, color, key, newcomm));
+  }
+#else
+  (void)comm;
+  (void)color;
+  (void)key;
+  (void)newcomm;
+  fprintf(stderr, "Error: cp_mpi_comm_split not available without MPI\n");
+  abort();
+#endif
+}
 // EOF

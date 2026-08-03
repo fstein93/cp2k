@@ -332,7 +332,8 @@ void c_mp2_ri_create_group(
     cp_mpi_comm_t comm_exchange_old;
 
     // Create the exchange communicator
-    MPI_Comm_split(comm_para_env_c_comm, sub_sub_color_exchange, exchange_key, &comm_exchange_c);
+    //
+    cp_mpi_comm_split(comm_para_env_c_comm, sub_sub_color_exchange, exchange_key, &comm_exchange_c);
     *comm_exchange_out = cp_mpi_comm_c2f(comm_exchange_c); // convert back to Fortran communicator
 
     // Get info about exchange communicator
