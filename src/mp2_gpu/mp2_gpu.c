@@ -110,10 +110,8 @@ void c_mp2_ri_get_integ_group_size(
     int integ_group_size,
     double mp2_memory,
     int number_integration_groups,
-    const int* homo,
-    int homo_size,
-    const int* virtual_arr,
-    int virtual_size,
+    int homo,
+    int virtual,
     int dimen_RI,
     bool calc_forces,
     int unit_nr,
@@ -149,20 +147,16 @@ void c_mp2_ri_get_integ_group_size(
     
     // BIB_C_copy: MAX(MAX(homo*maxsize(gd_array)), dimen_RI) * maxsize(gd_B_virtual)
     double max_homo_gd = 0.0;
-    for (int i = 0; i < homo_size; i++) {
-        double temp = (double)homo[i] * maxsize_gd_array;
-        if (temp > max_homo_gd) {
-            max_homo_gd = temp;
-        }
+    double temp = (double)homo * maxsize_gd_array;
+    if (temp > max_homo_gd) {
+        max_homo_gd = temp;
     }
     double max_compare = (max_homo_gd > (double)dimen_RI) ? max_homo_gd : (double)dimen_RI;
     mem_per_repl += max_compare * maxsize_gd_B_virtual * 8.0 / (1024.0 * 1024.0);
     
     // BIB_C: SUM(homo*maxsize(gd_B_virtual)) * maxsize(gd_array)
     double sum_homo_gd_B = 0.0;
-    for (int i = 0; i < homo_size; i++) {
-        sum_homo_gd_B += (double)homo[i] * maxsize_gd_B_virtual;
-    }
+    sum_homo_gd_B += (double)homo * maxsize_gd_B_virtual;
     mem_per_repl += sum_homo_gd_B * maxsize_gd_array * 8.0 / (1024.0 * 1024.0);
     
     // BIB_C_rec: maxsize(gd_B_virtual) * maxsize(gd_array)
@@ -173,11 +167,9 @@ void c_mp2_ri_get_integ_group_size(
     
     // local_ab: MAX(virtual*maxsize(gd_B_virtual))
     double max_virtual_gd_B = 0.0;
-    for (int i = 0; i < virtual_size; i++) {
-        double temp = (double)virtual_arr[i] * maxsize_gd_B_virtual;
-        if (temp > max_virtual_gd_B) {
-            max_virtual_gd_B = temp;
-        }
+    double temp = (double)virtual * maxsize_gd_B_virtual;
+    if (temp > max_virtual_gd_B) {
+        max_virtual_gd_B = temp;
     }
     mem_base += max_virtual_gd_B * 8.0 / (1024.0 * 1024.0);
     
@@ -188,9 +180,7 @@ void c_mp2_ri_get_integ_group_size(
     if (calc_forces) {
         // Gamma_P_ia: SUM(homo*maxsize(gd_array)*maxsize(gd_B_virtual))
         double sum_homo_gd = 0.0;
-        for (int i = 0; i < homo_size; i++) {
-            sum_homo_gd += (double)homo[i] * maxsize_gd_array * maxsize_gd_B_virtual;
-        }
+        sum_homo_gd += (double)homo * maxsize_gd_array * maxsize_gd_B_virtual;
         mem_per_repl += sum_homo_gd * 8.0 / (1024.0 * 1024.0);
             
         // Y_i_aP+Y_aP: 2 * maxsize(gd_B_virtual) * dimen_RI
@@ -201,16 +191,12 @@ void c_mp2_ri_get_integ_group_size(
             
         // P_ij: SUM(homo*homo)
         double sum_homo_sq = 0.0;
-        for (int i = 0; i < homo_size; i++) {
-            sum_homo_sq += (double)homo[i] * homo[i];
-        }
+        sum_homo_sq += (double)homo * homo;
         mem_base += sum_homo_sq * 8.0 / (1024.0 * 1024.0);
             
         // P_ab: SUM(virtual*maxsize(gd_B_virtual))
         double sum_virtual_gd_B = 0.0;
-        for (int i = 0; i < virtual_size; i++) {
-            sum_virtual_gd_B += (double)virtual_arr[i] * maxsize_gd_B_virtual;
-        }
+        sum_virtual_gd_B += (double)virtual * maxsize_gd_B_virtual;
         mem_base += sum_virtual_gd_B * 8.0 / (1024.0 * 1024.0);
             
         // send_ab/send_i_aL: MAX(dimen_RI, max_virtual) * maxsize(gd_B_virtual)
@@ -220,9 +206,9 @@ void c_mp2_ri_get_integ_group_size(
     // Initial block size guess
     // block_size = MAX(1, MIN(FLOOR(SQRT(MINVAL(homo))), FLOOR(MINVAL(homo)/SQRT(2.0*ngroup))))
     int min_homo = max_homo;
-    for (int i = 0; i < homo_size; i++) {
-        if (homo[i] < min_homo) min_homo = homo[i];
-    }
+    
+    if (homo < min_homo) min_homo = homo;
+    
     block_size = (int)sqrt((double)min_homo);
     int temp = (int)(min_homo / sqrt(2.0 * ngroup));
     block_size = (block_size < temp) ? block_size : temp;
@@ -240,15 +226,12 @@ void c_mp2_ri_get_integ_group_size(
     // Calculate factor for communication model
     // factor = SUM(homovirtual) - SUM((MAX(homo)/block_size + block_size - 2)*homovirtual)/ngroup
     double factor_homo = 0.0;
-    for (int i = 0; i < homo_size; i++) {
-        factor_homo += (double)homo[i] * virtual_arr[i];
-    }
+    
+    factor_homo += (double)homo * virtual;
     
     double sum_factor = 0.0;
-    for (int i = 0; i < homo_size; i++) {
-        double temp = ((double)max_homo / block_size + block_size - 2.0);
-        sum_factor += temp * homo[i] * virtual_arr[i];
-    }
+    double temp = ((double)max_homo / block_size + block_size - 2.0);
+    sum_factor += temp * homo * virtual;
     factor = factor_homo - sum_factor / ngroup;
     
     if (nspins == 2) {
@@ -590,7 +573,7 @@ void c_replicate_iaK_2intgroup(
 
 void c_mp2_ri_allocate_no_blk(
     double** local_ab, double** t_ab, double** local_ba,
-    const int* homo, const int* virtual, const int* my_B_size,
+    int homo, int virtual, int my_B_size,
     int my_group_L_size, bool cal_forces,
     double** P_ij, double** P_ab, double** Gamma_P_ia,
     bool* P_ij_allocated, bool* P_ab_allocated,bool* Gamma_P_ij_allocated 
@@ -602,7 +585,7 @@ void c_mp2_ri_allocate_no_blk(
     // local_ab = 0.0_dp
 
     // *local_ab = (double*)calloc((size_t)virtual[i_c] * my_B_size[j_c], sizeof(double));
-    *local_ab = (double*)calloc((size_t)virtual[1] * my_B_size[0], sizeof(double));
+    *local_ab = (double*)calloc((size_t)virtual * my_B_size, sizeof(double));
 
     //stopo timer
     offload_timestop();
@@ -621,10 +604,8 @@ void c_mp2_ri_get_block_size(
     int gd_B_virtual_sizes_size,
     int maxsize_gd_B_virtual,
     int maxval_gd_B_virtual,
-    const int* homo,
-    int homo_size,
-    const int* virtual_arr,
-    int virtual_size,
+    int homo,
+    int virtual,
     int maxval_virtual,
     int dimen_RI,
     int unit_nr,
@@ -680,19 +661,13 @@ void c_mp2_ri_get_block_size(
         // Loop to ensure valid block size
         while (1) {
             int num_IJ_blocks = 0;
-            if (homo_size == 1) {
-                if (!my_open_shell_ss) {
-                    num_IJ_blocks = homo[0] / best_block_size;
-                    num_IJ_blocks = (num_IJ_blocks * num_IJ_blocks - num_IJ_blocks) / 2;
-                } else {
-                    num_IJ_blocks = (homo[0] - 1) / best_block_size;
-                    num_IJ_blocks = (num_IJ_blocks * num_IJ_blocks - num_IJ_blocks) / 2;
-                }
+            
+            if (!my_open_shell_ss) {
+                num_IJ_blocks = homo / best_block_size;
+                num_IJ_blocks = (num_IJ_blocks * num_IJ_blocks - num_IJ_blocks) / 2;
             } else {
-                num_IJ_blocks = 1;
-                for (int i = 0; i < homo_size; i++) {
-                    num_IJ_blocks *= (homo[i] / best_block_size);
-                }
+                num_IJ_blocks = (homo - 1) / best_block_size;
+                num_IJ_blocks = (num_IJ_blocks * num_IJ_blocks - num_IJ_blocks) / 2;
             }
             
             if ((num_IJ_blocks >= ngroup && num_IJ_blocks > 0) || best_block_size == 1) {
@@ -702,14 +677,12 @@ void c_mp2_ri_get_block_size(
             }
         }
         
-        if (homo_size == 1) {
-            if (my_open_shell_ss) {
-                int sqrt_val = (int)sqrt((double)(homo[0] - 1));
-                best_block_size = (sqrt_val < best_block_size) ? sqrt_val : best_block_size;
-            } else {
-                int sqrt_val = (int)sqrt((double)homo[0]);
-                best_block_size = (sqrt_val < best_block_size) ? sqrt_val : best_block_size;
-            }
+        if (my_open_shell_ss) {
+            int sqrt_val = (int)sqrt((double)(homo - 1));
+            best_block_size = (sqrt_val < best_block_size) ? sqrt_val : best_block_size;
+        } else {
+            int sqrt_val = (int)sqrt((double)homo);
+            best_block_size = (sqrt_val < best_block_size) ? sqrt_val : best_block_size;
         }
     }
     
@@ -845,7 +818,7 @@ void c_mp2_ri_communication(
 
 void c_mp2_ri_allocate_blk(
     int dimen_RI,
-    const int* my_B_size,
+    int my_B_size,
     int block_size,
     double** local_i_aL,
     double** local_aL,
@@ -854,16 +827,22 @@ void c_mp2_ri_allocate_blk(
 ){
     offload_timeset("mp2_ri_allocate_blk\0");
 
-    *local_i_aL = (double*)calloc(block_size * my_B_size[1] * dimen_RI, sizeof(double));
-    *local_aL = (double*)calloc(block_size * my_B_size[0] * dimen_RI, sizeof(double));
+    *local_i_aL = (double*)calloc(block_size * my_B_size * dimen_RI, sizeof(double));
+    *local_aL = (double*)calloc(block_size * my_B_size * dimen_RI, sizeof(double));
 
     offload_timestop();
 }
 
 void fill_local_i_aL(
-    double* local_i_aL, int local_i_aL_L_size, int local_i_aL_virtual,
-    int local_i_aL_block, const int* ranges_info_array, int ranges_info_rep_size,
-    const double* BIb_C_rec, int BIb_C_rec_L_size, int BIb_C_rec_virtual,
+    double* local_i_aL,
+    int local_i_aL_L_size,
+    int local_i_aL_virtual,
+    int local_i_aL_block,
+    const int* ranges_info_array,
+    int ranges_info_rep_size,
+    const double* BIb_C_rec,
+    int BIb_C_rec_L_size,
+    int BIb_C_rec_virtual,
     int BIb_C_rec_block
 ){
     offload_timeset("fill_local_i_aL\0");
@@ -1005,9 +984,7 @@ void calc_ri_mp2_energy(
         mp2_memory,
         0,
         homo,
-        1,
         virtual,
-        1,
         dimen_RI,
         calc_forces,
         unit_nr,
@@ -1103,8 +1080,8 @@ void calc_ri_mp2_energy(
     c_replicate_iaK_2intgroup(
         (double**)&BIb_C,
         &dimen_RI,
-        &virtual,
-        &homo,
+        virtual,
+        homo,
         comm_exchange_out,
         comm_rep_out,
         homo,
@@ -1144,10 +1121,6 @@ void calc_ri_mp2_energy(
     int block_size = 0;
     int ngroup_out2 = 0;
     double* buffer_1D = NULL;
-    
-    // Pass only the needed spin-specific arrays
-    int spin_homo[1] = {homo};
-    int spin_virtual[1] = {virtual};
             
     c_mp2_ri_get_block_size(
         &block_size,
@@ -1162,10 +1135,8 @@ void calc_ri_mp2_energy(
         gd_B_virtual_sizes_size,
         maxsize_gd_B_virtual,
         maxval_gd_B_virtual,
-        spin_homo,
-        1,
-        spin_virtual,
-        1,
+        homo,
+        virtual,
         maxval_virtual,
         dimen_RI,
         unit_nr,
@@ -1581,7 +1552,6 @@ void calc_ri_mp2_energy(
     // ======== IGNORE LOOP
     
     // ======== END LOOP
-    // free(virtual);
     // free(my_B_size);
     // free(my_B_virtual_start);
     // free(my_B_virtual_end);

@@ -149,9 +149,7 @@ CONTAINS
             para_env, &
             para_env_sub, &
             Eigenval(:, 1), &
-            ! Eigenval, &
             homo(1), &
-            ! homo, &
             nmo, &
             dimen_RI, &
             calc_forces, &
