@@ -89,8 +89,10 @@ CONTAINS
             comm_all, &
             comm_sub, &
             color_sub, &
-            gd_B_virtual_sizes, &      ! According to C-side should be gd_array
-            gd_B_virtual_sizes_size, & ! According to C-side should be gd_array_sizes
+            gd_array_sizes, &
+            gd_array_sizes_size, &
+            gd_B_virtual_sizes, &
+            gd_B_virtual_sizes_size, &
             eigenval, &
             homo, &
             nmo, &
@@ -110,6 +112,8 @@ CONTAINS
             REAL(C_DOUBLE), VALUE        :: scale_S, scale_T
             INTEGER(C_INT), VALUE        :: comm_all, comm_sub
             INTEGER(C_INT), VALUE        :: color_sub
+            REAL(C_DOUBLE), DIMENSION(*) :: gd_array_sizes
+            REAL(C_DOUBLE), VALUE        :: gd_array_sizes_size
             INTEGER(C_INT), DIMENSION(*) :: gd_B_virtual_sizes
             INTEGER(C_INT), VALUE        :: gd_B_virtual_sizes_size
             REAL(C_DOUBLE), DIMENSION(*) :: eigenval

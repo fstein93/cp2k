@@ -877,7 +877,6 @@ void calc_ri_mp2_energy(
 
     int my_group_L_start = 1;
     for (int i = 0; i < color_sub; i++) {
-    // for (int i = 0; i < rank_in_all; i++) {
         my_group_L_start += gd_array_sizes[i];
     }
     int my_group_L_end = my_group_L_start + my_group_L_size - 1;
