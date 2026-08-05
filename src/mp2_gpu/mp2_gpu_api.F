@@ -48,8 +48,8 @@ CONTAINS
                            CONTIGUOUS, INTENT(INOUT)     :: BIb_C
       CLASS(mp_comm_type), INTENT(IN)                    :: comm_all, comm_sub
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenval
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
-      INTEGER, INTENT(IN)                                :: nmo, dimen_RI
+      ! INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
+      INTEGER, INTENT(IN)                                :: homo, nmo, dimen_RI
       LOGICAL, INTENT(IN)                                :: calc_forces
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
