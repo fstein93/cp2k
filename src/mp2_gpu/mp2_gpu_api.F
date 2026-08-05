@@ -141,7 +141,7 @@ CONTAINS
 
       ! set sizes
       maxsize_gd_array = maxsize(gd_array)
-      maxsize_gd_B_virtual = MAXVAL(gd_B_virtual)
+      maxsize_gd_B_virtual = maxsize(gd_B_virtual)
       maxval_gd_B_virtual = maxsize_gd_B_virtual
 
       ! === KEEP ONLY _j FAMILY VARS ===============
