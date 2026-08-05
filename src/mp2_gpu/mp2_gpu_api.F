@@ -135,7 +135,7 @@ CONTAINS
       comm_all_handle = comm_all%get_handle()
       comm_sub_handle = comm_sub%get_handle()
 
-      ALLOCATE(gd_B_virtual_sizes(SIZE(homo)))
+      ! ALLOCATE(gd_B_virtual_sizes(SIZE(homo)))
 
       mp2_memory = mp2_env%mp2_memory
       scale_S = mp2_env%scale_S
@@ -177,8 +177,6 @@ CONTAINS
          maxsize_gd_B_virtual, &
          maxval_gd_B_virtual, &
          preferred_dgemm_lib)
-
-      DEALLOCATE(gd_B_virtual_sizes)
       NULLIFY(BIb_C)
 
    END SUBROUTINE calc_ri_mp2_energy
