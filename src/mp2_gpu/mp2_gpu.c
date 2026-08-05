@@ -114,7 +114,7 @@ void c_mp2_ri_get_integ_group_size(
     int virtual,
     int dimen_RI,
     bool calc_forces,
-    const int* gd_B_virtual,
+    const int* gd_B_virtual_sizes,
     int gd_B_virtual_sizes_size,
     int maxsize_gd_array,
     int maxsize_gd_B_virtual,
@@ -144,27 +144,27 @@ void c_mp2_ri_get_integ_group_size(
 
     mem_real = mp2_memory;
     
-    // BIB_C_copy: MAX(MAX(homo*maxsize(gd_array)), dimen_RI) * maxsize(gd_B_virtual)
+    // BIB_C_copy: MAX(MAX(homo*maxsize(gd_array_sizes)), dimen_RI) * maxsize(gd_B_virtual_sizes)
     double max_homo_gd = (double)homo * maxsize_gd_array;
     double max_compare = (max_homo_gd > (double)dimen_RI) ? max_homo_gd : (double)dimen_RI;
     mem_per_repl += max_compare * maxsize_gd_B_virtual * 8.0 / (1024.0 * 1024.0);
     
-    // BIB_C: SUM(homo*maxsize(gd_B_virtual)) * maxsize(gd_array)
+    // BIB_C: SUM(homo*maxsize(gd_B_virtual_sizes)) * maxsize(gd_array_sizes)
     double sum_homo_gd_B = (double)homo * maxsize_gd_B_virtual;
     mem_per_repl += sum_homo_gd_B * maxsize_gd_array * 8.0 / (1024.0 * 1024.0);
     
-    // BIB_C_rec: maxsize(gd_B_virtual) * maxsize(gd_array)
+    // BIB_C_rec: maxsize(gd_B_virtual_sizes) * maxsize(gd_array_sizes)
     mem_per_repl_blk += (double)maxval_gd_B_virtual * maxsize_gd_array * 8.0 / (1024.0 * 1024.0);
     
-    // local_i_aL+local_aL: 2 * maxsize(gd_B_virtual) * dimen_RI
+    // local_i_aL+local_aL: 2 * maxsize(gd_B_virtual_sizes) * dimen_RI
     mem_per_blk += 2.0 * maxval_gd_B_virtual * (double)dimen_RI * 8.0 / (1024.0 * 1024.0);
     
-    // local_ab: MAX(virtual*maxsize(gd_B_virtual))
+    // local_ab: MAX(virtual*maxsize(gd_B_virtual_sizes))
     double max_virtual_gd_B = (double)virtual * maxsize_gd_B_virtual;
 
     mem_base += max_virtual_gd_B * 8.0 / (1024.0 * 1024.0);
     
-    // external_ab/external_i_aL: MAX(dimen_RI, max_virtual) * maxsize(gd_B_virtual)
+    // external_ab/external_i_aL: MAX(dimen_RI, max_virtual) * maxsize(gd_B_virtual_sizes)
     int max_dim = (dimen_RI > maxval_virtual) ? dimen_RI : maxval_virtual;
     mem_base += (double)max_dim * maxval_gd_B_virtual * 8.0 / (1024.0 * 1024.0);
     
@@ -539,7 +539,7 @@ void c_mp2_ri_get_block_size(
     cp_mpi_comm_t para_env_comm,
     cp_mpi_comm_t para_env_sub_comm,
     int maxsize_gd_array,
-    const int* gd_B_virtual,
+    const int* gd_B_virtual_sizes,
     int gd_B_virtual_sizes_size,
     int maxsize_gd_B_virtual,
     int maxval_gd_B_virtual,
@@ -845,41 +845,47 @@ void calc_ri_mp2_energy(
     int comm_all_f,
     int comm_sub_f,
     int color_sub,
-    int* gd_array,           // gd_array_size
-    int gd_array_sizes,      // gd_array_sizes_size
-    const int* gd_B_virtual, // array of size gd_B_virtual_sizes
+    int* gd_array_sizes,           // gd_array_size
+    int gd_array_sizes_size,      // gd_array_sizes_size
+    const int* gd_B_virtual_sizes, // array of size gd_B_virtual_sizes
     int gd_B_virtual_sizes_size,
     const double *eigenval,
     int homo,
     int nmo, 
     int dimen_RI,
     bool calc_forces,
-    int my_B_size,
-    int my_B_virtual_start,
-    int my_B_virtual_end,
     int aux_start,
     int aux_size,
     int maxsize_gd_array,
     int maxsize_gd_B_virtual,
     int maxval_gd_B_virtual,
-    int my_group_L_start,
-    int my_group_L_end,
-    int my_group_L_size,
     int preferred_dgemm_lib
 ) {
     const cp_mpi_comm_t comm_all = cp_mpi_comm_f2c(comm_all_f);
     const cp_mpi_comm_t comm_sub = cp_mpi_comm_f2c(comm_sub_f);
 
-    (void)eigenval;
-    (void)aux_start;
-    (void)comm_sub;
-    (void)preferred_dgemm_lib;
-    (void)my_group_L_start;
-    (void)my_group_L_end;
-
     gemm_ctx_t *ctx = gemm_ctx_create(GEMM_PU_HOST, GEMM_LIB_BLAS);
 
     offload_timeset("mp2_ri_gpw_compute_en\0");
+    // Calcullate some var instead pass form fortran-side 
+    int rank_in_subgroup = cp_mpi_comm_rank(comm_sub);
+    int my_B_size = gd_B_virtual_sizes[rank_in_subgroup];
+
+    int rank_in_all = cp_mpi_comm_rank(comm_all);
+    int my_group_L_size = gd_array_sizes[rank_in_all];
+
+    int my_group_L_start = 1;
+    for (int i = 0; i < rank_in_all; i++) {
+        my_group_L_start += gd_array_sizes[i];
+    }
+    int my_group_L_end = my_group_L_start + my_group_L_size - 1;
+
+    int my_B_virtual_start = 1;
+    for (int i = 0; i < rank_in_subgroup; i++) {
+        my_B_virtual_start += gd_B_virtual_sizes[i];
+    }
+    int my_B_virtual_end = my_B_virtual_start + my_B_size - 1;
+
     int virtual = nmo - homo;
     int nspins = 1;
 
@@ -916,7 +922,7 @@ void calc_ri_mp2_energy(
         virtual,
         dimen_RI,
         calc_forces,
-        gd_B_virtual,
+        gd_B_virtual_sizes,
         gd_B_virtual_sizes_size,
         maxsize_gd_array,
         maxsize_gd_B_virtual,
@@ -946,8 +952,8 @@ void calc_ri_mp2_energy(
     int cumulative_val = 1;
     for (int i = 0; i < gd_B_virtual_sizes_size; i++) {
         gd_B_virtual_start[i] = cumulative_val;
-        gd_B_virtual_end[i] = cumulative_val + gd_B_virtual[i] - 1;
-        cumulative_val += gd_B_virtual[i];
+        gd_B_virtual_end[i] = cumulative_val + gd_B_virtual_sizes[i] - 1;
+        cumulative_val += gd_B_virtual_sizes[i];
     }
 
     // ranges_info_array dimensions: (4 x rep_size x exchange_size)
@@ -1013,7 +1019,7 @@ void calc_ri_mp2_energy(
         comm_exchange_out,
         comm_rep_out,
         homo,
-        gd_array_sizes,
+        gd_array_sizes_size,
         my_B_size,
         my_group_L_size,
         ranges_info_array,
@@ -1059,7 +1065,7 @@ void calc_ri_mp2_energy(
         comm_all,
         comm_sub,
         maxsize_gd_array,
-        gd_B_virtual,
+        gd_B_virtual_sizes,
         gd_B_virtual_sizes_size,
         maxsize_gd_B_virtual,
         maxval_gd_B_virtual,
@@ -1131,7 +1137,7 @@ void calc_ri_mp2_energy(
             // fill local_i_aL and local_aL
             // call fill_local_i_aL
 
-            int L_size = gd_array[comm_exchange_rank];
+            int L_size = gd_array_sizes[comm_exchange_rank];
             // const int* ranges_info_array;
             int ranges_info_rep_size = comm_rep_size;
 
@@ -1160,7 +1166,7 @@ void calc_ri_mp2_energy(
                 int send_ij_index = num_ij_pairs[proc_send];
 
                 // Get the L-size for the receiving process (rec_L_sizes)
-                int rec_L_size = gd_array[proc_receive];
+                int rec_L_size = gd_array_sizes[proc_receive];
 
                 if (ij_index <= send_ij_index) {
                     // Calculate send indices for this ij pair
@@ -1406,7 +1412,7 @@ void calc_ri_mp2_energy(
                 int send_ij_index = num_ij_pairs[proc_send];
 
                 // Get the L-size for the receiving process (rec_L_sizes)
-                int rec_L_size = gd_array[proc_receive];
+                int rec_L_size = gd_array_sizes[proc_receive];
 
                 if (ij_index <= send_ij_index) {
                     // Calculate send indices for this ij pair
@@ -1515,26 +1521,20 @@ void calc_ri_mp2_energy_c_(
     int comm_all_f,
     int comm_sub_f,
     int color_sub,
-    int* gd_array_sizes, // represents gd_array%sizes
+    int* gd_array_sizes,         // represents gd_array%sizes
     int gd_array_sizes_size,
-    const int* gd_B_virtual,
+    int* gd_B_virtual_sizes,     // array gd_B_virtual%sizes
     int gd_B_virtual_sizes_size,
     const double* eigenval,
     int homo,
     int nmo,
     int dimen_RI,
     bool calc_forces,
-    int my_B_size,
-    int my_B_virtual_start,
-    int my_B_virtual_end,
     int aux_start,
     int aux_size,
     int maxsize_gd_array,
     int maxsize_gd_B_virtual,
     int maxval_gd_B_virtual,
-    int my_group_L_start,
-    int my_group_L_end,
-    int my_group_L_size,
     int preferred_dgemm_lib
 ) {
     
@@ -1554,24 +1554,18 @@ void calc_ri_mp2_energy_c_(
         color_sub,
         gd_array_sizes,
         gd_array_sizes_size,
-        gd_B_virtual,
+        gd_B_virtual_sizes,
         gd_B_virtual_sizes_size,
         eigenval,
         homo,
         nmo, 
         dimen_RI,
         calc_forces,
-        my_B_size,
-        my_B_virtual_start,
-        my_B_virtual_end,
         aux_start,
         aux_size,
         maxsize_gd_array,
         maxsize_gd_B_virtual,
         maxval_gd_B_virtual,
-        my_group_L_start,
-        my_group_L_end,
-        my_group_L_size,
         preferred_dgemm_lib
     );
 }

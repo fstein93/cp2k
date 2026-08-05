@@ -64,10 +64,7 @@ CONTAINS
 
       INTEGER(C_INT)  :: comm_all_handle, comm_sub_handle
       INTEGER(C_INT)  :: nmo_c, dimen_RI_c
-      INTEGER(C_INT)  :: my_B_size
-      INTEGER(C_INT)  :: my_B_virtual_start, my_B_virtual_end
       INTEGER(C_INT)  :: gd_array_size
-      INTEGER(C_INT)  :: my_group_L_start, my_group_L_end, my_group_L_size
       INTEGER(C_INT)  :: maxsize_gd_array, maxsize_gd_B_virtual, maxval_gd_B_virtual
       ! INTEGER(C_INT), ALLOCATABLE, &
       ! TARGET          :: gd_array(:)
@@ -99,16 +96,10 @@ CONTAINS
             nmo, &
             dimen_RI, &
             calc_forces_c, &
-            my_B_size, &
-            my_B_virtual_start, &
-            my_B_virtual_end, &
             aux_start, aux_size, &
             maxsize_gd_array, &
             maxsize_gd_B_virtual, &
             maxval_gd_B_virtual, &
-            my_group_L_start, &
-            my_group_L_end, &
-            my_group_L_size, &
             preferred_dgemm_lib)
             IMPORT :: C_DOUBLE, C_INT, C_BOOL, C_PTR
             BIND(C, name="calc_ri_mp2_energy")
@@ -126,17 +117,11 @@ CONTAINS
             INTEGER(C_INT), VALUE        :: nmo
             INTEGER(C_INT), VALUE        :: dimen_RI
             LOGICAL(C_BOOL), VALUE       :: calc_forces_c
-            INTEGER(C_INT), VALUE        :: my_B_size
-            INTEGER(C_INT), VALUE        :: my_B_virtual_start
-            INTEGER(C_INT), VALUE        :: my_B_virtual_end
             INTEGER(C_INT), VALUE        :: aux_start
             INTEGER(C_INT), VALUE        :: aux_size
             INTEGER(C_INT), VALUE        :: maxsize_gd_array
             INTEGER(C_INT), VALUE        :: maxsize_gd_B_virtual
             INTEGER(C_INT), VALUE        :: maxval_gd_B_virtual
-            INTEGER(C_INT), VALUE        :: my_group_L_start
-            INTEGER(C_INT), VALUE        :: my_group_L_end
-            INTEGER(C_INT), VALUE        :: my_group_L_size
             INTEGER(C_INT), VALUE        :: preferred_dgemm_lib
          END SUBROUTINE calc_ri_mp2_energy_c
       END INTERFACE
@@ -149,11 +134,6 @@ CONTAINS
 
       ALLOCATE(gd_B_virtual_sizes(nspins))
 
-      CALL get_group_dist(gd_B_virtual, para_env_sub%mepos, &
-                          my_B_virtual_start, my_B_virtual_end, my_B_size)
-
-      CALL get_group_dist(gd_array, color_sub, my_group_L_start, my_group_L_end, my_group_L_size)
-
       mp2_memory = mp2_env%mp2_memory
       scale_S = mp2_env%scale_S
       scale_T = mp2_env%scale_T
@@ -164,10 +144,6 @@ CONTAINS
       maxsize_gd_array = maxsize(gd_array)
       maxsize_gd_B_virtual = MAXVAL(gd_B_virtual_sizes)
       maxval_gd_B_virtual = maxsize_gd_B_virtual
-
-      ! KEEP 
-      my_B_virtual_start = my_B_virtual_start - 1
-      my_B_virtual_end = my_B_virtual_end - 1
 
       ! === KEEP ONLY _j FAMILY VARS ===============
       CALL calc_ri_mp2_energy_c( &
@@ -185,24 +161,18 @@ CONTAINS
          color_sub, &
          gd_array%sizes, &     ! 13 Verify this names
          SIZE(gd_array%sizes), &
-         gd_B_virtual_sizes, & ! 14 array of sizes for gd_B_virtual
-         SIZE(gd_B_virtual_sizes), &
+         gd_B_virtual%sizes, & ! 14 array of sizes for gd_B_virtual
+         SIZE(gd_B_virtual%sizes), &
          eigenval, &
          homo, &
          nmo, &
          dimen_RI, &
          calc_forces_c, &
-         my_B_size, &
-         my_B_virtual_start, &
-         my_B_virtual_end, &
          aux_start, &
          aux_size, &
          maxsize_gd_array, &
          maxsize_gd_B_virtual, &
          maxval_gd_B_virtual, &
-         my_group_L_start, &
-         my_group_L_end, &
-         my_group_L_size, &
          preferred_dgemm_lib &
       )
 
