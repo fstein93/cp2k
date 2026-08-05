@@ -75,7 +75,6 @@ CONTAINS
       TARGET          :: gd_B_virtual_sizes(:)
       LOGICAL(C_BOOL) :: calc_forces_c
       INTEGER(C_INT)  :: unit_nr_c, preferred_dgemm_lib_c
-      INTEGER(C_INT)  :: num_pe
       REAL(C_DOUBLE)  :: scale_S, scale_T, mp2_memory
       INTEGER(C_INT)  :: user_block_size
 
@@ -107,7 +106,6 @@ CONTAINS
             maxsize_gd_array, &
             maxsize_gd_B_virtual, &
             maxval_gd_B_virtual, &
-            num_pe, &
             my_group_L_start, &
             my_group_L_end, &
             my_group_L_size, &
@@ -136,7 +134,6 @@ CONTAINS
             INTEGER(C_INT), VALUE        :: maxsize_gd_array
             INTEGER(C_INT), VALUE        :: maxsize_gd_B_virtual
             INTEGER(C_INT), VALUE        :: maxval_gd_B_virtual
-            INTEGER(C_INT), VALUE        :: num_pe
             INTEGER(C_INT), VALUE        :: my_group_L_start
             INTEGER(C_INT), VALUE        :: my_group_L_end
             INTEGER(C_INT), VALUE        :: my_group_L_size
@@ -203,7 +200,6 @@ CONTAINS
          maxsize_gd_array, &
          maxsize_gd_B_virtual, &
          maxval_gd_B_virtual, &
-         comm_all%num_pe, &
          my_group_L_start, &
          my_group_L_end, &
          my_group_L_size, &

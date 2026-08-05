@@ -862,7 +862,6 @@ void calc_ri_mp2_energy(
     int maxsize_gd_array,
     int maxsize_gd_B_virtual,
     int maxval_gd_B_virtual,
-    int num_pe, 
     int my_group_L_start,
     int my_group_L_end,
     int my_group_L_size,
@@ -875,7 +874,6 @@ void calc_ri_mp2_energy(
     (void)aux_start;
     (void)comm_sub;
     (void)preferred_dgemm_lib;
-    (void)num_pe;
     (void)my_group_L_start;
     (void)my_group_L_end;
 
@@ -1534,7 +1532,6 @@ void calc_ri_mp2_energy_c_(
     int maxsize_gd_array,
     int maxsize_gd_B_virtual,
     int maxval_gd_B_virtual,
-    int num_pe,
     int my_group_L_start,
     int my_group_L_end,
     int my_group_L_size,
@@ -1572,7 +1569,6 @@ void calc_ri_mp2_energy_c_(
         maxsize_gd_array,
         maxsize_gd_B_virtual,
         maxval_gd_B_virtual,
-        num_pe, 
         my_group_L_start,
         my_group_L_end,
         my_group_L_size,
