@@ -867,15 +867,17 @@ void calc_ri_mp2_energy(
     gemm_ctx_t *ctx = gemm_ctx_create(GEMM_PU_HOST, GEMM_LIB_BLAS);
 
     offload_timeset("mp2_ri_gpw_compute_en\0");
-    // Calcullate some var instead pass form fortran-side 
+    // Calcullate some var instead pass form fortran-side
     int rank_in_subgroup = cp_mpi_comm_rank(comm_sub);
     int my_B_size = gd_B_virtual_sizes[rank_in_subgroup];
 
     int rank_in_all = cp_mpi_comm_rank(comm_all);
-    int my_group_L_size = gd_array_sizes[rank_in_all];
+    // int my_group_L_size = gd_array_sizes[rank_in_all];
+    int my_group_L_size = gd_array_sizes[color_sub];
 
     int my_group_L_start = 1;
-    for (int i = 0; i < rank_in_all; i++) {
+    for (int i = 0; i < color_sub; i++) {
+    // for (int i = 0; i < rank_in_all; i++) {
         my_group_L_start += gd_array_sizes[i];
     }
     int my_group_L_end = my_group_L_start + my_group_L_size - 1;
@@ -982,7 +984,6 @@ void calc_ri_mp2_energy(
         &my_new_group_L_size,
         my_group_L_start,
         my_group_L_end,
-        // Should I use: comm_all and comm_sub or 0?
         comm_all,
         comm_sub,
         color_sub,
@@ -1138,6 +1139,7 @@ void calc_ri_mp2_energy(
             // call fill_local_i_aL
 
             int L_size = gd_array_sizes[comm_exchange_rank];
+            // int L_size = gd_array_sizes[color_sub];
             // const int* ranges_info_array;
             int ranges_info_rep_size = comm_rep_size;
 
@@ -1165,8 +1167,12 @@ void calc_ri_mp2_energy(
                 //Get the number ij pairs for the sending process
                 int send_ij_index = num_ij_pairs[proc_send];
 
+                // Which should I use to get the L-size for the receiving process (rec_L_sizes)
+                int rec_color_sub = integ_group_pos2color_sub[proc_receive];
+                int rec_L_size = gd_array_sizes[rec_color_sub];
+
                 // Get the L-size for the receiving process (rec_L_sizes)
-                int rec_L_size = gd_array_sizes[proc_receive];
+                // int rec_L_size = gd_array_sizes[proc_receive];
 
                 if (ij_index <= send_ij_index) {
                     // Calculate send indices for this ij pair
