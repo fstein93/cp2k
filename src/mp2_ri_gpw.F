@@ -153,7 +153,6 @@ CONTAINS
             nmo, &
             dimen_RI, &
             calc_forces, &
-            unit_nr, &
             mp2_env, &
             gd_array, &
             gd_B_virtual, &

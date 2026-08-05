@@ -114,7 +114,6 @@ void c_mp2_ri_get_integ_group_size(
     int virtual,
     int dimen_RI,
     bool calc_forces,
-    int unit_nr,
     const int* gd_B_virtual,
     int gd_B_virtual_sizes_size,
     int maxsize_gd_array,
@@ -146,17 +145,12 @@ void c_mp2_ri_get_integ_group_size(
     mem_real = mp2_memory;
     
     // BIB_C_copy: MAX(MAX(homo*maxsize(gd_array)), dimen_RI) * maxsize(gd_B_virtual)
-    double max_homo_gd = 0.0;
-    double temp = (double)homo * maxsize_gd_array;
-    if (temp > max_homo_gd) {
-        max_homo_gd = temp;
-    }
+    double max_homo_gd = (double)homo * maxsize_gd_array;
     double max_compare = (max_homo_gd > (double)dimen_RI) ? max_homo_gd : (double)dimen_RI;
     mem_per_repl += max_compare * maxsize_gd_B_virtual * 8.0 / (1024.0 * 1024.0);
     
     // BIB_C: SUM(homo*maxsize(gd_B_virtual)) * maxsize(gd_array)
-    double sum_homo_gd_B = 0.0;
-    sum_homo_gd_B += (double)homo * maxsize_gd_B_virtual;
+    double sum_homo_gd_B = (double)homo * maxsize_gd_B_virtual;
     mem_per_repl += sum_homo_gd_B * maxsize_gd_array * 8.0 / (1024.0 * 1024.0);
     
     // BIB_C_rec: maxsize(gd_B_virtual) * maxsize(gd_array)
@@ -166,77 +160,34 @@ void c_mp2_ri_get_integ_group_size(
     mem_per_blk += 2.0 * maxval_gd_B_virtual * (double)dimen_RI * 8.0 / (1024.0 * 1024.0);
     
     // local_ab: MAX(virtual*maxsize(gd_B_virtual))
-    double max_virtual_gd_B = 0.0;
-    double temp = (double)virtual * maxsize_gd_B_virtual;
-    if (temp > max_virtual_gd_B) {
-        max_virtual_gd_B = temp;
-    }
+    double max_virtual_gd_B = (double)virtual * maxsize_gd_B_virtual;
+
     mem_base += max_virtual_gd_B * 8.0 / (1024.0 * 1024.0);
     
     // external_ab/external_i_aL: MAX(dimen_RI, max_virtual) * maxsize(gd_B_virtual)
     int max_dim = (dimen_RI > maxval_virtual) ? dimen_RI : maxval_virtual;
     mem_base += (double)max_dim * maxval_gd_B_virtual * 8.0 / (1024.0 * 1024.0);
     
-    if (calc_forces) {
-        // Gamma_P_ia: SUM(homo*maxsize(gd_array)*maxsize(gd_B_virtual))
-        double sum_homo_gd = 0.0;
-        sum_homo_gd += (double)homo * maxsize_gd_array * maxsize_gd_B_virtual;
-        mem_per_repl += sum_homo_gd * 8.0 / (1024.0 * 1024.0);
-            
-        // Y_i_aP+Y_aP: 2 * maxsize(gd_B_virtual) * dimen_RI
-        mem_per_blk += 2.0 * maxval_gd_B_virtual * dimen_RI * 8.0 / (1024.0 * 1024.0);
-            
-        // local_ba/t_ab: maxsize(gd_B_virtual) * MAX(dimen_RI, max_virtual)
-        mem_base += (double)maxval_gd_B_virtual * max_dim * 8.0 / (1024.0 * 1024.0);
-            
-        // P_ij: SUM(homo*homo)
-        double sum_homo_sq = 0.0;
-        sum_homo_sq += (double)homo * homo;
-        mem_base += sum_homo_sq * 8.0 / (1024.0 * 1024.0);
-            
-        // P_ab: SUM(virtual*maxsize(gd_B_virtual))
-        double sum_virtual_gd_B = 0.0;
-        sum_virtual_gd_B += (double)virtual * maxsize_gd_B_virtual;
-        mem_base += sum_virtual_gd_B * 8.0 / (1024.0 * 1024.0);
-            
-        // send_ab/send_i_aL: MAX(dimen_RI, max_virtual) * maxsize(gd_B_virtual)
-        mem_base += (double)max_dim * maxval_gd_B_virtual * 8.0 / (1024.0 * 1024.0);
-    }
-    
-    // Initial block size guess
-    // block_size = MAX(1, MIN(FLOOR(SQRT(MINVAL(homo))), FLOOR(MINVAL(homo)/SQRT(2.0*ngroup))))
-    int min_homo = max_homo;
-    
-    if (homo < min_homo) min_homo = homo;
-    
-    block_size = (int)sqrt((double)min_homo);
-    int temp = (int)(min_homo / sqrt(2.0 * ngroup));
-    block_size = (block_size < temp) ? block_size : temp;
+    block_size = (int)sqrt((double)homo);
+    // ===== IMPLEMENT MIN AND MAX FUNCTIONS
+    // AVOID USING temp variables
+    // block_size = MAX(1, MIN(FLOOR(SQRT(REAL(MINVAL(homo), KIND=dp))), FLOOR(MINVAL(homo)/SQRT(2.0_dp*ngroup))))
+    block_size = (int)(homo / sqrt(2.0 * ngroup));
+    // USE MAX FUNCTION (I SHOULD IMPLEMENT IT)
     block_size = (block_size < 1) ? 1 : block_size;
     
     mem_min = mem_base + mem_per_repl + (mem_per_blk + mem_per_repl_blk) * block_size;
     
-    // Print memory info if unit_nr > 0
-    if (unit_nr > 0) {
-        // Using printf for now - would use CP2K logging in production
-        printf("RI_INFO| Minimum available memory per MPI process: %9.2f MiB\n", mem_real);
-        printf("RI_INFO| Minimum required memory per MPI process: %9.2f MiB\n", mem_min);
-    }
+    // Using printf for now - would use CP2K logging in production
+    printf("RI_INFO| Minimum available memory per MPI process: %9.2f MiB\n", mem_real);
+    printf("RI_INFO| Minimum required memory per MPI process: %9.2f MiB\n", mem_min);
     
     // Calculate factor for communication model
     // factor = SUM(homovirtual) - SUM((MAX(homo)/block_size + block_size - 2)*homovirtual)/ngroup
-    double factor_homo = 0.0;
+    double factor_homo = (double)homo * virtual;
     
-    factor_homo += (double)homo * virtual;
-    
-    double sum_factor = 0.0;
-    double temp = ((double)max_homo / block_size + block_size - 2.0);
-    sum_factor += temp * homo * virtual;
+    double sum_factor = ((double)max_homo / block_size + block_size - 2.0) * homo * virtual;
     factor = factor_homo - sum_factor / ngroup;
-    
-    if (nspins == 2) {
-        factor = factor - 2.0 * product_homo / block_size / ngroup * sum_homo_virtual;
-    }
     
     // Determine integration group size
     integ_group_size = ngroup;  // Default
@@ -260,16 +211,9 @@ void c_mp2_ri_get_integ_group_size(
         integ_group_size = find_integ_group_size(ngroup, max_repl_group_size);
     }
     
-    // If calc_group_size is false, use user-provided group size
-    if (!calc_group_size_local) {
-        integ_group_size = ngroup / number_integration_groups;
-    }
+    printf("RI_INFO| Group size for integral replication: %6d\n", integ_group_size);
+    fflush(stdout);
     
-    // Print result
-    if (unit_nr > 0) {
-        printf("RI_INFO| Group size for integral replication: %6d\n", integ_group_size);
-        fflush(stdout);
-    }
     
     // Compute num_integ_group
     num_integ_group = ngroup / integ_group_size;
@@ -437,9 +381,9 @@ void c_mp2_ri_create_group(
 
 void c_replicate_iaK_2intgroup(
     double** BIb_C,
-    int* BIb_C_L_size,
-    int* BIb_C_virtual,
-    int* BIb_C_occupied,
+    int BIb_C_L_size,
+    int BIb_C_virtual,
+    int BIb_C_occupied,
     int comm_exchange,
     int comm_rep,
     int homo,
@@ -469,16 +413,11 @@ void c_replicate_iaK_2intgroup(
     // Replication scheme using mpi_allgather
     // get the max L size
     int max_L_size = sizes_array_size;
-    // for (int i = 0; i < sizes_array_size; i++) {
-    //     if (sizes_array[i] > max_L_size) {
-    //         max_L_size = sizes_array[i];
-    //     }
-    // }
 
     // Get current BIb_C dimensions
-    int current_L_size = *BIb_C_L_size;
-    int virtual_size = *BIb_C_virtual;
-    int occupied_size = *BIb_C_occupied;
+    int current_L_size = BIb_C_L_size;
+    int virtual_size = BIb_C_virtual;
+    int occupied_size = BIb_C_occupied;
 
     // Allocate copy buffer: [L][virtual][occupied]
     size_t copy_size = (size_t)max_L_size * my_B_size * homo;
@@ -562,9 +501,9 @@ void c_replicate_iaK_2intgroup(
     
     // Return new BIb_C
     *BIb_C = BIb_C_new; //INTOUT
-    *BIb_C_L_size = my_group_L_size;
-    *BIb_C_virtual = my_B_size;
-    *BIb_C_occupied = homo;
+    BIb_C_L_size = my_group_L_size;
+    BIb_C_virtual = my_B_size;
+    BIb_C_occupied = homo;
 
     // stop the timer
     offload_timestop();
@@ -608,7 +547,6 @@ void c_mp2_ri_get_block_size(
     int virtual,
     int maxval_virtual,
     int dimen_RI,
-    int unit_nr,
     int num_integ_group,
     bool my_open_shell_ss,
     bool calc_forces
@@ -688,11 +626,8 @@ void c_mp2_ri_get_block_size(
     
     *block_size = (best_block_size < 1) ? 1 : best_block_size;
     
-    // STEP 5: Print info if unit_nr > 0
-    if (unit_nr > 0) {
-        printf("RI_INFO| Block size: %6d\n", *block_size);
-        fflush(stdout);
-    }
+    printf("RI_INFO| Block size: %6d\n", *block_size);
+    fflush(stdout);
 
     // STEP 6: Allocate buffer
     int64_t buffer_size = 0;
@@ -700,7 +635,6 @@ void c_mp2_ri_get_block_size(
     int64_t size2 = (int64_t)max_dim;
     int64_t max_size = (size1 > size2) ? size1 : size2;
     buffer_size = max_size * maxval_gd_B_virtual;
-    if (calc_forces) buffer_size *= 2;
     
     *buffer_1D = (double*)malloc((size_t)buffer_size * sizeof(double));
     if (*buffer_1D == NULL) {
@@ -715,7 +649,7 @@ void c_mp2_ri_get_block_size(
 void c_mp2_ri_communication(
     bool my_alpha_beta_case, int homo, int homo_beta,
     int block_size, int ngroup, int color_sub,
-    bool my_open_shell_SS, int unit_nr, int* total_ij_pairs,
+    bool my_open_shell_SS, int* total_ij_pairs,
     int** ij_map, int* my_ij_pairs
 ){
     // start timer
@@ -803,13 +737,11 @@ void c_mp2_ri_communication(
         }
     }
 
-    if (unit_nr > 0) {
-        if (block_size == 1) {
-            printf("RI_INFO| Percentage of ij pairs communicated with block size 1: 100.0\n");
-        } else {
-            double percentage = 100.0 * (double)((*total_ij_pairs - assigned_blocks * (block_size * block_size))) /  (double)(*total_ij_pairs);
-            printf("RI_INFO| Percentage of ij pairs communicated with block size 1: %.1f\n", percentage);
-        }
+    if (block_size == 1) {
+        printf("RI_INFO| Percentage of ij pairs communicated with block size 1: 100.0\n");
+    } else {
+        double percentage = 100.0 * (double)((*total_ij_pairs - assigned_blocks * (block_size * block_size))) /  (double)(*total_ij_pairs);
+        printf("RI_INFO| Percentage of ij pairs communicated with block size 1: %.1f\n", percentage);
     }
 
     // Stop timer
@@ -913,16 +845,15 @@ void calc_ri_mp2_energy(
     int comm_all_f,
     int comm_sub_f,
     int color_sub,
-    int* gd_array,
-    int gd_array_sizes,
-    const int* gd_B_virtual,
+    int* gd_array,           // gd_array_size
+    int gd_array_sizes,      // gd_array_sizes_size
+    const int* gd_B_virtual, // array of size gd_B_virtual_sizes
     int gd_B_virtual_sizes_size,
     const double *eigenval,
     int homo,
     int nmo, 
     int dimen_RI,
     bool calc_forces,
-    int unit_nr,
     int my_B_size,
     int my_B_virtual_start,
     int my_B_virtual_end,
@@ -987,7 +918,6 @@ void calc_ri_mp2_energy(
         virtual,
         dimen_RI,
         calc_forces,
-        unit_nr,
         gd_B_virtual,
         gd_B_virtual_sizes_size,
         maxsize_gd_array,
@@ -1079,7 +1009,7 @@ void calc_ri_mp2_energy(
 
     c_replicate_iaK_2intgroup(
         (double**)&BIb_C,
-        &dimen_RI,
+        my_group_L_size,
         virtual,
         homo,
         comm_exchange_out,
@@ -1139,7 +1069,6 @@ void calc_ri_mp2_energy(
         virtual,
         maxval_virtual,
         dimen_RI,
-        unit_nr,
         num_integ_group,
         false, calc_forces
     );
@@ -1156,7 +1085,6 @@ void calc_ri_mp2_energy(
         ngroup,
         color_sub,
         false,
-        unit_nr,
         &total_ij_pairs,
         &ij_map,
         &my_ij_pairs
@@ -1575,6 +1503,7 @@ void calc_ri_mp2_energy(
 
 
 // Temporal wrapper for test
+// Verify 
 void calc_ri_mp2_energy_c_(
     double *E_cou,
     double *E_ex,
@@ -1588,8 +1517,8 @@ void calc_ri_mp2_energy_c_(
     int comm_all_f,
     int comm_sub_f,
     int color_sub,
-    int* gd_array,
-    int gd_array_sizes,
+    int* gd_array_sizes, // represents gd_array%sizes
+    int gd_array_sizes_size,
     const int* gd_B_virtual,
     int gd_B_virtual_sizes_size,
     const double* eigenval,
@@ -1597,7 +1526,6 @@ void calc_ri_mp2_energy_c_(
     int nmo,
     int dimen_RI,
     bool calc_forces,
-    int unit_nr,
     int my_B_size,
     int my_B_virtual_start,
     int my_B_virtual_end,
@@ -1627,8 +1555,8 @@ void calc_ri_mp2_energy_c_(
         comm_all_f,
         comm_sub_f,
         color_sub,
-        gd_array,
         gd_array_sizes,
+        gd_array_sizes_size,
         gd_B_virtual,
         gd_B_virtual_sizes_size,
         eigenval,
@@ -1636,7 +1564,6 @@ void calc_ri_mp2_energy_c_(
         nmo, 
         dimen_RI,
         calc_forces,
-        unit_nr,
         my_B_size,
         my_B_virtual_start,
         my_B_virtual_end,

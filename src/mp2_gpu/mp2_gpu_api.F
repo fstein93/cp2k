@@ -33,7 +33,6 @@ CONTAINS
       nmo, &
       dimen_RI, &
       calc_forces, &
-      unit_nr, &
       mp2_env, &
       gd_array, &
       gd_B_virtual, &
@@ -52,7 +51,6 @@ CONTAINS
       INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       INTEGER, INTENT(IN)                                :: nmo, dimen_RI
       LOGICAL, INTENT(IN)                                :: calc_forces
-      INTEGER, INTENT(IN)                                :: unit_nr
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_B_virtual
@@ -95,14 +93,13 @@ CONTAINS
             comm_all, &
             comm_sub, &
             color_sub, &
-            gd_B_virtual_sizes, &
-            gd_B_virtual_sizes_size, &
+            gd_B_virtual_sizes, &      ! According to C-side should be gd_array
+            gd_B_virtual_sizes_size, & ! According to C-side should be gd_array_sizes
             eigenval, &
             homo, &
             nmo, &
             dimen_RI, &
             calc_forces_c, &
-            unit_nr, &
             my_B_size, &
             my_B_virtual_start, &
             my_B_virtual_end, &
@@ -131,7 +128,6 @@ CONTAINS
             INTEGER(C_INT), VALUE        :: nmo
             INTEGER(C_INT), VALUE        :: dimen_RI
             LOGICAL(C_BOOL), VALUE       :: calc_forces_c
-            INTEGER(C_INT), VALUE        :: unit_nr
             INTEGER(C_INT), VALUE        :: my_B_size
             INTEGER(C_INT), VALUE        :: my_B_virtual_start
             INTEGER(C_INT), VALUE        :: my_B_virtual_end
@@ -190,15 +186,15 @@ CONTAINS
          comm_all_handle, &
          comm_sub_handle, &
          color_sub, &
-         C_LOC(gd_array), &
-         gd_array%sizes, &
-         gd_B_virtual_sizes, &
+         gd_array%sizes, &     ! 13 Verify this names
+         SIZE(gd_array%sizes), &
+         gd_B_virtual_sizes, & ! 14 array of sizes for gd_B_virtual
+         SIZE(gd_B_virtual_sizes), &
          eigenval, &
          homo, &
          nmo, &
          dimen_RI, &
          calc_forces_c, &
-         unit_nr, &
          my_B_size, &
          my_B_virtual_start, &
          my_B_virtual_end, &
