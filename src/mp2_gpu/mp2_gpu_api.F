@@ -48,7 +48,6 @@ CONTAINS
                            CONTIGUOUS, INTENT(INOUT)     :: BIb_C
       CLASS(mp_comm_type), INTENT(IN)                    :: comm_all, comm_sub
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenval
-      ! INTEGER, DIMENSION(:), INTENT(IN)                  :: homo
       INTEGER, INTENT(IN)                                :: homo, nmo, dimen_RI
       LOGICAL, INTENT(IN)                                :: calc_forces
       TYPE(mp2_type)                                     :: mp2_env
@@ -67,11 +66,8 @@ CONTAINS
       INTEGER(C_INT)  :: gd_array_size
       INTEGER(C_INT)  :: maxsize_gd_array, maxsize_gd_B_virtual, maxval_gd_B_virtual
       ! INTEGER(C_INT), ALLOCATABLE, &
-      ! TARGET          :: gd_array(:)
-      INTEGER(C_INT), ALLOCATABLE, &
-      TARGET          :: gd_B_virtual_sizes(:)
+      ! TARGET          :: gd_B_virtual_sizes(:)
       LOGICAL(C_BOOL) :: calc_forces_c
-      INTEGER(C_INT)  :: unit_nr_c, preferred_dgemm_lib_c
       REAL(C_DOUBLE)  :: scale_S, scale_T, mp2_memory
       INTEGER(C_INT)  :: user_block_size
 
@@ -145,7 +141,7 @@ CONTAINS
 
       ! set sizes
       maxsize_gd_array = maxsize(gd_array)
-      maxsize_gd_B_virtual = MAXVAL(gd_B_virtual_sizes)
+      maxsize_gd_B_virtual = MAXVAL(gd_B_virtual)
       maxval_gd_B_virtual = maxsize_gd_B_virtual
 
       ! === KEEP ONLY _j FAMILY VARS ===============

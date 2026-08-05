@@ -76,7 +76,8 @@ CONTAINS
                                     gd_array, gd_B_virtual, &
                                     Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, calc_ex)
       REAL(KIND=dp), INTENT(INOUT)                       :: Emp2_Cou, Emp2_EX, Emp2_S, Emp2_T
-      TYPE(cp_3d_r_cp_type), DIMENSION(:), &
+      ! TYPE(cp_3d_r_cp_type), DIMENSION(:), &
+      TYPE(three_dim_real_array), DIMENSION(:), &
          INTENT(INOUT)                                   :: BIb_C
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
@@ -129,12 +130,18 @@ CONTAINS
 
       IF (mp2_env%ri_mp2%use_c_backend) THEN
          CPASSERT(SIZE(BIb_C) == 1)
+
+         ! Virtual distribution spin 1
          my_B_size(1) = MIN(dimen_RI, 128)
          my_B_virtual_start(1) = 1
          my_B_virtual_end(1) = my_B_size(1)
+
+         ! L-cases
          my_group_L_size = MIN(dimen_RI, 128)
          my_group_L_start = 1
          my_group_L_end = my_group_L_size
+
+
          IF (.NOT. ALLOCATED(BIb_C(1)%array)) THEN
             ALLOCATE (BIb_C(1)%array(my_group_L_size, my_B_size(1), homo(1)))
             BIb_C(1)%array = 0.0_dp
@@ -155,7 +162,7 @@ CONTAINS
             calc_forces, &
             mp2_env, &
             gd_array, &
-            gd_B_virtual, &
+            gd_B_virtual(1), &
             my_B_virtual_start(1) - 1, &
             my_B_size(1), &
             my_group_L_start - 1, &
