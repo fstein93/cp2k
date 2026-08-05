@@ -130,9 +130,7 @@ CONTAINS
       comm_all_handle = comm_all%get_handle()
       comm_sub_handle = comm_sub%get_handle()
 
-      nspins = SIZE(homo)
-
-      ALLOCATE(gd_B_virtual_sizes(nspins))
+      ALLOCATE(gd_B_virtual_sizes(SIZE(homo)))
 
       mp2_memory = mp2_env%mp2_memory
       scale_S = mp2_env%scale_S
@@ -176,7 +174,6 @@ CONTAINS
          preferred_dgemm_lib &
       )
 
-      DEALLOCATE(gd_array_sizes)
       DEALLOCATE(gd_B_virtual_sizes)
       NULLIFY(BIb_C)
 
