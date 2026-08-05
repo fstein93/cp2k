@@ -12,6 +12,7 @@
 !>      03.2019 Refactored from mp2_ri_gpw [Frederick Stein]
 ! **************************************************************************************************
 MODULE mp2_ri_gpw
+   USE cp_array_utils,                  ONLY: cp_3d_r_cp_type
    USE cp_log_handling,                 ONLY: cp_to_string
    USE dgemm_counter_types,             ONLY: dgemm_counter_init,&
                                               dgemm_counter_start,&
@@ -75,7 +76,7 @@ CONTAINS
                                     gd_array, gd_B_virtual, &
                                     Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, calc_ex)
       REAL(KIND=dp), INTENT(INOUT)                       :: Emp2_Cou, Emp2_EX, Emp2_S, Emp2_T
-      TYPE(three_dim_real_array), DIMENSION(:), &
+      TYPE(cp_3d_r_cp_type), DIMENSION(:), &
          INTENT(INOUT)                                   :: BIb_C
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
@@ -147,10 +148,10 @@ CONTAINS
             BIb_C(1)%array, &
             para_env, &
             para_env_sub, &
-            ! Eigenval(:, 1), &
-            Eigenval, &
-            ! homo(1), &
-            homo, &
+            Eigenval(:, 1), &
+            ! Eigenval, &
+            homo(1), &
+            ! homo, &
             nmo, &
             dimen_RI, &
             calc_forces, &
