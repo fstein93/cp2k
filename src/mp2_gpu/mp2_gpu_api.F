@@ -98,7 +98,8 @@ CONTAINS
             nmo, &
             dimen_RI, &
             calc_forces_c, &
-            aux_start, aux_size, &
+            aux_start, &
+            aux_size, &
             maxsize_gd_array, &
             maxsize_gd_B_virtual, &
             maxval_gd_B_virtual, &
@@ -113,7 +114,7 @@ CONTAINS
             INTEGER(C_INT), VALUE        :: comm_all, comm_sub
             INTEGER(C_INT), VALUE        :: color_sub
             REAL(C_DOUBLE), DIMENSION(*) :: gd_array_sizes
-            REAL(C_DOUBLE), VALUE        :: gd_array_sizes_size
+            INTEGER(C_INT), VALUE        :: gd_array_sizes_size
             INTEGER(C_INT), DIMENSION(*) :: gd_B_virtual_sizes
             INTEGER(C_INT), VALUE        :: gd_B_virtual_sizes_size
             REAL(C_DOUBLE), DIMENSION(*) :: eigenval
@@ -175,8 +176,7 @@ CONTAINS
          maxsize_gd_array, &
          maxsize_gd_B_virtual, &
          maxval_gd_B_virtual, &
-         preferred_dgemm_lib &
-      )
+         preferred_dgemm_lib)
 
       DEALLOCATE(gd_B_virtual_sizes)
       NULLIFY(BIb_C)
