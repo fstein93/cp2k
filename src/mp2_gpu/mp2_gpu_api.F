@@ -113,7 +113,7 @@ CONTAINS
             REAL(C_DOUBLE), VALUE        :: scale_S, scale_T
             INTEGER(C_INT), VALUE        :: comm_all, comm_sub
             INTEGER(C_INT), VALUE        :: color_sub
-            REAL(C_DOUBLE), DIMENSION(*) :: gd_array_sizes
+            INTEGER(C_INT), DIMENSION(*) :: gd_array_sizes
             INTEGER(C_INT), VALUE        :: gd_array_sizes_size
             INTEGER(C_INT), DIMENSION(*) :: gd_B_virtual_sizes
             INTEGER(C_INT), VALUE        :: gd_B_virtual_sizes_size
@@ -162,9 +162,9 @@ CONTAINS
          comm_all_handle, &
          comm_sub_handle, &
          color_sub, &
-         gd_array%sizes, &     ! 13 Verify this names
+         gd_array%sizes, &
          SIZE(gd_array%sizes), &
-         gd_B_virtual%sizes, & ! 14 array of sizes for gd_B_virtual
+         gd_B_virtual%sizes, &
          SIZE(gd_B_virtual%sizes), &
          eigenval, &
          homo, &
