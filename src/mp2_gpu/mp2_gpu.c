@@ -433,6 +433,7 @@ void c_replicate_iaK_2intgroup(
             memcpy(&BIb_C_copy[dst_idx], &(BIb_C)[src_idx], current_L_size * sizeof(double));
         }
     }
+    printf("Inside 6th forense mark: post-memcpy\n");
     // free(*BIb_C);
     free(BIb_C);
     
