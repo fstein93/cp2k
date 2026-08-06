@@ -18,26 +18,6 @@
 // I use it like a timer
 #include "../offload/offload_library.h"
 
-// Helper function to compute the maximum value in an array
-static int array_max(int *array, int size) {
-    int max_value = array[0];
-    for (int i = 1; i < size; i++) {
-        if (array[i] > max_value) {
-            max_value = array[i];
-        }
-    }
-    return max_value;
-}
-
-// Helper function to compute the sum of products
-static int sum_of_product(const int *array1, const int *array2, int size) {
-    int sum = 0;
-    for (int i = 0; i < size; i++) {
-        sum += array1[i] * array2[i];
-    }
-    return sum;
-}
-
 // Helper function to find integration group size
 static int find_integ_group_size(int ngroup, int max_repl_group_size) {
     int integ_group_size = ngroup;
@@ -82,25 +62,6 @@ static int modulo_frotran(int a, int b) {
     return result;
 }
 
-/**
- * Helper: allocate 4D arrays as flat array with dimensions:
- * ranges_info_array[dim][rep_rank][exchange_rank]
- */
-static int* allocate_ranges_info_array(int dim, int rep_size, int exchange_size) {
-    // int total_size = 4 * rep_size * exchange_size;
-    int total_size = dim * rep_size * exchange_size;
-    int* array = (int*)calloc(total_size, sizeof(int));
-    return array;
-}
-
-/**
- * Helper: index into ranges_info_array
- * ranges_info_array[dim * rep_size * exchange_size + rep_rank * exchange_size + exchange_rank]
- */
-static int ranges_info_index(int dim, int rep_rank, int exchange_rank, int rep_size, int exchange_size) {
-    return dim * rep_size * exchange_size + rep_rank * exchange_size + exchange_rank;
-}
-
 void c_mp2_ri_get_integ_group_size(
     int* integ_group_size_out,
     int* ngroup_out,
@@ -109,29 +70,19 @@ void c_mp2_ri_get_integ_group_size(
     int num_integ_group,
     int integ_group_size,
     double mp2_memory,
-    int number_integration_groups,
     int homo,
     int virtual,
     int dimen_RI,
-    bool calc_forces,
-    const int* gd_B_virtual_sizes,
-    int gd_B_virtual_sizes_size,
     int maxsize_gd_array,
     int maxsize_gd_B_virtual,
     int maxval_gd_B_virtual,
     int maxval_virtual,
     int max_homo,
-    int sum_homo_virtual,
-    int product_homo,
-    int nspins,
-    bool calc_group_size,
-    cp_mpi_comm_t comm
+    bool calc_group_size
 ){
     // Local variables
-    bool calc_group_size_local = calc_group_size;
     int block_size = 1;
     int max_repl_group_size = 1;
-    int min_integ_group_size = 1;
     
     // Memory calculation variables
     double mem_real = 0.0;
@@ -229,16 +180,7 @@ void c_mp2_ri_create_group(
     int* comm_exchange_out,
     int* comm_rep_out,
     int* ranges_info_array,
-    int ranges_info_array_dim1,
-    int ranges_info_array_dim2,
-    int ranges_info_array_dim3,
     int* integ_group_pos2color_sub,
-    int integ_group_pos2color_sub_size,
-    int* sizes_array_orig,
-    int sizes_array_orig_size,
-    int* my_group_L_size_out,
-    int* my_group_L_size_orig_out,
-    int* my_new_group_L_size_out,
     int my_group_L_start,
     int my_group_L_end,
     int comm_all,
@@ -246,7 +188,6 @@ void c_mp2_ri_create_group(
     int color_sub,
     int integ_group_size,
     int num_integ_group,
-    bool calc_forces,
     int my_group_L_size,
     int my_group_L_size_orig
 ) {
@@ -265,10 +206,6 @@ void c_mp2_ri_create_group(
     printf("Get cp_mpi_comm_rank 2nd time\n");
     fflush(stdout);
     int para_env_sub_rank = cp_mpi_comm_rank(comm_para_env_sub_c_comm);
-    int para_env_sub_size = cp_mpi_comm_size(comm_para_env_sub_c_comm);
-
-    // Calculate the ngroup
-    int ngroup = para_env_size / integ_group_size;
 
     // Local variables
     cp_mpi_comm_t comm_exchange_c = cp_mpi_comm_null;
@@ -280,14 +217,12 @@ void c_mp2_ri_create_group(
     int comm_rep_size = 0;
 
     int my_new_group_L_size = my_group_L_size;
-    int my_new_group_L_size_orig = my_group_L_size_orig;
 
     int sub_sub_color_exchange = para_env_sub_rank * num_integ_group + color_sub / integ_group_size;
 
     // Split the world communicator
     // Use the rank as ket for consistent ordering
     int exchange_key = para_env_rank;
-    cp_mpi_comm_t comm_exchange_old;
 
     // Create the exchange communicator
     //
@@ -298,7 +233,7 @@ void c_mp2_ri_create_group(
     printf("Get cp_mpi_comm_rank 3rd time\n");
     printf("Get cp_mpi_comm_rank call: color %d\n", sub_sub_color_exchange);
     printf("Get cp_mpi_comm_rank call: key %d\n", exchange_key);
-    printf("Get cp_mpi_comm_rank call: comm_exchange_out %d\n", comm_exchange_out);
+    printf("Get cp_mpi_comm_rank call: comm_exchange_out %p\n", (void*)comm_exchange_out);
     fflush(stdout);
 
     comm_exchange_rank = cp_mpi_comm_rank(comm_exchange_c);
@@ -356,13 +291,11 @@ void c_mp2_ri_create_group(
 
     // Allocate ranges_info_array as a flat array (4 x comm_rep_size x comm_exchange_size)
     int* new_sizes_array = (int*)malloc(comm_exchange_size * sizeof(int));
-    int* my_info_temp = my_info;
 
     cp_mpi_allgather_int(&my_new_group_L_size, 1, new_sizes_array, 1, comm_exchange_c);
 
     // Gather my_info from all processes in the exchange communicator
     int my_info_size = 4 * comm_rep_size;
-    int* all_my_info =(int*)malloc(my_info_size * comm_exchange_size * sizeof(int));
 
     cp_mpi_allgather_int(my_info, my_info_size, ranges_info_array, my_info_size, comm_exchange_c);
 
@@ -392,10 +325,7 @@ double* c_replicate_iaK_2intgroup(
     int sizes_array_size,
     int my_B_size,
     int my_group_L_size,
-    const int* ranges_info_array,
-    int ranges_info_dim1,
-    int ranges_info_dim2,
-    int ranges_info_dim3
+    const int* ranges_info_array
 ) {
     cp_mpi_comm_t comm_exchange_c = cp_mpi_comm_f2c(comm_exchange);
     cp_mpi_comm_t comm_rep_c = cp_mpi_comm_f2c(comm_rep);
@@ -418,8 +348,6 @@ double* c_replicate_iaK_2intgroup(
 
     // Get current BIb_C dimensions
     int current_L_size = BIb_C_L_size;
-    int virtual_size = BIb_C_virtual;
-    int occupied_size = BIb_C_occupied;
 
     // Allocate copy buffer: [L][virtual][occupied]
     size_t copy_size = (size_t)max_L_size * my_B_size * homo;
@@ -479,10 +407,7 @@ double* c_replicate_iaK_2intgroup(
         // Calculate offsets
         // Each process's data in gather buffer
         size_t gather_offset = (size_t)proc_receive * max_L_size * my_B_size * homo;
-        
-        // Output starts at start_point-1 (0-based) in L dimension
-        size_t output_offset = ((size_t)0 * my_B_size + 0) * my_group_L_size + (start_point - 1);
-        
+
         // Copy data from gather buffer to output
         for (int i = 0; i < homo; i++) {
             for (int a = 0; a < my_B_size; a++) {
@@ -521,11 +446,7 @@ double* c_replicate_iaK_2intgroup(
 
 
 void c_mp2_ri_allocate_no_blk(
-    double** local_ab, double** t_ab, double** local_ba,
-    int homo, int virtual, int my_B_size,
-    int my_group_L_size, bool cal_forces,
-    double** P_ij, double** P_ab, double** Gamma_P_ia,
-    bool* P_ij_allocated, bool* P_ab_allocated,bool* Gamma_P_ij_allocated 
+    double** local_ab, int virtual, int my_B_size
 ) {
     //Start timer
     offload_timeset("mp2_ri_allocate_no_blk\0");
@@ -544,22 +465,15 @@ void c_mp2_ri_get_block_size(
     int* block_size,
     int* ngroup_out,
     double** buffer_1D,
-    double mp2_memory,
     int user_block_size,
     cp_mpi_comm_t para_env_comm,
     cp_mpi_comm_t para_env_sub_comm,
     int maxsize_gd_array,
-    const int* gd_B_virtual_sizes,
-    int gd_B_virtual_sizes_size,
-    int maxsize_gd_B_virtual,
     int maxval_gd_B_virtual,
     int homo,
-    int virtual,
     int maxval_virtual,
     int dimen_RI,
-    int num_integ_group,
-    bool my_open_shell_ss,
-    bool calc_forces
+    int num_integ_group
 ) {
     //Start timer
     offload_timeset("mp2_ri_get_block_size\0");
@@ -610,13 +524,8 @@ void c_mp2_ri_get_block_size(
         while (1) {
             int num_IJ_blocks = 0;
             
-            if (!my_open_shell_ss) {
-                num_IJ_blocks = homo / best_block_size;
-                num_IJ_blocks = (num_IJ_blocks * num_IJ_blocks - num_IJ_blocks) / 2;
-            } else {
-                num_IJ_blocks = (homo - 1) / best_block_size;
-                num_IJ_blocks = (num_IJ_blocks * num_IJ_blocks - num_IJ_blocks) / 2;
-            }
+            num_IJ_blocks = (homo - 1) / best_block_size;
+            num_IJ_blocks = (num_IJ_blocks * num_IJ_blocks - num_IJ_blocks) / 2;
             
             if ((num_IJ_blocks >= ngroup && num_IJ_blocks > 0) || best_block_size == 1) {
                 break;
@@ -625,13 +534,8 @@ void c_mp2_ri_get_block_size(
             }
         }
         
-        if (my_open_shell_ss) {
-            int sqrt_val = (int)sqrt((double)(homo - 1));
-            best_block_size = (sqrt_val < best_block_size) ? sqrt_val : best_block_size;
-        } else {
-            int sqrt_val = (int)sqrt((double)homo);
-            best_block_size = (sqrt_val < best_block_size) ? sqrt_val : best_block_size;
-        }
+        int sqrt_val = (int)sqrt((double)homo);
+        best_block_size = (sqrt_val < best_block_size) ? sqrt_val : best_block_size;
     }
     
     *block_size = (best_block_size < 1) ? 1 : best_block_size;
@@ -657,9 +561,8 @@ void c_mp2_ri_get_block_size(
 }
 
 void c_mp2_ri_communication(
-    bool my_alpha_beta_case, int homo, int homo_beta,
-    int block_size, int ngroup, int color_sub,
-    bool my_open_shell_SS, int* total_ij_pairs,
+    int homo, int block_size, int ngroup, 
+    int color_sub, int* total_ij_pairs,
     int** ij_map, int* my_ij_pairs
 ){
     // start timer
@@ -670,7 +573,6 @@ void c_mp2_ri_communication(
 
     int first_I_block = 1;
     int last_i_block = block_size * (num_IJ_blocks - 1);
-    int first_J_block = block_size + 1;
     int last_J_block = block_size * (num_IJ_blocks + 1);
 
     // Count block pairs
@@ -763,9 +665,7 @@ void c_mp2_ri_allocate_blk(
     int my_B_size,
     int block_size,
     double** local_i_aL,
-    double** local_aL,
-    double** Y_i_aP,
-    double** Y_aP
+    double** local_aL
 ){
     offload_timeset("mp2_ri_allocate_blk\0");
 
@@ -784,8 +684,7 @@ void fill_local_i_aL(
     int ranges_info_rep_size,
     const double* BIb_C_rec,
     int BIb_C_rec_L_size,
-    int BIb_C_rec_virtual,
-    int BIb_C_rec_block
+    int BIb_C_rec_virtual
 ){
     offload_timeset("fill_local_i_aL\0");
 
@@ -797,7 +696,6 @@ void fill_local_i_aL(
          * to access: arr[i * ranges_info_rep_size + irep]
          */
         int Lstart_pos = ranges_info_array[0 * ranges_info_rep_size + irep];
-        int Lend_pos = ranges_info_array[1 * ranges_info_rep_size + irep];
         int start_point = ranges_info_array[2 * ranges_info_rep_size + irep];
         int end_point = ranges_info_array[3 * ranges_info_rep_size + irep];
 
@@ -871,6 +769,9 @@ void calc_ri_mp2_energy(
     int maxval_gd_B_virtual,
     int preferred_dgemm_lib
 ) {
+    (void)aux_start;
+    (void)aux_size;
+    (void)preferred_dgemm_lib;
     const cp_mpi_comm_t comm_all = cp_mpi_comm_f2c(comm_all_f);
     const cp_mpi_comm_t comm_sub = cp_mpi_comm_f2c(comm_sub_f);
 
@@ -881,7 +782,6 @@ void calc_ri_mp2_energy(
     int rank_in_subgroup = cp_mpi_comm_rank(comm_sub);
     int my_B_size = gd_B_virtual_sizes[rank_in_subgroup];
 
-    int rank_in_all = cp_mpi_comm_rank(comm_all);
     // int my_group_L_size = gd_array_sizes[rank_in_all];
     int my_group_L_size = gd_array_sizes[color_sub];
 
@@ -895,7 +795,6 @@ void calc_ri_mp2_energy(
     for (int i = 0; i < rank_in_subgroup; i++) {
         my_B_virtual_start += gd_B_virtual_sizes[i];
     }
-    int my_B_virtual_end = my_B_virtual_start + my_B_size - 1;
 
     int virtual = nmo - homo;
     int nspins = 1;
@@ -908,7 +807,6 @@ void calc_ri_mp2_energy(
     int para_env_sub_size = cp_mpi_comm_size(comm_sub);
 
     int ngroup = para_env_size / para_env_sub_size;
-    int num_int_group = 0;
 
     int max_homo = homo;
     int sum_homo_virtual = homo * virtual;
@@ -928,28 +826,19 @@ void calc_ri_mp2_energy(
         0,
         0,
         mp2_memory,
-        0,
         homo,
         virtual,
         dimen_RI,
-        calc_forces,
-        gd_B_virtual_sizes,
-        gd_B_virtual_sizes_size,
         maxsize_gd_array,
         maxsize_gd_B_virtual,
         maxval_gd_B_virtual,
         maxval_virtual,
         max_homo,
-        sum_homo_virtual,
-        product_homo,
-        nspins,
-        calc_group_size,
-        comm_all
+        calc_group_size
     );
 
     int comm_exchange_out = 0;
     int comm_rep_out = 0;
-    int* new_sizes_array = NULL;
     int* ranges_info_array = NULL;
     int* integ_group_pos2color_sub = NULL;
     int* sizes_array_orig = NULL;
@@ -976,21 +865,12 @@ void calc_ri_mp2_energy(
 
     ranges_info_array = (int*)calloc(4 * comm_rep_size * comm_exchange_size, sizeof(int));
     integ_group_pos2color_sub = (int*)calloc(comm_exchange_size, sizeof(int));
-    
+
     c_mp2_ri_create_group(
         &comm_exchange_out,
         &comm_rep_out,
         ranges_info_array,
-        ranges_info_dim1,
-        ranges_info_dim2,
-        ranges_info_dim3,
         integ_group_pos2color_sub,
-        comm_exchange_size,
-        sizes_array_orig,
-        0,
-        &my_group_L_size,
-        &my_group_L_size_orig,
-        &my_new_group_L_size,
         my_group_L_start,
         my_group_L_end,
         comm_all,
@@ -998,7 +878,6 @@ void calc_ri_mp2_energy(
         color_sub,
         integ_group_size,
         num_integ_group,
-        calc_forces,
         my_group_L_size,
         my_group_L_size_orig
     );
@@ -1012,8 +891,6 @@ void calc_ri_mp2_energy(
     
     printf("Get cp_mpi_comm_rank 9th time\n");
     fflush(stdout);
-    int comm_rep_rank = cp_mpi_comm_rank(comm_rep_c);
-    int comm_rep_size_c = cp_mpi_comm_size(comm_rep_c);
     int tag = 42;
 
     double my_E_cou = 0.0;
@@ -1033,59 +910,34 @@ void calc_ri_mp2_energy(
         gd_array_sizes_size,
         my_B_size,
         my_group_L_size,
-        ranges_info_array,
-        ranges_info_dim1,
-        ranges_info_dim2,
-        ranges_info_dim3
+        ranges_info_array
     );
-
-    double amp_fac = scale_S + scale_T;
             
     // Allocate local arrays (no block) 
     double* local_ab = NULL;
-    double* t_ab = NULL;
-    double* local_ba = NULL;
-
-    double* P_ij = NULL;
-    double* P_ab = NULL;
-    double* Gamma_P_ia = NULL;
-    bool P_ij_allocated = false;
-    bool P_ab_allocated = false;
-    bool Gamma_P_ia_allocated = false;
 
     c_mp2_ri_allocate_no_blk(
-        &local_ab, &t_ab, &local_ba,
-        homo, virtual, my_B_size,
-        my_group_L_size,
-        calc_forces,
-        &P_ij, &P_ab, &Gamma_P_ia,
-        &P_ij_allocated, &P_ab_allocated, &Gamma_P_ia_allocated
+        &local_ab, virtual, my_B_size
     );
     
     // Get block size and allocate buffer
     int block_size = 0;
     int ngroup_out2 = 0;
     double* buffer_1D = NULL;
-            
+
     c_mp2_ri_get_block_size(
         &block_size,
         &ngroup_out2,
         &buffer_1D,
-        0.0, 
         user_block_size,
         comm_all,
         comm_sub,
         maxsize_gd_array,
-        gd_B_virtual_sizes,
-        gd_B_virtual_sizes_size,
-        maxsize_gd_B_virtual,
         maxval_gd_B_virtual,
         homo,
-        virtual,
         maxval_virtual,
         dimen_RI,
-        num_integ_group,
-        false, calc_forces
+        num_integ_group
     );
     
     // Communication pattern
@@ -1094,12 +946,10 @@ void calc_ri_mp2_energy(
     int my_ij_pairs = 0;
     
     c_mp2_ri_communication(
-        false,
-        homo, homo,
+        homo,
         block_size,
         ngroup,
         color_sub,
-        false,
         &total_ij_pairs,
         &ij_map,
         &my_ij_pairs
@@ -1127,8 +977,7 @@ void calc_ri_mp2_energy(
     
     c_mp2_ri_allocate_blk(
         dimen_RI, my_B_size, block_size,
-        &local_i_aL, &local_aL,
-        &Y_i_aP, &Y_aP
+        &local_i_aL, &local_aL
     );
             
     // Loop over ij pairs (the main computational loop)
@@ -1162,8 +1011,7 @@ void calc_ri_mp2_energy(
                 ranges_info_rep_size,
                 BIb_C,                      // Source: BIb_C_rec
                 L_size,                        // BIb_C_rec_L_size
-                my_B_size,                  // BIb_C_rec_virtual
-                my_block_size                  // BIb_C_rec_block
+                my_B_size                  // BIb_C_rec_virtual
             );
 
             // Handle 3
@@ -1225,8 +1073,7 @@ void calc_ri_mp2_energy(
                         comm_rep_size,                 // ranges_info_rep_size
                         BI_C_rec_i,                    // Source: BIb_C_rec
                         rec_L_size,                    // BIb_C_rec_L_size
-                        my_B_size,                  // BIb_C_rec_virtual
-                        my_block_size                  // BIb_C_rec_block
+                        my_B_size                      // BIb_C_rec_virtual
                     );
 
                     // Occupied j: send and receive data
@@ -1262,8 +1109,7 @@ void calc_ri_mp2_energy(
                         comm_rep_size,                 // ranges_info_rep_size
                         BI_C_rec,                    // Source: BIb_C_rec
                         rec_L_size,                    // BIb_C_rec_L_size
-                        my_B_size,                  // BIb_C_rec_virtual
-                        my_block_size                  // BIb_C_rec_block
+                        my_B_size                     // BIb_C_rec_virtual
                     );
                 }
                 else {
@@ -1273,8 +1119,6 @@ void calc_ri_mp2_energy(
                     size_t rec_size_i = (size_t)rec_L_size * my_B_size * my_block_size;
                     double* BI_C_rec_i = buffer_1D;
                     memset(BI_C_rec_i, 0, rec_size_i * sizeof(double));
-
-                    double dummy_send = 0.0;
 
                     cp_mpi_recv_double(
                         BI_C_rec_i,                 // Receive buffer
@@ -1295,8 +1139,7 @@ void calc_ri_mp2_energy(
                         comm_rep_size,                 // ranges_info_rep_size
                         BI_C_rec_i,                    // Source: BIb_C_rec
                         rec_L_size,                    // BIb_C_rec_L_size
-                        my_B_size,                  // BIb_C_rec_virtual
-                        my_block_size                  // BIb_C_rec_block
+                        my_B_size                      // BIb_C_rec_virtual
                     );
                     
                     // OCCUPIED j: Receive data only
@@ -1323,8 +1166,7 @@ void calc_ri_mp2_energy(
                         comm_rep_size,                 // ranges_info_rep_size
                         BI_C_rec,                    // Source: BIb_C_rec
                         rec_L_size,                    // BIb_C_rec_L_size
-                        my_B_size,                  // BIb_C_rec_virtual
-                        my_block_size                  // BIb_C_rec_block
+                        my_B_size                    // BIb_C_rec_virtual
                     );
                 }
             }
@@ -1487,8 +1329,6 @@ void calc_ri_mp2_energy(
     offload_timestop();
 
     free(local_ab);
-    if (t_ab) free(t_ab);
-    if (local_ba) free(local_ba);
     free(buffer_1D);
     free(ij_map);
     free(num_ij_pairs);
