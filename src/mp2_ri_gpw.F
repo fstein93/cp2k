@@ -122,7 +122,7 @@ CONTAINS
       TYPE(three_dim_real_array), ALLOCATABLE, &
          DIMENSION(:)                                    :: B_ia_Q
       
-      REAL(KIND=dp), DIMENSION(:), POINTER, CONTIGUOUS   :: p_BIb_C
+      REAL(KIND=dp), DIMENSION(:,:,:), POINTER, CONTIGUOUS   :: p_BIb_C
 
       CALL timeset(routineN, handle)
 
