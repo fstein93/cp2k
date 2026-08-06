@@ -379,8 +379,9 @@ void c_mp2_ri_create_group(
     offload_timestop();
 }
 
-void c_replicate_iaK_2intgroup(
+// void c_replicate_iaK_2intgroup(
     // double** BIb_C,
+double* c_replicate_iaK_2intgroup(
     double* BIb_C,
     int BIb_C_L_size,
     int BIb_C_virtual,
@@ -436,9 +437,7 @@ void c_replicate_iaK_2intgroup(
     printf("Inside 6th forense mark: post-memcpy\n");
     fflush(stdout);
     // free(*BIb_C);
-    free(BIb_C);
-    printf("Inside 6th forense mark: post-free(BIb_C)\n");
-    fflush(stdout);
+    // free(BIb_C);
     
     // Allocate gather buffer: [comm_rep_size][max_L_size][my_B_size][homo]
     size_t gather_size = (size_t)comm_rep_size * max_L_size * my_B_size * homo;
@@ -508,13 +507,16 @@ void c_replicate_iaK_2intgroup(
     
     // Return new BIb_C
     // *BIb_C = BIb_C_new; //INTOUT
-    BIb_C = BIb_C_new; //INTOUT
+    // BIb_C = BIb_C_new; //INTOUT
     BIb_C_L_size = my_group_L_size;
     BIb_C_virtual = my_B_size;
     BIb_C_occupied = homo;
 
     // stop the timer
     offload_timestop();
+    return BIb_C_new;
+    printf("Inside 6th forense mark: post-return BIb_C_new, new approach\n");
+    fflush(stdout);
 }
 
 
