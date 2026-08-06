@@ -48,7 +48,7 @@ CONTAINS
       ! error actual argument for 'bib_c' at (1) must be a pointer or a valid target
       ! for the dummy pointer in a pointer assignment statement
       REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, TARGET, &
-                           INTENT(INOUT)            ,     :: BIb_C
+                           INTENT(INOUT)                 :: BIb_C
       ! REAL(KIND=dp), DIMENSION(:, :, :), POINTER, &
       !                      CONTIGUOUS, INTENT(INOUT)     :: BIb_C
       CLASS(mp_comm_type), INTENT(IN)                    :: comm_all, comm_sub
