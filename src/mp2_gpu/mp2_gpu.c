@@ -434,8 +434,11 @@ void c_replicate_iaK_2intgroup(
         }
     }
     printf("Inside 6th forense mark: post-memcpy\n");
+    fflush(stdout);
     // free(*BIb_C);
     free(BIb_C);
+    printf("Inside 6th forense mark: post-free(BIb_C)\n");
+    fflush(stdout);
     
     // Allocate gather buffer: [comm_rep_size][max_L_size][my_B_size][homo]
     size_t gather_size = (size_t)comm_rep_size * max_L_size * my_B_size * homo;
