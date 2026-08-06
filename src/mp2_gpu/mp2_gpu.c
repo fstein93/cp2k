@@ -432,9 +432,9 @@ double* c_replicate_iaK_2intgroup(
 
     // stop the timer
     offload_timestop();
-    return BIb_C_new;
     printf("Inside 6th forense mark: post-return BIb_C_new, new approach\n");
     fflush(stdout);
+    return BIb_C_new;
 }
 
 
