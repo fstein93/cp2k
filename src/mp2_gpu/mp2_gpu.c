@@ -1333,8 +1333,6 @@ void calc_ri_mp2_energy_c_(
     double *BIb_C,
     double mp2_memory,
     int user_block_size,
-    double scale_S,  // del
-    double scale_T,  //del
     int comm_all_f,
     int comm_sub_f,
     int color_sub,
@@ -1346,20 +1344,10 @@ void calc_ri_mp2_energy_c_(
     int homo,
     int nmo,
     int dimen_RI,
-    bool calc_forces, // del
-    int aux_start,  // del
-    int aux_size,  // del
     int maxsize_gd_array,
     int maxsize_gd_B_virtual,
-    int maxval_gd_B_virtual,
-    int preferred_dgemm_lib //del
+    int maxval_gd_B_virtual
 ) {
-    (void)scale_S;
-    (void)scale_T;
-    (void)calc_forces;
-    (void)aux_start;
-    (void)aux_size;
-    (void)preferred_dgemm_lib;
     // Just forward to the main function
     calc_ri_mp2_energy(
         E_cou,

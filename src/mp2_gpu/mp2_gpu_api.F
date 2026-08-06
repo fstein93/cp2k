@@ -32,18 +32,14 @@ CONTAINS
       homo, &
       nmo, &
       dimen_RI, &
-      calc_forces, &
       mp2_env, &
       gd_array, &
       gd_B_virtual, &
-      virtual_start, &
-      virtual_size, &
-      aux_start, &
-      aux_size, &
-      preferred_dgemm_lib, &
-      para_env_sub, &
       color_sub)
-      REAL(KIND=dp), INTENT(OUT)                         :: E_cou, E_ex, E_s, E_t
+      REAL(KIND=dp), INTENT(OUT)                         :: E_cou
+      REAL(KIND=dp), INTENT(OUT)                         :: E_ex
+      REAL(KIND=dp), INTENT(OUT)                         :: E_s
+      REAL(KIND=dp), INTENT(OUT)                         :: E_t
       
       ! error actual argument for 'bib_c' at (1) must be a pointer or a valid target
       ! for the dummy pointer in a pointer assignment statement
@@ -51,29 +47,25 @@ CONTAINS
                            INTENT(INOUT)                 :: BIb_C
       ! REAL(KIND=dp), DIMENSION(:, :, :), POINTER, &
       !                      CONTIGUOUS, INTENT(INOUT)     :: BIb_C
-      CLASS(mp_comm_type), INTENT(IN)                    :: comm_all, comm_sub
+      CLASS(mp_comm_type), INTENT(IN)                    :: comm_all
+      CLASS(mp_comm_type), INTENT(IN)                    :: comm_sub
       REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: eigenval
-      INTEGER, INTENT(IN)                                :: homo, nmo, dimen_RI
-      LOGICAL, INTENT(IN)                                :: calc_forces
+      INTEGER, INTENT(IN)                                :: homo
+      INTEGER, INTENT(IN)                                :: nmo
+      INTEGER, INTENT(IN)                                :: dimen_RI
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_B_virtual
-      INTEGER, INTENT(IN)                                :: virtual_start
-      INTEGER, INTENT(IN)                                :: virtual_size
-      INTEGER, INTENT(IN)                                :: aux_start
-      INTEGER, INTENT(IN)                                :: aux_size
-      INTEGER, INTENT(IN)                                :: preferred_dgemm_lib
-      TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env_sub
       INTEGER, INTENT(IN)                                :: color_sub
 
-      INTEGER(C_INT)  :: comm_all_handle, comm_sub_handle
-      INTEGER(C_INT)  :: nmo_c, dimen_RI_c
-      INTEGER(C_INT)  :: gd_array_size
-      INTEGER(C_INT)  :: maxsize_gd_array, maxsize_gd_B_virtual, maxval_gd_B_virtual
+      INTEGER(C_INT)  :: comm_all_handle
+      INTEGER(C_INT)  :: comm_sub_handle
+      INTEGER(C_INT)  :: maxsize_gd_array
+      INTEGER(C_INT)  :: maxsize_gd_B_virtual
+      INTEGER(C_INT)  :: maxval_gd_B_virtual
       ! INTEGER(C_INT), ALLOCATABLE, &
       ! TARGET          :: gd_B_virtual_sizes(:)
-      LOGICAL(C_BOOL) :: calc_forces_c
-      REAL(C_DOUBLE)  :: scale_S, scale_T, mp2_memory
+      REAL(C_DOUBLE)  :: mp2_memory
       INTEGER(C_INT)  :: user_block_size
 
       INTERFACE
@@ -85,8 +77,6 @@ CONTAINS
             BIb_C, &
             mp2_memory, &
             user_block_size, &
-            scale_S, &
-            scale_T, &
             comm_all, &
             comm_sub, &
             color_sub, &
@@ -98,21 +88,20 @@ CONTAINS
             homo, &
             nmo, &
             dimen_RI, &
-            calc_forces_c, &
-            aux_start, &
-            aux_size, &
             maxsize_gd_array, &
             maxsize_gd_B_virtual, &
-            maxval_gd_B_virtual, &
-            preferred_dgemm_lib)
+            maxval_gd_B_virtual)
             IMPORT :: C_DOUBLE, C_INT, C_BOOL, C_PTR
             BIND(C, name="calc_ri_mp2_energy")
-            REAL(C_DOUBLE)               :: E_cou, E_ex, E_s, E_t
+            REAL(C_DOUBLE)               :: E_cou
+            REAL(C_DOUBLE)               :: E_ex
+            REAL(C_DOUBLE)               :: E_s
+            REAL(C_DOUBLE)               :: E_t
             TYPE(C_PTR)                  :: BIb_C
             REAL(C_DOUBLE), VALUE        :: mp2_memory
             INTEGER(C_INT), VALUE        :: user_block_size
-            REAL(C_DOUBLE), VALUE        :: scale_S, scale_T
-            INTEGER(C_INT), VALUE        :: comm_all, comm_sub
+            INTEGER(C_INT), VALUE        :: comm_all
+            INTEGER(C_INT), VALUE        :: comm_sub
             INTEGER(C_INT), VALUE        :: color_sub
             INTEGER(C_INT), DIMENSION(*) :: gd_array_sizes
             INTEGER(C_INT), VALUE        :: gd_array_sizes_size
@@ -122,13 +111,9 @@ CONTAINS
             INTEGER(C_INT), VALUE        :: homo
             INTEGER(C_INT), VALUE        :: nmo
             INTEGER(C_INT), VALUE        :: dimen_RI
-            LOGICAL(C_BOOL), VALUE       :: calc_forces_c
-            INTEGER(C_INT), VALUE        :: aux_start
-            INTEGER(C_INT), VALUE        :: aux_size
             INTEGER(C_INT), VALUE        :: maxsize_gd_array
             INTEGER(C_INT), VALUE        :: maxsize_gd_B_virtual
             INTEGER(C_INT), VALUE        :: maxval_gd_B_virtual
-            INTEGER(C_INT), VALUE        :: preferred_dgemm_lib
          END SUBROUTINE calc_ri_mp2_energy_c
       END INTERFACE
 
@@ -139,10 +124,7 @@ CONTAINS
       ! ALLOCATE(gd_B_virtual_sizes(SIZE(homo)))
 
       mp2_memory = mp2_env%mp2_memory
-      scale_S = mp2_env%scale_S
-      scale_T = mp2_env%scale_T
       user_block_size = mp2_env%ri_mp2%block_size
-      calc_forces_c = calc_forces
 
       ! set sizes
       maxsize_gd_array = maxsize(gd_array)
@@ -158,8 +140,6 @@ CONTAINS
          C_LOC(BIb_C), &
          mp2_memory, &
          user_block_size, &
-         scale_S, &
-         scale_T, &
          comm_all_handle, &
          comm_sub_handle, &
          color_sub, &
@@ -171,13 +151,9 @@ CONTAINS
          homo, &
          nmo, &
          dimen_RI, &
-         calc_forces_c, &
-         aux_start, &
-         aux_size, &
          maxsize_gd_array, &
          maxsize_gd_B_virtual, &
-         maxval_gd_B_virtual, &
-         preferred_dgemm_lib)
+         maxval_gd_B_virtual)
       ! NULLIFY(BIb_C)
 
    END SUBROUTINE calc_ri_mp2_energy

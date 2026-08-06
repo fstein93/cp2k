@@ -160,16 +160,9 @@ CONTAINS
             homo(1), &
             nmo, &
             dimen_RI, &
-            calc_forces, &
             mp2_env, &
             gd_array, &
             gd_B_virtual(1), &
-            my_B_virtual_start(1) - 1, &
-            my_B_size(1), &
-            my_group_L_start - 1, &
-            my_group_L_size, &
-            local_gemm_get_library(), &
-            para_env_sub, &
             color_sub)
          CALL timestop(handle)
          RETURN
