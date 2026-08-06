@@ -76,8 +76,8 @@ CONTAINS
                                     gd_array, gd_B_virtual, &
                                     Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, calc_ex)
       REAL(KIND=dp), INTENT(INOUT)                       :: Emp2_Cou, Emp2_EX, Emp2_S, Emp2_T
-      TYPE(cp_3d_r_cp_type), DIMENSION(:), &
-      ! TYPE(three_dim_real_array), DIMENSION(:), &
+      ! TYPE(cp_3d_r_cp_type), DIMENSION(:), &
+      TYPE(three_dim_real_array), DIMENSION(:), &
          INTENT(INOUT)                                   :: BIb_C
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
