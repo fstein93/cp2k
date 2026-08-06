@@ -380,7 +380,8 @@ void c_mp2_ri_create_group(
 }
 
 void c_replicate_iaK_2intgroup(
-    double** BIb_C,
+    // double** BIb_C,
+    double* BIb_C,
     int BIb_C_L_size,
     int BIb_C_virtual,
     int BIb_C_occupied,
@@ -428,10 +429,12 @@ void c_replicate_iaK_2intgroup(
         for (int j = 0; j < my_B_size; j++) {
             size_t src_idx = ((size_t)i * my_B_size + j) * current_L_size;
             size_t dst_idx = ((size_t)i * my_B_size + j) * max_L_size;
-            memcpy(&BIb_C_copy[dst_idx], &(*BIb_C)[src_idx], current_L_size * sizeof(double));
+            // memcpy(&BIb_C_copy[dst_idx], &(*BIb_C)[src_idx], current_L_size * sizeof(double));
+            memcpy(&BIb_C_copy[dst_idx], &(BIb_C)[src_idx], current_L_size * sizeof(double));
         }
     }
-    free(*BIb_C);
+    // free(*BIb_C);
+    free(BIb_C);
     
     // Allocate gather buffer: [comm_rep_size][max_L_size][my_B_size][homo]
     size_t gather_size = (size_t)comm_rep_size * max_L_size * my_B_size * homo;
@@ -500,7 +503,8 @@ void c_replicate_iaK_2intgroup(
     free(BIb_C_gather);
     
     // Return new BIb_C
-    *BIb_C = BIb_C_new; //INTOUT
+    // *BIb_C = BIb_C_new; //INTOUT
+    BIb_C = BIb_C_new; //INTOUT
     BIb_C_L_size = my_group_L_size;
     BIb_C_virtual = my_B_size;
     BIb_C_occupied = homo;
