@@ -77,8 +77,7 @@ void c_mp2_ri_get_integ_group_size(
     int maxsize_gd_B_virtual,
     int maxval_gd_B_virtual,
     int maxval_virtual,
-    int max_homo,
-    bool calc_group_size
+    int max_homo
 ){
     // Local variables
     int block_size = 1;
@@ -188,8 +187,7 @@ void c_mp2_ri_create_group(
     int color_sub,
     int integ_group_size,
     int num_integ_group,
-    int my_group_L_size,
-    int my_group_L_size_orig
+    int my_group_L_size
 ) {
     // Convert Fortran MPI communicators to C MPI communicators
     cp_mpi_comm_t comm_para_env_c_comm = cp_mpi_comm_f2c(comm_all);
@@ -201,7 +199,6 @@ void c_mp2_ri_create_group(
     fflush(stdout);
     // Get rank and size of the sub-communicator
     int para_env_rank = cp_mpi_comm_rank(comm_para_env_c_comm);
-    int para_env_size = cp_mpi_comm_size(comm_para_env_c_comm);
     
     printf("Get cp_mpi_comm_rank 2nd time\n");
     fflush(stdout);
@@ -317,8 +314,6 @@ void c_mp2_ri_create_group(
 double* c_replicate_iaK_2intgroup(
     double* BIb_C,
     int BIb_C_L_size,
-    int BIb_C_virtual,
-    int BIb_C_occupied,
     int comm_exchange,
     int comm_rep,
     int homo,
@@ -434,8 +429,6 @@ double* c_replicate_iaK_2intgroup(
     // *BIb_C = BIb_C_new; //INTOUT
     // BIb_C = BIb_C_new; //INTOUT
     BIb_C_L_size = my_group_L_size;
-    BIb_C_virtual = my_B_size;
-    BIb_C_occupied = homo;
 
     // stop the timer
     offload_timestop();
@@ -748,8 +741,6 @@ void calc_ri_mp2_energy(
     double *BIb_C,
     double mp2_memory,
     int user_block_size,
-    double scale_S,
-    double scale_T,
     int comm_all_f,
     int comm_sub_f,
     int color_sub,
@@ -761,17 +752,10 @@ void calc_ri_mp2_energy(
     int homo,
     int nmo, 
     int dimen_RI,
-    bool calc_forces,
-    int aux_start,
-    int aux_size,
     int maxsize_gd_array,
     int maxsize_gd_B_virtual,
-    int maxval_gd_B_virtual,
-    int preferred_dgemm_lib
+    int maxval_gd_B_virtual
 ) {
-    (void)aux_start;
-    (void)aux_size;
-    (void)preferred_dgemm_lib;
     const cp_mpi_comm_t comm_all = cp_mpi_comm_f2c(comm_all_f);
     const cp_mpi_comm_t comm_sub = cp_mpi_comm_f2c(comm_sub_f);
 
@@ -797,7 +781,6 @@ void calc_ri_mp2_energy(
     }
 
     int virtual = nmo - homo;
-    int nspins = 1;
 
     int para_env_size = cp_mpi_comm_size(comm_all);
     
@@ -809,13 +792,10 @@ void calc_ri_mp2_energy(
     int ngroup = para_env_size / para_env_sub_size;
 
     int max_homo = homo;
-    int sum_homo_virtual = homo * virtual;
-    int product_homo = homo * homo;
 
     int integ_group_size = 0;
     int ngroup_out = 0;
     int num_integ_group = 0;
-    bool calc_group_size = true;
     int maxval_virtual = virtual;
     
     c_mp2_ri_get_integ_group_size(
@@ -833,8 +813,7 @@ void calc_ri_mp2_energy(
         maxsize_gd_B_virtual,
         maxval_gd_B_virtual,
         maxval_virtual,
-        max_homo,
-        calc_group_size
+        max_homo
     );
 
     int comm_exchange_out = 0;
@@ -842,8 +821,6 @@ void calc_ri_mp2_energy(
     int* ranges_info_array = NULL;
     int* integ_group_pos2color_sub = NULL;
     int* sizes_array_orig = NULL;
-    int my_group_L_size_orig = 0;
-    int my_new_group_L_size = 0;
 
     int* gd_B_virtual_start = (int*)malloc(gd_B_virtual_sizes_size * sizeof(int));
     int* gd_B_virtual_end = (int*)malloc(gd_B_virtual_sizes_size * sizeof(int));
@@ -859,9 +836,6 @@ void calc_ri_mp2_energy(
     // ranges_info_array dimensions: (4 x rep_size x exchange_size)
     int comm_rep_size = para_env_size / integ_group_size;
     int comm_exchange_size = integ_group_size;
-    int ranges_info_dim1 = 4;
-    int ranges_info_dim2 = comm_rep_size;
-    int ranges_info_dim3 = comm_exchange_size;
 
     ranges_info_array = (int*)calloc(4 * comm_rep_size * comm_exchange_size, sizeof(int));
     integ_group_pos2color_sub = (int*)calloc(comm_exchange_size, sizeof(int));
@@ -878,12 +852,10 @@ void calc_ri_mp2_energy(
         color_sub,
         integ_group_size,
         num_integ_group,
-        my_group_L_size,
-        my_group_L_size_orig
+        my_group_L_size
     );
 
     cp_mpi_comm_t comm_exchange_c = cp_mpi_comm_f2c(comm_exchange_out);
-    cp_mpi_comm_t comm_rep_c = cp_mpi_comm_f2c(comm_rep_out);
     
     printf("Get cp_mpi_comm_rank 8th time\n");
     fflush(stdout);
@@ -902,8 +874,6 @@ void calc_ri_mp2_energy(
         // (double**)&BIb_C,
         (double*)&BIb_C,
         my_group_L_size,
-        virtual,
-        homo,
         comm_exchange_out,
         comm_rep_out,
         homo,
@@ -1337,12 +1307,6 @@ void calc_ri_mp2_energy(
     if (Y_i_aP) free(Y_i_aP);
     if (Y_aP) free(Y_aP);
 
-    // ======== IGNORE LOOP
-    
-    // ======== END LOOP
-    // free(my_B_size);
-    // free(my_B_virtual_start);
-    // free(my_B_virtual_end);
     free(ranges_info_array);
     free(integ_group_pos2color_sub);
     if (sizes_array_orig) free(sizes_array_orig);
@@ -1361,9 +1325,6 @@ void calc_ri_mp2_energy(
     offload_timestop();
 }
 
-
-// Temporal wrapper for test
-// Verify 
 void calc_ri_mp2_energy_c_(
     double *E_cou,
     double *E_ex,
@@ -1372,8 +1333,8 @@ void calc_ri_mp2_energy_c_(
     double *BIb_C,
     double mp2_memory,
     int user_block_size,
-    double scale_S,
-    double scale_T,
+    double scale_S,  // del
+    double scale_T,  //del
     int comm_all_f,
     int comm_sub_f,
     int color_sub,
@@ -1385,15 +1346,20 @@ void calc_ri_mp2_energy_c_(
     int homo,
     int nmo,
     int dimen_RI,
-    bool calc_forces,
-    int aux_start,
-    int aux_size,
+    bool calc_forces, // del
+    int aux_start,  // del
+    int aux_size,  // del
     int maxsize_gd_array,
     int maxsize_gd_B_virtual,
     int maxval_gd_B_virtual,
-    int preferred_dgemm_lib
+    int preferred_dgemm_lib //del
 ) {
-    
+    (void)scale_S;
+    (void)scale_T;
+    (void)calc_forces;
+    (void)aux_start;
+    (void)aux_size;
+    (void)preferred_dgemm_lib;
     // Just forward to the main function
     calc_ri_mp2_energy(
         E_cou,
@@ -1403,8 +1369,6 @@ void calc_ri_mp2_energy_c_(
         BIb_C,
         mp2_memory,
         user_block_size,
-        scale_S,
-        scale_T,
         comm_all_f,
         comm_sub_f,
         color_sub,
@@ -1416,12 +1380,8 @@ void calc_ri_mp2_energy_c_(
         homo,
         nmo, 
         dimen_RI,
-        calc_forces,
-        aux_start,
-        aux_size,
         maxsize_gd_array,
         maxsize_gd_B_virtual,
-        maxval_gd_B_virtual,
-        preferred_dgemm_lib
+        maxval_gd_B_virtual
     );
 }
