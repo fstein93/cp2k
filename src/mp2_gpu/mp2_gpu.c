@@ -1016,7 +1016,8 @@ void calc_ri_mp2_energy(
     double my_E_t = 0.0;
 
     c_replicate_iaK_2intgroup(
-        (double**)&BIb_C,
+        // (double**)&BIb_C,
+        (double*)&BIb_C,
         my_group_L_size,
         virtual,
         homo,
