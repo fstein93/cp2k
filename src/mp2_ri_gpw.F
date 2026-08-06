@@ -121,8 +121,6 @@ CONTAINS
       TYPE(mp_comm_type)                                 :: comm_exchange, comm_rep
       TYPE(three_dim_real_array), ALLOCATABLE, &
          DIMENSION(:)                                    :: B_ia_Q
-      
-      REAL(KIND=dp), DIMENSION(:,:,:), POINTER, CONTIGUOUS   :: p_BIb_C
 
       CALL timeset(routineN, handle)
 
@@ -149,13 +147,13 @@ CONTAINS
             BIb_C(1)%array = 0.0_dp
          END IF
          
-         p_BIb_C => BIb_C(1)%array
+         ! p_BIb_C => BIb_C(1)%array
          CALL calc_ri_mp2_energy( &
             Emp2_cou, &
             Emp2_EX, &
             Emp2_S, &
             Emp2_T, &
-            p_BIb_C, &
+            BIb_C(1)%array, &
             para_env, &
             para_env_sub, &
             Eigenval(:, 1), &
