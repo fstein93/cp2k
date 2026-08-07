@@ -392,15 +392,18 @@ double* c_replicate_iaK_2intgroup(
             proc_receive += comm_rep_size;
         }
 
-        // ranges_info_array(dim, proc_shift, exchange_rank)
-        // dim=3: local_start, dim=4: local_end
+        // ranges_info_array flat layout is (4, comm_rep_size, comm_exchange_size),
+        // matching the packing done in c_mp2_ri_create_group:
+        //   idx(dim, proc_shift, exchange_rank) =
+        //       exchange_rank * (4 * comm_rep_size) + dim * comm_rep_size + proc_shift
+        // dim=2 (0-based): local_start, dim=3 (0-based): local_end
         int start_point = ranges_info_array[
-            3 * comm_rep_size * comm_exchange_rank +
-            proc_shift * comm_exchange_rank + 3
+            comm_exchange_rank * 4 * comm_rep_size +
+            2 * comm_rep_size + proc_shift
         ];
         int end_point = ranges_info_array[
-            4 * comm_rep_size * comm_exchange_rank +
-            proc_shift * comm_exchange_rank + 4
+            comm_exchange_rank * 4 * comm_rep_size +
+            3 * comm_rep_size + proc_shift
         ];
         int L_size = end_point - start_point + 1;
         
