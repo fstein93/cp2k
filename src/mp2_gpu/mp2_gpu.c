@@ -879,9 +879,8 @@ void calc_ri_mp2_energy(
     }
 
     double* replicated_BIb_C = c_replicate_iaK_2intgroup(
-        // (double**)&BIb_C,
         BIb_C,
-        my_group_L_size,
+        dimen_RI,
         comm_exchange_out,
         comm_rep_out,
         homo,
