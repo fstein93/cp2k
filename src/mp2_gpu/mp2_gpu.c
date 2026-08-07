@@ -1355,6 +1355,8 @@ void calc_ri_mp2_energy(
     cp_mpi_sum_double(&my_E_ex, 1, comm_all);
 
     *E_cou += my_E_cou;
+    printf("Energy my_E_cou: %f", my_E_cou);
+    fflush(stdout);
     *E_ex += my_E_ex;
     *E_s += my_E_s;
     *E_t += my_E_t;
