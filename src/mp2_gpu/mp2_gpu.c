@@ -357,7 +357,8 @@ double* c_replicate_iaK_2intgroup(
     // free(BIb_C);
     
     // Allocate gather buffer: [comm_rep_size][max_L_size][my_B_size][homo]
-    size_t gather_size = (size_t)comm_rep_size * max_L_size * my_B_size * homo;
+    // size_t gather_size = (size_t)comm_rep_size * max_L_size * my_B_size * homo;
+    size_t gather_size = (size_t)max_L_size * my_B_size * homo;
     double* BIb_C_gather = (double*)calloc(gather_size, sizeof(double));
     
     int send_count = (int)(max_L_size * my_B_size * homo);
