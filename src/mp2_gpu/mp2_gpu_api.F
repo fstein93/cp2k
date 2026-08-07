@@ -68,6 +68,8 @@ CONTAINS
       REAL(C_DOUBLE)  :: mp2_memory
       INTEGER(C_INT)  :: user_block_size
 
+      REAL(kind=dp), DIMENSION(:,:,:), POINTER, CONTIGUOUS ::p_BIb_C
+
       INTERFACE
          SUBROUTINE calc_ri_mp2_energy_c( &
             E_cou, &
@@ -130,6 +132,9 @@ CONTAINS
       maxsize_gd_array = maxsize(gd_array)
       maxsize_gd_B_virtual = maxsize(gd_B_virtual)
       maxval_gd_B_virtual = maxsize_gd_B_virtual
+
+      ! Pointer to ALLOCATABLE array
+      p_BIb_C => BIb_C
 
       ! === KEEP ONLY _j FAMILY VARS ===============
       CALL calc_ri_mp2_energy_c( &
