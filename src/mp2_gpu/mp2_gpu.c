@@ -335,14 +335,13 @@ double* c_replicate_iaK_2intgroup(
 
     offload_timeset("replicate_iaK_2intgroup\0");
 
-    printf("6.1th f m: gather_size:\n");
-    fflush(stdout);
-
     // Get current BIb_C dimensions
     int current_L_size = BIb_C_L_size;
 
     // Allocate copy buffer: [L][virtual][occupied]
     size_t copy_size = (size_t)max_L_size * my_B_size * homo;
+    printf("6.1th f m: copy_size: %zu\n", copy_size);
+    fflush(stdout);
     double* BIb_C_copy = (double*)calloc(copy_size, sizeof(double));
 
     if (BIb_C_copy == NULL) {
