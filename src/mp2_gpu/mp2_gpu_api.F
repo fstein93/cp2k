@@ -137,7 +137,7 @@ CONTAINS
          E_ex, &
          E_s, &
          E_t, &
-         C_LOC(BIb_C), &
+         C_LOC(BIb_C(1,1,1)), &
          mp2_memory, &
          user_block_size, &
          comm_all_handle, &
