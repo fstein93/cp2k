@@ -881,6 +881,19 @@ void calc_ri_mp2_energy(
         }
     }
 
+    printf("DEBUG: BIb_C in calc_ri_mp2_energy = %p\n", (void*)BIb_C);
+    fflush(stdout);
+    
+    if (BIb_C == NULL) {
+        fprintf(stderr, "ERROR: BIb_C is NULL in calc_ri_mp2_energy!\n");
+        return;
+    }
+    
+    // Try to read first few values
+    printf("DEBUG: BIb_C[0] = %f\n", BIb_C[0]);
+    printf("DEBUG: BIb_C[1] = %f\n", BIb_C[1]);
+    fflush(stdout);
+
     double* replicated_BIb_C = c_replicate_iaK_2intgroup(
         BIb_C,
         my_group_L_size,
