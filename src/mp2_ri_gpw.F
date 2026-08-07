@@ -146,24 +146,25 @@ CONTAINS
             ALLOCATE (BIb_C(1)%array(my_group_L_size, my_B_size(1), homo(1)))
             BIb_C(1)%array = 0.0_dp
          END IF
-         
-         ! p_BIb_C => BIb_C(1)%array
-         CALL calc_ri_mp2_energy( &
-            Emp2_cou, &
-            Emp2_EX, &
-            Emp2_S, &
-            Emp2_T, &
-            BIb_C(1)%array, &
-            para_env, &
-            para_env_sub, &
-            Eigenval(:, 1), &
-            homo(1), &
-            nmo, &
-            dimen_RI, &
-            mp2_env, &
-            gd_array, &
-            gd_B_virtual(1), &
-            color_sub)
+         ! ASSOCIATE block to create a pointer alias
+         ASSOCIATE (p_BIb_C => BIb_C(1)%array)
+            CALL calc_ri_mp2_energy( &
+               Emp2_cou, &
+               Emp2_EX, &
+               Emp2_S, &
+               Emp2_T, &
+               p_BIb_C, &
+               para_env, &
+               para_env_sub, &
+               Eigenval(:, 1), &
+               homo(1), &
+               nmo, &
+               dimen_RI, &
+               mp2_env, &
+               gd_array, &
+               gd_B_virtual(1), &
+               color_sub)
+         END ASSOCIATE
          CALL timestop(handle)
          RETURN
       END IF
