@@ -987,7 +987,7 @@ void calc_ri_mp2_energy(
             int ij_counter = (ij_index - (color_sub > 0 ? 1 : 0)) * ngroup + color_sub;
             // In real code: get from ij_map
             int my_i = ij_map[0 * total_ij_pairs + ij_counter - 1];
-            int my = ij_map[1 * total_ij_pairs + ij_counter - 1];
+            int my_j = ij_map[1 * total_ij_pairs + ij_counter - 1];
             int my_block_size = ij_map[2 * total_ij_pairs + ij_counter - 1];
 
             // fill local_i_aL and local_aL
@@ -1245,7 +1245,7 @@ void calc_ri_mp2_energy(
 
                     offload_timeset("mp2_ri_gpw_compute_en_RI_ener\0");
                     // Calculate Coulomb only MP2
-                    double sym_fac = (my_i == my) ? 1.0 : 2.0;
+                    double sym_fac = (my_i == my_j) ? 1.0 : 2.0;
 
                     // DO b = 1, my_B_size(jspin)
                     for (int b = 0; b < my_B_size; b++) {
@@ -1254,11 +1254,15 @@ void calc_ri_mp2_energy(
                         // DO a = 1, virtual(ispin)
                         for (int a = 0; a < virtual; a++) {
                             double integral = local_ab[a * my_B_size + b];
+                            if (integral == 0) {
+                                printf("integral part of operation is zero\n");
+                                fflush(stdout);
+                            }
                             double divi_part = eigenval[(homo + a)] + 
                                 // Eigenval[(homo + b_global) * nspins + j] -
                                 eigenval[(homo + b_global)] -
                                 eigenval[(my_i + iiB - 1)] -
-                                eigenval[(my + jjB - 1)];
+                                eigenval[(my_j + jjB - 1)];
                             my_E_cou -= sym_fac * 2.0 * integral * integral / divi_part;
                         }
                     }
@@ -1351,11 +1355,14 @@ void calc_ri_mp2_energy(
     free(integ_group_pos2color_sub);
     if (sizes_array_orig) free(sizes_array_orig);
     
+    printf("Energy my_E_cou pre-cp_mpi_sum_double call: %f\n", my_E_cou);
+    fflush(stdout);
     cp_mpi_sum_double(&my_E_cou, 1, comm_all);
     cp_mpi_sum_double(&my_E_ex, 1, comm_all);
 
+    // Follow this var
     *E_cou += my_E_cou;
-    printf("Energy my_E_cou: %f", my_E_cou);
+    printf("Energy my_E_cou: %f\n", my_E_cou);
     fflush(stdout);
     *E_ex += my_E_ex;
     *E_s += my_E_s;
