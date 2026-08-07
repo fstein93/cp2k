@@ -870,14 +870,22 @@ void calc_ri_mp2_energy(
     double my_E_s = 0.0;
     double my_E_t = 0.0;
 
-    c_replicate_iaK_2intgroup(
+    // maxmum L size across all processes in exchange communicator
+    int max_L_size = 0;
+    for (int i = 0; i < gd_array_sizes_size; i++) {
+        if (gd_array_sizes[i] > max_L_size) {
+            max_L_size = gd_array_sizes[i];
+        }
+    }
+
+    double* replicated_BIb_C = c_replicate_iaK_2intgroup(
         // (double**)&BIb_C,
         (double*)&BIb_C,
         my_group_L_size,
         comm_exchange_out,
         comm_rep_out,
         homo,
-        gd_array_sizes_size,
+        max_L_size,
         my_B_size,
         my_group_L_size,
         ranges_info_array
@@ -972,6 +980,18 @@ void calc_ri_mp2_energy(
             // const int* ranges_info_array;
             int ranges_info_rep_size = comm_rep_size;
 
+            // fill_local_i_aL(
+            //     local_aL,                    // Destination
+            //     dimen_RI,                      // local_aL_L_size
+            //     my_B_size,                  // local_aL_virtual
+            //     my_block_size,                 // local_aL_block
+            //     ranges_info_array,             // ranges_info_array
+            //     ranges_info_rep_size,
+            //     BIb_C,                      // Source: BIb_C_rec
+            //     L_size,                        // BIb_C_rec_L_size
+            //     my_B_size                  // BIb_C_rec_virtual
+            // );
+
             fill_local_i_aL(
                 local_aL,                    // Destination
                 dimen_RI,                      // local_aL_L_size
@@ -979,7 +999,7 @@ void calc_ri_mp2_energy(
                 my_block_size,                 // local_aL_block
                 ranges_info_array,             // ranges_info_array
                 ranges_info_rep_size,
-                BIb_C,                      // Source: BIb_C_rec
+                replicated_BIb_C,               // Source: BIb_C_rec
                 L_size,                        // BIb_C_rec_L_size
                 my_B_size                  // BIb_C_rec_virtual
             );
@@ -1298,6 +1318,8 @@ void calc_ri_mp2_energy(
     // Handle2
     offload_timestop();
 
+    // Free replicared array
+    free(replicated_BIb_C);
     free(local_ab);
     free(buffer_1D);
     free(ij_map);
