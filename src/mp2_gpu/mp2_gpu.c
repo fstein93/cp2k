@@ -309,15 +309,13 @@ void c_mp2_ri_create_group(
     offload_timestop();
 }
 
-// void c_replicate_iaK_2intgroup(
-    // double** BIb_C,
 double* c_replicate_iaK_2intgroup(
     double* BIb_C,
     int BIb_C_L_size,
     int comm_exchange,
     int comm_rep,
     int homo,
-    int sizes_array_size,
+    int max_L_size,
     int my_B_size,
     int my_group_L_size,
     const int* ranges_info_array
@@ -336,10 +334,6 @@ double* c_replicate_iaK_2intgroup(
     int comm_rep_rank = cp_mpi_comm_rank(comm_rep_c);
 
     offload_timeset("replicate_iaK_2intgroup\0");
-
-    // Replication scheme using mpi_allgather
-    // get the max L size
-    int max_L_size = sizes_array_size;
 
     // Get current BIb_C dimensions
     int current_L_size = BIb_C_L_size;
@@ -368,6 +362,12 @@ double* c_replicate_iaK_2intgroup(
     
     int send_count = (int)(max_L_size * my_B_size * homo);
 
+    printf("6.1th f m: cp_mpi_allgather_double: comm_rep_size=%d, max_L_size=%d, my_B_size=%d, homo=%d\n",
+        comm_rep_size,
+        max_L_size,
+        my_B_size,
+        homo
+    );
     cp_mpi_allgather_double(BIb_C_copy, send_count, BIb_C_gather, send_count, comm_rep_c);
     
     // Free copy buffer
@@ -378,6 +378,8 @@ double* c_replicate_iaK_2intgroup(
     // Allocate new BIb_C: [my_group_L_size][my_B_size][homo]
     size_t new_size = (size_t)my_group_L_size * my_B_size * homo;
     double* BIb_C_new = (double*)calloc(new_size, sizeof(double));
+    printf("6.2th f m: send_count=%d, gather_size=%zu\n", send_count, gather_size);
+    fflush(stdout);
     
     // Reorder data using ranges_info_array
     for (int proc_shift = 0; proc_shift < comm_rep_size; proc_shift++) {
@@ -432,8 +434,6 @@ double* c_replicate_iaK_2intgroup(
 
     // stop the timer
     offload_timestop();
-    printf("Inside 6th forense mark: post-return BIb_C_new, new approach\n");
-    fflush(stdout);
     return BIb_C_new;
 }
 
