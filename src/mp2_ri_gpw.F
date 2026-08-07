@@ -77,10 +77,8 @@ CONTAINS
                                     Eigenval, nmo, homo, dimen_RI, unit_nr, calc_forces, calc_ex)
       REAL(KIND=dp), INTENT(INOUT)                       :: Emp2_Cou, Emp2_EX, Emp2_S, Emp2_T
       ! TYPE(cp_3d_r_cp_type), DIMENSION(:), &
-      ! TYPE(three_dim_real_array), DIMENSION(:), &
-      !    INTENT(INOUT)                                   :: BIb_C
-      REAL(KIND=dp), DIMENSION(:, :, :), ALLOCATABLE, &
-         TARGET, INTENT(INOUT)                           :: BIb_C
+      TYPE(three_dim_real_array), DIMENSION(:), &
+         INTENT(INOUT)                                   :: BIb_C
       TYPE(mp2_type)                                     :: mp2_env
       TYPE(mp_para_env_type), INTENT(IN), POINTER        :: para_env, para_env_sub
       INTEGER, INTENT(IN)                                :: color_sub
@@ -148,25 +146,24 @@ CONTAINS
             ALLOCATE (BIb_C(1)%array(my_group_L_size, my_B_size(1), homo(1)))
             BIb_C(1)%array = 0.0_dp
          END IF
-         ! ASSOCIATE block to create a pointer alias
-         ASSOCIATE (p_BIb_C => BIb_C(1)%array)
-            CALL calc_ri_mp2_energy( &
-               Emp2_cou, &
-               Emp2_EX, &
-               Emp2_S, &
-               Emp2_T, &
-               p_BIb_C, &
-               para_env, &
-               para_env_sub, &
-               Eigenval(:, 1), &
-               homo(1), &
-               nmo, &
-               dimen_RI, &
-               mp2_env, &
-               gd_array, &
-               gd_B_virtual(1), &
-               color_sub)
-         END ASSOCIATE
+         
+         ! p_BIb_C => BIb_C(1)%array
+         CALL calc_ri_mp2_energy( &
+            Emp2_cou, &
+            Emp2_EX, &
+            Emp2_S, &
+            Emp2_T, &
+            BIb_C(1)%array, &
+            para_env, &
+            para_env_sub, &
+            Eigenval(:, 1), &
+            homo(1), &
+            nmo, &
+            dimen_RI, &
+            mp2_env, &
+            gd_array, &
+            gd_B_virtual(1), &
+            color_sub)
          CALL timestop(handle)
          RETURN
       END IF
