@@ -131,9 +131,6 @@ CONTAINS
       maxsize_gd_B_virtual = maxsize(gd_B_virtual)
       maxval_gd_B_virtual = maxsize_gd_B_virtual
 
-      ! Pointer to ALLOCATABLE array
-      p_BIb_C => BIb_C
-
       ! === KEEP ONLY _j FAMILY VARS ===============
       CALL calc_ri_mp2_energy_c( &
          E_cou, &
