@@ -1254,8 +1254,6 @@ void calc_ri_mp2_energy(
                         // DO a = 1, virtual(ispin)
                         for (int a = 0; a < virtual; a++) {
                             double integral = local_ab[a * my_B_size + b];
-                            printf("integral part of operation is not zero %f\n", integral);
-                            fflush(stdout);
                             double divi_part = eigenval[(homo + a)] + 
                                 // Eigenval[(homo + b_global) * nspins + j] -
                                 eigenval[(homo + b_global)] -
@@ -1353,7 +1351,7 @@ void calc_ri_mp2_energy(
     free(integ_group_pos2color_sub);
     if (sizes_array_orig) free(sizes_array_orig);
     
-    printf("Energy my_E_cou pre-cp_mpi_sum_double call: %f\n", my_E_cou);
+    printf("Energy my_E_cou pre-cp_mpi_sum_double call test: %f\n", my_E_cou);
     fflush(stdout);
     cp_mpi_sum_double(&my_E_cou, 1, comm_all);
     cp_mpi_sum_double(&my_E_ex, 1, comm_all);
