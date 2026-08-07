@@ -340,7 +340,13 @@ double* c_replicate_iaK_2intgroup(
 
     // Allocate copy buffer: [L][virtual][occupied]
     size_t copy_size = (size_t)max_L_size * my_B_size * homo;
+    printf("6.1th f m: gather_size: %zu\n", copy_size);
+    fflush(stdout);
     double* BIb_C_copy = (double*)calloc(copy_size, sizeof(double));
+
+    if (BIb_C_copy == NULL) {
+        fprintf(stderr, "Error: cannot be assigned memory to BIb_C_copy");
+    }
 
     // copy data from old BIb_C to copy buffer
     for (int i = 0; i < homo; i++) {
@@ -351,25 +357,17 @@ double* c_replicate_iaK_2intgroup(
             memcpy(&BIb_C_copy[dst_idx], &(BIb_C)[src_idx], current_L_size * sizeof(double));
         }
     }
-    printf("Inside 6th forense mark: post-memcpy\n");
-    fflush(stdout);
     // free(*BIb_C);
     // free(BIb_C);
     
     // Allocate gather buffer: [comm_rep_size][max_L_size][my_B_size][homo]
     size_t gather_size = (size_t)comm_rep_size * max_L_size * my_B_size * homo;
-    printf("6.2th f m: gather_size: %zu\n", gather_size);
-    fflush(stdout);
 
     double* BIb_C_gather = (double*)calloc(gather_size, sizeof(double));
-
-    if (BIb_C_gather == NULL) {
-        fprintf(stderr, "Error: cannot be assigned memory to BIB_C_gather");
-    }
     
     int send_count = (int)(max_L_size * my_B_size * homo);
 
-    printf("6.2th f m: cp_mpi_allgather_double: comm_rep_size=%d, max_L_size=%d, my_B_size=%d, homo=%d\n",
+    printf("6.3th f m: cp_mpi_allgather_double: comm_rep_size=%d, max_L_size=%d, my_B_size=%d, homo=%d\n",
         comm_rep_size,
         max_L_size,
         my_B_size,
@@ -385,8 +383,6 @@ double* c_replicate_iaK_2intgroup(
     // Allocate new BIb_C: [my_group_L_size][my_B_size][homo]
     size_t new_size = (size_t)my_group_L_size * my_B_size * homo;
     double* BIb_C_new = (double*)calloc(new_size, sizeof(double));
-    printf("6.3th f m: send_count=%d, gather_size=%zu\n", send_count, gather_size);
-    fflush(stdout);
     
     // Reorder data using ranges_info_array
     for (int proc_shift = 0; proc_shift < comm_rep_size; proc_shift++) {
