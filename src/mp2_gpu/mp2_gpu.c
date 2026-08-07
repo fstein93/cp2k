@@ -1254,7 +1254,7 @@ void calc_ri_mp2_energy(
                         // DO a = 1, virtual(ispin)
                         for (int a = 0; a < virtual; a++) {
                             double integral = local_ab[a * my_B_size + b];
-                            if (integral == 0) {
+                            if (integral == 0.0) {
                                 printf("integral part of operation is zero\n");
                                 fflush(stdout);
                             }
