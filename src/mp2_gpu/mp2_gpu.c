@@ -995,9 +995,6 @@ void calc_ri_mp2_energy(
             // Get i, j, and block_size for this pair
             int ij_counter = (ij_index - (color_sub > 0 ? 1 : 0)) * ngroup + color_sub;
             // In real code: get from ij_map
-            // int my_i = ij_map[0 * total_ij_pairs + ij_counter - 1];
-            // int my_j = ij_map[1 * total_ij_pairs + ij_counter - 1];
-            // int my_block_size = ij_map[2 * total_ij_pairs + ij_counter - 1];
             int my_i = ij_map[0 * total_ij_pairs_blocks + ij_counter - 1];
             int my_j = ij_map[1 * total_ij_pairs_blocks + ij_counter - 1];
             int my_block_size = ij_map[2 * total_ij_pairs_blocks + ij_counter - 1];
@@ -1011,7 +1008,19 @@ void calc_ri_mp2_energy(
             int ranges_info_rep_size = comm_rep_size;
 
             fill_local_i_aL(
-                local_j_aL,                   // Destination
+                local_i_aL,                 // Destination
+                dimen_RI,                   // local_aL_L_size
+                my_B_size,                  // local_aL_virtual
+                my_block_size,              // local_aL_block
+                ranges_info_array,          // ranges_info_array
+                ranges_info_rep_size,
+                replicated_BIb_C,           // Source: BIb_C_rec
+                L_size,                     // BIb_C_rec_L_size
+                my_B_size                   // BIb_C_rec_virtual
+            );
+
+            fill_local_i_aL(
+                local_j_aL,                 // Destination
                 dimen_RI,                   // local_aL_L_size
                 my_B_size,                  // local_aL_virtual
                 my_block_size,              // local_aL_block
@@ -1052,7 +1061,8 @@ void calc_ri_mp2_energy(
                     double* BI_C_rec_i = buffer_1D;
                     // BI_C_rec = 0.0_dp memset can work?
                     // === CHECK
-                    memset(BI_C_rec_i, 0, rec_L_size * sizeof(double));
+                    // memset(BI_C_rec_i, 0, rec_L_size * sizeof(double));
+                    memset(BI_C_rec_i, 0, rec_size_i * sizeof(double));
 
                     // CALL comm_exchange%sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + my_block_size - 1), &
                     //                        proc_send, BI_C_rec, proc_receive, tag)
@@ -1298,7 +1308,8 @@ void calc_ri_mp2_energy(
 
                     size_t rec_size_i = (size_t)rec_L_size * my_B_size * my_block_size;
                     double* BI_C_rec_i = buffer_1D;
-                    memset(BI_C_rec_i, 0, rec_L_size * sizeof(double));
+                    // memset(BI_C_rec_i, 0, rec_L_size * sizeof(double));
+                    memset(BI_C_rec_i, 0, rec_size_i * sizeof(double));
 
                     // CALL comm_exchange%sendrecv(BIb_C(ispin)%array(:, :, send_i:send_i + my_block_size - 1), &
                     //                        proc_send, BI_C_rec, proc_receive, tag)
