@@ -1211,6 +1211,21 @@ void calc_ri_mp2_energy(
                     double* my_local_i_aL = &local_i_aL[(size_t)(iiB - 1) * my_B_size * dimen_RI];
                     double* my_local_j_aL = &local_j_aL[(size_t)(jjB - 1) * my_B_size * dimen_RI];
 
+                    printf(
+                        "DEBUG iiB=%d jjB=%d my_i=%d my_j=%d my_block_size=%d my_B_size=%d dimen_RI=%d virtual=%d\n",
+                        iiB,
+                        jjB,
+                        my_i,
+                        my_j,
+                        my_block_size,
+                        my_B_size,
+                        dimen_RI,
+                        virtual
+                    );
+                    printf("DEBUG local_i_aL[0..2] = %g %g %g\n", local_i_aL[0], local_i_aL[1], local_i_aL[2]);
+                    printf("DEBUG local_j_aL[0..2] = %g %g %g\n", local_j_aL[0], local_j_aL[1], local_j_aL[2]);
+                    fflush(stdout);
+
                     gemm_ctx_dgemm(
                         ctx, 'T', 'N',
                         my_B_size, my_B_size, dimen_RI,
@@ -1281,10 +1296,15 @@ void calc_ri_mp2_energy(
                                 eigenval[(my_j + jjB - 0)];
                             my_E_cou -= sym_fac * 2.0 * integral * integral / divi_part;
                         }
-                        printf("integral val: %f\n", integral);
-                        fflush(stdout);
-                        printf("divi_part val: %f\n", divi_part);
-                        fflush(stdout);
+                        
+                        if (integral == 0.0) {
+                            printf("integral val: %f\n", integral);
+                            fflush(stdout);
+                        }
+                        if (divi_part <= 0.0) {
+                            printf("divi_part val error: %f\n", divi_part);
+                            fflush(stdout);
+                        }
                     }
                     offload_timestop();
                 }
