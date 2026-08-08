@@ -1257,7 +1257,7 @@ void calc_ri_mp2_energy(
                 }
             }
     
-        printf("integral val: %f\n", integral);
+        printf("divi_part val: %f\n", divi_part);
         fflush(stdout);
 
         } else {
