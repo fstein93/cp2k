@@ -1002,10 +1002,14 @@ void calc_ri_mp2_energy(
             // fill local_i_aL and local_j_aL
             // call fill_local_i_aL
 
-            int L_size = gd_array_sizes[comm_exchange_rank];
+            // int L_size = gd_array_sizes[comm_exchange_rank];
             // int L_size = gd_array_sizes[color_sub];
+            int L_size = my_group_L_size;
             // const int* ranges_info_array;
             int ranges_info_rep_size = comm_rep_size;
+
+            double* BIb_C_i_offset = &replicated_BIb_C[((size_t)(my_i - 1) * my_B_size) * my_group_L_size];
+            double* BIb_C_j_offset = &replicated_BIb_C[((size_t)(my_j - 1) * my_B_size) * my_group_L_size];
 
             fill_local_i_aL(
                 local_i_aL,                 // Destination
@@ -1014,7 +1018,8 @@ void calc_ri_mp2_energy(
                 my_block_size,              // local_aL_block
                 ranges_info_array,          // ranges_info_array
                 ranges_info_rep_size,
-                replicated_BIb_C,           // Source: BIb_C_rec
+                // replicated_BIb_C,           // Source: BIb_C_rec
+                BIb_C_i_offset,
                 L_size,                     // BIb_C_rec_L_size
                 my_B_size                   // BIb_C_rec_virtual
             );
@@ -1026,7 +1031,8 @@ void calc_ri_mp2_energy(
                 my_block_size,              // local_aL_block
                 ranges_info_array,          // ranges_info_array
                 ranges_info_rep_size,
-                replicated_BIb_C,           // Source: BIb_C_rec
+                // replicated_BIb_C,           // Source: BIb_C_rec
+                BIb_C_j_offset,
                 L_size,                     // BIb_C_rec_L_size
                 my_B_size                   // BIb_C_rec_virtual
             );
@@ -1068,7 +1074,9 @@ void calc_ri_mp2_energy(
                     //                        proc_send, BI_C_rec, proc_receive, tag)
                     size_t send_size_i = (size_t)my_group_L_size * my_B_size * my_block_size;
                     // size_t offser_i = ((size_t)(send_i - 1) * my_B_size[i]);
-                    double* send_buffer_i = &BIb_C[((size_t)(send_i - 1) * my_B_size) * my_group_L_size];
+                    // double* send_buffer_i = &BIb_C[((size_t)(send_i - 1) * my_B_size) * my_group_L_size];
+                    // Using the replicated_BIb_C instead of pure BIb_C
+                    double* send_buffer_i = &replicated_BIb_C[((size_t)(send_i - 1) * my_B_size) * my_group_L_size];
 
                     cp_mpi_sendrecv_double(
                         send_buffer_i,
@@ -1105,7 +1113,8 @@ void calc_ri_mp2_energy(
                     //                        proc_send, BI_C_rec, proc_receive, tag)
                     size_t send_size = (size_t)my_group_L_size * my_B_size * my_block_size;
                     // size_t offser = ((size_t)(send - 1) * my_B_size[j]);
-                    double* send_buffer = &BIb_C[((size_t)(send - 1) * my_B_size) * my_group_L_size];
+                    // double* send_buffer = &BIb_C[((size_t)(send - 1) * my_B_size) * my_group_L_size];
+                    double* send_buffer = &replicated_BIb_C[((size_t)(send - 1) * my_B_size) * my_group_L_size];
 
                     cp_mpi_sendrecv_double(
                         send_buffer,
@@ -1193,8 +1202,8 @@ void calc_ri_mp2_energy(
             offload_timestop();
 
             // loop over the block elements
-            for (int iiB = 1; iiB < my_block_size; iiB++) {
-                for (int jjB = 1; jjB < my_block_size; jjB++) {
+            for (int iiB = 1; iiB <= my_block_size; iiB++) {
+                for (int jjB = 1; jjB <= my_block_size; jjB++) {
                     // ====== EXPASION BLOCK
                     offload_timeset("mp2_ri_gpw_compute_en_RI_expansion\0");
                     memset(local_ab, 0, (size_t)my_B_size * my_B_size * sizeof(double));
@@ -1315,7 +1324,8 @@ void calc_ri_mp2_energy(
                     //                        proc_send, BI_C_rec, proc_receive, tag)
                     size_t send_size_i = (size_t)my_group_L_size * my_B_size * my_block_size;
                     // size_t offser_i = ((size_t)(send_i - 1) * my_B_size[i]);
-                    double* send_buffer_i = &BIb_C[((size_t)(send_i - 1) * my_B_size) * my_group_L_size];
+                    // double* send_buffer_i = &BIb_C[((size_t)(send_i - 1) * my_B_size) * my_group_L_size];
+                    double* send_buffer_i = &replicated_BIb_C[((size_t)(send_i - 1) * my_B_size) * my_group_L_size];
 
                     cp_mpi_send_double(
                         send_buffer_i,
@@ -1335,7 +1345,8 @@ void calc_ri_mp2_energy(
                     //                        proc_send, BI_C_rec, proc_receive, tag)
                     size_t send_size = (size_t)my_group_L_size * my_B_size * my_block_size;
                     // size_t offser = ((size_t)(send - 1) * my_B_size[j]);
-                    double* send_buffer = &BIb_C[((size_t)(send - 1) * my_B_size) * my_group_L_size];
+                    // double* send_buffer = &BIb_C[((size_t)(send - 1) * my_B_size) * my_group_L_size];
+                    double* send_buffer = &replicated_BIb_C[((size_t)(send - 1) * my_B_size) * my_group_L_size];
 
                     cp_mpi_send_double(
                         send_buffer,
