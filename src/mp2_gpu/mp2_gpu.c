@@ -645,9 +645,9 @@ void c_mp2_ri_communication(
                     }
                 }
             }
-            free(ij_marker);
         }
     }
+    free(ij_marker);
 
     if (block_size == 1) {
         printf("RI_INFO| Percentage of ij pairs communicated with block size 1: 100.0\n");
