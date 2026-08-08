@@ -608,8 +608,8 @@ void c_mp2_ri_communication(
     int ij_counter = 0;
     *my_ij_pairs = 0;
 
-    for (int iiB = first_I_block; iiB < last_i_block; iiB += block_size) {
-        for (int jjB = iiB + block_size; jjB < last_J_block; jjB += block_size) {
+    for (int iiB = first_I_block; iiB <= last_i_block; iiB += block_size) {
+        for (int jjB = iiB + block_size; jjB <= last_J_block; jjB += block_size) {
             // exit
             if (ij_counter + 1 > assigned_blocks) {break;}
             ij_counter++;
@@ -630,14 +630,14 @@ void c_mp2_ri_communication(
                 }
             }
 
-            for (int iiB = 1; iiB < homo; iiB++) {
-                for (int jjB = iiB; jjB < homo; jjB++) {
+            for (int fi = 1; fi <= homo; fi++) {
+                for (int fj = fi; fj <= homo; fj++) {
                     // to access: arr[i * cols + j]
                     // 0-based in C-stlr
-                    if (ij_marker[(iiB - 1) * homo + (jjB - 1)]) {
+                    if (ij_marker[(fi - 1) * homo + (fj - 1)]) {
                         ij_counter++;
-                        (*ij_map)[0 * total_ij_pairs_blocks + (ij_counter -1)] = iiB;
-                        (*ij_map)[1 * total_ij_pairs_blocks + (ij_counter -1)] = jjB;
+                        (*ij_map)[0 * total_ij_pairs_blocks + (ij_counter -1)] = fi;
+                        (*ij_map)[1 * total_ij_pairs_blocks + (ij_counter -1)] = fj;
                         (*ij_map)[2 * total_ij_pairs_blocks + (ij_counter -1)] = 1;
                         if ((ij_counter % ngroup) == color_sub) {
                             (*my_ij_pairs)++;
@@ -645,9 +645,10 @@ void c_mp2_ri_communication(
                     }
                 }
             }
-            free(ij_marker);
         }
     }
+
+    free(ij_marker);
 
     if (block_size == 1) {
         printf("RI_INFO| Percentage of ij pairs communicated with block size 1: 100.0\n");
@@ -1292,8 +1293,8 @@ void calc_ri_mp2_energy(
                             divi_part = eigenval[(homo + a)] + 
                                 // Eigenval[(homo + b_global) * nspins + j] -
                                 eigenval[(homo + b_global)] -
-                                eigenval[(my_i + iiB - 0)] -
-                                eigenval[(my_j + jjB - 0)];
+                                eigenval[(my_i + iiB - 2)] -
+                                eigenval[(my_j + jjB - 2)];
                             my_E_cou -= sym_fac * 2.0 * integral * integral / divi_part;
                         }
                         
