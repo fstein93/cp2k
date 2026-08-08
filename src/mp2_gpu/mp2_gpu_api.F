@@ -97,7 +97,7 @@ CONTAINS
             REAL(C_DOUBLE)               :: E_ex
             REAL(C_DOUBLE)               :: E_s
             REAL(C_DOUBLE)               :: E_t
-            TYPE(C_PTR)                  :: BIb_C
+            TYPE(C_PTR), VALUE           :: BIb_C
             REAL(C_DOUBLE), VALUE        :: mp2_memory
             INTEGER(C_INT), VALUE        :: user_block_size
             INTEGER(C_INT), VALUE        :: comm_all
