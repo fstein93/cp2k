@@ -1252,13 +1252,12 @@ void calc_ri_mp2_energy(
                                 eigenval[(my_j + jjB - 1)];
                             my_E_cou -= sym_fac * 2.0 * integral * integral / divi_part;
                         }
+                        printf("divi_part val: %f\n", divi_part);
+                        fflush(stdout);
                     }
                     offload_timestop();
                 }
             }
-    
-        printf("divi_part val: %f\n", divi_part);
-        fflush(stdout);
 
         } else {
             int my_block_size = 1;
