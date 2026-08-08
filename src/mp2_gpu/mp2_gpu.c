@@ -562,7 +562,8 @@ void c_mp2_ri_get_block_size(
 void c_mp2_ri_communication(
     int homo, int block_size, int ngroup, 
     int color_sub, int* total_ij_pairs,
-    int** ij_map, int* my_ij_pairs
+    int** ij_map, int* my_ij_pairs,
+    int* total_ij_pairs_blocks_out
 ){
     // start timer
     offload_timeset("mp2_ri_communication\0");
@@ -654,6 +655,8 @@ void c_mp2_ri_communication(
         double percentage = 100.0 * (double)((*total_ij_pairs - assigned_blocks * (block_size * block_size))) /  (double)(*total_ij_pairs);
         printf("RI_INFO| Percentage of ij pairs communicated with block size 1: %.1f\n", percentage);
     }
+
+    *total_ij_pairs_blocks_out = total_ij_pairs_blocks;
 
     // Stop timer
     offload_timestop();
@@ -938,6 +941,7 @@ void calc_ri_mp2_energy(
     
     // Communication pattern
     int total_ij_pairs = 0;
+    int total_ij_pairs_blocks = 0;
     int* ij_map = NULL;
     int my_ij_pairs = 0;
     
@@ -948,7 +952,8 @@ void calc_ri_mp2_energy(
         color_sub,
         &total_ij_pairs,
         &ij_map,
-        &my_ij_pairs
+        &my_ij_pairs,
+        &total_ij_pairs_blocks
     );
             
     // Gather my_ij_pairs from all processes in exchange communicator
@@ -990,9 +995,12 @@ void calc_ri_mp2_energy(
             // Get i, j, and block_size for this pair
             int ij_counter = (ij_index - (color_sub > 0 ? 1 : 0)) * ngroup + color_sub;
             // In real code: get from ij_map
-            int my_i = ij_map[0 * total_ij_pairs + ij_counter - 1];
-            int my_j = ij_map[1 * total_ij_pairs + ij_counter - 1];
-            int my_block_size = ij_map[2 * total_ij_pairs + ij_counter - 1];
+            // int my_i = ij_map[0 * total_ij_pairs + ij_counter - 1];
+            // int my_j = ij_map[1 * total_ij_pairs + ij_counter - 1];
+            // int my_block_size = ij_map[2 * total_ij_pairs + ij_counter - 1];
+            int my_i = ij_map[0 * total_ij_pairs_blocks + ij_counter - 1];
+            int my_j = ij_map[1 * total_ij_pairs_blocks + ij_counter - 1];
+            int my_block_size = ij_map[2 * total_ij_pairs_blocks + ij_counter - 1];
 
             // fill local_i_aL and local_j_aL
             // call fill_local_i_aL
@@ -1035,8 +1043,10 @@ void calc_ri_mp2_energy(
                 if (ij_index <= send_ij_index) {
                     // Calculate send indices for this ij pair
                     int ij_counter_send = (ij_index - 1) * ngroup + integ_group_pos2color_sub[proc_send];
-                    int send_i = ij_map[0 * total_ij_pairs + ij_counter_send - 1];
-                    int send = ij_map[1 * total_ij_pairs + ij_counter_send - 1];
+                    // int send_i = ij_map[0 * total_ij_pairs + ij_counter_send - 1];
+                    // int send = ij_map[1 * total_ij_pairs + ij_counter_send - 1];
+                    int send_i = ij_map[0 * total_ij_pairs_blocks + ij_counter_send - 1];
+                    int send = ij_map[1 * total_ij_pairs_blocks + ij_counter_send - 1];
 
                     size_t rec_size_i = (size_t)rec_L_size * my_B_size * my_block_size;
                     double* BI_C_rec_i = buffer_1D;
@@ -1276,8 +1286,10 @@ void calc_ri_mp2_energy(
                 if (ij_index <= send_ij_index) {
                     // Calculate send indices for this ij pair
                     int ij_counter_send = (ij_index - 1) * ngroup + integ_group_pos2color_sub[proc_send];
-                    int send_i = ij_map[0 * total_ij_pairs + ij_counter_send - 1];
-                    int send = ij_map[1 * total_ij_pairs + ij_counter_send - 1];
+                    // int send_i = ij_map[0 * total_ij_pairs + ij_counter_send - 1];
+                    // int send = ij_map[1 * total_ij_pairs + ij_counter_send - 1];
+                    int send_i = ij_map[0 * total_ij_pairs_blocks + ij_counter_send - 1];
+                    int send = ij_map[1 * total_ij_pairs_blocks + ij_counter_send - 1];
                     
                     // Occupied i: send and receive data
                     // Fortran BI_C_rec(1:rec_L_size, 1:my_B_size(ispin), 1:my_block_size)
