@@ -1202,8 +1202,8 @@ void calc_ri_mp2_energy(
             offload_timestop();
 
             // loop over the block elements
-            for (int iiB = 1; iiB < my_block_size; iiB++) {
-                for (int jjB = 1; jjB < my_block_size; jjB++) {
+            for (int iiB = 1; iiB <= my_block_size; iiB++) {
+                for (int jjB = 1; jjB <= my_block_size; jjB++) {
                     // ====== EXPASION BLOCK
                     offload_timeset("mp2_ri_gpw_compute_en_RI_expansion\0");
                     memset(local_ab, 0, (size_t)my_B_size * my_B_size * sizeof(double));
