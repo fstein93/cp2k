@@ -1245,8 +1245,6 @@ void calc_ri_mp2_energy(
                         // DO a = 1, virtual(ispin)
                         for (int a = 0; a < virtual; a++) {
                             integral = local_ab[a * my_B_size + b];
-                            printf("integral val: %f", integral);
-                            fflush(stdout);
                             divi_part = eigenval[(homo + a)] + 
                                 // Eigenval[(homo + b_global) * nspins + j] -
                                 eigenval[(homo + b_global)] -
@@ -1258,6 +1256,9 @@ void calc_ri_mp2_energy(
                     offload_timestop();
                 }
             }
+    
+        printf("integral val: %f", integral);
+        fflush(stdout);
 
         } else {
             int my_block_size = 1;
