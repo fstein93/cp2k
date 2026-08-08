@@ -970,6 +970,10 @@ void calc_ri_mp2_energy(
     double* local_j_aL = NULL;
     double* Y_i_aP = NULL;
     double* Y_aP = NULL;
+    double sym_fac;
+    // integral part
+    double integral;
+    double divi_part;
     
     c_mp2_ri_allocate_blk(
         dimen_RI, my_B_size, block_size,
@@ -1232,7 +1236,7 @@ void calc_ri_mp2_energy(
 
                     offload_timeset("mp2_ri_gpw_compute_en_RI_ener\0");
                     // Calculate Coulomb only MP2
-                    double sym_fac = (my_i == my_j) ? 1.0 : 2.0;
+                    sym_fac = (my_i == my_j) ? 1.0 : 2.0;
 
                     // DO b = 1, my_B_size(jspin)
                     for (int b = 0; b < my_B_size; b++) {
@@ -1240,9 +1244,10 @@ void calc_ri_mp2_energy(
 
                         // DO a = 1, virtual(ispin)
                         for (int a = 0; a < virtual; a++) {
-                            double integral = local_ab[a * my_B_size + b];
+                            integral = local_ab[a * my_B_size + b];
                             printf("integral val: %f", integral);
-                            double divi_part = eigenval[(homo + a)] + 
+                            fflush(stdout);
+                            divi_part = eigenval[(homo + a)] + 
                                 // Eigenval[(homo + b_global) * nspins + j] -
                                 eigenval[(homo + b_global)] -
                                 eigenval[(my_i + iiB - 1)] -
