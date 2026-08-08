@@ -1277,10 +1277,12 @@ void calc_ri_mp2_energy(
                             divi_part = eigenval[(homo + a)] + 
                                 // Eigenval[(homo + b_global) * nspins + j] -
                                 eigenval[(homo + b_global)] -
-                                eigenval[(my_i + iiB - 2)] -
-                                eigenval[(my_j + jjB - 2)];
+                                eigenval[(my_i + iiB - 0)] -
+                                eigenval[(my_j + jjB - 0)];
                             my_E_cou -= sym_fac * 2.0 * integral * integral / divi_part;
                         }
+                        printf("integral val: %f\n", integral);
+                        fflush(stdout);
                         printf("divi_part val: %f\n", divi_part);
                         fflush(stdout);
                     }
