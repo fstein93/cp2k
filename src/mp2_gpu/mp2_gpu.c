@@ -989,7 +989,7 @@ void calc_ri_mp2_energy(
     // Handle 2
     offload_timeset("mp2_ri_gpw_compute_en_RI_loop\0");
 
-    for (int ij_index = 1; ij_index < max_ij_pairs; ij_index++) {
+    for (int ij_index = 1; ij_index <= max_ij_pairs; ij_index++) {
 
         if (ij_index <= my_ij_pairs) {
             // Get i, j, and block_size for this pair
