@@ -1257,7 +1257,7 @@ void calc_ri_mp2_energy(
                 }
             }
     
-        printf("integral val: %f", integral);
+        printf("integral val: %f\n", integral);
         fflush(stdout);
 
         } else {
