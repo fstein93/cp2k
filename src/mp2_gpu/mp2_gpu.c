@@ -631,7 +631,7 @@ void c_mp2_ri_communication(
             }
 
             for (int fi = 1; fi <= homo; fi++) {
-                for (int fj = fi; fj <= homo; fj++) {
+                for (int fj = fi; fj < homo; fj++) {
                     // to access: arr[i * cols + j]
                     // 0-based in C-stlr
                     if (ij_marker[(fi - 1) * homo + (fj - 1)]) {
