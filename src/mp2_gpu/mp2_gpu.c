@@ -11,6 +11,7 @@
 #include <stdbool.h>
 #include <stdint.h>
 #include <string.h>
+#include <assert.h>
 
 #include "../mpiwrap/cp_mpi.h"
 #include "gemm_c_api.h"
@@ -973,8 +974,6 @@ void calc_ri_mp2_energy(
     // Allocate block arrays
     double* local_i_aL = NULL;
     double* local_j_aL = NULL;
-    double* Y_i_aP = NULL;
-    double* Y_aP = NULL;
     double sym_fac;
     // integral part
     double integral;
@@ -1057,11 +1056,18 @@ void calc_ri_mp2_energy(
 
                 if (ij_index <= send_ij_index) {
                     // Calculate send indices for this ij pair
-                    int ij_counter_send = (ij_index - 1) * ngroup + integ_group_pos2color_sub[proc_send];
-                    // int send_i = ij_map[0 * total_ij_pairs + ij_counter_send - 1];
-                    // int send = ij_map[1 * total_ij_pairs + ij_counter_send - 1];
+                    int correction_send = (integ_group_pos2color_sub[proc_send] > 0) ? 1 : 0;
+                    // int ij_counter_send = (ij_index - 1) * ngroup + integ_group_pos2color_sub[proc_send];
+                    int ij_counter_send = (ij_index - correction_send) * ngroup + integ_group_pos2color_sub[proc_send];
+
+                    // Assert bounds
+                    assert(ij_counter_send >= 1 && ij_counter_send <- total_ij_pairs_blocks);
+
                     int send_i = ij_map[0 * total_ij_pairs_blocks + ij_counter_send - 1];
-                    int send = ij_map[1 * total_ij_pairs_blocks + ij_counter_send - 1];
+                    int send_j = ij_map[1 * total_ij_pairs_blocks + ij_counter_send - 1];
+
+                    assert(send_i >= 1 && send_i <= homo);
+                    assert(send_j >= 1 && send_j <= homo);
 
                     size_t rec_size_i = (size_t)rec_L_size * my_B_size * my_block_size;
                     double* BI_C_rec_i = buffer_1D;
@@ -1114,7 +1120,7 @@ void calc_ri_mp2_energy(
                     size_t send_size = (size_t)my_group_L_size * my_B_size * my_block_size;
                     // size_t offser = ((size_t)(send - 1) * my_B_size[j]);
                     // double* send_buffer = &BIb_C[((size_t)(send - 1) * my_B_size) * my_group_L_size];
-                    double* send_buffer = &replicated_BIb_C[((size_t)(send - 1) * my_B_size) * my_group_L_size];
+                    double* send_buffer = &replicated_BIb_C[((size_t)(send_j - 1) * my_B_size) * my_group_L_size];
 
                     cp_mpi_sendrecv_double(
                         send_buffer,
@@ -1331,7 +1337,7 @@ void calc_ri_mp2_energy(
                     // int send_i = ij_map[0 * total_ij_pairs + ij_counter_send - 1];
                     // int send = ij_map[1 * total_ij_pairs + ij_counter_send - 1];
                     int send_i = ij_map[0 * total_ij_pairs_blocks + ij_counter_send - 1];
-                    int send = ij_map[1 * total_ij_pairs_blocks + ij_counter_send - 1];
+                    int send_j = ij_map[1 * total_ij_pairs_blocks + ij_counter_send - 1];
                     
                     // Occupied i: send and receive data
                     // Fortran BI_C_rec(1:rec_L_size, 1:my_B_size(ispin), 1:my_block_size)
@@ -1368,8 +1374,8 @@ void calc_ri_mp2_energy(
                     //                        proc_send, BI_C_rec, proc_receive, tag)
                     size_t send_size = (size_t)my_group_L_size * my_B_size * my_block_size;
                     // size_t offser = ((size_t)(send - 1) * my_B_size[j]);
-                    // double* send_buffer = &BIb_C[((size_t)(send - 1) * my_B_size) * my_group_L_size];
-                    double* send_buffer = &replicated_BIb_C[((size_t)(send - 1) * my_B_size) * my_group_L_size];
+                    // double* send_buffer = &BIb_C[((size_t)(send_j - 1) * my_B_size) * my_group_L_size];
+                    double* send_buffer = &replicated_BIb_C[((size_t)(send_j - 1) * my_B_size) * my_group_L_size];
 
                     cp_mpi_send_double(
                         send_buffer,
@@ -1394,8 +1400,6 @@ void calc_ri_mp2_energy(
     free(num_ij_pairs);
     free(local_i_aL);
     free(local_j_aL);
-    if (Y_i_aP) free(Y_i_aP);
-    if (Y_aP) free(Y_aP);
 
     free(ranges_info_array);
     free(integ_group_pos2color_sub);
