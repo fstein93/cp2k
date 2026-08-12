@@ -93,7 +93,7 @@ CONTAINS
             maxsize_gd_array, &
             maxsize_gd_B_virtual, &
             maxval_gd_B_virtual, &
-            calc_ex)
+            calc_ex_c)
             IMPORT :: C_DOUBLE, C_INT, C_BOOL, C_PTR
             BIND(C, name="calc_ri_mp2_energy")
             REAL(C_DOUBLE)               :: E_cou
