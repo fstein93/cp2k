@@ -1289,8 +1289,8 @@ void calc_ri_mp2_energy(
                     offload_timeset("mp2_ri_gpw_compute_en_RI_ener\0");
                     // Calculate Coulomb only MP2
                     sym_fac = (my_i == my_j) ? 1.0 : 2.0;
-                    printf("Forense mark sym_fac: %g\n", sym_fac);
-                    fflush(stdout);
+                    // printf("Forense mark sym_fac: %g\n", sym_fac);
+                    // fflush(stdout);
 
                     // DO b = 1, my_B_size(jspin)
                     for (int b = 0; b < my_B_size; b++) {
