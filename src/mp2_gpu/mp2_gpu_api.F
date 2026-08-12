@@ -117,7 +117,7 @@ CONTAINS
             INTEGER(C_INT), VALUE        :: maxsize_gd_array
             INTEGER(C_INT), VALUE        :: maxsize_gd_B_virtual
             INTEGER(C_INT), VALUE        :: maxval_gd_B_virtual
-            LOGICAL(C_BOOL), VALUE       :: calc_ex
+            LOGICAL(C_BOOL), VALUE       :: calc_ex_c
          END SUBROUTINE calc_ri_mp2_energy_c
       END INTERFACE
 
@@ -134,6 +134,8 @@ CONTAINS
       maxsize_gd_array = maxsize(gd_array)
       maxsize_gd_B_virtual = maxsize(gd_B_virtual)
       maxval_gd_B_virtual = maxsize_gd_B_virtual
+
+      calc_ex_c = calc_ex
 
       ! === KEEP ONLY _j FAMILY VARS ===============
       CALL calc_ri_mp2_energy_c( &
@@ -158,7 +160,7 @@ CONTAINS
          maxsize_gd_array, &
          maxsize_gd_B_virtual, &
          maxval_gd_B_virtual, &
-         calc_ex)
+         calc_ex_c)
       ! NULLIFY(BIb_C)
 
    END SUBROUTINE calc_ri_mp2_energy
