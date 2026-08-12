@@ -998,10 +998,6 @@ void calc_ri_mp2_energy(
             int my_i = ij_map[0 * total_ij_pairs_blocks + ij_counter - 1];
             int my_j = ij_map[1 * total_ij_pairs_blocks + ij_counter - 1];
             int my_block_size = ij_map[2 * total_ij_pairs_blocks + ij_counter - 1];
-            
-            assert(ij_map[0 * total_ij_pairs_blocks + ij_counter - 1] == 0);
-            assert(ij_map[1 * total_ij_pairs_blocks + ij_counter - 1] == 0);
-            assert(ij_map[2 * total_ij_pairs_blocks + ij_counter - 1] == 0);
 
             // fill local_i_aL and local_j_aL
             // call fill_local_i_aL
@@ -1292,7 +1288,7 @@ void calc_ri_mp2_energy(
 
                     offload_timeset("mp2_ri_gpw_compute_en_RI_ener\0");
                     // Calculate Coulomb only MP2
-                    sym_fac = (my_i == my_j) ? 1.0 : 2.0;
+                    // sym_fac = (my_i == my_j) ? 1.0 : 2.0;
                     // printf("Forense mark sym_fac: %g\n", sym_fac);
                     // fflush(stdout);
 
