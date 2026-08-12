@@ -70,6 +70,7 @@ CONTAINS
       REAL(C_DOUBLE)  :: mp2_memory
       INTEGER(C_INT)  :: user_block_size
 
+
       INTERFACE
          SUBROUTINE calc_ri_mp2_energy_c( &
             E_cou, &
