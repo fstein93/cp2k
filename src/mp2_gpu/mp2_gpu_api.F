@@ -69,6 +69,7 @@ CONTAINS
       ! TARGET          :: gd_B_virtual_sizes(:)
       REAL(C_DOUBLE)  :: mp2_memory
       INTEGER(C_INT)  :: user_block_size
+      LOGICAL(C_BOOL) :: calc_ex_c
 
 
       INTERFACE
