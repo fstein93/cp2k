@@ -764,7 +764,8 @@ void calc_ri_mp2_energy(
     int dimen_RI,
     int maxsize_gd_array,
     int maxsize_gd_B_virtual,
-    int maxval_gd_B_virtual
+    int maxval_gd_B_virtual,
+    bool calc_ex
 ) {
     const cp_mpi_comm_t comm_all = cp_mpi_comm_f2c(comm_all_f);
     const cp_mpi_comm_t comm_sub = cp_mpi_comm_f2c(comm_sub_f);
@@ -1313,6 +1314,67 @@ void calc_ri_mp2_energy(
                             fflush(stdout);
                         }
                     }
+                    if (calc_ex) {
+                        for (int b = 0; b < my_B_size; b++) {
+                            int b_global = b + my_B_virtual_start - 1;
+                            for (int a = 0; a < my_B_size; a++) {
+                                int a_global = a + my_B_virtual_start - 1;
+                                double denom = eigenval[(homo + a_global)] +
+                                               eigenval[(homo + b_global)] -
+                                               eigenval[(my_i + iiB - 2)] -
+                                               eigenval[(my_j + jjB - 2)];
+                                my_E_ex += sym_fac * local_ab[a_global * my_B_size + b] *
+                                           local_ab[b_global * my_B_size + a] / denom;
+                            }
+                        }
+
+                        // External contribution: exchange local_ab slices with other ranks in the subgroup.
+                        for (int proc_shift = 1; proc_shift < para_env_sub_size; proc_shift++) {
+                            int proc_send = (para_env_sub_rank + proc_shift) % para_env_sub_size;
+                            int proc_receive = (para_env_sub_rank - proc_shift + para_env_sub_size) % para_env_sub_size;
+
+                            int rec_B_virtual_start_ex = gd_B_virtual_start[proc_receive];
+                            int rec_B_virtual_end_ex = gd_B_virtual_end[proc_receive];
+                            int rec_B_size_ex = rec_B_virtual_end_ex - rec_B_virtual_start_ex + 1;
+
+                            int send_B_virtual_start_ex = gd_B_virtual_start[proc_send];
+                            int send_B_virtual_end_ex = gd_B_virtual_end[proc_send];
+
+                            size_t ext_ab_size = (size_t)my_B_size * rec_B_size_ex;
+                            double* external_ab = buffer_1D;
+                            // assert(ext_ab_size <= (size_t)buffer_size); should I need returned buffer_size from c_mp2_ri_get_block_size?
+                            memset(external_ab, 0, ext_ab_size * sizeof(double));
+
+                            // Send local_ab(send_B_virtual_start:send_B_virtual_end, 1:my_B_size) to proc_send,
+                            // receive into external_ab(1:my_B_size, 1:rec_B_size) from proc_receive.
+                            size_t send_ab_size = (size_t)(send_B_virtual_end_ex - send_B_virtual_start_ex + 1) * my_B_size;
+                            cp_mpi_sendrecv_double(
+                                &local_ab[(send_B_virtual_start_ex - 1) * my_B_size],
+                                (int)send_ab_size,
+                                proc_send,
+                                tag,
+                                external_ab,
+                                (int)ext_ab_size,
+                                proc_receive,
+                                tag,
+                                comm_sub
+                            );
+
+                            for (int b = 0; b < my_B_size; b++) {
+                                int b_global = b + my_B_virtual_start - 1;
+                                for (int a = 0; a < rec_B_size_ex; a++) {
+                                    int a_global = a + rec_B_virtual_start_ex - 1;
+                                    double denom = eigenval[(homo + a_global)] +
+                                                   eigenval[(homo + b_global)] -
+                                                   eigenval[(my_i + iiB - 2)] -
+                                                   eigenval[(my_j + jjB - 2)];
+                                    // external_ab is laid out (my_B_size, rec_B_size) -> row-major [b][a]
+                                    my_E_ex += sym_fac * local_ab[a_global * my_B_size + b] *
+                                               external_ab[b * rec_B_size_ex + a] / denom;
+                                }
+                            }
+                        }
+                    }
                     offload_timestop();
                 }
             }
@@ -1445,7 +1507,8 @@ void calc_ri_mp2_energy_c_(
     int dimen_RI,
     int maxsize_gd_array,
     int maxsize_gd_B_virtual,
-    int maxval_gd_B_virtual
+    int maxval_gd_B_virtual,
+    bool calc_ex
 ) {
     // Just forward to the main function
     calc_ri_mp2_energy(
@@ -1469,6 +1532,7 @@ void calc_ri_mp2_energy_c_(
         dimen_RI,
         maxsize_gd_array,
         maxsize_gd_B_virtual,
-        maxval_gd_B_virtual
+        maxval_gd_B_virtual,
+        calc_ex
     );
 }

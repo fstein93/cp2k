@@ -35,7 +35,8 @@ CONTAINS
       mp2_env, &
       gd_array, &
       gd_B_virtual, &
-      color_sub)
+      color_sub, &
+      calc_ex)
       REAL(KIND=dp), INTENT(OUT)                         :: E_cou
       REAL(KIND=dp), INTENT(OUT)                         :: E_ex
       REAL(KIND=dp), INTENT(OUT)                         :: E_s
@@ -57,6 +58,7 @@ CONTAINS
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_array
       TYPE(group_dist_d1_type), INTENT(IN)               :: gd_B_virtual
       INTEGER, INTENT(IN)                                :: color_sub
+      LOGICAL, INTENT(IN)                                :: calc_ex
 
       INTEGER(C_INT)  :: comm_all_handle
       INTEGER(C_INT)  :: comm_sub_handle
@@ -90,7 +92,8 @@ CONTAINS
             dimen_RI, &
             maxsize_gd_array, &
             maxsize_gd_B_virtual, &
-            maxval_gd_B_virtual)
+            maxval_gd_B_virtual, &
+            calc_ex)
             IMPORT :: C_DOUBLE, C_INT, C_BOOL, C_PTR
             BIND(C, name="calc_ri_mp2_energy")
             REAL(C_DOUBLE)               :: E_cou
@@ -114,6 +117,7 @@ CONTAINS
             INTEGER(C_INT), VALUE        :: maxsize_gd_array
             INTEGER(C_INT), VALUE        :: maxsize_gd_B_virtual
             INTEGER(C_INT), VALUE        :: maxval_gd_B_virtual
+            LOGICAL(C_BOOL), VALUE       :: calc_ex
          END SUBROUTINE calc_ri_mp2_energy_c
       END INTERFACE
 
@@ -153,7 +157,8 @@ CONTAINS
          dimen_RI, &
          maxsize_gd_array, &
          maxsize_gd_B_virtual, &
-         maxval_gd_B_virtual)
+         maxval_gd_B_virtual, &
+         calc_ex)
       ! NULLIFY(BIb_C)
 
    END SUBROUTINE calc_ri_mp2_energy

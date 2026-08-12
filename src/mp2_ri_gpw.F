@@ -163,7 +163,8 @@ CONTAINS
             mp2_env, &
             gd_array, &
             gd_B_virtual(1), &
-            color_sub)
+            color_sub, &
+            calc_ex)
          CALL timestop(handle)
          RETURN
       END IF
