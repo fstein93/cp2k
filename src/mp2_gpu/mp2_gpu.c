@@ -996,7 +996,7 @@ void calc_ri_mp2_energy(
             int ij_counter = (ij_index - (color_sub > 0 ? 1 : 0)) * ngroup + color_sub;
             // In real code: get from ij_map
             int my_i = ij_map[0 * total_ij_pairs_blocks + ij_counter - 1];
-            assert((0 * total_ij_pairs_blocks + ij_counter) == 0);
+            assert(ij_map[0 * total_ij_pairs_blocks + ij_counter] == 0);
             int my_j = ij_map[1 * total_ij_pairs_blocks + ij_counter - 1];
             int my_block_size = ij_map[2 * total_ij_pairs_blocks + ij_counter - 1];
 
