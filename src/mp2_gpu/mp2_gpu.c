@@ -1318,7 +1318,8 @@ void calc_ri_mp2_energy(
                     if (calc_ex) {
                         for (int b = 0; b < my_B_size; b++) {
                             // assert((b + 1) == my_B_size);
-                            int b_global = b + my_B_virtual_start - 1;
+                            // int b_global = b + my_B_virtual_start - 1;
+                            int b_global = b + my_B_virtual_start;
                             for (int a = 0; a < my_B_size; a++) {
                                 int a_global = a + my_B_virtual_start - 1;
                                 double denom = eigenval[(homo + a_global)] +
