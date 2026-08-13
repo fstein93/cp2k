@@ -617,9 +617,9 @@ void c_mp2_ri_communication(
 
             // ij_marker(iiB:iiB + block_size - 1, jjB:jjB + block_size - 1) = .FALSE.
             // i = iiB - 1 (index 0 in C)
-            for (int i = iiB; i < iiB + block_size - 1; i++) {
+            for (int i = iiB; i <= iiB + block_size - 1; i++) {
                 // j = jjB - 1 (index 0 in C)
-                for (int j = jjB; j < jjB + block_size - 1; j++) {
+                for (int j = jjB; j <= jjB + block_size - 1; j++) {
                     ij_marker[i * homo + j] = false;
                 }
 
