@@ -604,6 +604,7 @@ void c_mp2_ri_communication(
 
     // ALLOCATE (ij_map(3, total_ij_pairs_blocks))
     // ij_map = 0
+    // ======== FOLLOW THIS VAR AND DO-LOOPS RELATED
     *ij_map = (int*)calloc(3 * total_ij_pairs_blocks, sizeof(int));
 
     int ij_counter = 0;
@@ -622,13 +623,13 @@ void c_mp2_ri_communication(
                 for (int j = jjB; j <= jjB + block_size - 1; j++) {
                     ij_marker[i * homo + j] = false;
                 }
+            }
 
-                (*ij_map)[0 * total_ij_pairs_blocks + (ij_counter - 1)] = iiB;
-                (*ij_map)[1 * total_ij_pairs_blocks + (ij_counter - 1)] = jjB;
-                (*ij_map)[2 * total_ij_pairs_blocks + (ij_counter - 1)] = block_size;
-                if ((ij_block_counter % ngroup) == color_sub) {
-                    (*my_ij_pairs)++;
-                }
+            (*ij_map)[0 * total_ij_pairs_blocks + (ij_counter - 1)] = iiB;
+            (*ij_map)[1 * total_ij_pairs_blocks + (ij_counter - 1)] = jjB;
+            (*ij_map)[2 * total_ij_pairs_blocks + (ij_counter - 1)] = block_size;
+            if ((ij_block_counter % ngroup) == color_sub) {
+                (*my_ij_pairs)++;
             }
 
         }
