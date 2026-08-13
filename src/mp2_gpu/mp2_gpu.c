@@ -631,6 +631,8 @@ void c_mp2_ri_communication(
                 }
             }
 
+            printf("homo inside communication: %g", homo);
+            fflush(stdout);
             for (int fi = 1; fi < homo; fi++) {
                 for (int fj = fi; fj < homo; fj++) {
                     // to access: arr[i * cols + j]
