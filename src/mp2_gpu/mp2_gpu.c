@@ -628,23 +628,22 @@ void c_mp2_ri_communication(
             (*ij_map)[0 * total_ij_pairs_blocks + (ij_counter - 1)] = iiB;
             (*ij_map)[1 * total_ij_pairs_blocks + (ij_counter - 1)] = jjB;
             (*ij_map)[2 * total_ij_pairs_blocks + (ij_counter - 1)] = block_size;
-            if ((ij_block_counter % ngroup) == color_sub) {
+            if ((ij_counter % ngroup) == color_sub) {
                 (*my_ij_pairs)++;
             }
 
         }
     }
-    // printf("homo inside communication: %g", homo);
-    // fflush(stdout);
+
     for (int iiB = 1; iiB <= homo; iiB++) {
         for (int jjB = iiB; jjB <= homo; jjB++) {
             // to access: arr[i * cols + j]
             // 0-based in C-stlr
             if (ij_marker[(iiB - 1) * homo + (jjB - 1)]) {
                 ij_counter++;
-                (*ij_map)[0 * total_ij_pairs_blocks + (ij_counter -1)] = iiB;
-                (*ij_map)[1 * total_ij_pairs_blocks + (ij_counter -1)] = jjB;
-                (*ij_map)[2 * total_ij_pairs_blocks + (ij_counter -1)] = 1;
+                (*ij_map)[0 * total_ij_pairs_blocks + (ij_counter - 1)] = iiB;
+                (*ij_map)[1 * total_ij_pairs_blocks + (ij_counter - 1)] = jjB;
+                (*ij_map)[2 * total_ij_pairs_blocks + (ij_counter - 1)] = 1;
                 if ((ij_counter % ngroup) == color_sub) {
                     (*my_ij_pairs)++;
                 }
