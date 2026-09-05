@@ -139,7 +139,7 @@ void ensure_memory_sizes(const size_t requested_buffer_size,
 void fft_gpu_allocate_double(const int length, double **buffer) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   assert(is_initialized);
-  offload_host_malloc(buffer, length * sizeof(double));
+  offload_host_malloc((void **)buffer, length * sizeof(double));
 #else
   assert(0 && "FFT backend was compiled without GPU support!");
   (void)length;
@@ -154,7 +154,7 @@ void fft_gpu_allocate_double(const int length, double **buffer) {
 void fft_gpu_allocate_complex(const int length, double complex **buffer) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   assert(is_initialized);
-  offload_host_malloc(buffer, length * sizeof(double complex));
+  offload_host_malloc((void **)buffer, length * sizeof(double complex));
 #else
   assert(0 && "FFT backend was compiled without GPU support!");
   (void)length;

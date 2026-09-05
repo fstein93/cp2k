@@ -95,7 +95,7 @@ typedef struct {
   // redistribution object
   fft_redistribution_t *redistribution;
   // Buffers for FFTs
-  int buffer_size;
+  size_t buffer_size;
 } fft_grid_layout;
 
 /*******************************************************************************
