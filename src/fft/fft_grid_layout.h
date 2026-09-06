@@ -49,7 +49,7 @@ typedef struct {
   int npts_global_gspace[3];
   double cutoff;
   // Number of local points in g-space (relevant with ray-distribution)
-  size_t npts_gs_local;
+  int npts_gs_local;
   bool ray_distribution;
   int (*ray_to_xy)[2];
   int *xy_to_ray;

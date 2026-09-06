@@ -320,7 +320,7 @@ static void run_test_ray_r2c(const int fft_size[3], const int number_of_runs,
   }
 }
 
-void run_tests(const bool debug, const int backend, const int planning_mode,
+void run_perftests(const bool debug, const int backend, const int planning_mode,
                const bool use_mpi, const bool use_guru,
                const double threshold) {
   fft_finalize_timer();
@@ -429,20 +429,20 @@ int main(int argc, char *argv[]) {
   const double threshold = 0.01;
 
   // Test with Guru and MPI backend turned on
-  run_tests(debug, backend, planning_mode, true, true, threshold);
+  run_perftests(debug, backend, planning_mode, true, true, threshold);
 
   // Test without distributed FFTW but with Guru interface
   if (fft_lib_use_mpi()) {
-    run_tests(debug, backend, planning_mode, false, true, threshold);
+    run_perftests(debug, backend, planning_mode, false, true, threshold);
   }
 
   if (fft_lib_has_guru_interface()) {
     // Now, test with MPI but without Guru interface
-    run_tests(debug, backend, planning_mode, true, false, threshold);
+    run_perftests(debug, backend, planning_mode, true, false, threshold);
 
     // Test without MPI and without Guru interface
     if (fft_lib_use_mpi()) {
-      run_tests(debug, backend, planning_mode, false, false, threshold);
+      run_perftests(debug, backend, planning_mode, false, false, threshold);
     }
   }
 

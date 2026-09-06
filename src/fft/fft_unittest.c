@@ -17,7 +17,7 @@
 #include "fft_redistribution_test.h"
 #include "fft_timer.h"
 
-int run_tests(const bool debug, const int backend, const int planning_mode,
+int run_unittests(const bool debug, const int backend, const int planning_mode,
               const bool use_mpi, const bool use_guru, const double threshold) {
   int errors = 0;
   fft_finalize_timer();
@@ -48,22 +48,22 @@ int main(int argc, char *argv[]) {
   const int backend = FFT_LIB_FFTW;
   const int planning_mode = FFT_MEASURE;
 
-  int errors = run_tests(debug, backend, planning_mode, true, true, 0.01);
+  int errors = run_unittests(debug, backend, planning_mode, true, true, 0.01);
 
   // Test also the reference backend and without distributed FFTs from the
   // library
   if (fft_lib_use_mpi()) {
-    errors += run_tests(debug, backend, planning_mode, false, true, 0.01);
+    errors += run_unittests(debug, backend, planning_mode, false, true, 0.01);
   }
 
   if (fft_lib_has_guru_interface()) {
 
-    int errors = run_tests(debug, backend, planning_mode, true, false, 0.01);
+    int errors = run_unittests(debug, backend, planning_mode, true, false, 0.01);
 
     // Test also the reference backend and without distributed FFTs from the
     // library
     if (fft_lib_use_mpi()) {
-      errors += run_tests(debug, backend, planning_mode, false, false, 0.01);
+      errors += run_unittests(debug, backend, planning_mode, false, false, 0.01);
     }
   }
 

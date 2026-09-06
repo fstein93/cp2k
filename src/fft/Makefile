@@ -5,24 +5,25 @@ all: fft_unittest.x fft_perftest.x
 clean:
 	rm -fv *.o */*.o *.x ../offload/*.o
 
-CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra -Wno-vla-parameter
-NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD_CUDA
-LIBS := -lm -lblas
+CFLAGS := -fopenmp -g -O3 -march=native -Wall -Wextra -Wno-vla-parameter -D__FFTW3 -D__FFTW3_MPI -I${FFTW3_ROOT}/include -L${FFTW3_ROOT}/lib -I${OPENBLAS_ROOT}/include -L${OPENBLAS_ROOT}/lib
+NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD
+LIBS := -lfftw3_mpi -lfftw3 -lfftw3_omp -lm -lopenblas
 
-ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h")
-ALL_OBJECTS := ../offload/offload_buffer.o \
+ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h") $(shell find ../mpiwrap/ -name "*.h")
+ALL_OBJECTS := ../offload/offload_mempool.o \
+        ../offload/offload_buffer.o \
         ../offload/offload_library.o \
-        fft_perftest.o \
-        fft_redistribution.o \
-        fft_redistribution_test.o \
-        fft_grid_test.o \
-        fft_grid.o \
-        fft_grid_layout.o \
-        fft_lib.o \
-        fft_lib_fftw.o \
-        fft_lib_test.o \
+        ../mpiwrap/cp_mpi.o \
+        gpu/fft_gpu.o \
         fft_timer.o \
-        ../mpiwrap/cp_mpi.o
+        fft_lib_fftw.o \
+        fft_lib.o \
+        fft_redistribution.o \
+        fft_driver.o \
+        fft_grid_layout.o \
+        fft_lib_test.o \
+        fft_redistribution_test.o \
+        fft_grid_test.o
 
 # Enable Cuda when nvcc compiler is present.
 NVCC := $(shell which nvcc)
@@ -37,10 +38,10 @@ endif
 %.o: %.c $(ALL_HEADERS)
 	cd $(dir $<); $(CC) -c -std=c11 $(CFLAGS) $(notdir $<)
 
-fft_unittest.x: fft_unittest.o $(ALL_OBJECTS)
+fft_unittest.x: fft_unittest.c $(ALL_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
-fft_perftest.x: fft_perftest.o $(ALL_OBJECTS)
+fft_perftest.x: fft_perftest.c $(ALL_OBJECTS)
 	$(CC) $(CFLAGS) -o $@ $^ $(LIBS)
 
 #EOF

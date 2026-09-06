@@ -896,7 +896,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
   }
 
   my_fft_grid->local_index_to_ref_grid =
-      calloc(my_fft_grid->npts_gs_local, sizeof(int));
+      calloc((size_t)my_fft_grid->npts_gs_local, sizeof(int));
   for (int index = 0; index < my_fft_grid->npts_gs_local; index++) {
     my_fft_grid->local_index_to_ref_grid[index] = index;
   }
