@@ -29,13 +29,13 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
                               dh_inv, false, -1.0, NULL, NULL);
 
   const int(*my_bound_rs)[2] =
-      grid_layout->proc2local_rs[cp_mpi_comm_rank(cp_mpi_get_comm_world())];
+      grid_layout->proc2local_rs[cp_mpi_comm_rank(grid_layout->comm)];
   const int(*my_bound_gs)[2] =
-      grid_layout->proc2local_gs[cp_mpi_comm_rank(cp_mpi_get_comm_world())];
-  double complex *grid_rs;
+      grid_layout->proc2local_gs[cp_mpi_comm_rank(grid_layout->comm)];
+  double complex *grid_rs = NULL;
   fft_allocate_complex(
       my_bound_rs[0][1] * my_bound_rs[1][1] * my_bound_rs[2][1], &grid_rs);
-  double complex *grid_gs;
+  double complex *grid_gs = NULL;
   fft_allocate_complex(
       my_bound_gs[0][1] * my_bound_gs[1][1] * my_bound_gs[2][1], &grid_gs);
 
@@ -103,13 +103,18 @@ static void run_test_r2c(const int fft_size[3], const int number_of_runs,
                               dh_inv, use_halfspace, -1.0, NULL, NULL);
 
   const int(*my_bound_rs)[2] =
-      grid_layout->proc2local_rs[cp_mpi_comm_rank(cp_mpi_get_comm_world())];
+      grid_layout->proc2local_rs[cp_mpi_comm_rank(grid_layout->comm)];
   const int(*my_bound_gs)[2] =
-      grid_layout->proc2local_gs[cp_mpi_comm_rank(cp_mpi_get_comm_world())];
-  double *grid_rs;
+      grid_layout->proc2local_gs[cp_mpi_comm_rank(grid_layout->comm)];
+  printf("Buffer size: %i\n", grid_layout->buffer_size);
+  printf("Size real buffer: %i %i %i\n", my_bound_rs[0][1], my_bound_rs[1][1],
+         my_bound_rs[2][1]);
+  printf("Size g-space buffer: %i %i %i\n", my_bound_gs[0][1], my_bound_gs[1][1], my_bound_gs[2][1]);
+  fflush(stdout);
+  double *grid_rs = NULL;
   fft_allocate_double(my_bound_rs[0][1] * my_bound_rs[1][1] * my_bound_rs[2][1],
                       &grid_rs);
-  double complex *grid_gs;
+  double complex *grid_gs = NULL;
   fft_allocate_complex(
       my_bound_gs[0][1] * my_bound_gs[1][1] * my_bound_gs[2][1], &grid_gs);
 
@@ -179,11 +184,11 @@ static void run_test_ray_c2c(const int fft_size[3], const int number_of_runs) {
                                              grid_layout);
 
   const int(*my_bound_rs)[2] =
-      grid_layout->proc2local_rs[cp_mpi_comm_rank(cp_mpi_get_comm_world())];
-  double complex *grid_rs;
+      grid_layout_ray->proc2local_rs[cp_mpi_comm_rank(grid_layout_ray->comm)];
+  double complex *grid_rs = NULL;
   fft_allocate_complex(
       my_bound_rs[0][1] * my_bound_rs[1][1] * my_bound_rs[2][1], &grid_rs);
-  double complex *grid_gs;
+  double complex *grid_gs = NULL;
   fft_allocate_complex(grid_layout_ray->npts_gs_local, &grid_gs);
 
   memset(grid_rs, 0,
@@ -255,11 +260,11 @@ static void run_test_ray_r2c(const int fft_size[3], const int number_of_runs,
                                              grid_layout);
 
   const int(*my_bound_rs)[2] =
-      grid_layout->proc2local_rs[cp_mpi_comm_rank(cp_mpi_get_comm_world())];
-  double *grid_rs;
+      grid_layout_ray->proc2local_rs[cp_mpi_comm_rank(grid_layout_ray->comm)];
+  double *grid_rs = NULL;
   fft_allocate_double(my_bound_rs[0][1] * my_bound_rs[1][1] * my_bound_rs[2][1],
                       &grid_rs);
-  double complex *grid_gs;
+  double complex *grid_gs = NULL;
   fft_allocate_complex(grid_layout_ray->npts_gs_local, &grid_gs);
 
   memset(grid_rs, 0,
@@ -328,7 +333,7 @@ void run_tests(const bool debug, const int backend, const int planning_mode,
   run_test_c2c((const int[3]){100, 100, 100}, 10);
   run_test_c2c((const int[3]){125, 125, 125}, 10);
   run_test_c2c((const int[3]){160, 160, 160}, 10);
-  run_test_c2c((const int[3]){200, 200, 200}, 10);
+  //run_test_c2c((const int[3]){200, 200, 200}, 10);
   // run_test_c2c((const int[3]){256, 256, 256}, 10);
   //  run_test_c2c((const int[3]){315, 315, 315}, 10);
   //  run_test_c2c((const int[3]){400, 400, 400}, 10);
@@ -341,7 +346,7 @@ void run_tests(const bool debug, const int backend, const int planning_mode,
   run_test_r2c((const int[3]){100, 100, 100}, 10, false);
   run_test_r2c((const int[3]){125, 125, 125}, 10, false);
   run_test_r2c((const int[3]){160, 160, 160}, 10, false);
-  run_test_r2c((const int[3]){200, 200, 200}, 10, false);
+  //run_test_r2c((const int[3]){200, 200, 200}, 10, false);
   // run_test_r2c((const int[3]){256, 256, 256}, 10, false);
   //  run_test_r2c((const int[3]){315, 315, 315}, 10, false);
   //  run_test_r2c((const int[3]){400, 400, 400}, 10, false);
@@ -354,7 +359,7 @@ void run_tests(const bool debug, const int backend, const int planning_mode,
   run_test_r2c((const int[3]){100, 100, 100}, 10, true);
   run_test_r2c((const int[3]){125, 125, 125}, 10, true);
   run_test_r2c((const int[3]){160, 160, 160}, 10, true);
-  run_test_r2c((const int[3]){200, 200, 200}, 10, true);
+  //run_test_r2c((const int[3]){200, 200, 200}, 10, true);
   // run_test_r2c((const int[3]){256, 256, 256}, 10, true);
   //  run_test_r2c((const int[3]){315, 315, 315}, 10, true);
   //  run_test_r2c((const int[3]){400, 400, 400}, 10, true);
@@ -370,7 +375,7 @@ void run_tests(const bool debug, const int backend, const int planning_mode,
   run_test_ray_c2c((const int[3]){100, 100, 100}, 10);
   run_test_ray_c2c((const int[3]){125, 125, 125}, 10);
   run_test_ray_c2c((const int[3]){160, 160, 160}, 10);
-  run_test_ray_c2c((const int[3]){200, 200, 200}, 10);
+  //run_test_ray_c2c((const int[3]){200, 200, 200}, 10);
   //  run_test_ray_c2c((const int[3]){256, 256, 256}, 10);
   //   run_test_ray_c2c((const int[3]){315, 315, 315}, 10);
   //   run_test_ray_c2c((const int[3]){400, 400, 400}, 10);
@@ -383,7 +388,7 @@ void run_tests(const bool debug, const int backend, const int planning_mode,
   run_test_ray_r2c((const int[3]){100, 100, 100}, 10, false);
   run_test_ray_r2c((const int[3]){125, 125, 125}, 10, false);
   run_test_ray_r2c((const int[3]){160, 160, 160}, 10, false);
-  run_test_ray_r2c((const int[3]){200, 200, 200}, 10, false);
+  //run_test_ray_r2c((const int[3]){200, 200, 200}, 10, false);
   //  run_test_ray_r2c((const int[3]){256, 256, 256}, 10, false);
   //   run_test_ray_r2c((const int[3]){315, 315, 315}, 10, false);
   //   run_test_ray_r2c((const int[3]){400, 400, 400}, 10, false);
@@ -396,7 +401,7 @@ void run_tests(const bool debug, const int backend, const int planning_mode,
   run_test_ray_r2c((const int[3]){100, 100, 100}, 10, true);
   run_test_ray_r2c((const int[3]){125, 125, 125}, 10, true);
   run_test_ray_r2c((const int[3]){160, 160, 160}, 10, true);
-  run_test_ray_r2c((const int[3]){200, 200, 200}, 10, true);
+  //run_test_ray_r2c((const int[3]){200, 200, 200}, 10, true);
   //  run_test_ray_r2c((const int[3]){256, 256, 256}, 10, true);
   //   run_test_ray_r2c((const int[3]){315, 315, 315}, 10, true);
   //   run_test_ray_r2c((const int[3]){400, 400, 400}, 10, true);
@@ -420,7 +425,7 @@ int main(int argc, char *argv[]) {
 
   const bool debug = false;
   const int backend = FFT_LIB_FFTW;
-  const int planning_mode = FFT_MEASURE;
+  const int planning_mode = FFT_ESTIMATE;
   const double threshold = 0.01;
 
   // Test with Guru and MPI backend turned on

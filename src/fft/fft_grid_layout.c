@@ -1544,7 +1544,7 @@ void fft_3d_fw_r2c_with_layout_to_cart(const double *restrict grid_rs,
         grid_layout->proc2local_x_gs, grid_layout->proc2local_y_gs,
         grid_layout->redistribution, grid_layout->comm, grid_layout->sub_comm);
   } else {
-    fft_3d_fw_blocked((const double complex *)grid_rs, true, grid_gs, NULL, 0,
+    fft_3d_fw_blocked((const double complex *)grid_rs, false, grid_gs, NULL, 0,
                       grid_layout->npts_global, grid_layout->proc2local_rs,
                       grid_layout->proc2local_ms, grid_layout->proc2local_gs,
                       grid_layout->proc2local_x_gs,
