@@ -49,6 +49,7 @@ void fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
   }
   fft_lib_initialized = true;
   fft_lib_choice = lib;
+  max_memory_per_rank = max_memory_per_rank_in_mb;
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_init_lib(fftw_planning_flag, use_fft_mpi, use_guru_interface,
@@ -184,11 +185,11 @@ bool fft_lib_has_compound_operations() {
 }
 
 /*******************************************************************************
- * \brief Whether compound operations (FFT+copy) are available.
+ * \brief Returns the allowed memory per rank in MB (for replication).
  * \author Frederick Stein
  ******************************************************************************/
 int fft_lib_get_memory_per_rank() {
-  return memory_per_rank;
+  return max_memory_per_rank;
 }
 
 /*******************************************************************************

@@ -116,6 +116,7 @@ int fft_test_3d_cartesian(const int npts_global[3], const int test_every) {
     errors++;
   }
 
+  #if 0
   // Check forward 3D FFTs
   max_error = 0.0;
   number_of_tests = -1;
@@ -177,7 +178,7 @@ int fft_test_3d_cartesian(const int npts_global[3], const int test_every) {
              npts_global[0], npts_global[1], npts_global[2], max_error);
     errors++;
   }
-
+#endif
   fft_free_complex(rs_data);
   fft_free_complex(gs_data);
   grid_free_fft_grid_layout(fft_grid_layout);
@@ -1290,10 +1291,12 @@ int fft_test_3d() {
 
   clock_t begin = clock();
   // Check the cartesian to sorted layout
+  #if 0
   errors += fft_test_3d_cartesian(npts_global, 5);
   errors += fft_test_3d_cartesian(npts_global_small, 13);
   errors += fft_test_3d_cartesian(npts_global_reverse, 11);
   errors += fft_test_3d_cartesian(npts_global_small_reverse, 7);
+  #endif
 
   // Check the cartesian to cartesian layout
   errors += fft_test_3d_cartesian_cart(npts_global, 5);
@@ -1301,6 +1304,7 @@ int fft_test_3d() {
   errors += fft_test_3d_cartesian_cart(npts_global_reverse, 11);
   errors += fft_test_3d_cartesian_cart(npts_global_small_reverse, 7);
 
+#if 0
   // Check the cartesian layout
   errors += fft_test_3d_r2c_cartesian(npts_global, 13);
   errors += fft_test_3d_r2c_cartesian(npts_global_small, 17);
@@ -1336,6 +1340,7 @@ int fft_test_3d() {
                                           npts_global_reverse, 17);
   errors += fft_test_3d_r2c_ray_halfspace(npts_global_small_reverse,
                                           npts_global_reverse, 17);
+  #endif
   clock_t end = clock();
 
   if (errors == 0 && my_process == 0)

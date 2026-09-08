@@ -28,7 +28,7 @@ int run_unittests(const bool debug, const int backend, const int planning_mode,
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
   fft_init_timer(debug);
-  fft_init_lib(backend, planning_mode, use_mpi, use_guru, NULL);
+  fft_init_lib(backend, planning_mode, use_mpi, use_guru, 1024, NULL);
 
   errors += fft_test_local();
   errors += fft_test_distributed();

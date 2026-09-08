@@ -325,7 +325,7 @@ void run_perftests(const bool debug, const int backend, const int planning_mode,
                const bool use_mpi, const bool use_guru,
                const double threshold) {
   fft_init_timer(debug);
-  fft_init_lib(backend, planning_mode, use_mpi, use_guru, NULL);
+  fft_init_lib(backend, planning_mode, use_mpi, use_guru, 4096, NULL);
 
   // These are approximate grid sizes of the finest grid level for the
   // standard benchmark systems in benchmarks/QS

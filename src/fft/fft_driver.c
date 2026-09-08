@@ -28,10 +28,11 @@ void fft_3d_fw_blocked(
     const int npts_gs_local, const int npts_global[3],
     const int (*proc2local_rs_all)[3][2],
     const int (*my_proc2local_gs_all)[2],
+    const int (*proc2local_rs_repl)[3][2],
     const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
     const int (*proc2local_gs)[3][2], const int (*proc2local_x_gs)[2],
     const int (*proc2local_y_gs)[2], const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t comm_repl[2],
+    const cp_mpi_comm_t comm, const cp_mpi_comm_t comm_repl,
     const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
@@ -73,7 +74,7 @@ void fft_3d_fw_blocked(
                                     ((long int)npts_global[2]);
   const double scaling_factor = 1.0 / ((double)number_of_points);
   const int number_of_points_to_scale =
-      index_to_cart != NULL ? npts_gs_local : product3(fft_sizes_gs);
+      index_to_cart != NULL ? npts_gs_local : (my_proc2local_gs_all[0][1]*my_proc2local_gs_all[1][1]*my_proc2local_gs_all[2][1]);
   const int stride_size = 1;
 
   // We use different data distribution schemes depending on the availability of
@@ -205,12 +206,8 @@ void fft_3d_fw_blocked(
       }
     } else {
       if (is_complex) {
-        if (cp_mpi_comm_size(comm_repl) > 1) {
-          cp_mpi_allgatherv_double_complex(grid_rs, );
-        } else {
-          memcpy(grid_buffer_2, grid_rs,
-                product3(fft_sizes_rs) * sizeof(double complex));
-        }
+        memcpy(grid_buffer_2, grid_rs,
+              product3(fft_sizes_rs) * sizeof(double complex));
       } else {
         const double *grid_rs_double = (const double *)grid_rs;
 #pragma omp parallel for default(none)                                         \
@@ -248,10 +245,34 @@ void fft_3d_fw_blocked(
     }
     assert(0==1);
   } else {
+    const int number_of_processes_repl = cp_mpi_comm_size(comm_repl);
+    const int my_process_repl = cp_mpi_comm_rank(comm_repl);
     if (is_complex) {
-      memcpy(grid_buffer_1, grid_rs,
-             product3(fft_sizes_rs) * sizeof(double complex));
+      if (number_of_processes_repl > 1) {
+        int *rcounts = calloc(number_of_processes_repl, sizeof(int));
+        int *rdispl = calloc(number_of_processes_repl, sizeof(int));
+        rcounts[0] = proc2local_rs_repl[0][0][1]*proc2local_rs_repl[0][1][1]*proc2local_rs_repl[0][2][1];
+        for (int proc = 1; proc < number_of_processes_repl; proc++) {
+          rcounts[proc] = proc2local_rs_repl[proc][0][1]*proc2local_rs_repl[proc][1][1]*proc2local_rs_repl[proc][2][1];
+          rdispl[proc] = rdispl[proc-1] + rcounts[proc-1];
+        }
+        cp_mpi_allgatherv_double_complex(grid_rs, proc2local_rs_all[my_process_repl][0][1]*proc2local_rs_all[my_process_repl][1][1]*proc2local_rs_all[my_process_repl][2][1], grid_buffer_2, rcounts, rdispl, comm_repl);
+        for (int proc_repl = 0; proc_repl < number_of_processes_repl; proc_repl++) {
+          const int offsets[3] = {proc2local_rs_all[proc_repl][0][0]-my_bounds_rs[0][0], proc2local_rs_all[proc_repl][1][0]-my_bounds_rs[1][0], proc2local_rs_all[proc_repl][2][0]-my_bounds_rs[2][0]};
+          for (int idx_x = 0; idx_x < proc2local_rs_repl[proc_repl][0][1]; idx_x++) {
+            for (int idx_y = 0; idx_y < proc2local_rs_repl[proc_repl][1][1]; idx_y++) {
+              for (int idx_z = 0; idx_z < proc2local_rs_repl[proc_repl][2][1]; idx_z++) {
+                grid_buffer_1[((idx_x+offsets[0])*my_bounds_rs[1][1]+(idx_y+offsets[1]))*my_bounds_rs[2][1]+(idx_z+offsets[2])] = grid_buffer_2[rdispl[proc_repl]+(idx_x*proc2local_rs_repl[proc_repl][1][1]+idx_y)*proc2local_rs_repl[proc_repl][2][1]+idx_z];
+              }
+            }
+          }
+        }
+      } else {
+        memcpy(grid_buffer_1, grid_rs,
+              product3(fft_sizes_rs) * sizeof(double complex));
+        }
     } else {
+      assert (0 == 1);
       const double *grid_rs_double = (const double *)grid_rs;
 #pragma omp parallel for default(none)                                         \
     shared(fft_sizes_rs, grid_buffer_1, grid_rs_double)
@@ -268,7 +289,19 @@ void fft_3d_fw_blocked(
         grid_gs[index] = scaling_factor * grid_buffer_2[index_to_cart[index]];
       }
     } else {
-      fft_3d_fw_local(npts_global, grid_buffer_1, grid_gs);
+      if (number_of_processes_repl > 1) {
+        fft_3d_fw_local(npts_global, grid_buffer_1, grid_buffer_2);
+        const int offsets[3] = {my_proc2local_gs_all[0][0]-my_bounds_gs[0][0], my_proc2local_gs_all[1][0]-my_bounds_gs[1][0], my_proc2local_gs_all[2][0]-my_bounds_gs[2][0]};
+        for (int idx_x = 0; idx_x < my_proc2local_gs_all[0][1]; idx_x++) {
+          for (int idx_y = 0; idx_y < my_proc2local_gs_all[1][1]; idx_y++) {
+            for (int idx_z = 0; idx_z < my_proc2local_gs_all[2][1]; idx_z++) {
+              grid_gs[(idx_x*my_proc2local_gs_all[1][1]+idx_y)*my_proc2local_gs_all[2][1]+idx_z] = grid_buffer_2[((idx_x+offsets[0])*my_bounds_gs[1][1]+idx_y+offsets[1])*my_bounds_gs[2][1]+idx_z+offsets[2]];
+            }
+          }
+        }
+      } else {
+        fft_3d_fw_local(npts_global, grid_buffer_1, grid_gs);
+      }
       zdscal_(&number_of_points_to_scale, &scaling_factor, grid_gs,
               &stride_size);
     }

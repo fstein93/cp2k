@@ -80,6 +80,12 @@ bool fft_lib_has_guru_interface();
 bool fft_lib_has_compound_operations();
 
 /*******************************************************************************
+ * \brief Returns the allowed memory per rank in MB (for replication).
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_lib_get_memory_per_rank();
+
+/*******************************************************************************
  * \brief Ensure that buffers have a required size (in units of complex numbers)
  * \author Frederick Stein
  ******************************************************************************/
