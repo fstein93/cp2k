@@ -82,6 +82,19 @@ int cp_mpi_comm_rank(const cp_mpi_comm_t comm);
 int cp_mpi_comm_size(const cp_mpi_comm_t comm);
 
 /*******************************************************************************
+ * \brief Wrapper around MPI_Comm_split.
+ * \author Acxel Baldomero
+ ******************************************************************************/
+void cp_mpi_comm_split(const cp_mpi_comm_t comm, const int color,
+                       const int key, cp_mpi_comm_t *newcomm);
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Comm_dup.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_comm_dup(const cp_mpi_comm_t comm, cp_mpi_comm_t *newcomm);
+
+/*******************************************************************************
  * \brief Wrapper around MPI_Dims_create.
  * \author Ole Schuett
  ******************************************************************************/

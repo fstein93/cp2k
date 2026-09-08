@@ -29,7 +29,7 @@ static const fft_lib FFT_LIB_DEFAULT = FFT_LIB_REF;
  ******************************************************************************/
 void fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
                   const bool use_fft_mpi, const bool use_guru_interface,
-                  const char *wisdom_file);
+                  const int max_memory_per_rank_in_mb, const char *wisdom_file);
 
 /*******************************************************************************
  * \brief Initialize the FFT library (if not done externally).

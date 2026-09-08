@@ -31,6 +31,7 @@ const int fft_lib_default = -1; // No backend available
 #endif
 fft_lib fft_lib_choice = FFT_LIB_DEFAULT;
 bool fft_lib_initialized = false;
+int max_memory_per_rank = 0;
 
 double complex *buffer_1 = NULL;
 double complex *buffer_2 = NULL;
@@ -42,7 +43,7 @@ int buffer_size = -1;
  ******************************************************************************/
 void fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
                   const bool use_fft_mpi, const bool use_guru_interface,
-                  const char *wisdom_file) {
+                  const int max_memory_per_rank_in_mb, const char *wisdom_file) {
   if (fft_lib_initialized) {
     return;
   }
@@ -180,6 +181,14 @@ bool fft_lib_has_compound_operations() {
     assert(0 && "Unknown FFT library.");
     return false;
   }
+}
+
+/*******************************************************************************
+ * \brief Whether compound operations (FFT+copy) are available.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_lib_get_memory_per_rank() {
+  return memory_per_rank;
 }
 
 /*******************************************************************************

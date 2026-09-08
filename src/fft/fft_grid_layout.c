@@ -623,7 +623,11 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
   my_fft_grid->cell_info.dvolume = my_fft_grid->cell_info.volume / ((double)npts_global[0] * (double)npts_global[1] * (double)npts_global[2]);
   my_fft_grid->cutoff = cutoff;
 
-  int periodic[2] = {1, 1};
+  int periodic[4] = {1, 1, 1, 1};
+
+  const size_t memory_per_rank_in_mb = fft_lib_get_memory_per_rank();
+  const size_t required_memory_per_grid_in_mb = max(1, (size_t)((double)npts_global[0] * (double)npts_global[1] * (double)npts_global[2] * sizeof(double complex) / (1024 * 1024) / (use_halfspace ? 2 : 1)));
+  const size_t max_replication_group_size = max(1, min(number_of_processes, memory_per_rank_in_mb / required_memory_per_grid_in_mb));
 
   if (external_local_bounds != NULL) {
     // Check whether the externally provided bounds are valid
@@ -692,8 +696,10 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
       }
     }
     assert(size_of_first_dimension*size_of_second_dimension == number_of_processes && "Incorrectly determined process grid! This should not happen!");
-    my_fft_grid->proc_grid[0] = size_of_first_dimension;
-    my_fft_grid->proc_grid[1] = size_of_second_dimension;
+    my_fft_grid->proc_grid_internal[0] = 1;
+    my_fft_grid->proc_grid_internal[1] = 1;
+    my_fft_grid->proc_grid_internal[2] = size_of_first_dimension;
+    my_fft_grid->proc_grid_internal[3] = size_of_second_dimension;
 
     // Attempt a trivial mapping
     int proc_coord_1 = -1;
@@ -742,52 +748,89 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
     setup_proc2local(my_fft_grid, all_bounds);
     free(all_bounds);
   } else {
-    my_fft_grid->proc_grid[0] = -1;
-    my_fft_grid->proc_grid[1] = -1;
-    if (pgrid_guess) memcpy(my_fft_grid->proc_grid, pgrid_guess, 2*sizeof(int));
-    if (my_fft_grid->proc_grid[0]) {
-      if (my_fft_grid->proc_grid[1]) {
-        if (my_fft_grid->proc_grid[0]*my_fft_grid->proc_grid[1] != number_of_processes) {
-          my_fft_grid->proc_grid[0] = -1;
-          my_fft_grid->proc_grid[1] = -1;
+    my_fft_grid->proc_grid_internal[0] = 1;
+    my_fft_grid->proc_grid_internal[1] = 1;
+    my_fft_grid->proc_grid_internal[2] = -1;
+    my_fft_grid->proc_grid_internal[3] = -1;
+    if (pgrid_guess) memcpy(my_fft_grid->proc_grid_internal+2, pgrid_guess, 2*sizeof(int));
+    if (my_fft_grid->proc_grid_internal[2]) {
+      if (my_fft_grid->proc_grid_internal[3]) {
+        if (my_fft_grid->proc_grid_internal[2]*my_fft_grid->proc_grid_internal[3] != number_of_processes) {
+          my_fft_grid->proc_grid_internal[2] = -1;
+          my_fft_grid->proc_grid_internal[3] = -1;
         }
-      } else if (number_of_processes%my_fft_grid->proc_grid[0]==0) {
-        my_fft_grid->proc_grid[1] = number_of_processes/my_fft_grid->proc_grid[0];
+      } else if (number_of_processes%my_fft_grid->proc_grid_internal[2]==0) {
+        my_fft_grid->proc_grid_internal[3] = number_of_processes/my_fft_grid->proc_grid_internal[2];
       } else {
-        my_fft_grid->proc_grid[0] = -1;
-        my_fft_grid->proc_grid[1] = -1;
+        my_fft_grid->proc_grid_internal[2] = -1;
+        my_fft_grid->proc_grid_internal[3] = -1;
       }
-    } else if (my_fft_grid->proc_grid[1]) {
-      if (number_of_processes%my_fft_grid->proc_grid[1]==0) {
-        my_fft_grid->proc_grid[0] = number_of_processes/my_fft_grid->proc_grid[1];
+    } else if (my_fft_grid->proc_grid_internal[3]) {
+      if (number_of_processes%my_fft_grid->proc_grid_internal[3]==0) {
+        my_fft_grid->proc_grid_internal[2] = number_of_processes/my_fft_grid->proc_grid_internal[3];
       } else {
-        my_fft_grid->proc_grid[1] = -1;
+        my_fft_grid->proc_grid_internal[3] = -1;
       }
     }
-    if (my_fft_grid->proc_grid[0] <= 0 || my_fft_grid->proc_grid[1] <= 0 || my_fft_grid->proc_grid[0]*my_fft_grid->proc_grid[1] != number_of_processes) {
+    if (my_fft_grid->proc_grid_internal[2] <= 0 || my_fft_grid->proc_grid_internal[3] <= 0 || my_fft_grid->proc_grid_internal[2]*my_fft_grid->proc_grid_internal[3] != number_of_processes) {
       // Split the last dimension in real-space
       if (npts_global[2] < number_of_processes) {
         // We only distribute in two directions if necessary to reduce communication
-        my_fft_grid->proc_grid[0] = 0;
-        my_fft_grid->proc_grid[1] = 0;
-        cp_mpi_dims_create(number_of_processes, 2, my_fft_grid->proc_grid);
+        my_fft_grid->proc_grid_internal[2] = 0;
+        my_fft_grid->proc_grid_internal[3] = 0;
+        cp_mpi_dims_create(number_of_processes, 2, my_fft_grid->proc_grid_internal+2);
         // Swap dimension if the large process dimension is not on the large global
         // dimension
         if ((npts_global[2] - npts_global[1]) *
-                (my_fft_grid->proc_grid[0] - my_fft_grid->proc_grid[1]) <
-            0 && my_fft_grid->proc_grid[1] > 1) {
-          const int proc_grid_0 = my_fft_grid->proc_grid[0];
-          my_fft_grid->proc_grid[0] = my_fft_grid->proc_grid[1];
-          my_fft_grid->proc_grid[1] = proc_grid_0;
+                (my_fft_grid->proc_grid_internal[2] - my_fft_grid->proc_grid_internal[3]) <
+            0 && my_fft_grid->proc_grid_internal[3] > 1) {
+          const int proc_grid_2 = my_fft_grid->proc_grid_internal[2];
+          my_fft_grid->proc_grid_internal[2] = my_fft_grid->proc_grid_internal[3];
+          my_fft_grid->proc_grid_internal[3] = proc_grid_2;
         }
       } else {
-        my_fft_grid->proc_grid[0] = number_of_processes;
-        my_fft_grid->proc_grid[1] = 1;
+        my_fft_grid->proc_grid_internal[2] = number_of_processes;
+        my_fft_grid->proc_grid_internal[3] = 1;
       }
     }
-    assert(my_fft_grid->proc_grid[0] && my_fft_grid->proc_grid[1] && my_fft_grid->proc_grid[0]*my_fft_grid->proc_grid[1] == number_of_processes);
+    assert(my_fft_grid->proc_grid_internal[2] && my_fft_grid->proc_grid_internal[3] && my_fft_grid->proc_grid_internal[2]*my_fft_grid->proc_grid_internal[3] == number_of_processes);
 
-    my_fft_grid->comm = cp_mpi_cart_create(comm, 2, my_fft_grid->proc_grid,
+    // Determine the replication grid
+    // Attempt to reduce the second dimension
+    if (my_fft_grid->proc_grid_internal[3] <= max_replication_group_size) {
+      // We can replicate the entire second dimension
+      my_fft_grid->proc_grid_internal[1] = my_fft_grid->proc_grid_internal[3];
+      // And reduce the first dimension as much as possible
+      my_fft_grid->proc_grid_internal[0] = max_replication_group_size / my_fft_grid->proc_grid_internal[1];
+    } else {
+      // We need to reduce the second dimension
+      int replication_factor = max_replication_group_size;
+      while (my_fft_grid->proc_grid_internal[3] % replication_factor != 0) {
+        replication_factor--;
+      }
+      my_fft_grid->proc_grid_internal[3] /= replication_factor;
+      my_fft_grid->proc_grid_internal[1] = replication_factor;
+      // Try the same with the first dimension
+      replication_factor = max_replication_group_size / my_fft_grid->proc_grid_internal[1];
+      while (my_fft_grid->proc_grid_internal[2] % replication_factor != 0) {
+        replication_factor--;
+      }
+      my_fft_grid->proc_grid_internal[2] /= replication_factor;
+      my_fft_grid->proc_grid_internal[0] = replication_factor;
+      if (my_fft_grid->proc_grid_internal[2] == 1 && my_fft_grid->proc_grid_internal[3] > 1) {
+        // Ensure that the first dimension is not 1 if the other dimension is larger than 1
+        int tmp = my_fft_grid->proc_grid_internal[2];
+        my_fft_grid->proc_grid_internal[2] = my_fft_grid->proc_grid_internal[3];
+        my_fft_grid->proc_grid_internal[3] = tmp;
+        int tmp = my_fft_grid->proc_grid_internal[0];
+        my_fft_grid->proc_grid_internal[2] = my_fft_grid->proc_grid_internal[1];
+        my_fft_grid->proc_grid_internal[1] = tmp;
+      }
+    }
+    my_fft_grid->proc_grid[0] = my_fft_grid->proc_grid_internal[0]*my_fft_grid->proc_grid_internal[2];
+    my_fft_grid->proc_grid[1] = my_fft_grid->proc_grid_internal[1]*my_fft_grid->proc_grid_internal[3];
+
+    my_fft_grid->comm = cp_mpi_cart_create(comm, 4, my_fft_grid->proc_grid_internal,
                                           periodic, true);
 
     cp_mpi_cart_get(my_fft_grid->comm, 2, my_fft_grid->proc_grid,

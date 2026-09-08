@@ -170,6 +170,35 @@ int cp_mpi_comm_size(const cp_mpi_comm_t comm) {
 }
 
 /*******************************************************************************
+ * \brief Wrapper around MPI_Comm_split.
+ * \author Acxel Baldomero
+ ******************************************************************************/
+void cp_mpi_comm_split(const cp_mpi_comm_t comm, const int color,
+                       const int key, cp_mpi_comm_t *newcomm) {
+#if defined(__parallel)
+  CHECK(MPI_Comm_split(comm, color, key, newcomm));
+#else
+  (void)comm; // mark used
+  (void)color;
+  (void)key;
+  *newcomm = -1;
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Comm_dup.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_comm_dup(const cp_mpi_comm_t comm, cp_mpi_comm_t *newcomm) {
+#if defined(__parallel)
+  CHECK(MPI_Comm_dup(comm, newcomm));
+#else
+  (void)comm; // mark used
+  *newcomm = comm+1; // mark used
+#endif
+}
+
+/*******************************************************************************
  * \brief Wrapper around MPI_Dims_create.
  * \author Ole Schuett
  ******************************************************************************/
