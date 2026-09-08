@@ -26,10 +26,13 @@ void fft_3d_fw_blocked(
     const double complex *restrict grid_rs, const bool is_complex,
     double complex *restrict grid_gs, const int *index_to_cart,
     const int npts_gs_local, const int npts_global[3],
+    const int (*proc2local_rs_all)[3][2],
+    const int (*my_proc2local_gs_all)[2],
     const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
     const int (*proc2local_gs)[3][2], const int (*proc2local_x_gs)[2],
     const int (*proc2local_y_gs)[2], const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+    const cp_mpi_comm_t comm, const cp_mpi_comm_t comm_repl[2],
+    const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_b");
@@ -163,6 +166,7 @@ void fft_3d_fw_blocked(
       zdscal_(&number_of_points_to_scale, &scaling_factor, grid_gs,
               &stride_size);
     }
+    assert(0==1);
   } else if (proc_grid[0] > 1) {
     assert(fft_sizes_rs[1] == npts_global[1]);
     if (fft_lib_use_mpi()) {
@@ -201,8 +205,12 @@ void fft_3d_fw_blocked(
       }
     } else {
       if (is_complex) {
-        memcpy(grid_buffer_2, grid_rs,
-               product3(fft_sizes_rs) * sizeof(double complex));
+        if (cp_mpi_comm_size(comm_repl) > 1) {
+          cp_mpi_allgatherv_double_complex(grid_rs, );
+        } else {
+          memcpy(grid_buffer_2, grid_rs,
+                product3(fft_sizes_rs) * sizeof(double complex));
+        }
       } else {
         const double *grid_rs_double = (const double *)grid_rs;
 #pragma omp parallel for default(none)                                         \
@@ -238,6 +246,7 @@ void fft_3d_fw_blocked(
                 &stride_size);
       }
     }
+    assert(0==1);
   } else {
     if (is_complex) {
       memcpy(grid_buffer_1, grid_rs,

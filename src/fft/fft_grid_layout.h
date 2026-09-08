@@ -73,6 +73,12 @@ typedef struct {
   int *local_index_to_ref_grid;
   // New communicator
   cp_mpi_comm_t comm;
+  // Communicators for replication
+  cp_mpi_comm_t comm_repl;
+  cp_mpi_comm_t sub_comm_repl[2];
+  // Communicator for FFTs
+  cp_mpi_comm_t comm_internal;
+  // Communicators for FFT redistribution
   cp_mpi_comm_t sub_comm[2];
   int proc_grid[2];
   int proc_coords[2];
@@ -86,8 +92,12 @@ typedef struct {
   // distribution of the data in reciprocal (g)-space (that's why it is called
   // "gs") in blocked mode (usually the finest grid)
   int (*proc2local_rs)[3][2]; // Order: (x, y, z)
-  int (*proc2local_ms)[3][2]; // Order: (z, x, y)
   int (*proc2local_gs)[3][2]; // Order: (y, z, x)
+  int (*proc2local_rs_repl)[3][2]; // Order: (x, y, z)
+  int (*proc2local_gs_repl)[3][2]; // Order: (y, z, x)
+  int (*proc2local_rs_internal)[3][2]; // Order: (x, y, z)
+  int (*proc2local_ms_internal)[3][2]; // Order: (z, x, y)
+  int (*proc2local_gs_internal)[3][2]; // Order: (y, z, x)
   // Ranges of the distributed indices in each representation
   int (*proc2local_y_rs)[2];
   int (*proc2local_z_rs)[2];

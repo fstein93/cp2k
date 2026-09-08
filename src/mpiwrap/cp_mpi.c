@@ -769,6 +769,42 @@ void cp_mpi_allgather_int(const int *sendbuf, const int sendcount, int *recvbuf,
 }
 
 /*******************************************************************************
+ * \brief Wrapper around MPI_Allgatherv for datatype MPI_DOUBLE_COMPLEX.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_allgatherv_double_complex(const double complex *sendbuf, const int *sendcounts, const int *sdispls, double complex *recvbuf,
+                          const int *recvcount, const int *rdispls, const cp_mpi_comm_t comm) {
+#if defined(__parallel)
+  CHECK(MPI_Allgatherv(sendbuf, sendcounts, sdispls, MPI_DOUBLE_COMPLEX, recvbuf,
+                      recvcounts, rdispls, MPI_DOUBLE_COMPLEX, comm));
+#else
+  (void)comm; // mark used
+  assert(sendcounts[0] == recvcounts[0]);
+  assert(sdispls[0] == 0 && rdispls[0] == 0);
+  memcpy(recvbuf, sendbuf, sendcounts[0] * sizeof(double complex));
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Allgatherv for datatype MPI_DOUBLE.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_allgatherv_double(const double *sendbuf, const int *sendcounts, const int *sdispls, double *recvbuf,
+                          const int *recvcount, const int *rdispls, const cp_mpi_comm_t comm)
+void cp_mpi_allgatherv_double_complex(const double complex *sendbuf, const int *sendcounts, const int *sdispls, double complex *recvbuf,
+                          const int *recvcount, const int *rdispls, const cp_mpi_comm_t comm) {
+#if defined(__parallel)
+  CHECK(MPI_Allgatherv(sendbuf, sendcounts, sdispls, MPI_DOUBLE, recvbuf,
+                      recvcounts, rdispls, MPI_DOUBLE, comm));
+#else
+  (void)comm; // mark used
+  assert(sendcounts[0] == recvcounts[0]);
+  assert(sdispls[0] == 0 && rdispls[0] == 0);
+  memcpy(recvbuf, sendbuf, sendcounts[0] * sizeof(double));
+#endif
+}
+
+/*******************************************************************************
  * \brief Wrapper around MPI_Bcast for datatype MPI_INT.
  * \author Frederick Stein
  ******************************************************************************/
