@@ -67,7 +67,7 @@ int main(int argc, char *argv[]) {
   }
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
-  int errors = run_unittests(debug, backend, planning_mode, true, true, 0.01);
+  int errors = run_unittests(debug, backend, planning_mode, false, false, 0.01);
 
   // Test also the reference backend and without distributed FFTs from the
   // library

@@ -297,15 +297,15 @@ void cp_mpi_allgather_int(const int *sendbuf, const int sendcount, int *recvbuf,
  * \brief Wrapper around MPI_Allgatherv for datatype MPI_DOUBLE_COMPLEX.
  * \author Frederick Stein
  ******************************************************************************/
-void cp_mpi_allgatherv_double_complex(const double complex *sendbuf, const int *sendcounts, const int *sdispls, double complex *recvbuf,
-                          const int *recvcount, const int *rdispls, const cp_mpi_comm_t comm);
+void cp_mpi_allgatherv_double_complex(const double complex *sendbuf, const int sendcount, double complex *recvbuf,
+                          const int *recvcounts, const int *rdispls, const cp_mpi_comm_t comm);
 
 /*******************************************************************************
  * \brief Wrapper around MPI_Allgatherv for datatype MPI_DOUBLE.
  * \author Frederick Stein
  ******************************************************************************/
-void cp_mpi_allgatherv_double(const double *sendbuf, const int *sendcounts, const int *sdispls, double *recvbuf,
-                          const int *recvcount, const int *rdispls, const cp_mpi_comm_t comm);
+void cp_mpi_allgatherv_double(const double *sendbuf, const int sendcount, double *recvbuf,
+                          const int *recvcounts, const int *rdispls, const cp_mpi_comm_t comm);
 
 /*******************************************************************************
  * \brief Wrapper around MPI_Bcast for datatype MPI_INT.

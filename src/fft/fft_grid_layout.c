@@ -778,11 +778,6 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
     setup_proc2local(my_fft_grid, all_bounds);
     free(all_bounds);
   } else {
-    if (my_process == 0) {
-    printf("Determine process grid yourself\n");
-    fflush(stdout);
-    }
-    cp_mpi_barrier(comm);
     my_fft_grid->proc_grid_internal[0] = 1;
     my_fft_grid->proc_grid_internal[1] = 1;
     my_fft_grid->proc_grid_internal[2] = -1;
@@ -870,7 +865,6 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
     my_fft_grid->proc_grid[0] = my_fft_grid->proc_grid_internal[0]*my_fft_grid->proc_grid_internal[2];
     my_fft_grid->proc_grid[1] = my_fft_grid->proc_grid_internal[1]*my_fft_grid->proc_grid_internal[3];
 
-    printf("%i Replication grid: %i %i %i %i\n", my_process, my_fft_grid->proc_grid_internal[0], my_fft_grid->proc_grid_internal[1], my_fft_grid->proc_grid_internal[2], my_fft_grid->proc_grid_internal[3]);
     assert (my_fft_grid->proc_grid_internal[0]*my_fft_grid->proc_grid_internal[1]*my_fft_grid->proc_grid_internal[2]*my_fft_grid->proc_grid_internal[3] == number_of_processes);
     // comm uses the large grid
     my_fft_grid->comm = cp_mpi_cart_create(comm, 2, my_fft_grid->proc_grid,
@@ -905,6 +899,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
     assert(cp_mpi_comm_size(my_fft_grid->sub_comm[1]) ==
           my_fft_grid->proc_grid_internal[3]);
 
+    printf("%i Replication grid: %i %i %i %i (%i %i)\n", my_process, my_fft_grid->proc_grid_internal[0], my_fft_grid->proc_grid_internal[1], my_fft_grid->proc_grid_internal[2], my_fft_grid->proc_grid_internal[3], cp_mpi_comm_size(my_fft_grid->comm_repl), cp_mpi_comm_size(my_fft_grid->comm_internal));
     setup_proc2local(my_fft_grid, NULL);
   }
 
@@ -1111,11 +1106,6 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
 
   *fft_grid = my_fft_grid;
 
-  if (my_process == 0) {
-  printf("Done creating new grid layout\n");
-  fflush(stdout);
-  }
-  cp_mpi_barrier(comm);
   fft_stop_timer(handle);
 }
 
@@ -1595,18 +1585,6 @@ void fft_3d_fw_with_layout(const double complex *restrict grid_rs,
                   grid_layout->redistribution,
                   grid_layout->comm_internal, grid_layout->sub_comm);
   } else {
-void fft_3d_fw_blocked(
-    const double complex *restrict grid_rs, const bool is_complex,
-    double complex *restrict grid_gs, const int *index_to_cart,
-    const int npts_gs_local, const int npts_global[3],
-    const int (*proc2local_rs_all)[3][2],
-    const int (*my_proc2local_gs_all)[2],
-    const int (*proc2local_rs_repl)[3][2],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_gs)[3][2], const int (*proc2local_x_gs)[2],
-    const int (*proc2local_y_gs)[2], const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t comm_repl,
-    const cp_mpi_comm_t sub_comm[2]);
     fft_3d_fw_blocked(grid_rs, true, grid_gs, grid_layout->index_to_cart,
                       grid_layout->npts_gs_local, grid_layout->npts_global,
                       grid_layout->proc2local_rs,
