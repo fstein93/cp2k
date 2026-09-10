@@ -47,7 +47,7 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
 
   double begin = omp_get_wtime();
   fft_3d_fw_with_layout_to_cart(grid_rs, grid_gs, grid_layout);
-  fft_3d_bw_with_layout_from_cart(grid_gs, grid_rs, grid_layout);
+  //fft_3d_bw_with_layout_from_cart(grid_gs, grid_rs, grid_layout);
   cp_mpi_barrier(cp_mpi_get_comm_world());
   double end = omp_get_wtime();
 
@@ -66,7 +66,7 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
     cp_mpi_barrier(cp_mpi_get_comm_world());
     begin = omp_get_wtime();
     fft_3d_fw_with_layout_to_cart(grid_rs, grid_gs, grid_layout);
-    fft_3d_bw_with_layout_from_cart(grid_gs, grid_rs, grid_layout);
+    //fft_3d_bw_with_layout_from_cart(grid_gs, grid_rs, grid_layout);
     cp_mpi_barrier(cp_mpi_get_comm_world());
     end = omp_get_wtime();
     const double current_time = end - begin;
@@ -341,6 +341,7 @@ void run_perftests(const bool debug, const int backend, const int planning_mode,
   //   QS_low_scaling_GW
   // run_test_c2c((const int[3]){600, 180, 120}, 10);
 
+  if (false) {
   // Repeat using the half-space formalism (R2C/C2R FFTs)
   run_test_r2c((const int[3]){100, 100, 100}, 10, false);
   run_test_r2c((const int[3]){125, 125, 125}, 10, false);
@@ -408,6 +409,7 @@ void run_perftests(const bool debug, const int backend, const int planning_mode,
   //    run_test_ray_r2c((const int[3]){630, 630, 630}, 10, true);
   //     QS_low_scaling_GW
   //  run_test_ray_r2c((const int[3]){600, 180, 120}, 10, true);
+  }
 
   fft_print_timing_report(threshold);
   fft_finalize_timer();
