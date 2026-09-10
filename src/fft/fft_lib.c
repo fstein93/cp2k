@@ -53,6 +53,7 @@ void fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
     printf("Using FFTW library.\n");
     break;
   case FFT_LIB_GPU:
+    fft_init_acc_lib();
     printf("Using GPU-FFT library.\n");
     break;
   default:
@@ -89,6 +90,7 @@ void fft_init_acc_lib() {
  ******************************************************************************/
 void fft_finalize_lib(const char *wisdom_file) {
   fft_fftw_finalize_lib(wisdom_file);
+  fft_finalize_acc_lib();
   if (buffer_1 != NULL)
     fft_free_complex(buffer_1);
   if (buffer_2 != NULL)

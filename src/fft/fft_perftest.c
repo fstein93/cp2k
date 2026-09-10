@@ -424,6 +424,8 @@ int main(int argc, char *argv[]) {
   }
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
+  offload_set_chosen_device(0);
+
   const bool debug = false;
   const int backend = FFT_LIB_FFTW;
   const int planning_mode = FFT_ESTIMATE;
