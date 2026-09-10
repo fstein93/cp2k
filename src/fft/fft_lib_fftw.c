@@ -223,8 +223,10 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
       }
     }
   } else if (is_print_rank) {
-    fprintf(stdout, "Do not use FFTW-MPI!\n");
+    fprintf(stdout, "FFTW-MPI not requested!\n");
   }
+  if (is_print_rank) fflush(stdout);
+  cp_mpi_barrier(cp_mpi_get_comm_world());
 #else
   (void)use_fft_mpi;
   use_fftw_mpi = false;
@@ -237,8 +239,6 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
       fprintf(stderr,
               "Importing wisdom failed! Maybe the file does not exist.");
   }
-  if (use_fftw_mpi)
-    printf("Using FFTW MPI\n");
 #else
   (void)fftw_planning_flag;
   (void)use_fft_mpi;

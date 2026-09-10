@@ -59,10 +59,10 @@ int main(int argc, char *argv[]) {
     #pragma omp parallel default(none) shared(number_of_threads)
     {
     #pragma omp single
-    {
-    number_of_threads = omp_get_num_threads();
+      {
+      number_of_threads = omp_get_num_threads();
+      }
     }
-  }
     printf("Number of OpenMP threads: %i\n", number_of_threads);
     fflush(stdout);
   }
@@ -90,12 +90,14 @@ int main(int argc, char *argv[]) {
   fft_finalize_lib(NULL);
   fft_finalize_timer();
 
-  if (errors == 0) {
-    printf("\nAll tests have passed :-)\n");
-  } else {
-    printf("\nFound %i errors :-(\n", errors);
+  if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
+    if (errors == 0) {
+      printf("\nAll tests have passed :-)\n");
+    } else {
+      printf("\nFound %i errors :-(\n", errors);
+    }
+    fflush(stdout);
   }
-  fflush(stdout);
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
   cp_mpi_finalize();

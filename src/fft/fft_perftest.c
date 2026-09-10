@@ -201,7 +201,7 @@ static void run_test_ray_c2c(const int fft_size[3], const int number_of_runs) {
   double end = omp_get_wtime();
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
-    printf("Planning time for FW and BW C2C (cart) FFTs (ray) of size %i %i %i "
+    printf("Planning time for FW and BW C2C (ray) FFTs (ray) of size %i %i %i "
            ": %f\n",
            fft_size[0], fft_size[1], fft_size[2], end - begin);
     fflush(stdout);
@@ -231,7 +231,7 @@ static void run_test_ray_c2c(const int fft_size[3], const int number_of_runs) {
   grid_free_fft_grid_layout(grid_layout);
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
-    printf("Time for %i FW and BW C2C (cart) FFTs (ray) of size %i %i %i : min "
+    printf("Time for %i FW and BW C2C (ray) FFTs (ray) of size %i %i %i : min "
            "%f, "
            "max %f, avg %f (stdev %f)\n",
            number_of_runs, fft_size[0], fft_size[1], fft_size[2], min_time,
@@ -422,6 +422,7 @@ int main(int argc, char *argv[]) {
     printf("Number of threads per process: %i\n", omp_get_max_threads());
     fflush(stdout);
   }
+  cp_mpi_barrier(cp_mpi_get_comm_world());
 
   const bool debug = false;
   const int backend = FFT_LIB_FFTW;
