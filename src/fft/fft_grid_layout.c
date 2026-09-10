@@ -76,6 +76,8 @@ void sort_g_vectors(fft_grid_layout *my_fft_grid) {
   assert(my_fft_grid != NULL);
   assert(my_fft_grid->npts_gs_local >= 0);
 
+  if (my_fft_grid->npts_gs_local == 0) return;
+
   int *local_index2g_squared = calloc(my_fft_grid->npts_gs_local, sizeof(int));
 #pragma omp parallel for default(none)                                         \
     shared(my_fft_grid, local_index2g_squared)
@@ -166,6 +168,10 @@ void grid_free_fft_grid_layout(fft_grid_layout *fft_grid) {
       cp_mpi_comm_free(&fft_grid->sub_comm[1]);
       cleanup_redistribution(fft_grid->redistribution);
       free(fft_grid->redistribution);
+      free(fft_grid->proc2local_rs);
+      free(fft_grid->proc2local_gs);
+      free(fft_grid->proc2local_rs_repl);
+      free(fft_grid->proc2local_gs_repl);
       free(fft_grid->proc2local_rs_internal);
       free(fft_grid->proc2local_ms_internal);
       free(fft_grid->proc2local_gs_internal);
@@ -196,9 +202,9 @@ void setup_proc2local(fft_grid_layout *my_fft_grid, const int *external_local_bo
   const int number_of_processes = cp_mpi_comm_size(my_fft_grid->comm_internal);
   const int my_process = cp_mpi_comm_rank(my_fft_grid->comm_internal);
 
-  my_fft_grid->proc2local_rs_internal = calloc(6 * number_of_processes, sizeof(int));
-  my_fft_grid->proc2local_ms_internal = calloc(6 * number_of_processes, sizeof(int));
-  my_fft_grid->proc2local_gs_internal = calloc(6 * number_of_processes, sizeof(int));
+  my_fft_grid->proc2local_rs_internal = calloc(number_of_processes, sizeof(int[3][2]));
+  my_fft_grid->proc2local_ms_internal = calloc(number_of_processes, sizeof(int[3][2]));
+  my_fft_grid->proc2local_gs_internal = calloc(number_of_processes, sizeof(int[3][2]));
   my_fft_grid->proc2local_y_rs =
       calloc(2 * my_fft_grid->proc_grid_internal[3], sizeof(int));
   my_fft_grid->proc2local_z_rs =
@@ -359,44 +365,44 @@ void setup_proc2local(fft_grid_layout *my_fft_grid, const int *external_local_bo
             my_fft_grid->npts_global_gspace[0];
       }
     }
-  // Then, we collect the mappings of the ranges in each representation RS/MS/GS
-  for (int process = 0; process < number_of_processes; process++) {
-    int proc_coords[2];
-    cp_mpi_cart_coords(my_fft_grid->comm_internal, process, 2, proc_coords);
-    // Compile the distribution in real space
-    my_fft_grid->proc2local_rs_internal[process][0][0] = 0;
-    my_fft_grid->proc2local_rs_internal[process][0][1] = my_fft_grid->npts_global[0];
-    my_fft_grid->proc2local_rs_internal[process][1][0] =
-        my_fft_grid->proc2local_y_rs[proc_coords[1]][0];
-    my_fft_grid->proc2local_rs_internal[process][1][1] =
-        my_fft_grid->proc2local_y_rs[proc_coords[1]][1];
-    my_fft_grid->proc2local_rs_internal[process][2][0] =
-        my_fft_grid->proc2local_z_rs[proc_coords[0]][0];
-    my_fft_grid->proc2local_rs_internal[process][2][1] =
-        my_fft_grid->proc2local_z_rs[proc_coords[0]][1];
-    // Compile the distribution in reciprocal space
-    my_fft_grid->proc2local_gs_internal[process][0][0] =
-        my_fft_grid->proc2local_x_gs[proc_coords[1]][0];
-    my_fft_grid->proc2local_gs_internal[process][0][1] =
-        my_fft_grid->proc2local_x_gs[proc_coords[1]][1];
-    my_fft_grid->proc2local_gs_internal[process][1][0] =
-        my_fft_grid->proc2local_y_gs[proc_coords[0]][0];
-    my_fft_grid->proc2local_gs_internal[process][1][1] =
-        my_fft_grid->proc2local_y_gs[proc_coords[0]][1];
-    my_fft_grid->proc2local_gs_internal[process][2][0] = 0;
-    my_fft_grid->proc2local_gs_internal[process][2][1] = my_fft_grid->npts_global[2];
-    // Compile the distribution in mixed space
-    my_fft_grid->proc2local_ms_internal[process][0][0] =
-        my_fft_grid->proc2local_gs_internal[process][0][0];
-    my_fft_grid->proc2local_ms_internal[process][0][1] =
-        my_fft_grid->proc2local_gs_internal[process][0][1];
-    my_fft_grid->proc2local_ms_internal[process][1][0] = 0;
-    my_fft_grid->proc2local_ms_internal[process][1][1] = my_fft_grid->npts_global[1];
-    my_fft_grid->proc2local_ms_internal[process][2][0] =
-        my_fft_grid->proc2local_rs_internal[process][2][0];
-    my_fft_grid->proc2local_ms_internal[process][2][1] =
-        my_fft_grid->proc2local_rs_internal[process][2][1];
-  }
+    // Then, we collect the mappings of the ranges in each representation RS/MS/GS
+    for (int process = 0; process < number_of_processes; process++) {
+      int proc_coords[2];
+      cp_mpi_cart_coords(my_fft_grid->comm_internal, process, 2, proc_coords);
+      // Compile the distribution in real space
+      my_fft_grid->proc2local_rs_internal[process][0][0] = 0;
+      my_fft_grid->proc2local_rs_internal[process][0][1] = my_fft_grid->npts_global[0];
+      my_fft_grid->proc2local_rs_internal[process][1][0] =
+          my_fft_grid->proc2local_y_rs[proc_coords[1]][0];
+      my_fft_grid->proc2local_rs_internal[process][1][1] =
+          my_fft_grid->proc2local_y_rs[proc_coords[1]][1];
+      my_fft_grid->proc2local_rs_internal[process][2][0] =
+          my_fft_grid->proc2local_z_rs[proc_coords[0]][0];
+      my_fft_grid->proc2local_rs_internal[process][2][1] =
+          my_fft_grid->proc2local_z_rs[proc_coords[0]][1];
+      // Compile the distribution in reciprocal space
+      my_fft_grid->proc2local_gs_internal[process][0][0] =
+          my_fft_grid->proc2local_x_gs[proc_coords[1]][0];
+      my_fft_grid->proc2local_gs_internal[process][0][1] =
+          my_fft_grid->proc2local_x_gs[proc_coords[1]][1];
+      my_fft_grid->proc2local_gs_internal[process][1][0] =
+          my_fft_grid->proc2local_y_gs[proc_coords[0]][0];
+      my_fft_grid->proc2local_gs_internal[process][1][1] =
+          my_fft_grid->proc2local_y_gs[proc_coords[0]][1];
+      my_fft_grid->proc2local_gs_internal[process][2][0] = 0;
+      my_fft_grid->proc2local_gs_internal[process][2][1] = my_fft_grid->npts_global[2];
+      // Compile the distribution in mixed space
+      my_fft_grid->proc2local_ms_internal[process][0][0] =
+          my_fft_grid->proc2local_gs_internal[process][0][0];
+      my_fft_grid->proc2local_ms_internal[process][0][1] =
+          my_fft_grid->proc2local_gs_internal[process][0][1];
+      my_fft_grid->proc2local_ms_internal[process][1][0] = 0;
+      my_fft_grid->proc2local_ms_internal[process][1][1] = my_fft_grid->npts_global[1];
+      my_fft_grid->proc2local_ms_internal[process][2][0] =
+          my_fft_grid->proc2local_rs_internal[process][2][0];
+      my_fft_grid->proc2local_ms_internal[process][2][1] =
+          my_fft_grid->proc2local_rs_internal[process][2][1];
+    }
   } else if (external_local_bounds != NULL) {
     // Determine the distribution in g-space
     const int block_size_x_gs =
@@ -433,13 +439,11 @@ void setup_proc2local(fft_grid_layout *my_fft_grid, const int *external_local_bo
     }
   } else {
     // Serial case or without distributed FFT
-    printf("%i %i\n", my_fft_grid->npts_global_gspace[1], my_fft_grid->proc_grid_internal[3]);
-    fflush(stdout);
     const int block_size_y_rs =
-        (my_fft_grid->npts_global_gspace[1] + my_fft_grid->proc_grid_internal[3] - 1) /
+        (my_fft_grid->npts_global[1] + my_fft_grid->proc_grid_internal[3] - 1) /
         my_fft_grid->proc_grid_internal[3];
     const int block_size_z_rs =
-        (my_fft_grid->npts_global_gspace[2] + my_fft_grid->proc_grid_internal[2] - 1) /
+        (my_fft_grid->npts_global[2] + my_fft_grid->proc_grid_internal[2] - 1) /
         my_fft_grid->proc_grid_internal[2];
     const int block_size_x_gs =
         (my_fft_grid->npts_global_gspace[0] + my_fft_grid->proc_grid_internal[3] - 1) /
@@ -447,13 +451,13 @@ void setup_proc2local(fft_grid_layout *my_fft_grid, const int *external_local_bo
     const int block_size_y_gs =
         (my_fft_grid->npts_global_gspace[1] + my_fft_grid->proc_grid_internal[2] - 1) /
         my_fft_grid->proc_grid_internal[2];
-    for (int process = 0; process < my_fft_grid->proc_grid_internal[1]; process++) {
+    for (int process = 0; process < my_fft_grid->proc_grid_internal[3]; process++) {
       my_fft_grid->proc2local_y_rs[process][0] =
-          imin(process * block_size_y_rs, my_fft_grid->npts_global_gspace[1]);
+          imin(process * block_size_y_rs, my_fft_grid->npts_global[1]);
       my_fft_grid->proc2local_y_rs[process][1] =
           imin((process + 1) * block_size_y_rs - 1,
-               my_fft_grid->npts_global_gspace[1] - 1) -
-          imin(process * block_size_y_rs, my_fft_grid->npts_global_gspace[1]) +
+               my_fft_grid->npts_global[1] - 1) -
+          imin(process * block_size_y_rs, my_fft_grid->npts_global[1]) +
           1;
       my_fft_grid->proc2local_x_gs[process][0] =
           imin(process * block_size_x_gs, my_fft_grid->npts_global_gspace[0]);
@@ -465,11 +469,11 @@ void setup_proc2local(fft_grid_layout *my_fft_grid, const int *external_local_bo
     }
     for (int process = 0; process < my_fft_grid->proc_grid_internal[2]; process++) {
       my_fft_grid->proc2local_z_rs[process][0] =
-          imin(process * block_size_z_rs, my_fft_grid->npts_global_gspace[2]);
+          imin(process * block_size_z_rs, my_fft_grid->npts_global[2]);
       my_fft_grid->proc2local_z_rs[process][1] =
           imin((process + 1) * block_size_z_rs - 1,
-               my_fft_grid->npts_global_gspace[2] - 1) -
-          imin(process * block_size_z_rs, my_fft_grid->npts_global_gspace[2]) +
+               my_fft_grid->npts_global[2] - 1) -
+          imin(process * block_size_z_rs, my_fft_grid->npts_global[2]) +
           1;
       my_fft_grid->proc2local_y_gs[process][0] =
           imin(process * block_size_y_gs, my_fft_grid->npts_global_gspace[1]);
@@ -533,7 +537,86 @@ void setup_proc2local(fft_grid_layout *my_fft_grid, const int *external_local_bo
                             my_fft_grid->npts_global_gspace[2]);
   my_fft_grid->buffer_size = buffer_size;
 
-  if (false && my_process == 0) {
+  // Exchange boundaries for input- and output arrays
+  my_fft_grid->proc2local_rs = calloc(6 * cp_mpi_comm_size(my_fft_grid->comm), sizeof(int));
+  my_fft_grid->proc2local_gs = calloc(6 * cp_mpi_comm_size(my_fft_grid->comm), sizeof(int));
+  my_fft_grid->proc2local_rs_repl = calloc(6 * cp_mpi_comm_size(my_fft_grid->comm_repl), sizeof(int));
+  my_fft_grid->proc2local_gs_repl = calloc(6 * cp_mpi_comm_size(my_fft_grid->comm_repl), sizeof(int));
+  {
+    int (*my_bounds_rs)[2] = my_fft_grid->proc2local_rs_internal[my_process];
+    const int block_size_rs_y = (my_bounds_rs[1][1]+my_fft_grid->proc_grid_internal[1]-1)/my_fft_grid->proc_grid_internal[1];
+    const int block_size_rs_z = (my_bounds_rs[2][1]+my_fft_grid->proc_grid_internal[0]-1)/my_fft_grid->proc_grid_internal[0];
+    const int my_process_repl[2] = {cp_mpi_comm_rank(my_fft_grid->sub_comm_repl[0]), cp_mpi_comm_rank(my_fft_grid->sub_comm_repl[1])};
+    const int new_bounds_rs[3][2] = {{my_bounds_rs[0][0], my_bounds_rs[0][1]}, {imin(my_bounds_rs[1][0]+my_process_repl[1]*block_size_rs_y, my_fft_grid->npts_global[1]), imax(0, imin(block_size_rs_y, my_bounds_rs[1][1]-my_process_repl[1]*block_size_rs_y))}, {imin(my_bounds_rs[2][0]+my_process_repl[0]*block_size_rs_z, my_fft_grid->npts_global[2]), imax(0, imin(block_size_rs_z, my_bounds_rs[2][1]-my_process_repl[0]*block_size_rs_z))}};
+    cp_mpi_allgather_int((int*)new_bounds_rs, 6, (int*)my_fft_grid->proc2local_rs, 6, my_fft_grid->comm);
+    cp_mpi_allgather_int((int*)new_bounds_rs, 6, (int*)my_fft_grid->proc2local_rs_repl, 6, my_fft_grid->comm_repl);
+  }
+  {
+    int (*my_bounds_gs)[2] = my_fft_grid->proc2local_gs_internal[my_process];
+    const int block_size_gs_x = (my_bounds_gs[0][1]+my_fft_grid->proc_grid_internal[1]-1)/my_fft_grid->proc_grid_internal[1];
+    const int block_size_gs_y = (my_bounds_gs[1][1]+my_fft_grid->proc_grid_internal[0]-1)/my_fft_grid->proc_grid_internal[0];
+    const int my_process_repl[2] = {cp_mpi_comm_rank(my_fft_grid->sub_comm_repl[0]), cp_mpi_comm_rank(my_fft_grid->sub_comm_repl[1])};
+    int new_bounds_gs[3][2] = {{imin(my_bounds_gs[0][0]+my_process_repl[1]*block_size_gs_x, my_fft_grid->npts_global_gspace[0]), imax(0, imin(block_size_gs_x, my_bounds_gs[0][1]-my_process_repl[1]*block_size_gs_x))}, {imin(my_bounds_gs[1][0]+my_process_repl[0]*block_size_gs_y, my_fft_grid->npts_global_gspace[1]), imax(0, imin(block_size_gs_y, my_bounds_gs[1][1]-my_process_repl[0]*block_size_gs_y))}, {my_bounds_gs[2][0], my_bounds_gs[2][1]}};
+    cp_mpi_allgather_int((int*)new_bounds_gs, 6, (int*)my_fft_grid->proc2local_gs, 6, my_fft_grid->comm);
+    cp_mpi_allgather_int((int*)new_bounds_gs, 6, (int*)my_fft_grid->proc2local_gs_repl, 6, my_fft_grid->comm_repl);
+  }
+  if (true && cp_mpi_comm_rank(my_fft_grid->comm) == 0) {
+    printf("Proc2local RS all\n");
+    for (int process = 0; process < cp_mpi_comm_size(my_fft_grid->comm); process++) {
+      printf("%i: %i %i / %i %i / %i %i\n", process,
+             my_fft_grid->proc2local_rs[process][0][0],
+             my_fft_grid->proc2local_rs[process][0][0] +
+                 my_fft_grid->proc2local_rs[process][0][1] - 1,
+             my_fft_grid->proc2local_rs[process][1][0],
+             my_fft_grid->proc2local_rs[process][1][0] +
+                 my_fft_grid->proc2local_rs[process][1][1] - 1,
+             my_fft_grid->proc2local_rs[process][2][0],
+             my_fft_grid->proc2local_rs[process][2][0] +
+                 my_fft_grid->proc2local_rs[process][2][1] - 1);
+    }
+    printf("\n");
+    printf("Proc2local GS all\n");
+    for (int process = 0; process < cp_mpi_comm_size(my_fft_grid->comm); process++) {
+      printf("%i: %i %i / %i %i / %i %i\n", process,
+             my_fft_grid->proc2local_gs[process][0][0],
+             my_fft_grid->proc2local_gs[process][0][0] +
+                 my_fft_grid->proc2local_gs[process][0][1] - 1,
+             my_fft_grid->proc2local_gs[process][1][0],
+             my_fft_grid->proc2local_gs[process][1][0] +
+                 my_fft_grid->proc2local_gs[process][1][1] - 1,
+             my_fft_grid->proc2local_gs[process][2][0],
+             my_fft_grid->proc2local_gs[process][2][0] +
+                 my_fft_grid->proc2local_gs[process][2][1] - 1);
+    }
+    printf("\n");
+    printf("Proc2local RS repl\n");
+    for (int process = 0; process < cp_mpi_comm_size(my_fft_grid->comm_repl); process++) {
+      printf("%i: %i %i / %i %i / %i %i\n", process,
+             my_fft_grid->proc2local_rs_repl[process][0][0],
+             my_fft_grid->proc2local_rs_repl[process][0][0] +
+                 my_fft_grid->proc2local_rs_repl[process][0][1] - 1,
+             my_fft_grid->proc2local_rs_repl[process][1][0],
+             my_fft_grid->proc2local_rs_repl[process][1][0] +
+                 my_fft_grid->proc2local_rs_repl[process][1][1] - 1,
+             my_fft_grid->proc2local_rs_repl[process][2][0],
+             my_fft_grid->proc2local_rs_repl[process][2][0] +
+                 my_fft_grid->proc2local_rs_repl[process][2][1] - 1);
+    }
+    printf("\n");
+    printf("Proc2local GS repl\n");
+    for (int process = 0; process < cp_mpi_comm_size(my_fft_grid->comm_repl); process++) {
+      printf("%i: %i %i / %i %i / %i %i\n", process,
+             my_fft_grid->proc2local_gs_repl[process][0][0],
+             my_fft_grid->proc2local_gs_repl[process][0][0] +
+                 my_fft_grid->proc2local_gs_repl[process][0][1] - 1,
+             my_fft_grid->proc2local_gs_repl[process][1][0],
+             my_fft_grid->proc2local_gs_repl[process][1][0] +
+                 my_fft_grid->proc2local_gs_repl[process][1][1] - 1,
+             my_fft_grid->proc2local_gs_repl[process][2][0],
+             my_fft_grid->proc2local_gs_repl[process][2][0] +
+                 my_fft_grid->proc2local_gs_repl[process][2][1] - 1);
+    }
+    printf("\n");
     printf("Proc2local RS\n");
     for (int process = 0; process < number_of_processes; process++) {
       printf("%i: %i %i / %i %i / %i %i\n", process,
@@ -576,30 +659,9 @@ void setup_proc2local(fft_grid_layout *my_fft_grid, const int *external_local_bo
                  my_fft_grid->proc2local_gs_internal[process][2][1] - 1);
     }
     printf("\n");
+    fflush(stdout);
   }
-  // Exchange boundaries for input- and output arrays
-  my_fft_grid->proc2local_rs = calloc(6 * cp_mpi_comm_size(my_fft_grid->comm), sizeof(int));
-  my_fft_grid->proc2local_gs = calloc(6 * cp_mpi_comm_size(my_fft_grid->comm), sizeof(int));
-  my_fft_grid->proc2local_rs_repl = calloc(6 * cp_mpi_comm_size(my_fft_grid->comm_repl), sizeof(int));
-  my_fft_grid->proc2local_gs_repl = calloc(6 * cp_mpi_comm_size(my_fft_grid->comm_repl), sizeof(int));
-  {
-    int (*my_bounds_rs)[2] = my_fft_grid->proc2local_rs_internal[my_process];
-    const int block_size_rs_y = my_bounds_rs[1][1]/my_fft_grid->proc_grid_internal[1];
-    const int block_size_rs_z = my_bounds_rs[2][1]/my_fft_grid->proc_grid_internal[0];
-    const int my_process_repl[2] = {cp_mpi_comm_rank(my_fft_grid->sub_comm_repl[0]), cp_mpi_comm_rank(my_fft_grid->sub_comm_repl[1])};
-    const int new_bounds_rs[3][2] = {{my_bounds_rs[0][0], my_bounds_rs[0][1]}, {my_bounds_rs[1][0]+my_process_repl[1]*block_size_rs_y, imin(block_size_rs_y, my_bounds_rs[1][1]-my_process_repl[1]*block_size_rs_y)}, {my_bounds_rs[2][0]+my_process_repl[0]*block_size_rs_z, imin(block_size_rs_z, my_bounds_rs[2][1]-my_process_repl[0]*block_size_rs_z)}};
-    cp_mpi_allgather_int((int*)new_bounds_rs, 6, (int*)my_fft_grid->proc2local_rs, 6, my_fft_grid->comm);
-    cp_mpi_allgather_int((int*)new_bounds_rs, 6, (int*)my_fft_grid->proc2local_rs_repl, 6, my_fft_grid->comm_repl);
-  }
-  {
-    int (*my_bounds_gs)[2] = my_fft_grid->proc2local_gs_internal[my_process];
-    const int block_size_gs_x = my_bounds_gs[0][1]/my_fft_grid->proc_grid_internal[1];
-    const int block_size_gs_y = my_bounds_gs[1][1]/my_fft_grid->proc_grid_internal[0];
-    const int my_process_repl[2] = {cp_mpi_comm_rank(my_fft_grid->sub_comm_repl[0]), cp_mpi_comm_rank(my_fft_grid->sub_comm_repl[1])};
-    int new_bounds_gs[3][2] = {{my_bounds_gs[1][0]+my_process_repl[0]*block_size_gs_x, imin(block_size_gs_x, my_bounds_gs[0][1]-my_process_repl[1]*block_size_gs_x)}, {my_bounds_gs[1][0]+my_process_repl[0]*block_size_gs_y, imin(block_size_gs_y, my_bounds_gs[1][1]-my_process_repl[0]*block_size_gs_y)}, {my_bounds_gs[2][0], my_bounds_gs[2][1]}};
-    cp_mpi_allgather_int((int*)new_bounds_gs, 6, (int*)my_fft_grid->proc2local_gs, 6, my_fft_grid->comm);
-    cp_mpi_allgather_int((int*)new_bounds_gs, 6, (int*)my_fft_grid->proc2local_gs_repl, 6, my_fft_grid->comm_repl);
-  }
+  cp_mpi_barrier(my_fft_grid->comm);
 }
 
 void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
@@ -857,7 +919,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
         int tmp = my_fft_grid->proc_grid_internal[2];
         my_fft_grid->proc_grid_internal[2] = my_fft_grid->proc_grid_internal[3];
         my_fft_grid->proc_grid_internal[3] = tmp;
-        int tmp = my_fft_grid->proc_grid_internal[0];
+        tmp = my_fft_grid->proc_grid_internal[0];
         my_fft_grid->proc_grid_internal[2] = my_fft_grid->proc_grid_internal[1];
         my_fft_grid->proc_grid_internal[1] = tmp;
       }
@@ -903,7 +965,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
     setup_proc2local(my_fft_grid, NULL);
   }
 
-  const int(*bounds_gs)[2] = my_fft_grid->proc2local_gs_internal[my_process];
+  const int(*bounds_gs)[2] = my_fft_grid->proc2local_gs[my_process];
 
   int number_of_positive_gs_points =
       bounds_gs[0][1] * bounds_gs[1][1] * bounds_gs[2][1];
@@ -957,6 +1019,8 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
     my_fft_grid->index_to_ray_pos = NULL;
     my_fft_grid->index_to_ray_neg = NULL;
   }
+  printf("%i number_of_gs_points %i %i %i\n", my_process, number_of_positive_gs_points, number_of_negative_gs_points, my_fft_grid->npts_gs_local);
+  fflush(stdout);
   my_fft_grid->index_to_ray = NULL;
   my_fft_grid->index_to_ray_neg = NULL;
   my_fft_grid->index_to_ray_pos = NULL;
@@ -964,10 +1028,12 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
   const int local_size_z = bounds_gs[2][1];
 #pragma omp parallel for default(none)                                         \
     shared(my_fft_grid, bounds_gs, local_size_y, local_size_z,                 \
-               number_of_positive_gs_points)
+               number_of_positive_gs_points, my_process, stdout)
   for (int index = 0; index < number_of_positive_gs_points; index++) {
     my_fft_grid->index_to_g[index][0] =
         bounds_gs[0][0] + index / local_size_y / local_size_z;
+    printf("%i my_fft_grid->index_to_g %i %i\n", my_process, my_fft_grid->index_to_g[index][0], my_fft_grid->npts_global_gspace[0]);
+    fflush(stdout);
     assert(my_fft_grid->index_to_g[index][0] <
                my_fft_grid->npts_global_gspace[0] &&
            my_fft_grid->index_to_g[index][0] >= 0);
@@ -1218,9 +1284,9 @@ void grid_create_fft_grid_layout_from_reference(
     shared(my_fft_grid, fft_grid_ref, npts_global, number_of_processes,        \
                stdout) reduction(+ : total_number_of_rays)
   for (int process = 0; process < number_of_processes; process++) {
-    for (int index_x = fft_grid_ref->proc2local_gs_internal[process][0][0];
-         index_x <= fft_grid_ref->proc2local_gs_internal[process][0][0] +
-                        fft_grid_ref->proc2local_gs_internal[process][0][1] - 1;
+    for (int index_x = fft_grid_ref->proc2local_gs[process][0][0];
+         index_x <= fft_grid_ref->proc2local_gs[process][0][0] +
+                        fft_grid_ref->proc2local_gs[process][0][1] - 1;
          index_x++) {
       // The right half of the indices is shifted
       const int index_x_shifted = convert_c_index_to_shifted_index(
@@ -1232,9 +1298,9 @@ void grid_create_fft_grid_layout_from_reference(
         continue;
       const int index_x_new =
           convert_shifted_index_to_c_index(index_x_shifted, npts_global[0]);
-      for (int index_y = fft_grid_ref->proc2local_gs_internal[process][1][0];
-           index_y <= fft_grid_ref->proc2local_gs_internal[process][1][0] +
-                          fft_grid_ref->proc2local_gs_internal[process][1][1] - 1;
+      for (int index_y = fft_grid_ref->proc2local_gs[process][1][0];
+           index_y <= fft_grid_ref->proc2local_gs[process][1][0] +
+                          fft_grid_ref->proc2local_gs[process][1][1] - 1;
            index_y++) {
         // The right half of the indices is shifted
         const int index_y_shifted = convert_c_index_to_shifted_index(

@@ -257,7 +257,7 @@ void fft_3d_fw_blocked(
           rcounts[proc] = proc2local_rs_repl[proc][0][1]*proc2local_rs_repl[proc][1][1]*proc2local_rs_repl[proc][2][1];
           rdispl[proc] = rdispl[proc-1] + rcounts[proc-1];
         }
-        cp_mpi_allgatherv_double_complex(grid_rs, proc2local_rs_all[my_process_repl][0][1]*proc2local_rs_all[my_process_repl][1][1]*proc2local_rs_all[my_process_repl][2][1], grid_buffer_2, rcounts, rdispl, comm_repl);
+        cp_mpi_allgatherv_double_complex(grid_rs, proc2local_rs_repl[my_process_repl][0][1]*proc2local_rs_repl[my_process_repl][1][1]*proc2local_rs_repl[my_process_repl][2][1], grid_buffer_2, rcounts, rdispl, comm_repl);
         for (int proc_repl = 0; proc_repl < number_of_processes_repl; proc_repl++) {
           const int offsets[3] = {proc2local_rs_all[proc_repl][0][0]-my_bounds_rs[0][0], proc2local_rs_all[proc_repl][1][0]-my_bounds_rs[1][0], proc2local_rs_all[proc_repl][2][0]-my_bounds_rs[2][0]};
           for (int idx_x = 0; idx_x < proc2local_rs_repl[proc_repl][0][1]; idx_x++) {
@@ -268,6 +268,8 @@ void fft_3d_fw_blocked(
             }
           }
         }
+        free(rcounts);
+        free(rdispl);
       } else {
         memcpy(grid_buffer_1, grid_rs,
               product3(fft_sizes_rs) * sizeof(double complex));
