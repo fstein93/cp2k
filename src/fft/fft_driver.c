@@ -26,7 +26,6 @@ void fft_3d_fw_blocked(
     const double complex *restrict grid_rs, const bool is_complex,
     double complex *restrict grid_gs, const int *index_to_cart,
     const int npts_gs_local, const int npts_global[3],
-    const int (*proc2local_rs_all)[3][2],
     const int (*my_proc2local_gs_all)[2],
     const int (*proc2local_rs_repl)[3][2],
     const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
@@ -249,7 +248,6 @@ void fft_3d_fw_blocked(
     const int my_process_repl = cp_mpi_comm_rank(comm_repl);
     if (is_complex) {
       if (number_of_processes_repl > 1) {
-        printf("Replicate data\n");
         int *rcounts = calloc(number_of_processes_repl, sizeof(int));
         int *rdispl = calloc(number_of_processes_repl, sizeof(int));
         rcounts[0] = proc2local_rs_repl[0][0][1]*proc2local_rs_repl[0][1][1]*proc2local_rs_repl[0][2][1];
@@ -259,11 +257,13 @@ void fft_3d_fw_blocked(
         }
         cp_mpi_allgatherv_double_complex(grid_rs, proc2local_rs_repl[my_process_repl][0][1]*proc2local_rs_repl[my_process_repl][1][1]*proc2local_rs_repl[my_process_repl][2][1], grid_buffer_2, rcounts, rdispl, comm_repl);
         for (int proc_repl = 0; proc_repl < number_of_processes_repl; proc_repl++) {
-          const int offsets[3] = {proc2local_rs_all[proc_repl][0][0]-my_bounds_rs[0][0], proc2local_rs_all[proc_repl][1][0]-my_bounds_rs[1][0], proc2local_rs_all[proc_repl][2][0]-my_bounds_rs[2][0]};
+          const int offsets[3] = {proc2local_rs_repl[proc_repl][0][0]-my_bounds_rs[0][0], proc2local_rs_repl[proc_repl][1][0]-my_bounds_rs[1][0], proc2local_rs_repl[proc_repl][2][0]-my_bounds_rs[2][0]};
           for (int idx_x = 0; idx_x < proc2local_rs_repl[proc_repl][0][1]; idx_x++) {
             for (int idx_y = 0; idx_y < proc2local_rs_repl[proc_repl][1][1]; idx_y++) {
               for (int idx_z = 0; idx_z < proc2local_rs_repl[proc_repl][2][1]; idx_z++) {
-                grid_buffer_1[((idx_x+offsets[0])*my_bounds_rs[1][1]+(idx_y+offsets[1]))*my_bounds_rs[2][1]+(idx_z+offsets[2])] = grid_buffer_2[rdispl[proc_repl]+(idx_x*proc2local_rs_repl[proc_repl][1][1]+idx_y)*proc2local_rs_repl[proc_repl][2][1]+idx_z];
+                const int src_index = rdispl[proc_repl]+(idx_x*proc2local_rs_repl[proc_repl][1][1]+idx_y)*proc2local_rs_repl[proc_repl][2][1]+idx_z;
+                const int dest_index = ((idx_x+offsets[0])*my_bounds_rs[1][1]+(idx_y+offsets[1]))*my_bounds_rs[2][1]+(idx_z+offsets[2]);
+                grid_buffer_1[dest_index] = grid_buffer_2[src_index];
               }
             }
           }
@@ -293,7 +293,6 @@ void fft_3d_fw_blocked(
       }
     } else {
       if (number_of_processes_repl > 1) {
-        printf("Fetch replicated data\n");
         fft_3d_fw_local(npts_global, grid_buffer_1, grid_buffer_2);
         const int offsets[3] = {my_proc2local_gs_all[0][0]-my_bounds_gs[0][0], my_proc2local_gs_all[1][0]-my_bounds_gs[1][0], my_proc2local_gs_all[2][0]-my_bounds_gs[2][0]};
         for (int idx_x = 0; idx_x < my_proc2local_gs_all[0][1]; idx_x++) {
@@ -301,7 +300,6 @@ void fft_3d_fw_blocked(
             for (int idx_z = 0; idx_z < my_proc2local_gs_all[2][1]; idx_z++) {
               const int src_index = ((idx_x+offsets[0])*my_bounds_gs[1][1]+idx_y+offsets[1])*my_bounds_gs[2][1]+idx_z+offsets[2];
               const int target_index = (idx_x*my_proc2local_gs_all[1][1]+idx_y)*my_proc2local_gs_all[2][1]+idx_z;
-              printf("%i Copy (%f, %f) (%i to %i)\n", my_process, creal(grid_buffer_2[src_index]), cimag(grid_buffer_2[src_index]), src_index, target_index);
               grid_gs[target_index] = grid_buffer_2[src_index];
             }
           }

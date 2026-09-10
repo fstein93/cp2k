@@ -547,7 +547,7 @@ void setup_proc2local(fft_grid_layout *my_fft_grid, const int *external_local_bo
     const int block_size_rs_y = (my_bounds_rs[1][1]+my_fft_grid->proc_grid_internal[1]-1)/my_fft_grid->proc_grid_internal[1];
     const int block_size_rs_z = (my_bounds_rs[2][1]+my_fft_grid->proc_grid_internal[0]-1)/my_fft_grid->proc_grid_internal[0];
     const int my_process_repl[2] = {cp_mpi_comm_rank(my_fft_grid->sub_comm_repl[0]), cp_mpi_comm_rank(my_fft_grid->sub_comm_repl[1])};
-    const int new_bounds_rs[3][2] = {{my_bounds_rs[0][0], my_bounds_rs[0][1]}, {imin(my_bounds_rs[1][0]+my_process_repl[1]*block_size_rs_y, my_fft_grid->npts_global[1]), imax(0, imin(block_size_rs_y, my_bounds_rs[1][1]-my_process_repl[1]*block_size_rs_y))}, {imin(my_bounds_rs[2][0]+my_process_repl[0]*block_size_rs_z, my_fft_grid->npts_global[2]), imax(0, imin(block_size_rs_z, my_bounds_rs[2][1]-my_process_repl[0]*block_size_rs_z))}};
+    const int new_bounds_rs[3][2] = {{my_bounds_rs[0][0], my_bounds_rs[0][1]}, {imin(my_bounds_rs[1][0]+my_process_repl[1]*block_size_rs_y, my_fft_grid->npts_global[1]-1), imax(0, imin(block_size_rs_y, my_bounds_rs[1][1]-my_process_repl[1]*block_size_rs_y))}, {imin(my_bounds_rs[2][0]+my_process_repl[0]*block_size_rs_z, my_fft_grid->npts_global[2]-1), imax(0, imin(block_size_rs_z, my_bounds_rs[2][1]-my_process_repl[0]*block_size_rs_z))}};
     cp_mpi_allgather_int((int*)new_bounds_rs, 6, (int*)my_fft_grid->proc2local_rs, 6, my_fft_grid->comm);
     cp_mpi_allgather_int((int*)new_bounds_rs, 6, (int*)my_fft_grid->proc2local_rs_repl, 6, my_fft_grid->comm_repl);
   }
@@ -556,11 +556,11 @@ void setup_proc2local(fft_grid_layout *my_fft_grid, const int *external_local_bo
     const int block_size_gs_x = (my_bounds_gs[0][1]+my_fft_grid->proc_grid_internal[1]-1)/my_fft_grid->proc_grid_internal[1];
     const int block_size_gs_y = (my_bounds_gs[1][1]+my_fft_grid->proc_grid_internal[0]-1)/my_fft_grid->proc_grid_internal[0];
     const int my_process_repl[2] = {cp_mpi_comm_rank(my_fft_grid->sub_comm_repl[0]), cp_mpi_comm_rank(my_fft_grid->sub_comm_repl[1])};
-    int new_bounds_gs[3][2] = {{imin(my_bounds_gs[0][0]+my_process_repl[1]*block_size_gs_x, my_fft_grid->npts_global_gspace[0]), imax(0, imin(block_size_gs_x, my_bounds_gs[0][1]-my_process_repl[1]*block_size_gs_x))}, {imin(my_bounds_gs[1][0]+my_process_repl[0]*block_size_gs_y, my_fft_grid->npts_global_gspace[1]), imax(0, imin(block_size_gs_y, my_bounds_gs[1][1]-my_process_repl[0]*block_size_gs_y))}, {my_bounds_gs[2][0], my_bounds_gs[2][1]}};
+    int new_bounds_gs[3][2] = {{imin(my_bounds_gs[0][0]+my_process_repl[1]*block_size_gs_x, my_fft_grid->npts_global_gspace[0]-1), imax(0, imin(block_size_gs_x, my_bounds_gs[0][1]-my_process_repl[1]*block_size_gs_x))}, {imin(my_bounds_gs[1][0]+my_process_repl[0]*block_size_gs_y, my_fft_grid->npts_global_gspace[1]-1), imax(0, imin(block_size_gs_y, my_bounds_gs[1][1]-my_process_repl[0]*block_size_gs_y))}, {my_bounds_gs[2][0], my_bounds_gs[2][1]}};
     cp_mpi_allgather_int((int*)new_bounds_gs, 6, (int*)my_fft_grid->proc2local_gs, 6, my_fft_grid->comm);
     cp_mpi_allgather_int((int*)new_bounds_gs, 6, (int*)my_fft_grid->proc2local_gs_repl, 6, my_fft_grid->comm_repl);
   }
-  if (true && cp_mpi_comm_rank(my_fft_grid->comm) == 0) {
+  if (false && cp_mpi_comm_rank(my_fft_grid->comm) == 0) {
     printf("Proc2local RS all\n");
     for (int process = 0; process < cp_mpi_comm_size(my_fft_grid->comm); process++) {
       printf("%i: %i %i / %i %i / %i %i\n", process,
@@ -940,7 +940,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
                 my_fft_grid->proc_coords[1] * my_fft_grid->proc_grid_internal[2];
     cp_mpi_comm_split(my_fft_grid->comm, color, my_process, &my_fft_grid->sub_comm_repl[0]);
     // Now, for the other direction
-    color = my_fft_grid->proc_coords[1] / my_fft_grid->proc_grid_internal[0] +
+    color = my_fft_grid->proc_coords[1] / my_fft_grid->proc_grid_internal[1] +
                 my_fft_grid->proc_coords[0] * my_fft_grid->proc_grid_internal[3];
     cp_mpi_comm_split(my_fft_grid->comm, color, my_process, &my_fft_grid->sub_comm_repl[1]);
     color = my_fft_grid->proc_coords[0] / my_fft_grid->proc_grid_internal[0] +
@@ -961,7 +961,6 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
     assert(cp_mpi_comm_size(my_fft_grid->sub_comm[1]) ==
           my_fft_grid->proc_grid_internal[3]);
 
-    printf("%i Replication grid: %i %i %i %i (%i %i)\n", my_process, my_fft_grid->proc_grid_internal[0], my_fft_grid->proc_grid_internal[1], my_fft_grid->proc_grid_internal[2], my_fft_grid->proc_grid_internal[3], cp_mpi_comm_size(my_fft_grid->comm_repl), cp_mpi_comm_size(my_fft_grid->comm_internal));
     setup_proc2local(my_fft_grid, NULL);
   }
 
@@ -1019,11 +1018,6 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
     my_fft_grid->index_to_ray_pos = NULL;
     my_fft_grid->index_to_ray_neg = NULL;
   }
-  printf("%i number_of_gs_points %i %i %i\n", my_process, number_of_positive_gs_points, number_of_negative_gs_points, my_fft_grid->npts_gs_local);
-  fflush(stdout);
-  my_fft_grid->index_to_ray = NULL;
-  my_fft_grid->index_to_ray_neg = NULL;
-  my_fft_grid->index_to_ray_pos = NULL;
   const int local_size_y = bounds_gs[1][1];
   const int local_size_z = bounds_gs[2][1];
 #pragma omp parallel for default(none)                                         \
@@ -1032,8 +1026,6 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
   for (int index = 0; index < number_of_positive_gs_points; index++) {
     my_fft_grid->index_to_g[index][0] =
         bounds_gs[0][0] + index / local_size_y / local_size_z;
-    printf("%i my_fft_grid->index_to_g %i %i\n", my_process, my_fft_grid->index_to_g[index][0], my_fft_grid->npts_global_gspace[0]);
-    fflush(stdout);
     assert(my_fft_grid->index_to_g[index][0] <
                my_fft_grid->npts_global_gspace[0] &&
            my_fft_grid->index_to_g[index][0] >= 0);
@@ -1653,7 +1645,6 @@ void fft_3d_fw_with_layout(const double complex *restrict grid_rs,
   } else {
     fft_3d_fw_blocked(grid_rs, true, grid_gs, grid_layout->index_to_cart,
                       grid_layout->npts_gs_local, grid_layout->npts_global,
-                      grid_layout->proc2local_rs,
                       grid_layout->proc2local_gs[cp_mpi_comm_rank(grid_layout->comm)],
                       grid_layout->proc2local_rs_repl,
                       grid_layout->proc2local_rs_internal, grid_layout->proc2local_ms_internal,
@@ -1680,7 +1671,7 @@ void fft_3d_fw_with_layout_to_cart(const double complex *restrict grid_rs,
   ensure_buffer_size(grid_layout->buffer_size);
 
   fft_3d_fw_blocked(grid_rs, true, grid_gs, NULL, 0, grid_layout->npts_global,
-                    grid_layout->proc2local_rs, grid_layout->proc2local_gs[cp_mpi_comm_rank(grid_layout->comm)],
+                    grid_layout->proc2local_gs[cp_mpi_comm_rank(grid_layout->comm)],
                     grid_layout->proc2local_rs_repl,
                     grid_layout->proc2local_rs_internal, grid_layout->proc2local_ms_internal,
                     grid_layout->proc2local_gs_internal, grid_layout->proc2local_x_gs,
@@ -1713,7 +1704,7 @@ void fft_3d_fw_r2c_with_layout_to_cart(const double *restrict grid_rs,
         grid_layout->redistribution, grid_layout->comm_internal, grid_layout->sub_comm);
   } else {
     fft_3d_fw_blocked((const double complex *)grid_rs, false, grid_gs, NULL, 0,
-                      grid_layout->npts_global, grid_layout->proc2local_rs, 
+                      grid_layout->npts_global,
                       grid_layout->proc2local_gs[cp_mpi_comm_rank(grid_layout->comm)],
                       grid_layout->proc2local_rs_repl, grid_layout->proc2local_rs_internal,
                       grid_layout->proc2local_ms_internal, grid_layout->proc2local_gs_internal,
@@ -1775,7 +1766,7 @@ void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs,
     } else {
       fft_3d_fw_blocked((const double complex *)grid_rs, false, grid_gs,
                         grid_layout->index_to_cart, grid_layout->npts_gs_local,
-                        grid_layout->npts_global, grid_layout->proc2local_rs,
+                        grid_layout->npts_global,
                         grid_layout->proc2local_gs[cp_mpi_comm_rank(grid_layout->comm)],
                         grid_layout->proc2local_rs_repl, grid_layout->proc2local_rs_internal,
                         grid_layout->proc2local_ms_internal, grid_layout->proc2local_gs_internal,
