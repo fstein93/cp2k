@@ -329,13 +329,13 @@ void run_perftests(const bool debug, const int backend, const int planning_mode,
 
   // These are approximate grid sizes of the finest grid level for the
   // standard benchmark systems in benchmarks/QS
-  run_test_c2c((const int[3]){100, 100, 100}, 10);
-  run_test_c2c((const int[3]){125, 125, 125}, 10);
-  run_test_c2c((const int[3]){160, 160, 160}, 10);
-  run_test_c2c((const int[3]){200, 200, 200}, 10);
-  run_test_c2c((const int[3]){256, 256, 256}, 10);
-  run_test_c2c((const int[3]){315, 315, 315}, 10);
-  run_test_c2c((const int[3]){400, 400, 400}, 10);
+  run_test_c2c((const int[3]){100, 100, 100}, 1);
+  run_test_c2c((const int[3]){125, 125, 125}, 1);
+  run_test_c2c((const int[3]){160, 160, 160}, 1);
+  run_test_c2c((const int[3]){200, 200, 200}, 1);
+  run_test_c2c((const int[3]){256, 256, 256}, 1);
+  run_test_c2c((const int[3]){315, 315, 315}, 1);
+  run_test_c2c((const int[3]){400, 400, 400}, 1);
   //  run_test_c2c((const int[3]){500, 500, 500}, 10);
   //  run_test_c2c((const int[3]){630, 630, 630}, 10);
   //   QS_low_scaling_GW
