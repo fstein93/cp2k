@@ -779,7 +779,7 @@ void cp_mpi_allgatherv_double_complex(const double complex *sendbuf, const int s
                       recvcounts, rdispls, MPI_DOUBLE_COMPLEX, comm));
 #else
   (void)comm; // mark used
-  assert(sendcount == recvcount[0]);
+  assert(sendcount == recvcounts[0]);
   assert(rdispls[0] == 0);
   memcpy(recvbuf, sendbuf, sendcount * sizeof(double complex));
 #endif
@@ -796,7 +796,7 @@ void cp_mpi_allgatherv_double(const double *sendbuf, const int sendcount, double
                       recvcounts, rdispls, MPI_DOUBLE, comm));
 #else
   (void)comm; // mark used
-  assert(sendcount == recvcount[0]);
+  assert(sendcount == recvcounts[0]);
   assert(rdispls[0] == 0);
   memcpy(recvbuf, sendbuf, sendcount * sizeof(double));
 #endif

@@ -59,7 +59,7 @@ void fft_library_init_F(const int backend_F, const int fftw_plan,
     plan_type = FFT_ESTIMATE;
   }
   fft_init_lib(backend, plan_type, use_fftw_mpi, use_guru_interface,
-               wisdom_file);
+               1024, wisdom_file);
   fft_init_timer(false);
 }
 
@@ -277,8 +277,8 @@ void fft_grid_get_proc2local_ms_F(const fft_grid_layout *fft_grid, int *proc2loc
   fflush(stderr);
   for (int process = 0; process < cp_mpi_comm_size(fft_grid->comm); process++) {
     for (int dir = 0; dir < 3; dir++) {
-      proc2local_ms[6*process+2*dir] = 1+fft_grid->proc2local_ms[process][2-dir][0];
-      proc2local_ms[6*process+2*dir+1] = fft_grid->proc2local_ms[process][2-dir][1];
+      proc2local_ms[6*process+2*dir] = 1+fft_grid->proc2local_ms_internal[process][2-dir][0];
+      proc2local_ms[6*process+2*dir+1] = fft_grid->proc2local_ms_internal[process][2-dir][1];
     }
   }
   fprintf(stderr, "Done Copy MS\n");
