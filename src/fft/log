@@ -1,0 +1,139 @@
+Number of processes: 2
+Number of threads per process: 1
+Guru interface is available!
+Use FFTW-MPI!
+Using FFTW library.
+Using FFTW library.
+Planning time for FW and BW C2C (cart) FFTs of size 100 100 100 : 0.032740
+Time for 1 FW and BW C2C (cart) FFTs of size 100 100 100 : min 0.021710, max 0.021710, avg 0.021710 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 125 125 125 : 0.071236
+Time for 1 FW and BW C2C (cart) FFTs of size 125 125 125 : min 0.046060, max 0.046060, avg 0.046060 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 160 160 160 : 0.155766
+Time for 1 FW and BW C2C (cart) FFTs of size 160 160 160 : min 0.100549, max 0.100549, avg 0.100549 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 200 200 200 : 0.269889
+Time for 1 FW and BW C2C (cart) FFTs of size 200 200 200 : min 0.160478, max 0.160478, avg 0.160478 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 256 256 256 : 1.115860
+Time for 1 FW and BW C2C (cart) FFTs of size 256 256 256 : min 0.885625, max 0.885625, avg 0.885625 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 315 315 315 : 1.327881
+Time for 1 FW and BW C2C (cart) FFTs of size 315 315 315 : min 0.879275, max 0.879275, avg 0.879275 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 400 400 400 : 4.500028
+Time for 1 FW and BW C2C (cart) FFTs of size 400 400 400 : min 2.814018, max 2.814018, avg 2.814018 (stdev -nan)
+ -----------------------------------------------------------------------------------------------------
+ -                                                                                                   -
+ -                                         FFT TIMING REPORT                                         -
+ -                                                                                                   -
+ -----------------------------------------------------------------------------------------------------
+ ROUTINE                                       CALLS    AVG SELF    MAX SELF    AVG TOTAL    MAX TOTAL 
+                                                           TIME         TIME         TIME        TIME   
+ fft_library                                      28        0.000        0.000      28.120      28.212
+ fft_create_grid_layout                            7       15.809       15.886      15.809      15.886
+ fft_3d_fw_b                                      14        0.000        0.000      12.203      12.221
+ fft_3d_fw_c2c_local                              14        8.010        8.018       8.015       8.023
+ fft_3d_fw_b_400_400_400_1                         2        2.484        2.510       7.221       7.255
+ fft_3d_fw_b_315_315_315_1                         2        0.832        0.834       2.172       2.174
+ fft_3d_fw_b_256_256_256_1                         2        0.438        0.439       1.968       1.987
+ fft_3d_fw_b_200_200_200_1                         2        0.221        0.222       0.422       0.422
+ -------------------------------------------------------------------------------
+Guru interface is available!
+FFTW-MPI not requested!
+Using FFTW library.
+Using FFTW library.
+Planning time for FW and BW C2C (cart) FFTs of size 100 100 100 : 0.033459
+Time for 1 FW and BW C2C (cart) FFTs of size 100 100 100 : min 0.020087, max 0.020087, avg 0.020087 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 125 125 125 : 0.061240
+Time for 1 FW and BW C2C (cart) FFTs of size 125 125 125 : min 0.046384, max 0.046384, avg 0.046384 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 160 160 160 : 0.157196
+Time for 1 FW and BW C2C (cart) FFTs of size 160 160 160 : min 0.101024, max 0.101024, avg 0.101024 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 200 200 200 : 0.279032
+Time for 1 FW and BW C2C (cart) FFTs of size 200 200 200 : min 0.160543, max 0.160543, avg 0.160543 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 256 256 256 : 1.094732
+Time for 1 FW and BW C2C (cart) FFTs of size 256 256 256 : min 0.865121, max 0.865121, avg 0.865121 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 315 315 315 : 1.330800
+Time for 1 FW and BW C2C (cart) FFTs of size 315 315 315 : min 0.944577, max 0.944577, avg 0.944577 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 400 400 400 : 3.681350
+Time for 1 FW and BW C2C (cart) FFTs of size 400 400 400 : min 2.818248, max 2.818248, avg 2.818248 (stdev -nan)
+ -----------------------------------------------------------------------------------------------------
+ -                                                                                                   -
+ -                                         FFT TIMING REPORT                                         -
+ -                                                                                                   -
+ -----------------------------------------------------------------------------------------------------
+ ROUTINE                                       CALLS    AVG SELF    MAX SELF    AVG TOTAL    MAX TOTAL 
+                                                           TIME         TIME         TIME        TIME   
+ fft_library                                      28        0.000        0.000      27.150      27.195
+ fft_create_grid_layout                            7       15.615       15.655      15.615      15.655
+ fft_3d_fw_b                                      14        0.000        0.000      11.414      11.420
+ fft_3d_fw_c2c_local                              14        7.953        7.955       7.957       7.960
+ fft_3d_fw_b_400_400_400_1                         2        1.685        1.688       6.413       6.429
+ fft_3d_fw_b_315_315_315_1                         2        0.897        0.899       2.227       2.228
+ fft_3d_fw_b_256_256_256_1                         2        0.438        0.442       1.927       1.938
+ fft_3d_fw_b_200_200_200_1                         2        0.226        0.227       0.428       0.429
+ -------------------------------------------------------------------------------
+Guru interface not in use!
+Use FFTW-MPI!
+Using FFTW library.
+Using FFTW library.
+Planning time for FW and BW C2C (cart) FFTs of size 100 100 100 : 0.022398
+Time for 1 FW and BW C2C (cart) FFTs of size 100 100 100 : min 0.020076, max 0.020076, avg 0.020076 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 125 125 125 : 0.060629
+Time for 1 FW and BW C2C (cart) FFTs of size 125 125 125 : min 0.044619, max 0.044619, avg 0.044619 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 160 160 160 : 0.158175
+Time for 1 FW and BW C2C (cart) FFTs of size 160 160 160 : min 0.100196, max 0.100196, avg 0.100196 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 200 200 200 : 0.279594
+Time for 1 FW and BW C2C (cart) FFTs of size 200 200 200 : min 0.164313, max 0.164313, avg 0.164313 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 256 256 256 : 0.729814
+Time for 1 FW and BW C2C (cart) FFTs of size 256 256 256 : min 0.500657, max 0.500657, avg 0.500657 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 315 315 315 : 1.362505
+Time for 1 FW and BW C2C (cart) FFTs of size 315 315 315 : min 0.904974, max 0.904974, avg 0.904974 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 400 400 400 : 2.940862
+Time for 1 FW and BW C2C (cart) FFTs of size 400 400 400 : min 2.071345, max 2.071345, avg 2.071345 (stdev -nan)
+ -----------------------------------------------------------------------------------------------------
+ -                                                                                                   -
+ -                                         FFT TIMING REPORT                                         -
+ -                                                                                                   -
+ -----------------------------------------------------------------------------------------------------
+ ROUTINE                                       CALLS    AVG SELF    MAX SELF    AVG TOTAL    MAX TOTAL 
+                                                           TIME         TIME         TIME        TIME   
+ fft_library                                      28        0.000        0.000      25.057      25.104
+ fft_create_grid_layout                            7       15.747       15.789      15.747      15.789
+ fft_3d_fw_b                                      14        0.000        0.000       9.183       9.187
+ fft_3d_fw_c2c_local                              14        5.793        5.809       5.799       5.815
+ fft_3d_fw_b_400_400_400_1                         2        1.659        1.669       4.926       4.940
+ fft_3d_fw_b_315_315_315_1                         2        0.851        0.852       2.218       2.228
+ fft_3d_fw_b_256_256_256_1                         2        0.445        0.447       1.203       1.209
+ fft_3d_fw_b_200_200_200_1                         2        0.231        0.231       0.431       0.432
+ fft_3d_fw_b_160_160_160_1                         2        0.126        0.126       0.258       0.258
+ -------------------------------------------------------------------------------
+Guru interface not in use!
+FFTW-MPI not requested!
+Using FFTW library.
+Using FFTW library.
+Planning time for FW and BW C2C (cart) FFTs of size 100 100 100 : 0.022748
+Time for 1 FW and BW C2C (cart) FFTs of size 100 100 100 : min 0.020005, max 0.020005, avg 0.020005 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 125 125 125 : 0.065935
+Time for 1 FW and BW C2C (cart) FFTs of size 125 125 125 : min 0.046890, max 0.046890, avg 0.046890 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 160 160 160 : 0.138152
+Time for 1 FW and BW C2C (cart) FFTs of size 160 160 160 : min 0.102804, max 0.102804, avg 0.102804 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 200 200 200 : 0.272322
+Time for 1 FW and BW C2C (cart) FFTs of size 200 200 200 : min 0.159735, max 0.159735, avg 0.159735 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 256 256 256 : 0.733395
+Time for 1 FW and BW C2C (cart) FFTs of size 256 256 256 : min 0.497380, max 0.497380, avg 0.497380 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 315 315 315 : 1.345721
+Time for 1 FW and BW C2C (cart) FFTs of size 315 315 315 : min 0.916441, max 0.916441, avg 0.916441 (stdev -nan)
+Planning time for FW and BW C2C (cart) FFTs of size 400 400 400 : 2.918572
+Time for 1 FW and BW C2C (cart) FFTs of size 400 400 400 : min 2.068466, max 2.068466, avg 2.068466 (stdev -nan)
+ -----------------------------------------------------------------------------------------------------
+ -                                                                                                   -
+ -                                         FFT TIMING REPORT                                         -
+ -                                                                                                   -
+ -----------------------------------------------------------------------------------------------------
+ ROUTINE                                       CALLS    AVG SELF    MAX SELF    AVG TOTAL    MAX TOTAL 
+                                                           TIME         TIME         TIME        TIME   
+ fft_library                                      28        0.000        0.000      24.896      24.955
+ fft_create_grid_layout                            7       15.617       15.683      15.617      15.683
+ fft_3d_fw_b                                      14        0.000        0.000       9.149       9.152
+ fft_3d_fw_c2c_local                              14        5.787        5.800       5.793       5.806
+ fft_3d_fw_b_400_400_400_1                         2        1.656        1.664       4.915       4.923
+ fft_3d_fw_b_315_315_315_1                         2        0.832        0.836       2.207       2.221
+ fft_3d_fw_b_256_256_256_1                         2        0.453        0.453       1.206       1.208
+ fft_3d_fw_b_200_200_200_1                         2        0.227        0.227       0.426       0.428
+ -------------------------------------------------------------------------------

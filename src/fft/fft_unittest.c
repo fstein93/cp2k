@@ -50,7 +50,7 @@ int main(int argc, char *argv[]) {
   offload_set_chosen_device(0);
 
   const bool debug = false;
-  const int backend = FFT_LIB_FFTW;
+  const int backend = fft_lib_default_library();
   const int planning_mode = FFT_MEASURE;
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {

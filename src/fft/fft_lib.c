@@ -22,12 +22,14 @@
 #include <string.h>
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
-fft_lib fft_lib_choice = FFT_LIB_GPU;
+const int fft_lib_default = FFT_LIB_GPU;
 #elif defined(__FFTW3)
-fft_lib fft_lib_choice = FFT_LIB_FFTW;
+const int fft_lib_default = FFT_LIB_FFTW;
 #else
 #error "The FFT backend needs at least the FFTW3 backend."
+const int fft_lib_default = -1; // No backend available
 #endif
+fft_lib fft_lib_choice = FFT_LIB_DEFAULT;
 bool fft_lib_initialized = false;
 
 double complex *buffer_1 = NULL;
@@ -46,10 +48,10 @@ void fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
   }
   fft_lib_initialized = true;
   fft_lib_choice = lib;
-  fft_fftw_init_lib(fftw_planning_flag, use_fft_mpi, use_guru_interface,
-                    wisdom_file);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
+    fft_fftw_init_lib(fftw_planning_flag, use_fft_mpi, use_guru_interface,
+                      wisdom_file);
     printf("Using FFTW library.\n");
     break;
   case FFT_LIB_GPU:
@@ -119,6 +121,12 @@ void fft_finalize_acc_lib() {
   fft_gpu_finalize();
 #endif
 }
+
+/*******************************************************************************
+ * \brief Get the default library (GPU if offloading was enabled, else FFTW3).
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_lib_default_library() { return fft_lib_default; }
 
 /*******************************************************************************
  * \brief Whether a compound MPI implementation is available.

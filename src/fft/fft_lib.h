@@ -50,6 +50,12 @@ void fft_finalize_lib(const char *wisdom_file);
 void fft_finalize_acc_lib();
 
 /*******************************************************************************
+ * \brief Get the default library (GPU if offloading was enabled, else FFTW3).
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_lib_default_library();
+
+/*******************************************************************************
  * \brief Inquire the library backend in use.
  * \author Frederick Stein
  ******************************************************************************/

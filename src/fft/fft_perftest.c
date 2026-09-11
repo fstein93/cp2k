@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 
 #include "../mpiwrap/cp_mpi.h"
+#include "../offload/offload_library.h"
 #include "fft_grid_layout.h"
 #include "fft_lib.h"
 #include "fft_timer.h"
@@ -427,7 +428,7 @@ int main(int argc, char *argv[]) {
   offload_set_chosen_device(0);
 
   const bool debug = false;
-  const int backend = FFT_LIB_FFTW;
+  const int backend = fft_lib_default_library();
   const int planning_mode = FFT_ESTIMATE;
   const double threshold = 0.01;
 
