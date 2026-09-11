@@ -91,8 +91,6 @@ void fft_init_acc_lib() {
  * \author Frederick Stein
  ******************************************************************************/
 void fft_finalize_lib(const char *wisdom_file) {
-  fft_fftw_finalize_lib(wisdom_file);
-  fft_finalize_acc_lib();
   if (buffer_1 != NULL)
     fft_free_complex(buffer_1);
   if (buffer_2 != NULL)
@@ -100,6 +98,8 @@ void fft_finalize_lib(const char *wisdom_file) {
   buffer_1 = NULL;
   buffer_2 = NULL;
   buffer_size = -1;
+  fft_fftw_finalize_lib(wisdom_file);
+  fft_finalize_acc_lib();
   fft_lib_initialized = false;
 }
 

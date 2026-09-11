@@ -28,7 +28,6 @@ int run_unittests(const bool debug, const int backend, const int planning_mode,
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
   fft_init_timer(debug);
-  fft_init_acc_lib();
   fft_init_lib(backend, planning_mode, use_mpi, use_guru, NULL);
 
   errors += fft_test_local();
@@ -39,7 +38,7 @@ int run_unittests(const bool debug, const int backend, const int planning_mode,
   fft_print_timing_report(threshold);
 
   fft_finalize_lib(NULL);
-  fft_finalize_acc_lib();
+  fft_finalize_timer();
 
   return errors;
 }

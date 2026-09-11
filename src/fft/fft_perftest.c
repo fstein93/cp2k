@@ -324,8 +324,6 @@ static void run_test_ray_r2c(const int fft_size[3], const int number_of_runs,
 void run_perftests(const bool debug, const int backend, const int planning_mode,
                const bool use_mpi, const bool use_guru,
                const double threshold) {
-  fft_finalize_timer();
-  fft_finalize_lib(NULL);
   fft_init_timer(debug);
   fft_init_lib(backend, planning_mode, use_mpi, use_guru, NULL);
 
@@ -412,6 +410,8 @@ void run_perftests(const bool debug, const int backend, const int planning_mode,
   //  run_test_ray_r2c((const int[3]){600, 180, 120}, 10, true);
 
   fft_print_timing_report(threshold);
+  fft_finalize_timer();
+  fft_finalize_lib(NULL);
 }
 
 int main(int argc, char *argv[]) {
@@ -449,9 +449,6 @@ int main(int argc, char *argv[]) {
       run_perftests(debug, backend, planning_mode, false, false, threshold);
     }
   }
-
-  fft_finalize_lib(NULL);
-  fft_finalize_timer();
 
   cp_mpi_finalize();
 
