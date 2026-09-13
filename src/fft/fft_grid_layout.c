@@ -76,6 +76,8 @@ void sort_g_vectors(fft_grid_layout *my_fft_grid) {
   assert(my_fft_grid != NULL);
   assert(my_fft_grid->npts_gs_local >= 0);
 
+  if (my_fft_grid->npts_gs_local == 0) return;
+
   int *local_index2g_squared = calloc(my_fft_grid->npts_gs_local, sizeof(int));
 #pragma omp parallel for default(none)                                         \
     shared(my_fft_grid, local_index2g_squared)

@@ -7,6 +7,7 @@
 
 #include "fft_lib_fftw.h"
 #include "fft_timer.h"
+#include "fft_utils.h"
 
 #include <assert.h>
 #include <math.h>
@@ -309,7 +310,7 @@ void fft_fftw_allocate_double(const int length, double **buffer) {
   assert(is_initialized);
   assert(buffer != NULL);
   assert(*buffer == NULL);
-  *buffer = fftw_alloc_real(length);
+  *buffer = fftw_alloc_real(imax(1, length));
 #else
   (void)length;
   (void)buffer;
@@ -326,7 +327,7 @@ void fft_fftw_allocate_complex(const int length, double complex **buffer) {
   assert(is_initialized);
   assert(buffer != NULL);
   assert(*buffer == NULL);
-  *buffer = fftw_alloc_complex(length);
+  *buffer = fftw_alloc_complex(imax(1, length));
 #else
   (void)length;
   (void)buffer;
@@ -1180,6 +1181,7 @@ void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
+  if (fft_size == 0 || number_of_ffts == 0) return;
   int number_of_threads = 1;
 #pragma omp parallel default(none) shared(number_of_threads)
   {
@@ -1244,6 +1246,7 @@ void fft_fftw_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
+  if (fft_size == 0 || number_of_ffts == 0) return;
   fftw_plan *plan = fft_fftw_create_1d_plan_r2c(
       FFTW_FORWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
       grid_out, omp_get_max_threads(), (double complex *)grid_in == grid_out);
@@ -1270,6 +1273,7 @@ void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts,
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
+  if (fft_size == 0 || number_of_ffts == 0) return;
   int number_of_threads = 1;
 #pragma omp parallel default(none) shared(number_of_threads)
   {
@@ -1334,6 +1338,7 @@ void fft_fftw_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
+  if (fft_size == 0 || number_of_ffts == 0) return;
   fftw_plan *plan = fft_fftw_create_1d_plan_r2c(
       FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
       (double complex *)grid_out, omp_get_max_threads(),
@@ -1360,6 +1365,7 @@ void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
+  if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fftw_plan *plan = fft_fftw_create_2d_plan(
       FFTW_FORWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
       grid_out, omp_get_max_threads(), grid_in == grid_out);
@@ -1385,6 +1391,7 @@ void fft_fftw_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
+  if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fftw_plan *plan = fft_fftw_create_2d_plan_r2c(
       FFTW_FORWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
       grid_out, omp_get_max_threads(), (double complex *)grid_in == grid_out);
@@ -1410,6 +1417,7 @@ void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
+  if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fftw_plan *plan = fft_fftw_create_2d_plan(
       FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
       grid_out, omp_get_max_threads(), grid_in == grid_out);
@@ -1435,6 +1443,7 @@ void fft_fftw_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
+  if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fftw_plan *plan = fft_fftw_create_2d_plan_r2c(
       FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
       (double complex *)grid_out, omp_get_max_threads(),
@@ -1462,6 +1471,12 @@ void fft_fftw_fw_guru(int rank, const fft_iodim *dims, int howmany_rank,
 #if defined(__FFTW3)
   assert(has_guru_interface);
   assert(is_initialized);
+  for (int r = 0; r < rank; r++) {
+    if (dims[r].n == 0) return;
+  }
+  for (int r = 0; r < howmany_rank; r++) {
+    if (howmany_dims[r].n == 0) return;
+  }
   fftw_plan *plan = fft_fftw_create_guru_plan(
       FFTW_FORWARD, rank, dims, howmany_rank, howmany_dims, number_of_threads,
       grid_out, grid_in == grid_out);
@@ -1489,6 +1504,12 @@ void fft_fftw_fw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
 #if defined(__FFTW3)
   assert(has_guru_interface);
   assert(is_initialized);
+  for (int r = 0; r < rank; r++) {
+    if (dims[r].n == 0) return;
+  }
+  for (int r = 0; r < howmany_rank; r++) {
+    if (howmany_dims[r].n == 0) return;
+  }
   fftw_plan *plan = fft_fftw_create_guru_plan_r2c(
       FFTW_FORWARD, rank, dims, howmany_rank, howmany_dims, number_of_threads,
       grid_out, grid_in == (double *)grid_out);
@@ -1516,6 +1537,12 @@ void fft_fftw_bw_guru(int rank, const fft_iodim *dims, int howmany_rank,
 #if defined(__FFTW3)
   assert(has_guru_interface);
   assert(is_initialized);
+  for (int r = 0; r < rank; r++) {
+    if (dims[r].n == 0) return;
+  }
+  for (int r = 0; r < howmany_rank; r++) {
+    if (howmany_dims[r].n == 0) return;
+  }
   fftw_plan *plan = fft_fftw_create_guru_plan(
       FFTW_BACKWARD, rank, dims, howmany_rank, howmany_dims, number_of_threads,
       grid_out, grid_in == grid_out);
@@ -1543,6 +1570,12 @@ void fft_fftw_bw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
 #if defined(__FFTW3)
   assert(has_guru_interface);
   assert(is_initialized);
+  for (int r = 0; r < rank; r++) {
+    if (dims[r].n == 0) return;
+  }
+  for (int r = 0; r < howmany_rank; r++) {
+    if (howmany_dims[r].n == 0) return;
+  }
   fftw_plan *plan = fft_fftw_create_guru_plan_r2c(
       FFTW_BACKWARD, rank, dims, howmany_rank, howmany_dims, number_of_threads,
       (double complex *)grid_out, (double *)grid_in == grid_out);
@@ -1568,6 +1601,7 @@ void fft_fftw_3d_fw_local(const int fft_size[3], double complex *grid_in,
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
+  if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0) return;
   if (has_guru_interface &&
       (fft_size[0] >= 256 || fft_size[1] >= 256 || fft_size[2] >= 256 ||
        omp_get_max_threads() > 1) &&
@@ -1714,6 +1748,7 @@ void fft_fftw_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
+  if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0) return;
   if ((fft_size[0] >= 256 || fft_size[1] >= 256 || fft_size[2] >= 256 ||
        omp_get_max_threads() > 1) &&
       (fftw_planning_mode == FFTW_ESTIMATE)) {
@@ -1870,6 +1905,7 @@ void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
+  if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0) return;
   if ((fft_size[0] >= 256 || fft_size[1] >= 256 || fft_size[2] >= 256 ||
        omp_get_max_threads() > 1) &&
       (fftw_planning_mode == FFTW_ESTIMATE)) {
@@ -2015,6 +2051,7 @@ void fft_fftw_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
+  if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0) return;
   const bool in_place = (double *)grid_in == grid_out;
   (void)in_place;
   (void)fft_size;
@@ -2364,6 +2401,7 @@ void fft_fftw_2d_fw_distributed(const int npts_global[2],
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
   assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0) return;
   fftw_plan *plan = fft_fftw_create_distributed_2d_plan(
       FFTW_FORWARD, npts_global, number_of_ffts, comm, grid_out);
   assert(plan != NULL);
@@ -2390,6 +2428,7 @@ void fft_fftw_2d_fw_distributed_r2c(const int npts_global[2],
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
   assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0) return;
   fftw_plan *plan = fft_fftw_create_distributed_2d_plan_r2c(
       FFTW_FORWARD, npts_global, number_of_ffts, comm, grid_out);
   assert(plan != NULL);
@@ -2417,6 +2456,7 @@ void fft_fftw_2d_bw_distributed(const int npts_global[2],
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
   assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0) return;
   fftw_plan *plan = fft_fftw_create_distributed_2d_plan(
       FFTW_BACKWARD, npts_global, number_of_ffts, comm, grid_out);
   assert(plan != NULL);
@@ -2443,6 +2483,7 @@ void fft_fftw_2d_bw_distributed_c2r(const int npts_global[2],
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
   assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0) return;
   fftw_plan *plan = fft_fftw_create_distributed_2d_plan_r2c(
       FFTW_BACKWARD, npts_global, number_of_ffts, comm,
       (double complex *)grid_out);
@@ -2470,6 +2511,7 @@ void fft_fftw_3d_fw_distributed(const int npts_global[3],
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
   assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0) return;
   fftw_plan *plan = fft_fftw_create_distributed_3d_plan(
       FFTW_FORWARD, npts_global, comm, grid_out);
   assert(plan != NULL);
@@ -2494,6 +2536,7 @@ void fft_fftw_3d_fw_distributed_r2c(const int npts_global[3],
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
   assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0) return;
   fftw_plan *plan = fft_fftw_create_distributed_3d_plan_r2c(
       FFTW_FORWARD, npts_global, comm, grid_out);
   assert(plan != NULL);
@@ -2519,6 +2562,7 @@ void fft_fftw_3d_bw_distributed(const int npts_global[3],
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
   assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0) return;
   fftw_plan *plan = fft_fftw_create_distributed_3d_plan(
       FFTW_BACKWARD, npts_global, comm, grid_out);
   assert(plan != NULL);
@@ -2543,6 +2587,7 @@ void fft_fftw_3d_bw_distributed_c2r(const int npts_global[3],
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
   assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0) return;
   fftw_plan *plan = fft_fftw_create_distributed_3d_plan_r2c(
       FFTW_BACKWARD, npts_global, comm, (double complex *)grid_out);
   assert(plan != NULL);

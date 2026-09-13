@@ -10,6 +10,7 @@
 #include "../offload/offload_runtime.h"
 #include "fft_lib_fftw.h"
 #include "fft_timer.h"
+#include "fft_utils.h"
 #include "fpga/fft_fpga.h"
 #include "gpu/fft_gpu.h"
 
@@ -234,10 +235,10 @@ void fft_allocate_double(const int length, double **buffer) {
 void fft_allocate_complex(const int length, double complex **buffer) {
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_allocate_complex(length, buffer);
+    fft_fftw_allocate_complex(imax(1, length), buffer);
     break;
   case FFT_LIB_GPU:
-    fft_gpu_allocate_complex(length, buffer);
+    fft_gpu_allocate_complex(imax(1, length), buffer);
     break;
   default:
     assert(0 && "Unknown FFT library.");
