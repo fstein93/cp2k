@@ -58,6 +58,7 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
   }
 
   fft_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
                   input_array, output_array);
 
   double max_error = 0.0;
@@ -132,6 +133,7 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
   }
 
   fft_1d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
                   output_array, input_array);
 
   max_error = 0.0;
@@ -231,6 +233,7 @@ int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
   }
 
   fft_1d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size/2+1,
                       input_array, output_array);
 
   double max_error = 0.0;
@@ -311,6 +314,7 @@ int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
   }
 
   fft_1d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size/2+1,
                       output_array, input_array);
 
   max_error = 0.0;

@@ -232,6 +232,7 @@ static void add_plan_to_cache(const int key[4], offload_fftHandle *plan) {
  ******************************************************************************/
 static void fft_1d_gpu(const int direction, const int n, const int m,
                        const bool transpose_in, const bool transpose_out,
+                       const int leading_dimension_in, const int leading_dimension_out,
                        const double *data_in, double *data_out) {
   const int key[4] = {1 + (direction < 0 ? FFT_PLAN_BACKWARD : 0) +
                           (transpose_in ? FFT_PLAN_TRANSPOSE_IN : 0) +
@@ -245,15 +246,15 @@ static void fft_1d_gpu(const int direction, const int n, const int m,
     int onembed[1] = {0}; // Is ignored, but is not allowed to be NULL.
     int batch = m;
     int istride = 1;
-    int idist = n;
+    int idist = leading_dimension_in;
     int ostride = 1;
-    int odist = n;
+    int odist = leading_dimension_out;
     if (transpose_in) {
-      istride = m;
+      istride = leading_dimension_in;
       idist = 1;
     }
     if (transpose_out) {
-      ostride = m;
+      ostride = leading_dimension_out;
       odist = 1;
     }
     plan = malloc(sizeof(cache_entry));
@@ -274,6 +275,7 @@ static void fft_1d_gpu(const int direction, const int n, const int m,
  ******************************************************************************/
 static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
                            const bool transpose_in, const bool transpose_out,
+                       const int leading_dimension_in, const int leading_dimension_out,
                            const double *data_in, double *data_out) {
   const int key[4] = {1 + FFT_GPU_R2C +
                           (direction < 0 ? FFT_PLAN_BACKWARD : 0) +
@@ -290,21 +292,21 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
     int istride, idist, ostride, odist;
     if (direction == OFFLOAD_FFT_FORWARD) {
       istride = 1;
-      idist = n;
+      idist = leading_dimension_in;
       ostride = 1;
-      odist = n / 2 + 1;
+      odist = leading_dimension_out;
     } else {
       istride = 1;
-      idist = n / 2 + 1;
+      idist = leading_dimension_in;
       ostride = 1;
-      odist = n;
+      odist = leading_dimension_out;
     }
     if (transpose_in) {
-      istride = m;
+      istride = leading_dimension_in;
       idist = 1;
     }
     if (transpose_out) {
-      ostride = m;
+      ostride = leading_dimension_out;
       odist = 1;
     }
     plan = malloc(sizeof(cache_entry));
@@ -688,8 +690,10 @@ void fft_gpu_cff(const double *din, double *zout, const int *npts) {
   // Run FFT on the device.
   // NOTE: Could use 2D-FFT, but CUDA does them C-shaped which is not optimal.
   fft_1d_gpu(OFFLOAD_FFT_FORWARD, npts[2], npts[0] * npts[1], false, false,
+    npts[2], npts[2],
              buffer_dev_2, buffer_dev_1);
   fft_1d_gpu(OFFLOAD_FFT_FORWARD, npts[1], npts[0] * npts[2], false, false,
+    npts[1], npts[1],
              buffer_dev_1, buffer_dev_2);
 
   // Download COMPLEX results to host.
@@ -727,8 +731,10 @@ void fft_gpu_ffc(const double *zin, double *dout, const int *npts) {
   // Run FFT on the device.
   // NOTE: Could use 2D-FFT, but CUDA does them C-shaped which is not optimal.
   fft_1d_gpu(OFFLOAD_FFT_INVERSE, npts[1], npts[0] * npts[2], false, false,
+    npts[1], npts[1],
              buffer_dev_1, buffer_dev_2);
   fft_1d_gpu(OFFLOAD_FFT_INVERSE, npts[2], npts[0] * npts[1], false, false,
+    npts[2], npts[2],
              buffer_dev_2, buffer_dev_1);
   fft_gpu_launch_complex_to_real(buffer_dev_1, buffer_dev_2, nrpts, stream);
 
@@ -767,6 +773,7 @@ void fft_gpu_cf(const double *din, double *zout, const int *npts) {
 
   // Run FFT on the device.
   fft_1d_gpu(OFFLOAD_FFT_FORWARD, npts[2], npts[0] * npts[1], false, false,
+    npts[2], npts[2],
              buffer_dev_2, buffer_dev_1);
 
   // Download COMPLEX results from device.
@@ -803,6 +810,7 @@ void fft_gpu_fc(const double *zin, double *dout, const int *npts) {
 
   // Run FFT on the device.
   fft_1d_gpu(OFFLOAD_FFT_INVERSE, npts[2], npts[0] * npts[1], false, false,
+    npts[2], npts[2],
              buffer_dev_1, buffer_dev_2);
 
   // Convert COMPLEX results to REAL and download to host.
@@ -821,7 +829,8 @@ void fft_gpu_fc(const double *zin, double *dout, const int *npts) {
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_f(const double *zin, double *zout, const int dir, const int n,
-               const int m, const bool transpose_in, const bool transpose_out) {
+               const int m, const bool transpose_in, const bool transpose_out,
+            const int leading_dimension_in, const int leading_dimension_out) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   assert(omp_get_num_threads() == 1);
@@ -841,9 +850,11 @@ void fft_gpu_f(const double *zin, double *zout, const int dir, const int n,
   // Run FFT on the device.
   if (dir > 0) {
     fft_1d_gpu(OFFLOAD_FFT_FORWARD, n, m, transpose_in, transpose_out,
+      leading_dimension_in, leading_dimension_out, 
                buffer_dev_1, buffer_dev_2);
   } else {
     fft_1d_gpu(OFFLOAD_FFT_INVERSE, n, m, transpose_in, transpose_out,
+      leading_dimension_in, leading_dimension_out, 
                buffer_dev_1, buffer_dev_2);
   }
 
@@ -867,7 +878,8 @@ void fft_gpu_f(const double *zin, double *zout, const int dir, const int n,
  ******************************************************************************/
 void fft_r2c_gpu_f(const double *zin, double *zout, const int dir, const int n,
                    const int m, const bool transpose_in,
-                   const bool transpose_out) {
+                   const bool transpose_out,
+            const int leading_dimension_in, const int leading_dimension_out) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   assert(omp_get_num_threads() == 1);
@@ -888,9 +900,11 @@ void fft_r2c_gpu_f(const double *zin, double *zout, const int dir, const int n,
   // Run FFT on the device.
   if (dir > 0) {
     fft_r2c_1d_gpu(OFFLOAD_FFT_FORWARD, n, m, transpose_in, transpose_out,
+      leading_dimension_in, leading_dimension_out, 
                    buffer_dev_1, buffer_dev_2);
   } else {
     fft_r2c_1d_gpu(OFFLOAD_FFT_INVERSE, n, m, transpose_in, transpose_out,
+      leading_dimension_in, leading_dimension_out, 
                    buffer_dev_1, buffer_dev_2);
   }
 
@@ -906,6 +920,8 @@ void fft_r2c_gpu_f(const double *zin, double *zout, const int dir, const int n,
   (void)m;
   (void)transpose_in;
   (void)transpose_out;
+  (void)leading_dimension_in;
+  (void)leading_dimension_out;
 #endif
 }
 
@@ -1031,6 +1047,7 @@ void fft_gpu_fg(const double *zin, double *zout, const int *ghatmap,
 
   // Run FFT on the device.
   fft_1d_gpu(OFFLOAD_FFT_FORWARD, npts[0], mmax, false, false,
+    npts[0], npts[0],
              buffer_dev_1, buffer_dev_2);
 
   // Upload map and run gather on the device.
@@ -1087,6 +1104,7 @@ void fft_gpu_sf(const double *zin, double *zout, const int *ghatmap,
 
   // Run FFT on the device.
   fft_1d_gpu(OFFLOAD_FFT_INVERSE, npts[0], mmax, false, false,
+    npts[0], npts[0],
              buffer_dev_2, buffer_dev_1);
 
   // Download COMPLEX results from device.

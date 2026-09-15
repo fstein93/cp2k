@@ -127,6 +127,7 @@ void fft_free_complex(double complex *buffer);
  ******************************************************************************/
 void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
+                     const int leading_dimension_rs, const int leading_dimension_out,
                      double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
@@ -135,6 +136,7 @@ void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
+                     const int leading_dimension_rs, const int leading_dimension_out,
                          double *grid_in, double complex *grid_out);
 
 /*******************************************************************************
@@ -143,6 +145,7 @@ void fft_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_1d_bw_local(const int fft_size, const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
+                     const int leading_dimension_rs, const int leading_dimension_out,
                      double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
@@ -151,6 +154,7 @@ void fft_1d_bw_local(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
+                     const int leading_dimension_rs, const int leading_dimension_out,
                          double complex *grid_in, double *grid_out);
 
 /*******************************************************************************

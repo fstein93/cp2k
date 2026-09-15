@@ -372,7 +372,9 @@ fftw_plan *
 fft_fftw_create_1d_plan(const int direction, const int fft_size,
                         const int number_of_ffts,
                         const int total_number_of_ffts, const bool transpose_rs,
-                        const bool transpose_gs, double complex *grid_out,
+                        const bool transpose_gs, 
+                     const int leading_dimension_rs, const int leading_dimension_gs,
+                     double complex *grid_out,
                         const int number_of_threads, const bool inplace) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
@@ -392,11 +394,11 @@ fft_fftw_create_1d_plan(const int direction, const int fft_size,
                              fft_size,
                              number_of_ffts,
                              0,
-                             transpose_rs ? total_number_of_ffts : 1,
-                             transpose_rs ? 1 : fft_size,
+                             transpose_rs ? leading_dimension_rs : 1,
+                             transpose_rs ? 1 : leading_dimension_rs,
                              0,
-                             transpose_gs ? total_number_of_ffts : 1,
-                             transpose_gs ? 1 : fft_size,
+                             transpose_gs ? leading_dimension_gs : 1,
+                             transpose_gs ? 1 : leading_dimension_gs,
                              0};
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -410,8 +412,9 @@ fft_fftw_create_1d_plan(const int direction, const int fft_size,
     const int odist = key[11];
     const int istride = key[7];
     const int ostride = key[10];
+    const int buffer_size = imax(idist*number_of_ffts+istride*fft_size, odist*number_of_ffts+ostride*fft_size);
     double complex *buffer_1 =
-        fftw_alloc_complex(fft_size * total_number_of_ffts);
+        fftw_alloc_complex(buffer_size);
     double complex *buffer_2 = inplace ? buffer_1 : grid_out;
     plan = malloc(sizeof(fftw_plan));
     if (direction == FFTW_FORWARD) {
@@ -438,7 +441,9 @@ fft_fftw_create_1d_plan(const int direction, const int fft_size,
 fftw_plan *
 fft_fftw_create_1d_plan_r2c(const int direction, const int fft_size,
                             const int number_of_ffts, const bool transpose_rs,
-                            const bool transpose_gs, double complex *grid_out,
+                            const bool transpose_gs,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
+                      double complex *grid_out,
                             const int number_of_threads, const bool inplace) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
@@ -457,11 +462,11 @@ fft_fftw_create_1d_plan_r2c(const int direction, const int fft_size,
                              fft_size,
                              number_of_ffts,
                              0,
-                             transpose_rs ? number_of_ffts : 1,
-                             transpose_rs ? 1 : fft_size,
+                             transpose_rs ? leading_dimension_rs : 1,
+                             transpose_rs ? 1 : leading_dimension_rs,
                              0,
-                             transpose_gs ? number_of_ffts : 1,
-                             transpose_gs ? 1 : fft_size / 2 + 1,
+                             transpose_gs ? leading_dimension_gs : 1,
+                             transpose_gs ? 1 : leading_dimension_gs,
                              0};
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -475,7 +480,8 @@ fft_fftw_create_1d_plan_r2c(const int direction, const int fft_size,
     const int odist = key[11];
     const int istride = key[7];
     const int ostride = key[10];
-    double *buffer_1 = fftw_alloc_real(2 * (fft_size / 2 + 1) * number_of_ffts);
+    const int buffer_size = imax(idist*number_of_ffts+istride*fft_size, 2*odist*number_of_ffts+ostride*2*(fft_size/2+1));
+    double *buffer_1 = fftw_alloc_real(buffer_size);
     double complex *buffer_2 = inplace ? (double complex *)buffer_1 : grid_out;
     plan = malloc(sizeof(fftw_plan));
     if (direction == FFTW_FORWARD) {
@@ -1177,6 +1183,7 @@ fftw_plan *fft_fftw_create_distributed_3d_plan_r2c(const int direction,
  ******************************************************************************/
 void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
                           const bool transpose_rs, const bool transpose_gs,
+                          const int leading_dimension_rs, const int leading_dimension_gs,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
@@ -1195,13 +1202,15 @@ void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
         (number_of_ffts + number_of_threads - 1) / number_of_threads;
     plan = fft_fftw_create_1d_plan(FFTW_FORWARD, fft_size, block_size,
                                    number_of_ffts, transpose_rs, transpose_gs,
+                                   leading_dimension_rs, leading_dimension_gs,
                                    grid_out, 1, grid_in == grid_out);
     if (block_size * number_of_threads != number_of_ffts) {
       const int block_size_last_thread =
           number_of_ffts - (number_of_threads - 1) * block_size;
       plan_last_thread = fft_fftw_create_1d_plan(
           FFTW_FORWARD, fft_size, block_size_last_thread, number_of_ffts,
-          transpose_rs, transpose_gs, grid_out, 1, grid_in == grid_out);
+          transpose_rs, transpose_gs, 
+                                   leading_dimension_rs, leading_dimension_gs, grid_out, 1, grid_in == grid_out);
       has_plan_for_last_thread = true;
     }
     const int offset_in = transpose_rs ? block_size : block_size * fft_size;
@@ -1222,7 +1231,8 @@ void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
   } else {
     fftw_plan *plan = fft_fftw_create_1d_plan(
         FFTW_FORWARD, fft_size, number_of_ffts, number_of_ffts, transpose_rs,
-        transpose_gs, grid_out, number_of_threads, grid_in == grid_out);
+        transpose_gs, leading_dimension_rs, leading_dimension_gs, 
+        grid_out, number_of_threads, grid_in == grid_out);
     fftw_execute_dft(*plan, grid_in, grid_out);
   }
 #else
@@ -1232,6 +1242,8 @@ void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
   (void)grid_out;
   (void)transpose_rs;
   (void)transpose_gs;
+  (void)leading_dimension_rs;
+  (void)leading_dimension_gs;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -1242,6 +1254,7 @@ void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_fftw_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
                               const bool transpose_rs, const bool transpose_gs,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
                               double *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
@@ -1249,6 +1262,7 @@ void fft_fftw_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
   if (fft_size == 0 || number_of_ffts == 0) return;
   fftw_plan *plan = fft_fftw_create_1d_plan_r2c(
       FFTW_FORWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                                   leading_dimension_rs, leading_dimension_gs,
       grid_out, omp_get_max_threads(), (double complex *)grid_in == grid_out);
   assert(plan != NULL);
   fftw_execute_dft_r2c(*plan, grid_in, grid_out);
@@ -1259,6 +1273,8 @@ void fft_fftw_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
   (void)grid_out;
   (void)transpose_rs;
   (void)transpose_gs;
+  (void)leading_dimension_rs;
+  (void)leading_dimension_gs;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -1269,6 +1285,7 @@ void fft_fftw_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts,
                           const bool transpose_rs, const bool transpose_gs,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
@@ -1287,13 +1304,15 @@ void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts,
         (number_of_ffts + number_of_threads - 1) / number_of_threads;
     plan = fft_fftw_create_1d_plan(FFTW_BACKWARD, fft_size, block_size,
                                    number_of_ffts, transpose_rs, transpose_gs,
+                                   leading_dimension_rs, leading_dimension_gs,
                                    grid_out, 1, grid_in == grid_out);
     if (block_size * number_of_threads != number_of_ffts) {
       const int block_size_last_thread =
           number_of_ffts - (number_of_threads - 1) * block_size;
       plan_last_thread = fft_fftw_create_1d_plan(
           FFTW_BACKWARD, fft_size, block_size_last_thread, number_of_ffts,
-          transpose_rs, transpose_gs, grid_out, 1, grid_in == grid_out);
+          transpose_rs, transpose_gs, 
+          leading_dimension_rs, leading_dimension_gs, grid_out, 1, grid_in == grid_out);
       has_plan_for_last_thread = true;
     }
     const int offset_in = transpose_gs ? block_size : block_size * fft_size;
@@ -1314,7 +1333,8 @@ void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts,
   } else {
     fftw_plan *plan = fft_fftw_create_1d_plan(
         FFTW_BACKWARD, fft_size, number_of_ffts, number_of_ffts, transpose_rs,
-        transpose_gs, grid_out, number_of_threads, grid_in == grid_out);
+        transpose_gs, leading_dimension_rs, leading_dimension_gs, 
+        grid_out, number_of_threads, grid_in == grid_out);
     fftw_execute_dft(*plan, grid_in, grid_out);
   }
 #else
@@ -1324,6 +1344,8 @@ void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts,
   (void)grid_out;
   (void)transpose_rs;
   (void)transpose_gs;
+  (void)leading_dimension_rs;
+  (void)leading_dimension_gs;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -1334,6 +1356,7 @@ void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts,
  ******************************************************************************/
 void fft_fftw_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
                               const bool transpose_rs, const bool transpose_gs,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
                               double complex *grid_in, double *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
@@ -1341,6 +1364,7 @@ void fft_fftw_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
   if (fft_size == 0 || number_of_ffts == 0) return;
   fftw_plan *plan = fft_fftw_create_1d_plan_r2c(
       FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
+      leading_dimension_rs, leading_dimension_gs,
       (double complex *)grid_out, omp_get_max_threads(),
       grid_in == (double complex *)grid_out);
   fftw_execute_dft_c2r(*plan, grid_in, grid_out);
@@ -1351,6 +1375,8 @@ void fft_fftw_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
   (void)grid_out;
   (void)transpose_rs;
   (void)transpose_gs;
+  (void)leading_dimension_rs;
+  (void)leading_dimension_gs;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
