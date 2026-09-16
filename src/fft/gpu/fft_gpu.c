@@ -869,6 +869,8 @@ void fft_gpu_f(const double *zin, double *zout, const int dir, const int n,
   (void)m;
   (void)transpose_in;
   (void)transpose_out;
+  (void)leading_dimension_in;
+  (void)leading_dimension_out;
 #endif
 }
 
