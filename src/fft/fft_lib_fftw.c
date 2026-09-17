@@ -1111,12 +1111,20 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(
  * \brief Create plan of a distributed C2C 2D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-fftw_plan *fft_fftw_create_distributed_2d_plan(const int direction,
-                                               const int fft_size[2],
-                                               const int number_of_ffts,
-                                               const cp_mpi_comm_t comm,
-                                                   const int number_of_threads,
+fftw_plan *fft_fftw_create_distributed_2d_plan(const int direction_,
+                                               const int fft_size_[2],
+                                               const int number_of_ffts_,
+                                               cp_mpi_comm_t comm_,
+                                                   const int number_of_threads_,
                                                double complex *grid_out) {
+  int key[KEY_SIZE];
+  get_key_2d_distributed(direction_, fft_size_, number_of_ffts_,
+                          comm_, number_of_threads_, key);
+  const int direction = key[3];
+  const int *fft_size = key+4;
+  const int number_of_ffts = key[6];
+  const int number_of_threads = key[2];
+  cp_mpi_comm_t comm = cp_mpi_comm_f2c(key[1]);
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_%cw_c2c_Pdistr",
@@ -1128,9 +1136,6 @@ fftw_plan *fft_fftw_create_distributed_2d_plan(const int direction,
            direction == FFTW_FORWARD ? 'f' : 'b', cp_mpi_comm_size(comm),
            fft_size[0], fft_size[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
-  int key[KEY_SIZE];
-  get_key_2d_distributed(direction, fft_size, number_of_ffts,
-                          comm, number_of_threads, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     fftw_plan_with_nthreads(number_of_threads);

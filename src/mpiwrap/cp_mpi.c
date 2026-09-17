@@ -44,6 +44,7 @@ void cp_mpi_init(int *argc, char ***argv) {
                         &provided_thread_level));
   assert(provided_thread_level >= required_thread_level &&
          "Required thread level (MPI_THREAD_SERIALIZED) is not supported");
+  assert(sizeof(int) >= sizeof(MPI_Fint));
 #else
   (void)argc; // mark used
   (void)argv;
@@ -115,10 +116,9 @@ cp_mpi_request_t cp_mpi_get_request_null(void) {
 cp_mpi_comm_t cp_mpi_comm_f2c(const int fortran_comm) {
 #if defined(__parallel)
   // Attempt to support "no MPI" if __parallel is defined (0 -> MPI_COMM_NULL).
-  return 0 != fortran_comm ? MPI_Comm_f2c(fortran_comm) : MPI_COMM_NULL;
+  return MPI_Comm_c2f(cp_mpi_get_comm_null()) != fortran_comm ? MPI_Comm_f2c(fortran_comm) : cp_mpi_get_comm_null();
 #else
-  (void)fortran_comm; // mark used
-  return -1;
+  return fortran_comm;
 #endif
 }
 
@@ -130,8 +130,7 @@ int cp_mpi_comm_c2f(const cp_mpi_comm_t comm) {
 #if defined(__parallel)
   return MPI_Comm_c2f(comm);
 #else
-  (void)comm; // mark used
-  return -1;
+  return comm;
 #endif
 }
 
