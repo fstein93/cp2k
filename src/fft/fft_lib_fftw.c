@@ -654,7 +654,7 @@ void get_key_3d_r2c_distributed(const int direction,
                                                    const int fft_size[3],
                                                    const cp_mpi_comm_t comm,
                                                   const int number_of_threads, int *key) {
-  key[0] = 3;
+  key[0] = 3 + FFTW_R2C;
   key[1] = cp_mpi_comm_c2f(comm);
   key[2] = number_of_threads;
   key[3] = direction;
@@ -667,6 +667,30 @@ void get_key_3d_r2c_distributed(const int direction,
   key[10] = 2*(fft_size[2]/2+1);
   key[11] = fft_size[0] * 2*(fft_size[2]/2+1);
   key[12] = 1;
+}
+
+/*******************************************************************************
+ * \brief Determine buffer size for a local FFT from a key
+ * \author Frederick Stein
+ ******************************************************************************/
+int get_buffer_size_from_key(const int key[KEY_SIZE]) {
+  int buffer_size = 0;
+  for (int r = 0; r < 3; r++) {
+    if (r != key[0]%4-1 || ((key[0] & FFTW_R2C) != FFTW_R2C)) {
+      buffer_size += key[4+r]*key[7+r];
+    } else {
+      buffer_size += (key[4+r]/2+1)*key[7+r];
+    }
+  }
+  int buffer_size_out = 0;
+  for (int r = 0; r < 3; r++) {
+    if (r != key[0]%4-1 || ((key[0] & FFTW_R2C) != FFTW_R2C)) {
+      buffer_size_out += key[4+r]*key[10+r];
+    } else {
+      buffer_size_out += (key[4+r]/2+1)*key[10+r];
+    }
+  }
+  return imax(buffer_size, buffer_size_out);
 }
 #endif
 
@@ -701,7 +725,7 @@ fft_fftw_create_1d_plan(const int key[KEY_SIZE], double complex *grid_out) {
   const int odist = key[11];
   const int istride = key[7];
   const int ostride = key[10];
-  const int buffer_size = imax(idist*key[5]+istride*key[4], odist*key[5]+ostride*key[4]);
+  const int buffer_size = get_buffer_size_from_key(key);
   double complex *buffer_1 =
       fftw_alloc_complex(buffer_size);
   double complex *buffer_2 = inplace ? buffer_1 : grid_out;
@@ -753,8 +777,7 @@ fft_fftw_create_1d_plan_r2c(const int key[KEY_SIZE], double complex *grid_out) {
     const int odist = key[11];
     const int istride = key[7];
     const int ostride = key[10];
-    const int buffer_size = imax(idist*key[5]+istride*key[4], 2*odist*key[5]+ostride*2*(key[4]/2+1));
-    double *buffer_1 = fftw_alloc_real(buffer_size);
+    double *buffer_1 = fftw_alloc_real(2*get_buffer_size_from_key(key));
     double complex *buffer_2 = inplace ? (double complex *)buffer_1 : grid_out;
     fftw_plan *plan = malloc(sizeof(fftw_plan));
     if (key[3] == FFTW_FORWARD) {
@@ -810,7 +833,7 @@ fft_fftw_create_2d_plan(const int key[KEY_SIZE], double complex *grid_out) {
     const int istride = key[8];
     const int ostride = key[11];
     double complex *buffer_1 =
-        fftw_alloc_complex(key[4]*key[5]*key[6]);
+        fftw_alloc_complex(get_buffer_size_from_key(key));
     double complex *buffer_2 = inplace ? buffer_1 : grid_out;
     fftw_plan *plan = malloc(sizeof(fftw_plan));
     if (key[3] == FFTW_FORWARD) {
@@ -864,7 +887,7 @@ fft_fftw_create_2d_plan_r2c(const int key[KEY_SIZE], double complex *grid_out) {
     const int istride = key[8];
     const int ostride = key[11];
     double *double_buffer = fftw_alloc_real(
-        2 * key[4] * (key[5] / 2 + 1) * key[6]);
+        2 * get_buffer_size_from_key(key));
     double complex *complex_buffer =
         inplace ? (double complex *)double_buffer : grid_out;
     fftw_plan *plan = malloc(sizeof(fftw_plan));
@@ -912,7 +935,7 @@ fftw_plan *fft_fftw_create_3d_plan(const int key[KEY_SIZE],
   const int handle2 = fft_start_timer(routine_name);
     fftw_plan_with_nthreads(number_of_threads);
     double complex *buffer_1 =
-        fftw_alloc_complex(key[4]*key[5]*key[6]);
+        fftw_alloc_complex(get_buffer_size_from_key(key));
     double complex *buffer_2 = inplace ? buffer_1 : grid_out;
     fftw_plan *plan = malloc(sizeof(fftw_plan));
     *plan = fftw_plan_dft_3d(key[4], key[5], key[6], buffer_1,
@@ -947,7 +970,7 @@ fftw_plan *fft_fftw_create_3d_plan_r2c(const int key[KEY_SIZE],
   const int handle2 = fft_start_timer(routine_name);
     fftw_plan_with_nthreads(number_of_threads);
     double *double_buffer =
-        fftw_alloc_real(2 * key[4]*key[5] * (key[6] / 2 + 1));
+        fftw_alloc_real(2 * get_buffer_size_from_key(key));
     double complex *complex_buffer =
         inplace ? (double complex *)double_buffer : grid_out;
     fftw_plan *plan = malloc(sizeof(fftw_plan));
@@ -999,16 +1022,7 @@ fftw_plan *fft_fftw_create_guru_plan(const int key[KEY_SIZE],
   assert(rank + howmany_rank <= 3 &&
          "Larger combined ranks than 3 are not implemented\n");
     fftw_plan_with_nthreads(number_of_threads);
-    // Let's get an upper bound for the number of elements per buffer
-    // We have the starting element
-    int max_number_of_elements_in = 1;
-    // and for each dimension (FFT or free dimension) add the elements to access
-    // the new one
-    for (int r = 0; r < rank; r++)
-      max_number_of_elements_in += (dims[r].n - 1) * dims[r].is;
-    for (int r = 0; r < howmany_rank; r++)
-      max_number_of_elements_in += (howmany_dims[r].n - 1) * howmany_dims[r].is;
-    double complex *buffer_1 = fftw_alloc_complex(max_number_of_elements_in);
+    double complex *buffer_1 = fftw_alloc_complex(get_buffer_size_from_key(key));
     double complex *buffer_2 = inplace ? buffer_1 : grid_out;
     fftw_plan *plan = malloc(sizeof(fftw_plan));
     *plan = fftw_plan_guru_dft(rank, dims, howmany_rank, howmany_dims, buffer_1,
@@ -1045,14 +1059,7 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(
   const int handle = fft_start_timer(routine_name);
 
     fftw_plan_with_nthreads(number_of_threads);
-    int max_number_of_elements_in = 0;
-    // Use the complex-based sizes to take c2r and in-place FFTs into account
-    for (int r = 0; r < rank; r++)
-      max_number_of_elements_in +=
-          (r + 1 == rank ? dims[r].n / 2 + 1 : dims[r].n) * dims[r].is;
-    for (int r = 0; r < howmany_rank; r++)
-      max_number_of_elements_in += howmany_dims[r].n * howmany_dims[r].is;
-    double *double_buffer = fftw_alloc_real(2 * max_number_of_elements_in);
+    double *double_buffer = fftw_alloc_real(2 * get_buffer_size_from_key(key));
     double complex *complex_buffer =
         inplace ? (double complex *)double_buffer : grid_out;
     fftw_plan *plan = malloc(sizeof(fftw_plan));
