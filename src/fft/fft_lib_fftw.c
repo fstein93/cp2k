@@ -798,10 +798,12 @@ fft_fftw_create_1d_plan_r2c(const int direction, const int fft_size,
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *
-fft_fftw_create_2d_plan(const int direction, const int fft_size[2],
-                        const int number_of_ffts, const bool transpose_rs,
-                        const bool transpose_gs, double complex *grid_out,
-                        const int number_of_threads, const bool inplace) {
+fft_fftw_create_2d_plan(const int key[KEY_SIZE], double complex *grid_out) {
+  const int direction = key[3];
+  const int *fft_size = key+4;
+  const int number_of_threads = key[2];
+  const int number_of_ffts = key[6];
+  const bool inplace = (key[0] & FFTW_INPLACE) == FFTW_INPLACE;
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_%cw_c2c_Plocal",
@@ -813,16 +815,12 @@ fft_fftw_create_2d_plan(const int direction, const int fft_size[2],
            direction == FFTW_FORWARD ? 'f' : 'b', fft_size[0], fft_size[1],
            number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
-  int key[KEY_SIZE];
-  get_key_2d(direction, fft_size, number_of_ffts,
-                        transpose_rs, transpose_gs, 
-                        number_of_threads, inplace, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     fftw_plan_with_nthreads(number_of_threads);
-    const int rank = key[0]%4;
-    const int *n = &key[4];
-    const int howmany = key[6];
+    const int rank = 2;
+    const int *n = fft_size;
+    const int howmany = number_of_ffts;
     const int *inembed = n;
     const int *onembed = n;
     const int idist = key[9];
@@ -856,10 +854,12 @@ fft_fftw_create_2d_plan(const int direction, const int fft_size[2],
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *
-fft_fftw_create_2d_plan_r2c(const int direction, const int fft_size[2],
-                            const int number_of_ffts, const bool transpose_rs,
-                            const bool transpose_gs, double complex *grid_out,
-                            const int number_of_threads, const bool inplace) {
+fft_fftw_create_2d_plan_r2c(const int key[KEY_SIZE], double complex *grid_out) {
+  const int direction = key[3];
+  const int *fft_size = key+4;
+  const int number_of_threads = key[2];
+  const int number_of_ffts = key[6];
+  const bool inplace = (key[0] & FFTW_INPLACE) == FFTW_INPLACE;
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_%s_Plocal",
@@ -870,10 +870,6 @@ fft_fftw_create_2d_plan_r2c(const int direction, const int fft_size[2],
            direction == FFTW_FORWARD ? "fw_r2c" : "bw_c2r", fft_size[0],
            fft_size[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
-  int key[KEY_SIZE];
-  get_key_2d_r2c(direction, fft_size, number_of_ffts,
-                        transpose_rs, transpose_gs, 
-                        number_of_threads, inplace, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     fftw_plan_with_nthreads(number_of_threads);
@@ -1563,9 +1559,11 @@ void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
-  fftw_plan *plan = fft_fftw_create_2d_plan(
-      FFTW_FORWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
-      grid_out, omp_get_max_threads(), grid_in == grid_out);
+  int key[KEY_SIZE];
+  get_key_2d(FFTW_FORWARD, fft_size, number_of_ffts,
+                        transpose_rs, transpose_gs, 
+                        omp_get_max_threads(), grid_in == grid_out, key);
+  fftw_plan *plan = fft_fftw_create_2d_plan(key, grid_out);
   fftw_execute_dft(*plan, grid_in, grid_out);
 #else
   (void)fft_size;
@@ -1589,9 +1587,11 @@ void fft_fftw_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
-  fftw_plan *plan = fft_fftw_create_2d_plan_r2c(
-      FFTW_FORWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
-      grid_out, omp_get_max_threads(), (double complex *)grid_in == grid_out);
+  int key[KEY_SIZE];
+  get_key_2d_r2c(FFTW_FORWARD, fft_size, number_of_ffts,
+                        transpose_rs, transpose_gs, 
+                        omp_get_max_threads(), grid_in == (double*)grid_out, key);
+  fftw_plan *plan = fft_fftw_create_2d_plan_r2c(key, grid_out);
   fftw_execute_dft_r2c(*plan, grid_in, grid_out);
 #else
   (void)fft_size;
@@ -1615,9 +1615,11 @@ void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
-  fftw_plan *plan = fft_fftw_create_2d_plan(
-      FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
-      grid_out, omp_get_max_threads(), grid_in == grid_out);
+  int key[KEY_SIZE];
+  get_key_2d(FFTW_BACKWARD, fft_size, number_of_ffts,
+                        transpose_rs, transpose_gs, 
+                        omp_get_max_threads(), grid_in == grid_out, key);
+  fftw_plan *plan = fft_fftw_create_2d_plan(key, grid_out);
   fftw_execute_dft(*plan, grid_in, grid_out);
 #else
   (void)fft_size;
@@ -1641,10 +1643,11 @@ void fft_fftw_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
-  fftw_plan *plan = fft_fftw_create_2d_plan_r2c(
-      FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
-      (double complex *)grid_out, omp_get_max_threads(),
-      grid_in == (double complex *)grid_out);
+  int key[KEY_SIZE];
+  get_key_2d_r2c(FFTW_BACKWARD, fft_size, number_of_ffts,
+                        transpose_rs, transpose_gs, 
+                        omp_get_max_threads(), grid_in == (double complex*)grid_out, key);
+  fftw_plan *plan = fft_fftw_create_2d_plan_r2c(key, (double complex *)grid_out);
   fftw_execute_dft_c2r(*plan, grid_in, grid_out);
 #else
   (void)fft_size;
