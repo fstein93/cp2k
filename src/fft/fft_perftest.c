@@ -25,6 +25,7 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
   const double dh_inv[3][3] = {
       {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
+  double begin = omp_get_wtime();
   fft_grid_layout *grid_layout = NULL;
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
                               dh_inv, false, -1.0, NULL, NULL);
@@ -45,7 +46,6 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
              sizeof(double complex));
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
-  double begin = omp_get_wtime();
   fft_3d_fw_with_layout_to_cart(grid_rs, grid_gs, grid_layout);
   fft_3d_bw_with_layout_from_cart(grid_gs, grid_rs, grid_layout);
   cp_mpi_barrier(cp_mpi_get_comm_world());
@@ -53,7 +53,7 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
     printf(
-        "Planning time for FW and BW C2C (cart) FFTs of size %i %i %i : %f\n",
+        "Preparation time for FW and BW C2C (cart) FFTs of size %i %i %i : %f\n",
         fft_size[0], fft_size[1], fft_size[2], end - begin);
     fflush(stdout);
   }
@@ -100,6 +100,7 @@ static void run_test_r2c(const int fft_size[3], const int number_of_runs,
   const double dh_inv[3][3] = {
       {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
+  double begin = omp_get_wtime();
   fft_grid_layout *grid_layout = NULL;
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
                               dh_inv, use_halfspace, -1.0, NULL, NULL);
@@ -121,14 +122,13 @@ static void run_test_r2c(const int fft_size[3], const int number_of_runs,
              sizeof(double));
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
-  double begin = omp_get_wtime();
   fft_3d_fw_r2c_with_layout_to_cart(grid_rs, grid_gs, grid_layout);
   fft_3d_bw_c2r_with_layout_from_cart(grid_gs, grid_rs, grid_layout);
   cp_mpi_barrier(cp_mpi_get_comm_world());
   double end = omp_get_wtime();
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
-    printf("Planning time for FW and BW %s FFTs of size %i %i %i : %f\n",
+    printf("Preparation time for FW and BW %s FFTs of size %i %i %i : %f\n",
            use_halfspace ? "R2C/C2R" : "C2C", fft_size[0], fft_size[1],
            fft_size[2], end - begin);
     fflush(stdout);
@@ -175,6 +175,7 @@ static void run_test_ray_c2c(const int fft_size[3], const int number_of_runs) {
   const double dh_inv[3][3] = {
       {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
+  double begin = omp_get_wtime();
   fft_grid_layout *grid_layout = NULL;
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
                               dh_inv, false, -1.0, NULL, NULL);
@@ -195,14 +196,13 @@ static void run_test_ray_c2c(const int fft_size[3], const int number_of_runs) {
              sizeof(double complex));
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
-  double begin = omp_get_wtime();
   fft_3d_fw_with_layout(grid_rs, grid_gs, grid_layout_ray);
   fft_3d_bw_with_layout_from_cart(grid_gs, grid_rs, grid_layout_ray);
   cp_mpi_barrier(cp_mpi_get_comm_world());
   double end = omp_get_wtime();
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
-    printf("Planning time for FW and BW C2C (ray) FFTs (ray) of size %i %i %i "
+    printf("Preparation time for FW and BW C2C (ray) FFTs (ray) of size %i %i %i "
            ": %f\n",
            fft_size[0], fft_size[1], fft_size[2], end - begin);
     fflush(stdout);
@@ -252,6 +252,7 @@ static void run_test_ray_r2c(const int fft_size[3], const int number_of_runs,
   const double dh_inv[3][3] = {
       {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
+  double begin = omp_get_wtime();
   fft_grid_layout *grid_layout = NULL;
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
                               dh_inv, use_halfspace, -1.0, NULL, NULL);
@@ -272,14 +273,13 @@ static void run_test_ray_r2c(const int fft_size[3], const int number_of_runs,
              sizeof(double));
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
-  double begin = omp_get_wtime();
   fft_3d_fw_r2c_with_layout(grid_rs, grid_gs, grid_layout_ray);
   fft_3d_bw_c2r_with_layout(grid_gs, grid_rs, grid_layout_ray);
   cp_mpi_barrier(cp_mpi_get_comm_world());
   double end = omp_get_wtime();
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
-    printf("Planning time for FW and BW %s FFTs (ray) of size %i %i %i : %f\n",
+    printf("Preparation time for FW and BW %s FFTs (ray) of size %i %i %i : %f\n",
            use_halfspace ? "R2C/C2R" : "C2C", fft_size[0], fft_size[1],
            fft_size[2], end - begin);
     fflush(stdout);

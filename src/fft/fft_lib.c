@@ -277,6 +277,615 @@ void fft_free_complex(double complex *buffer) {
  * \brief Naive implementation of FFT from transposed format (for easier
  *transposition). \author Frederick Stein
  ******************************************************************************/
+void fft_register_1d_fw_local(const int fft_size, const int number_of_ffts,
+                     const bool transpose_rs, const bool transpose_gs,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
+                     double complex *grid_in, double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_fw_c2c_local");
+  const int handle = fft_start_timer(routine_name);
+  switch (fft_lib_choice) {
+  case FFT_LIB_GPU:
+    //fft_register_gpu_f((const double *)grid_in, (double *)grid_out, 1, fft_size,
+    //          number_of_ffts, transpose_rs, transpose_gs, 
+    //            leading_dimension_rs, leading_dimension_gs);
+    break;
+  case FFT_LIB_FFTW:
+    fft_fftw_register_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                leading_dimension_rs, leading_dimension_gs,
+                         grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of FFT from transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_register_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
+                         const bool transpose_rs, const bool transpose_gs,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
+                         double *grid_in, double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_fw_r2c_local");
+  const int handle = fft_start_timer(routine_name);
+  switch (fft_lib_choice) {
+  case FFT_LIB_GPU:
+    //fft_register_r2c_gpu_f((const double *)grid_in, (double *)grid_out, 1, fft_size,
+    //              number_of_ffts, transpose_rs, transpose_gs,
+    //            leading_dimension_rs, leading_dimension_gs);
+    break;
+  case FFT_LIB_FFTW:
+    fft_fftw_register_1d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs,
+                             transpose_gs,
+                leading_dimension_rs, leading_dimension_gs, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of backwards FFT to transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_register_1d_bw_local(const int fft_size, const int number_of_ffts,
+                     const bool transpose_rs, const bool transpose_gs,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
+                     double complex *grid_in, double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_bw_c2c_local");
+  const int handle = fft_start_timer(routine_name);
+  switch (fft_lib_choice) {
+  case FFT_LIB_GPU:
+    //fft_register_gpu_f((const double *)grid_in, (double *)grid_out, -1, fft_size,
+    //          number_of_ffts, 
+    //            transpose_gs, transpose_rs, leading_dimension_rs, leading_dimension_gs);
+    break;
+  case FFT_LIB_FFTW:
+    fft_fftw_register_1d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                leading_dimension_rs, leading_dimension_gs,
+                         grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of backwards FFT to transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
+void fft_register_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
+                         const bool transpose_rs, const bool transpose_gs,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
+                         double complex *grid_in, double *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_bw_c2r_local");
+  const int handle = fft_start_timer(routine_name);
+  switch (fft_lib_choice) {
+  case FFT_LIB_GPU:
+    //fft_register_r2c_gpu_f((const double *)grid_in, (double *)grid_out, -1, fft_size,
+    //              number_of_ffts, transpose_gs, transpose_rs,
+    //            leading_dimension_rs, leading_dimension_gs);
+    break;
+  case FFT_LIB_FFTW:
+    fft_fftw_register_1d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs,
+                             transpose_gs,
+                leading_dimension_rs, leading_dimension_gs, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of 2D FFT (transposed format, no normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_2d_fw_local(const int fft_size[2], const int number_of_ffts,
+                     const bool transpose_rs, const bool transpose_gs,
+                     double complex *grid_in, double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_fw_c2c_local");
+  const int handle = fft_start_timer(routine_name);
+  switch (fft_lib_choice) {
+  case FFT_LIB_GPU:
+    //fft_register_gpu_ff((const double *)grid_in, (double *)grid_out, 1, fft_size,
+    //           number_of_ffts, transpose_rs, transpose_gs);
+    break;
+  case FFT_LIB_FFTW:
+    fft_fftw_register_2d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                         grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of 2D FFT (transposed format, no normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
+                         const bool transpose_rs, const bool transpose_gs,
+                         double *grid_in, double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_fw_r2c_local");
+  const int handle = fft_start_timer(routine_name);
+  switch (fft_lib_choice) {
+  case FFT_LIB_GPU:
+    //fft_register_r2c_gpu_ff((const double *)grid_in, (double *)grid_out, 1, fft_size,
+    //               number_of_ffts, transpose_rs, transpose_gs);
+    break;
+  case FFT_LIB_FFTW:
+    fft_fftw_register_2d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs,
+                             transpose_gs, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
+ * \note fft_2d_bw_local(grid_gs, grid_rs, n1, n2, m) is the reverse to
+ * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_2d_bw_local(const int fft_size[2], const int number_of_ffts,
+                     const bool transpose_rs, const bool transpose_gs,
+                     double complex *grid_in, double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_bw_c2c_local");
+  const int handle = fft_start_timer(routine_name);
+  switch (fft_lib_choice) {
+  case FFT_LIB_GPU:
+    //fft_register_gpu_ff((const double *)grid_in, (double *)grid_out, -1, fft_size,
+    //           number_of_ffts, transpose_gs, transpose_rs);
+    break;
+  case FFT_LIB_FFTW:
+    fft_fftw_register_2d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                         grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
+ * \note fft_2d_bw_local(grid_gs, grid_rs, n1, n2, m) is the reverse to
+ * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
+                         const bool transpose_rs, const bool transpose_gs,
+                         double complex *grid_in, double *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_bw_c2r_local");
+  const int handle = fft_start_timer(routine_name);
+  switch (fft_lib_choice) {
+  case FFT_LIB_GPU:
+    //fft_register_r2c_gpu_ff((const double *)grid_in, (double *)grid_out, -1, fft_size,
+    //               number_of_ffts, transpose_gs, transpose_rs);
+    break;
+  case FFT_LIB_FFTW:
+    fft_fftw_register_2d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs,
+                             transpose_gs, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs local 3D FFT (no normalization).
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d_fw_local(const int fft_size[3], double complex *grid_in,
+                     double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_fw_c2c_local");
+  const int handle = fft_start_timer(routine_name);
+    switch (fft_lib_choice) {
+    case FFT_LIB_GPU:
+      //fft_register_gpu_fff((const double *)grid_in, (double *)grid_out, +1, fft_size);
+      break;
+    case FFT_LIB_FFTW:
+      fft_fftw_register_3d_fw_local(fft_size, grid_in, grid_out);
+      break;
+    default:
+      assert(0 && "Unknown FFT library.");
+    }
+#if defined(__FFT_FPGA)
+  }
+#endif
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs local 3D FFT (no normalization).
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
+                         double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_fw_r2c_local");
+  const int handle = fft_start_timer(routine_name);
+    switch (fft_lib_choice) {
+    case FFT_LIB_GPU:
+      //fft_register_r2c_gpu_fff((const double *)grid_in, (double *)grid_out, +1,
+      //                fft_size);
+      break;
+    case FFT_LIB_FFTW:
+      fft_fftw_register_3d_fw_local_r2c(fft_size, grid_in, grid_out);
+      break;
+    default:
+      assert(0 && "Unknown FFT library.");
+    }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d_bw_local(const int fft_size[3], double complex *grid_in,
+                     double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_bw_c2c_local");
+  const int handle = fft_start_timer(routine_name);
+    switch (fft_lib_choice) {
+    case FFT_LIB_GPU:
+      //fft_register_gpu_fff((const double *)grid_in, (double *)grid_out, -1, fft_size);
+      break;
+    case FFT_LIB_FFTW:
+      fft_fftw_register_3d_bw_local(fft_size, grid_in, grid_out);
+      break;
+    default:
+      assert(0 && "Unknown FFT library.");
+    }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
+                         double *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_bw_c2r_local");
+  const int handle = fft_start_timer(routine_name);
+    switch (fft_lib_choice) {
+    case FFT_LIB_GPU:
+      //fft_register_r2c_gpu_fff((const double *)grid_in, (double *)grid_out, -1,
+      //                fft_size);
+      break;
+    case FFT_LIB_FFTW:
+      fft_fftw_register_3d_bw_local_c2r(fft_size, grid_in, grid_out);
+      break;
+    default:
+      assert(0 && "Unknown FFT library.");
+    }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs a local C2C FFT using the Guru interface.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_fw_guru(int rank, const fft_iodim *dims, int howmany_rank,
+                 const fft_iodim *howmany_dims, const int number_of_threads,
+                 double complex *grid_in, double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_guru_fw_c2c_%i_%i", rank,
+           howmany_rank);
+  const int handle = fft_start_timer(routine_name);
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    fft_fftw_register_fw_guru(rank, dims, howmany_rank, howmany_dims, number_of_threads,
+                     grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs a local forward R2C FFT using the Guru interface.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_fw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
+                     const fft_iodim *howmany_dims, const int number_of_threads,
+                     double *grid_in, double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_guru_fw_r2c_%i_%i", rank,
+           howmany_rank);
+  const int handle = fft_start_timer(routine_name);
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    fft_fftw_register_fw_guru_r2c(rank, dims, howmany_rank, howmany_dims,
+                         number_of_threads, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs a local backwards C2C FFT using the Guru interface.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_bw_guru(int rank, const fft_iodim *dims, int howmany_rank,
+                 const fft_iodim *howmany_dims, const int number_of_threads,
+                 double complex *grid_in, double complex *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_guru_bw_c2c_%i_%i", rank,
+           howmany_rank);
+  const int handle = fft_start_timer(routine_name);
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    fft_fftw_register_bw_guru(rank, dims, howmany_rank, howmany_dims, number_of_threads,
+                     grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs a local backwards R2C FFT using the Guru interface.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_bw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
+                     const fft_iodim *howmany_dims, const int number_of_threads,
+                     double complex *grid_in, double *grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_guru_bw_c2r_%i_%i", rank,
+           howmany_rank);
+  const int handle = fft_start_timer(routine_name);
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    fft_fftw_register_bw_guru_c2r(rank, dims, howmany_rank, howmany_dims,
+                         number_of_threads, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
+                           const cp_mpi_comm_t comm,
+                           double complex *restrict grid_in,
+                           double complex *restrict grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_fw_c2c_distr");
+  const int handle = fft_start_timer(routine_name);
+  assert(fft_lib_use_mpi());
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    fft_fftw_register_2d_fw_distributed(npts_global, number_of_ffts, comm, grid_in,
+                               grid_out);
+    break;
+  default:
+    assert(0 && "Distributed 2D FFT not available.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_2d_fw_distributed_r2c(const int npts_global[2],
+                               const int number_of_ffts,
+                               const cp_mpi_comm_t comm,
+                               double *restrict grid_in,
+                               double complex *restrict grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_fw_r2c_distr");
+  const int handle = fft_start_timer(routine_name);
+  assert(fft_lib_use_mpi());
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    fft_fftw_register_2d_fw_distributed_r2c(npts_global, number_of_ffts, comm, grid_in,
+                                   grid_out);
+    break;
+  default:
+    assert(0 && "Distributed 2D FFT not available.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_2d_bw_distributed(const int npts_global[2], const int number_of_ffts,
+                           const cp_mpi_comm_t comm,
+                           double complex *restrict grid_in,
+                           double complex *restrict grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_bw_c2c_distr");
+  const int handle = fft_start_timer(routine_name);
+  assert(fft_lib_use_mpi());
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    fft_fftw_register_2d_bw_distributed(npts_global, number_of_ffts, comm, grid_in,
+                               grid_out);
+    break;
+  default:
+    assert(0 && "Distributed 2D FFT not available.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_2d_bw_distributed_c2r(const int npts_global[2],
+                               const int number_of_ffts,
+                               const cp_mpi_comm_t comm,
+                               double complex *restrict grid_in,
+                               double *restrict grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_bw_c2r_distr");
+  const int handle = fft_start_timer(routine_name);
+  assert(fft_lib_use_mpi());
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    fft_fftw_register_2d_bw_distributed_c2r(npts_global, number_of_ffts, comm, grid_in,
+                                   grid_out);
+    break;
+  default:
+    assert(0 && "Distributed 2D FFT not available.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d_fw_distributed(const int npts_global[3], const cp_mpi_comm_t comm,
+                           double complex *restrict grid_in,
+                           double complex *restrict grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_fw_c2c_distr");
+  const int handle = fft_start_timer(routine_name);
+  assert(fft_lib_use_mpi());
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    fft_fftw_register_3d_fw_distributed(npts_global, comm, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Distributed 3D FFT not available.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d_fw_distributed_r2c(const int npts_global[3],
+                               const cp_mpi_comm_t comm,
+                               double *restrict grid_in,
+                               double complex *restrict grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_fw_r2c_distr");
+  const int handle = fft_start_timer(routine_name);
+  assert(fft_lib_use_mpi());
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    fft_fftw_register_3d_fw_distributed_r2c(npts_global, comm, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Distributed 3D FFT not available.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d_bw_distributed(const int npts_global[3], const cp_mpi_comm_t comm,
+                           double complex *restrict grid_in,
+                           double complex *restrict grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_bw_c2c_distr");
+  const int handle = fft_start_timer(routine_name);
+  assert(fft_lib_use_mpi());
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    fft_fftw_register_3d_bw_distributed(npts_global, comm, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Distributed 3D FFT not available.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d_bw_distributed_c2r(const int npts_global[3],
+                               const cp_mpi_comm_t comm,
+                               double complex *restrict grid_in,
+                               double *restrict grid_out) {
+  char routine_name[FFT_MAX_STRING_LENGTH + 1];
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_bw_c2r_distr");
+  const int handle = fft_start_timer(routine_name);
+  assert(fft_lib_use_mpi());
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    fft_fftw_register_3d_bw_distributed_c2r(npts_global, comm, grid_in, grid_out);
+    break;
+  default:
+    assert(0 && "Distributed 3D FFT not available.");
+  }
+  fft_stop_timer(handle);
+}
+
+/*******************************************************************************
+ * \brief Naive implementation of FFT from transposed format (for easier
+ *transposition). \author Frederick Stein
+ ******************************************************************************/
 void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
                      const int leading_dimension_rs, const int leading_dimension_gs,

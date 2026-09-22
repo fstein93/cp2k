@@ -575,6 +575,44 @@ void setup_proc2local(fft_grid_layout *my_fft_grid, const int *external_local_bo
   }
 }
 
+/*******************************************************************************
+ * \brief Registers all required FFTs for a grid layout
+ * \param grid_rs complex-valued data in real space.
+ * \param grid_gs complex data in reciprocal space.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d(const fft_grid_layout *grid_layout) {
+
+  ensure_buffer_size(grid_layout->buffer_size);
+
+  if (grid_layout->use_halfspace) {
+    if (grid_layout->ray_distribution) {
+      fft_register_3d_r2c_ray(
+          grid_layout->npts_global,
+          grid_layout->npts_global_gspace, grid_layout->proc2local_rs,
+          grid_layout->proc2local_ms,
+          grid_layout->rays_per_process,
+          grid_layout->comm,
+          grid_layout->sub_comm);
+    }
+    fft_register_3d_r2c_blocked(
+        grid_layout->npts_global,
+        grid_layout->npts_global_gspace, grid_layout->proc2local_rs,
+        grid_layout->proc2local_ms, grid_layout->proc2local_gs,
+        grid_layout->comm, grid_layout->sub_comm);
+  } else {
+    if (grid_layout->ray_distribution) {
+  fft_register_3d_ray(grid_layout->npts_global,
+                grid_layout->proc2local_rs, grid_layout->proc2local_ms,
+                grid_layout->rays_per_process, grid_layout->comm, grid_layout->sub_comm);
+    }
+    fft_register_3d_blocked(grid_layout->npts_global,
+                      grid_layout->proc2local_rs, grid_layout->proc2local_ms,
+                      grid_layout->proc2local_gs,
+                      grid_layout->comm, grid_layout->sub_comm);
+  }
+}
+
 void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
                                  const cp_mpi_comm_t comm,
                                  const int npts_global[3],
@@ -1007,6 +1045,8 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
       my_fft_grid->proc2local_y_gs, my_fft_grid->proc2local_z_rs,
       my_fft_grid->rays_per_process, my_fft_grid->ray_to_xy,
       my_fft_grid->comm, my_fft_grid->sub_comm);
+      
+  fft_register_3d(my_fft_grid);
 
   *fft_grid = my_fft_grid;
 
@@ -1360,6 +1400,8 @@ void grid_create_fft_grid_layout_from_reference(
       my_fft_grid->proc2local_y_gs, my_fft_grid->proc2local_z_rs,
       my_fft_grid->rays_per_process, my_fft_grid->ray_to_xy,
       my_fft_grid->comm, my_fft_grid->sub_comm);
+      
+  fft_register_3d(my_fft_grid);
 
   *fft_grid = my_fft_grid;
   fft_stop_timer(handle);

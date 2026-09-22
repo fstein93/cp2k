@@ -13,6 +13,44 @@
 #include <complex.h>
 
 /*******************************************************************************
+ * \brief Registers all FFTs using a blocked distribution.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d_blocked(
+    const int npts_global[3], const int (*proc2local_rs)[3][2],
+    const int (*proc2local_ms)[3][2], const int (*proc2local_gs)[3][2],
+    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+
+/*******************************************************************************
+ * \brief Registers all FFTs using a blocked distribution.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d_r2c_blocked(
+    const int npts_global[3], const int npts_global_gspace[3],
+    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
+    const int (*proc2local_gs)[3][2],
+    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+
+/*******************************************************************************
+ * \brief Registers all FFTs using a ray distribution.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d_ray(
+                   const int npts_global[3], const int (*proc2local_rs)[3][2],
+                   const int (*proc2local_ms)[3][2], const int *rays_per_process,
+                   const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+
+/*******************************************************************************
+ * \brief Registers all FFTs using a ray distribution.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_register_3d_r2c_ray(
+    const int npts_global[3], const int npts_global_gspace[3],
+    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
+    const int *rays_per_process,
+    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+
+/*******************************************************************************
  * \brief Performs a forward 3D-FFT using a blocked distribution.
  * \author Frederick Stein
  ******************************************************************************/

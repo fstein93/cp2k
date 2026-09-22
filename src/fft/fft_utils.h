@@ -14,6 +14,9 @@
 #include <stdio.h>
 #include <string.h>
 
+#define FFT_FORWARD 1
+#define FFT_BACKWARD -1
+
 /*******************************************************************************
  * \brief Returns the smaller of two given integer (missing from the C standard)
  * \author Ole Schuett
