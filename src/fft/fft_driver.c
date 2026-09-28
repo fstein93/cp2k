@@ -73,14 +73,14 @@ void fft_register_3d_blocked(
       } else {
         fft_register_1d_fw_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], true,
                         false, fft_sizes_rs[1] * fft_sizes_rs[2], npts_global[0], grid_buffer_1, grid_buffer_2);
-        fft_register_1d_bw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2], true,
-                        false, fft_sizes_ms[0] * fft_sizes_ms[2], npts_global[1], grid_buffer_2, grid_buffer_1);
+        fft_register_1d_bw_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
+                        true, false, fft_sizes_rs[1] * fft_sizes_rs[2],npts_global[0], grid_buffer_1, grid_buffer_1);
 
         // Perform the second FFT
         fft_register_1d_fw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2], true,
                         false, fft_sizes_ms[0] * fft_sizes_ms[2], npts_global[1], grid_buffer_2, grid_buffer_1);
-        fft_register_1d_bw_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
-                        true, false, fft_sizes_rs[1] * fft_sizes_rs[2],npts_global[0], grid_buffer_1, grid_buffer_1);
+        fft_register_1d_bw_local(npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2], true,
+                        false, fft_sizes_ms[0] * fft_sizes_ms[2], npts_global[1], grid_buffer_2, grid_buffer_1);
       }
     }
 

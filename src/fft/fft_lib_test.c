@@ -37,6 +37,13 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
   fft_allocate_complex(fft_size * number_of_ffts, &input_array);
   fft_allocate_complex(fft_size * number_of_ffts, &output_array);
 
+  fft_register_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
+                  input_array, output_array);
+  fft_register_1d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
+                  output_array, input_array);
+
   memset(input_array, 0, fft_size * number_of_ffts * sizeof(double complex));
 
   // Check the forward FFT
@@ -212,6 +219,13 @@ int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
   double complex *output_array = NULL;
   fft_allocate_double(2 * (fft_size / 2 + 1) * number_of_ffts, &input_array);
   fft_allocate_complex((fft_size / 2 + 1) * number_of_ffts + 4, &output_array);
+
+  fft_register_1d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size/2+1,
+                      input_array, output_array);
+  fft_register_1d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size/2+1,
+                      output_array, input_array);
 
   memset(input_array, 0, fft_size * number_of_ffts * sizeof(double));
   // Check the forward FFT
@@ -390,6 +404,11 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
   const int elements_per_fft = fft_size[0] * fft_size[1];
   fft_allocate_complex(elements_per_fft * number_of_ffts, &input_array);
   fft_allocate_complex(elements_per_fft * number_of_ffts, &output_array);
+
+  fft_register_2d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                  input_array, output_array);
+  fft_register_2d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                  output_array, input_array);
 
   memset(input_array, 0,
          elements_per_fft * number_of_ffts * sizeof(double complex));
@@ -592,6 +611,12 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
                       &real_buffer);
   fft_allocate_complex((fft_size[1] / 2 + 1) * fft_size[0] * number_of_ffts,
                        &complex_buffer);
+
+  fft_register_2d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                      real_buffer, complex_buffer);
+  fft_register_2d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                      complex_buffer, real_buffer);
+
   memset(real_buffer, 0,
          2 * (fft_size[1] / 2 + 1) * fft_size[0] * number_of_ffts *
              sizeof(double));
@@ -820,6 +845,9 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
   fft_allocate_complex(fft_size[0] * fft_size[1] * fft_size[2], &input_array);
   fft_allocate_complex(fft_size[0] * fft_size[1] * fft_size[2], &output_array);
 
+        fft_register_3d_fw_local(fft_size, input_array, output_array);
+        fft_register_3d_bw_local(fft_size, output_array, input_array);
+
   double max_error = 0.0;
   int number_of_tests = 0;
   for (int mx = 0; mx < fft_size[0]; mx++) {
@@ -940,6 +968,9 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
                       &double_buffer);
   fft_allocate_complex(fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1),
                        &complex_buffer);
+
+        fft_register_3d_fw_local_r2c(fft_size, double_buffer, complex_buffer);
+        fft_register_3d_bw_local_c2r(fft_size, complex_buffer, double_buffer);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -1162,6 +1193,11 @@ int fft_test_2d_distributed_low(const int fft_size[2],
   fft_allocate_complex(buffer_size, &input_array);
   fft_allocate_complex(buffer_size, &output_array);
 
+  fft_register_2d_fw_distributed(fft_size, number_of_ffts, comm, input_array,
+                        output_array);
+  fft_register_2d_bw_distributed(fft_size, number_of_ffts, comm, input_array,
+                        output_array);
+
   memset(input_array, 0, buffer_size * sizeof(double complex));
   double max_error = 0.0;
   // Check the forward FFT
@@ -1299,6 +1335,11 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
   double complex *output_array = NULL;
   fft_allocate_double(2 * buffer_size, &input_array);
   fft_allocate_complex(buffer_size, &output_array);
+
+  fft_register_2d_fw_distributed_r2c(fft_size, number_of_ffts, comm, input_array,
+                            output_array);
+  fft_register_2d_bw_distributed_c2r(fft_size, number_of_ffts, comm, output_array,
+                            input_array);
 
   double max_error = 0.0;
   // Check the forward FFT
@@ -1454,6 +1495,13 @@ int fft_test_3d_distributed_low(const int fft_size[3], const int test_every) {
   fft_allocate_complex(buffer_size, &input_array);
   fft_allocate_complex(buffer_size, &output_array);
 
+        fft_register_3d_fw_distributed(
+            (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm,
+            input_array, output_array);
+        fft_register_3d_bw_distributed(
+            (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm,
+            output_array, input_array);
+
   double max_error = 0.0;
   int number_of_tests = 0;
   for (int mx = 0; mx < fft_size[0]; mx++) {
@@ -1598,6 +1646,9 @@ int fft_test_3d_distributed_r2c_low(const int fft_size[3],
   double complex *complex_buffer = NULL;
   fft_allocate_double(2 * buffer_size, &real_buffer);
   fft_allocate_complex(buffer_size, &complex_buffer);
+
+        fft_register_3d_fw_distributed_r2c(fft_size, comm, real_buffer, complex_buffer);
+        fft_register_3d_bw_distributed_c2r(fft_size, comm, complex_buffer, real_buffer);
 
   double max_error = 0.0;
   int number_of_tests = 0;
