@@ -77,7 +77,7 @@ int main(int argc, char *argv[]) {
 
   if (fft_lib_has_guru_interface()) {
 
-    int errors = run_unittests(debug, backend, planning_mode, true, false, 0.01);
+    errors += run_unittests(debug, backend, planning_mode, true, false, 0.01);
 
     // Test also the reference backend and without distributed FFTs from the
     // library

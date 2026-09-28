@@ -204,6 +204,186 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
 }
 
 /*******************************************************************************
+ * \brief Function to test the local FFT backend (inplace).
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
+                          const int transpose_rs, const int transpose_gs) {
+  const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
+
+  int errors = 0;
+
+  const double pi = acos(-1);
+
+  double complex *input_array = NULL;
+  fft_allocate_complex(fft_size * number_of_ffts, &input_array);
+
+  fft_register_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
+                  input_array, input_array);
+  fft_register_1d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
+                  input_array, input_array);
+
+  memset(input_array, 0, fft_size * number_of_ffts * sizeof(double complex));
+
+  // Check the forward FFT
+  if (transpose_rs) {
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, number_of_ffts)
+    for (int number_of_fft = 0; number_of_fft < number_of_ffts;
+         number_of_fft++) {
+      input_array[(number_of_fft % fft_size) * number_of_ffts + number_of_fft] =
+          1.0;
+    }
+  } else {
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, number_of_ffts)
+    for (int number_of_fft = 0; number_of_fft < number_of_ffts;
+         number_of_fft++) {
+      input_array[(number_of_fft % fft_size) + number_of_fft * fft_size] = 1.0;
+    }
+  }
+
+  fft_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
+                  input_array, input_array);
+
+  double max_error = 0.0;
+  if (transpose_gs) {
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, number_of_ffts, pi, my_process)             \
+    reduction(max : max_error) collapse(2)
+    for (int number_of_fft = 0; number_of_fft < number_of_ffts;
+         number_of_fft++) {
+      for (int index = 0; index < fft_size; index++) {
+        const double complex my_value =
+            input_array[number_of_fft + index * number_of_ffts];
+        const double complex ref_value =
+            cexp(-2.0 * I * pi * (number_of_fft % fft_size) * index / fft_size);
+        const double current_error = cabs(my_value - ref_value);
+        if (my_process == 0 && current_error > 1.0e-4)
+          printf("ERROR %i %i/%i %i: (%f %f) (%f %f)\n", index, number_of_fft,
+                 fft_size, number_of_ffts, creal(my_value), cimag(my_value),
+                 creal(ref_value), cimag(ref_value));
+        max_error = fmax(max_error, current_error);
+      }
+    }
+  } else {
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, number_of_ffts, pi, my_process)             \
+    reduction(max : max_error) collapse(2)
+    for (int number_of_fft = 0; number_of_fft < number_of_ffts;
+         number_of_fft++) {
+      for (int index = 0; index < fft_size; index++) {
+        const double complex my_value =
+            input_array[number_of_fft * fft_size + index];
+        const double complex ref_value =
+            cexp(-2.0 * I * pi * (number_of_fft % fft_size) * index / fft_size);
+        const double current_error = cabs(my_value - ref_value);
+        if (my_process == 0 && current_error > 1.0e-4)
+          printf("ERROR %i %i/%i %i: (%f %f) (%f %f)\n", index, number_of_fft,
+                 fft_size, number_of_ffts, creal(my_value), cimag(my_value),
+                 creal(ref_value), cimag(ref_value));
+        max_error = fmax(max_error, current_error);
+      }
+    }
+  }
+  fflush(stdout);
+
+  if (max_error > 1.0e-4) {
+    if (my_process == 0) {
+      printf("The fw 1D-FFT (inplace) does not work correctly (%i %i): %f!\n", fft_size,
+             number_of_ffts, max_error);
+      fflush(stdout);
+    }
+    errors++;
+  }
+
+  // Check the backward FFT
+  memset(input_array, 0, fft_size * number_of_ffts * sizeof(double complex));
+
+  if (transpose_gs) {
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, number_of_ffts)
+    for (int number_of_fft = 0; number_of_fft < number_of_ffts;
+         number_of_fft++) {
+      input_array[number_of_fft + number_of_fft % fft_size * number_of_ffts] =
+          1.0;
+    }
+  } else {
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, number_of_ffts)
+    for (int number_of_fft = 0; number_of_fft < number_of_ffts;
+         number_of_fft++) {
+      input_array[number_of_fft * fft_size + number_of_fft % fft_size] = 1.0;
+    }
+  }
+
+  fft_1d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
+                  input_array, input_array);
+
+  max_error = 0.0;
+  if (transpose_rs) {
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, number_of_ffts, pi, my_process)              \
+    reduction(max : max_error) collapse(2)
+    for (int number_of_fft = 0; number_of_fft < number_of_ffts;
+         number_of_fft++) {
+      for (int index = 0; index < fft_size; index++) {
+        const double complex my_value =
+            input_array[index * number_of_ffts + number_of_fft];
+        const double complex ref_value =
+            cexp(2.0 * I * pi * (number_of_fft % fft_size) * index / fft_size);
+        const double current_error = cabs(my_value - ref_value);
+        if (my_process == 0 && current_error > 1.0e-12)
+          printf("ERROR %i %i/%i %i: (%f %f) (%f %f)\n", index, number_of_fft,
+                 fft_size, number_of_ffts, creal(my_value), cimag(my_value),
+                 creal(ref_value), cimag(ref_value));
+        max_error = fmax(max_error, current_error);
+      }
+    }
+  } else {
+#pragma omp parallel for default(none)                                         \
+    shared(input_array, fft_size, number_of_ffts, pi, my_process)              \
+    reduction(max : max_error) collapse(2)
+    for (int number_of_fft = 0; number_of_fft < number_of_ffts;
+         number_of_fft++) {
+      for (int index = 0; index < fft_size; index++) {
+        const double complex my_value =
+            input_array[index + number_of_fft * fft_size];
+        const double complex ref_value =
+            cexp(2.0 * I * pi * (number_of_fft % fft_size) * index / fft_size);
+        const double current_error = cabs(my_value - ref_value);
+        if (my_process == 0 && current_error > 1.0e-12)
+          printf("ERROR %i %i/%i %i: (%f %f) (%f %f)\n", index, number_of_fft,
+                 fft_size, number_of_ffts, creal(my_value), cimag(my_value),
+                 creal(ref_value), cimag(ref_value));
+        max_error = fmax(max_error, current_error);
+      }
+    }
+  }
+  fflush(stdout);
+
+  fft_free_complex(input_array);
+
+  if (max_error > 1e-12) {
+    if (my_process == 0) {
+      printf("The bw 1D FFT (inplace) does not work correctly (%i %i): %f!\n", fft_size,
+             number_of_ffts, max_error);
+      fflush(stdout);
+    }
+    errors++;
+  }
+
+  if (errors == 0 && my_process == 0)
+    printf("The 1D FFT (inplace) does work correctly (%i %i)!\n", fft_size,
+           number_of_ffts);
+  return errors;
+}
+
+/*******************************************************************************
  * \brief Function to test the local FFT backend.
  * \author Frederick Stein
  ******************************************************************************/
@@ -1106,6 +1286,11 @@ int fft_test_local() {
   errors += fft_test_1d_local_low(18, 22, true, false);
   errors += fft_test_1d_local_low(20, 28, false, true);
   errors += fft_test_1d_local_low(14, 13, false, false);
+
+  errors += fft_test_1d_local_inplace_low(15, 26, true, true);
+  errors += fft_test_1d_local_inplace_low(18, 22, true, false);
+  errors += fft_test_1d_local_inplace_low(20, 28, false, true);
+  errors += fft_test_1d_local_inplace_low(14, 13, false, false);
 
   errors += fft_test_1d_local_r2c_low(15, 26, true, false);
   errors += fft_test_1d_local_r2c_low(18, 22, false, false);
