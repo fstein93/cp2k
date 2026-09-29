@@ -161,7 +161,7 @@ bool fft_fftw_test_mpi_backend() {
 
 /*******************************************************************************
  * \brief Initialize the FFT library (if not done externally).
- * \author Frederick Stein, Ole Schuett
+ * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
                        const bool use_fft_mpi, const bool use_guru_interface,
@@ -252,7 +252,7 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
 
 /*******************************************************************************
  * \brief Finalize the FFT library (if not done externally).
- * \author Frederick Stein, Ole Schuett
+ * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_finalize_lib(const char *wisdom_file) {
 #if defined(__FFTW3)
@@ -279,7 +279,7 @@ void fft_fftw_finalize_lib(const char *wisdom_file) {
 #if defined(__USE_FFTW3_MPI)
   fftw_mpi_cleanup();
 #else
-  fftw_cleanup();
+  fftw_cleanup_threads();
 #endif
 #else
   (void)wisdom_file;
@@ -377,6 +377,7 @@ void get_key_1d(const int direction, const int fft_size,
                         const bool transpose_gs, 
                      const int leading_dimension_rs, const int leading_dimension_gs,
                         const int number_of_threads, const bool inplace, int *key) {
+  assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
   key[0] = 1 + FFTW_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
@@ -400,6 +401,7 @@ void get_key_1d_r2c(const int direction, const int fft_size,
                             const bool transpose_gs,
                      const int leading_dimension_rs, const int leading_dimension_gs,
                             const int number_of_threads, const bool inplace, int *key) {
+  assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
   key[0] = 1 + FFTW_R2C + FFTW_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
@@ -422,6 +424,7 @@ void get_key_2d(const int direction, const int fft_size[2],
                         const int number_of_ffts, const bool transpose_rs,
                         const bool transpose_gs,
                         const int number_of_threads, const bool inplace, int *key) {
+  assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
   key[0] = 2 + FFTW_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
@@ -444,15 +447,16 @@ void get_key_2d_r2c(const int direction, const int fft_size[2],
                             const int number_of_ffts, const bool transpose_rs,
                             const bool transpose_gs,
                             const int number_of_threads, const bool inplace, int *key) {
+  assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
   key[0] = 2 + FFTW_R2C + FFTW_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size[0];
   key[4] = fft_size[1];
   key[5] = number_of_ffts;
-  key[6] = (transpose_rs ? number_of_ffts : 1) * fft_size[1];
+  key[6] = (transpose_rs ? number_of_ffts : 1) * ((transpose_rs || !inplace) ? fft_size[1] : 2*(fft_size[1] / 2 + 1));
   key[7] = transpose_rs ? number_of_ffts : 1;
-  key[8] = transpose_rs ? 1 : fft_size[0] * fft_size[1];
+  key[8] = transpose_rs ? 1 : fft_size[0] * ((transpose_rs || !inplace) ? fft_size[1] : 2*(fft_size[1] / 2 + 1));
   key[9] = (transpose_gs ? number_of_ffts : 1) * (fft_size[1] / 2 + 1);
   key[10] = transpose_gs ? number_of_ffts : 1;
   key[11] = transpose_gs ? 1 : fft_size[0] * (fft_size[1] / 2 + 1);
@@ -742,6 +746,10 @@ fft_fftw_create_1d_plan(const int key[KEY_SIZE], double complex* grid_in, double
   const int istride = key[6];
   const int ostride = key[9];
   fftw_plan *plan = malloc(sizeof(fftw_plan));
+  if (grid_in == grid_out) {
+    assert(istride == ostride);
+    assert(idist == odist);
+  }
   if (direction == FFTW_FORWARD) {
     *plan = fftw_plan_many_dft(rank, n, howmany, grid_in, inembed, istride,
                                 idist, grid_out, onembed, ostride, odist,
@@ -788,6 +796,13 @@ fft_fftw_create_1d_plan_r2c(const int key[KEY_SIZE], double *grid_rs, double com
   const int istride = key[6];
   const int ostride = key[9];
   fftw_plan *plan = malloc(sizeof(fftw_plan));
+  if ((double complex*)grid_rs == grid_gs) {
+    if (istride == 1) {
+      // Check whether the arrays are correctly padded
+      assert(idist == 2*odist);
+    }
+    assert(istride == ostride);
+  }
   if (direction == FFTW_FORWARD) {
     *plan = fftw_plan_many_dft_r2c(rank, n, howmany, grid_rs, inembed,
                                     istride, idist, grid_gs, onembed, ostride,
@@ -839,6 +854,11 @@ fft_fftw_create_2d_plan(const int key[KEY_SIZE], double complex *grid_in, double
   const int istride = key[7];
   const int ostride = key[10];
   fftw_plan *plan = malloc(sizeof(fftw_plan));
+  if (grid_in == grid_out) {
+    // Array strides need to match for in-place FFTs
+    assert(istride == ostride);
+    assert(idist == odist);
+  }
   if (direction == FFTW_FORWARD) {
     *plan = fftw_plan_many_dft(rank, n, howmany, grid_in, inembed, istride,
                                 idist, grid_out, onembed, ostride, odist,
@@ -888,6 +908,13 @@ fft_fftw_create_2d_plan_r2c(const int key[KEY_SIZE], double *grid_rs, double com
   const int istride = key[7];
   const int ostride = key[10];
   fftw_plan *plan = malloc(sizeof(fftw_plan));
+  if ((double complex*)grid_rs == grid_gs) {
+    if (istride == 1) {
+      // Check whether the arrays are correctly padded
+      assert(idist == 2*odist);
+    }
+    assert(istride == ostride);
+  }
   if (direction == FFTW_FORWARD) {
     *plan = fftw_plan_many_dft_r2c(rank, n, howmany, grid_rs, inembed,
                                     istride, idist, grid_gs, onembed,
@@ -1009,6 +1036,10 @@ fftw_plan *fft_fftw_create_guru_plan(const int key[KEY_SIZE],
          "Larger combined ranks than 3 are not implemented\n");
   fftw_plan_with_nthreads(number_of_threads);
   fftw_plan *plan = malloc(sizeof(fftw_plan));
+  if ((double complex*)grid_in == grid_out) {
+    for (int r = 0; r < rank; r++) assert(dims[r].is == dims[r].os);
+    for (int r = 0; r < howmany_rank; r++) assert(howmany_dims[r].is == howmany_dims[r].os);
+  }
   *plan = fftw_plan_guru_dft(rank, dims, howmany_rank, howmany_dims, grid_in,
                               grid_out, direction, fftw_planning_mode);
   add_plan_to_cache(key, plan);
@@ -1043,10 +1074,18 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(
   fftw_plan_with_nthreads(number_of_threads);
   fftw_plan *plan = malloc(sizeof(fftw_plan));
   if (direction == FFTW_FORWARD) {
+    if ((double complex*)grid_rs == grid_gs) {
+      for (int r = 0; r < rank; r++) assert(dims[r].is == 2*dims[r].os);
+      for (int r = 0; r < howmany_rank; r++) assert(howmany_dims[r].is == 2*howmany_dims[r].os);
+    }
     *plan = fftw_plan_guru_dft_r2c(rank, dims, howmany_rank, howmany_dims,
                                     grid_rs, grid_gs,
                                     fftw_planning_mode);
   } else {
+    if ((double complex*)grid_rs == grid_gs) {
+      for (int r = 0; r < rank; r++) assert(2*dims[r].is == dims[r].os);
+      for (int r = 0; r < howmany_rank; r++) assert(2*howmany_dims[r].is == howmany_dims[r].os);
+    }
     // We use the buffers the other way around to prevent
     // out-of-bounds-accesses of the planner if the output array has only the
     // minimum size
