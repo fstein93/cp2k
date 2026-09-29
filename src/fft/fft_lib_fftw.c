@@ -56,10 +56,10 @@ static int fftw_planning_mode = -1;
 // Modulo 4 encodes the rank (1, 2, 3)
 // The third bit encodes whether a R2C/C2R-FFT is used
 // 4 == 2^2
-#define FFTW_R2C 4
+#define FFT_KEY_R2C 4
 // The fourth bit encodes inplace FFTs
 // 8 == 2^3
-#define FFTW_INPLACE 8
+#define FFT_KEY_INPLACE 8
 // The fifth bit encodes the direction (1 is forward, 0 is backward FFT)
 // 16 == 2^4
 #define FFT_KEY_FORWARD 16
@@ -378,7 +378,7 @@ void get_key_1d(const int direction, const int fft_size,
                      const int leading_dimension_rs, const int leading_dimension_gs,
                         const int number_of_threads, const bool inplace, int *key) {
   assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
-  key[0] = 1 + FFTW_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 1 + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size;
@@ -402,7 +402,7 @@ void get_key_1d_r2c(const int direction, const int fft_size,
                      const int leading_dimension_rs, const int leading_dimension_gs,
                             const int number_of_threads, const bool inplace, int *key) {
   assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
-  key[0] = 1 + FFTW_R2C + FFTW_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 1 + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size;
@@ -425,7 +425,7 @@ void get_key_2d(const int direction, const int fft_size[2],
                         const bool transpose_gs,
                         const int number_of_threads, const bool inplace, int *key) {
   assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
-  key[0] = 2 + FFTW_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 2 + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -448,7 +448,7 @@ void get_key_2d_r2c(const int direction, const int fft_size[2],
                             const bool transpose_gs,
                             const int number_of_threads, const bool inplace, int *key) {
   assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
-  key[0] = 2 + FFTW_R2C + FFTW_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 2 + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -469,7 +469,7 @@ void get_key_2d_r2c(const int direction, const int fft_size[2],
 void get_key_3d(const int direction, const int fft_size[3],
                                    const int number_of_threads,
                                    const bool inplace, int *key) {
-  key[0] = 3 + FFTW_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 3 + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -491,7 +491,7 @@ void get_key_3d_r2c(const int direction,
                                        const int fft_size[3],
                                        const int number_of_threads,
                                        const bool inplace, int *key) {
-  key[0] = 3 + FFTW_R2C + FFTW_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 3 + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -517,7 +517,7 @@ void get_key_guru(const int direction, int rank,
   assert(rank + howmany_rank <= 3 &&
          "Larger combined ranks than 3 are not implemented\n");
 
-  key[0] = rank + FFTW_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = rank + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = rank > 0 ? dims[0].n : (rank + howmany_rank > 0 ? howmany_dims[0].n : 0);
@@ -550,7 +550,7 @@ void get_key_guru_r2c(
   assert(rank + howmany_rank <= 3 &&
          "Larger combined ranks than 3 are not implemented\n");
 
-  key[0] = rank + FFTW_R2C + FFTW_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = rank + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = rank > 0 ? dims[0].n : (rank + howmany_rank > 0 ? howmany_dims[0].n : 0);
@@ -606,7 +606,7 @@ void get_key_2d_r2c_distributed(const int direction,
                                                    const int number_of_ffts,
                                                    const cp_mpi_comm_t comm,
                                                   const int number_of_threads, int *key) {
-  key[0] = 2 + FFTW_R2C + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 2 + FFT_KEY_R2C + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(comm);
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -650,7 +650,7 @@ void get_key_3d_r2c_distributed(const int direction,
                                                    const int fft_size[3],
                                                    const cp_mpi_comm_t comm,
                                                   const int number_of_threads, int *key) {
-  key[0] = 3 + FFTW_R2C + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 3 + FFT_KEY_R2C + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
   key[1] = cp_mpi_comm_c2f(comm);
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -671,7 +671,7 @@ void get_key_3d_r2c_distributed(const int direction,
 int get_buffer_size_from_key(const int key[KEY_SIZE]) {
   int buffer_size = 0;
   for (int r = 0; r < 3; r++) {
-    if (r != key[0]%4-1 || ((key[0] & FFTW_R2C) != FFTW_R2C)) {
+    if (r != key[0]%4-1 || ((key[0] & FFT_KEY_R2C) != FFT_KEY_R2C)) {
       buffer_size += key[3+r]*key[6+r];
     } else {
       buffer_size += (key[3+r]/2+1)*key[4+r];
@@ -679,7 +679,7 @@ int get_buffer_size_from_key(const int key[KEY_SIZE]) {
   }
   int buffer_size_out = 0;
   for (int r = 0; r < 3; r++) {
-    if (r != key[0]%4-1 || ((key[0] & FFTW_R2C) != FFTW_R2C)) {
+    if (r != key[0]%4-1 || ((key[0] & FFT_KEY_R2C) != FFT_KEY_R2C)) {
       buffer_size_out += key[3+r]*key[9+r];
     } else {
       buffer_size_out += (key[3+r]/2+1)*key[9+r];
@@ -696,7 +696,7 @@ int get_buffer_size_from_key_mpi(const int key[KEY_SIZE]) {
   const int rank = key[0]%4;
   const int *fft_size = key+3;
   const int number_of_ffts = rank == 3 ? 1 : key[5];
-  const bool is_r2c = (key[0] & FFTW_R2C) == FFTW_R2C;
+  const bool is_r2c = (key[0] & FFT_KEY_R2C) == FFT_KEY_R2C;
   cp_mpi_comm_t comm = cp_mpi_comm_f2c(key[1]);
   if (number_of_ffts == 0 || fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0) return 1;
   const int block_size_0 =
