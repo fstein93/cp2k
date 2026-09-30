@@ -6,7 +6,6 @@ clean:
 	rm -fv *.o */*.o *.x ../offload/*.o ../mpiwrap/*.o
 
 CFLAGS := -fopenmp -no-pie -g -O3 -march=native -Wall -Wextra -Wno-vla-parameter -D__FFTW3 -I${FFTW3_ROOT}/include -L${FFTW3_ROOT}/lib -I${OPENBLAS_ROOT}/include -L${OPENBLAS_ROOT}/lib
-NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD
 LIBS := -lopenblas
 
 MPICC_PATH := $(shell which mpicc)
@@ -37,8 +36,10 @@ ALL_OBJECTS := ../offload/offload_mempool.o \
 # Enable Cuda when nvcc compiler is present.
 NVCC := $(shell which nvcc)
 ifneq ($(NVCC),)
-LIBS += -lcudart -lcuda -lcublas -lcufftw -lcufft -L${CUDA_PATH}/lib64
+ALL_OBJECTS += gpu/fft_gpu_kernels.cu
+LIBS += -lcudart -lcuda -lcublas -lcufft -L${CUDA_PATH}/lib64
 CFLAGS += -I${CUDA_PATH}/include -D__OFFLOAD_CUDA
+NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD
 
 %.o: %.cu $(ALL_HEADERS)
 	cd $(dir $<); $(NVCC) -c $(NVFLAGS) $(notdir $<)
