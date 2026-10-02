@@ -834,14 +834,13 @@ void fft_gpu_f(const double *zin, double *zout, const int dir, const int n,
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   assert(omp_get_num_threads() == 1);
-  const int nrpts = n * m;
-  if (nrpts == 0) {
+  if (n == 0 || m == 0) {
     return; // Nothing to do.
   }
 
   // Allocate device memory.
   offload_activate_chosen_device();
-  const size_t buffer_size = 2 * sizeof(double) * nrpts;
+  const size_t buffer_size = 2 * sizeof(double) * imax(leading_dimension_in * (transpose_in ? n : m), leading_dimension_out * (transpose_out ? n : m));
   ensure_memory_sizes(buffer_size, 0);
 
   // Upload COMPLEX input to device.
