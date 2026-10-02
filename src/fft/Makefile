@@ -36,7 +36,7 @@ ALL_OBJECTS := ../offload/offload_mempool.o \
 # Enable Cuda when nvcc compiler is present.
 NVCC := $(shell which nvcc)
 ifneq ($(NVCC),)
-ALL_OBJECTS += gpu/fft_gpu_kernels.cu
+ALL_OBJECTS += gpu/fft_gpu_kernels.o
 LIBS += -lcudart -lcuda -lcublas -lcufft -L${CUDA_PATH}/lib64
 CFLAGS += -I${CUDA_PATH}/include -D__OFFLOAD_CUDA
 NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "$(CFLAGS)" -D__OFFLOAD
