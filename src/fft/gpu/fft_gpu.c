@@ -640,7 +640,7 @@ void fft_r2c_gpu_fff(const double *zin, double *zout, const int dir,
   // Allocate device memory. cuFFT halves the last dimension, and the
   // transform is done out-of-place so that neither side needs padding.
   offload_activate_chosen_device();
-  const size_t real_size = sizeof(double) * npts[0] * npts[1] * npts[2];
+  const size_t real_size = sizeof(double) * npts[0] * npts[1] * (zin != zout ? npts[2] : 2*(npts[2]/2+1));
   const size_t complex_size =
       sizeof(double) * 2 * npts[0] * npts[1] * (npts[2] / 2 + 1);
   ensure_memory_sizes(complex_size > real_size ? complex_size : real_size, 0);
@@ -893,7 +893,7 @@ void fft_r2c_gpu_f(const double *zin, double *zout, const int dir, const int n,
 
   // Allocate device memory.
   offload_activate_chosen_device();
-  const size_t input_size = sizeof(double) * leading_dimension_in * (transpose_in ? n : m);
+  const size_t input_size = sizeof(double) * leading_dimension_in * (transpose_in ? (zin != zout ? n : 2*(n/2+1)) : m);
   const size_t output_size = 2 * sizeof(double) * leading_dimension_out * (transpose_out ? n/2+1 : m);
   ensure_memory_sizes(imax(input_size, output_size), 0);
 
@@ -985,19 +985,19 @@ void fft_r2c_gpu_ff(const double *zin, double *zout, const int dir,
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   assert(omp_get_num_threads() == 1);
-  const int nrpts = n[0] * n[1] * m;
-  if (nrpts == 0) {
+  if (n[0] == 0 || n[1] == 0 || m == 0) {
     return;
   }
 
   // Allocate device memory.
   offload_activate_chosen_device();
-  const int ngpts = 2 * (n[0] * (n[1] / 2 + 1)) * m;
-  ensure_memory_sizes(ngpts * sizeof(double), 0);
+  const int input_size = 2 * sizeof(double) * n[0] * (zin != zout ? n[1] : 2*(n[1]/2+1)) * m;
+  const int output_size = 2 * (n[0] * (n[1] / 2 + 1)) * m;
+  ensure_memory_sizes(imax(input_size, output_size), 0);
 
   // Upload COMPLEX input to device.
   offloadMemcpyAsyncHtoD(buffer_dev_1, zin,
-                         (dir > 0 ? nrpts : ngpts) * sizeof(double), stream);
+                         (dir > 0 ? input_size : output_size), stream);
 
   // Run FFT on the device.
   if (dir > 0) {
@@ -1010,7 +1010,7 @@ void fft_r2c_gpu_ff(const double *zin, double *zout, const int dir,
 
   // Download COMPLEX results from device.
   offloadMemcpyAsyncDtoH(zout, buffer_dev_2,
-                         (dir > 0 ? ngpts : nrpts) * sizeof(double), stream);
+                         (dir > 0 ? output_size : input_size), stream);
   offloadStreamSynchronize(stream);
 #else
   (void)zin;
