@@ -854,8 +854,8 @@ void fft_gpu_f(const double *zin, double *zout, const int dir, const int n,
       leading_dimension_in, leading_dimension_out, 
                buffer_dev_1, buffer_dev_2);
   } else {
-    fft_1d_gpu(OFFLOAD_FFT_INVERSE, n, m, transpose_in, transpose_out,
-      leading_dimension_in, leading_dimension_out, 
+    fft_1d_gpu(OFFLOAD_FFT_INVERSE, n, m, transpose_out, transpose_in,
+      leading_dimension_out, leading_dimension_in, 
                buffer_dev_1, buffer_dev_2);
   }
 
@@ -907,8 +907,8 @@ void fft_r2c_gpu_f(const double *zin, double *zout, const int dir, const int n,
       leading_dimension_in, leading_dimension_out, 
                    buffer_dev_1, buffer_dev_2);
   } else {
-    fft_r2c_1d_gpu(OFFLOAD_FFT_INVERSE, n, m, transpose_in, transpose_out,
-      leading_dimension_in, leading_dimension_out, 
+    fft_r2c_1d_gpu(OFFLOAD_FFT_INVERSE, n, m, transpose_out, transpose_in,
+      leading_dimension_out, leading_dimension_in, 
                    buffer_dev_1, buffer_dev_2);
   }
 
