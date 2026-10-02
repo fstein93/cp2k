@@ -6,6 +6,7 @@
 /*----------------------------------------------------------------------------*/
 #include "fft_gpu.h"
 #include "../../offload/offload_runtime.h"
+#include "../fft_utils.h"
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
 #include "../../offload/offload_fft.h"
