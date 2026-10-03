@@ -893,10 +893,10 @@ void fft_r2c_gpu_f(const double *zin, double *zout, const int dir, const int n,
 
   // Allocate device memory.
   offload_activate_chosen_device();
-  printf("fft_r2c_gpu_f: n=%d, m=%d, transpose_in=%d, transpose_out=%d, leading_dimension_in=%d, leading_dimension_out=%d\n", n, m, transpose_in, transpose_out, leading_dimension_in, leading_dimension_out);
-  fflush(stdout);
   const size_t input_size = sizeof(double) * leading_dimension_in * (transpose_in ? (zin != zout ? n : 2*(n/2+1)) : m);
   const size_t output_size = 2 * sizeof(double) * leading_dimension_out * (transpose_out ? n/2+1 : m);
+  printf("fft_r2c_gpu_f: n=%d, m=%d, transpose_in=%d, transpose_out=%d, leading_dimension_in=%d, leading_dimension_out=%d, input_size=%ld, output_size=%ld\n", n, m, transpose_in, transpose_out, leading_dimension_in, leading_dimension_out, (long)input_size, (long)output_size);
+  fflush(stdout);
   ensure_memory_sizes(imax(input_size, output_size), 0);
 
   // Upload COMPLEX input to device.
