@@ -429,6 +429,8 @@ int fft_test_3d_r2c_cartesian(const int npts_global[3], const int test_every) {
                   (nz - my_bounds_rs[2][0])] = 1.0;
 
         fft_3d_fw_r2c_with_layout(rs_data, gs_data, fft_grid_layout);
+        assert(rs_data != NULL);
+        assert(gs_data != NULL);
 
 #pragma omp parallel for default(none)                                         \
     shared(gs_data, fft_grid_layout, nx, ny, nz, npts_global, scale)           \

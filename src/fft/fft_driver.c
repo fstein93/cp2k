@@ -1229,11 +1229,12 @@ void fft_3d_fw_r2c_blocked(
         fft_1d_fw_local(npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1], false,
                         false, npts_global[2], npts_global[2], grid_buffer_1, grid_buffer_2);
       } else {
+        assert(grid_rs != NULL);
         memcpy((double *)grid_buffer_1, grid_rs,
                product3(fft_sizes_rs) * sizeof(double));
 
         fft_1d_fw_local_r2c(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
-                            true, false, fft_sizes_rs[1] * fft_sizes_rs[2],npts_global[0]/2+1, (double *)grid_buffer_1,
+                            true, false, fft_sizes_rs[1] * fft_sizes_rs[2], npts_global[0]/2+1, (double *)grid_buffer_1,
                             grid_buffer_2);
 
         // Pack buffer
@@ -1329,6 +1330,7 @@ void fft_3d_fw_r2c_blocked(
       }
     }
   }
+        assert(grid_rs != NULL);
 
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
