@@ -47,7 +47,8 @@ static bool is_initialized = false;
 #define FFT_PLAN_TRANSPOSE_IN 16
 #define FFT_PLAN_TRANSPOSE_OUT 32
 #define FFT_PLAN_BACKWARD FFT_GPU_BACKWARD
-#define FFT_PLAN_R2C FFT_GPU_R2C
+#define FFT_PLAN_R2C 64
+#define FFT_PLAN_INPLACE 128
 #endif
 
 /*******************************************************************************
@@ -237,7 +238,8 @@ static void fft_1d_gpu(const int direction, const int n, const int m,
                        const double *data_in, double *data_out) {
   const int key[4] = {1 + (direction < 0 ? FFT_PLAN_BACKWARD : 0) +
                           (transpose_in ? FFT_PLAN_TRANSPOSE_IN : 0) +
-                          (transpose_out ? FFT_PLAN_TRANSPOSE_OUT : 0),
+                          (transpose_out ? FFT_PLAN_TRANSPOSE_OUT : 0) +
+                          (data_in == data_out ? FFT_PLAN_INPLACE : 0),
                       n, m, 0}; // first key entry is dimensions
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
@@ -281,7 +283,8 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
   const int key[4] = {1 + FFT_GPU_R2C +
                           (direction < 0 ? FFT_PLAN_BACKWARD : 0) +
                           (transpose_in ? FFT_PLAN_TRANSPOSE_IN : 0) +
-                          (transpose_out ? FFT_PLAN_TRANSPOSE_OUT : 0),
+                          (transpose_out ? FFT_PLAN_TRANSPOSE_OUT : 0) +
+                          (data_in == data_out ? FFT_PLAN_INPLACE : 0),
                       n, m, 0}; // first key entry is dimensions
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
@@ -340,7 +343,8 @@ static void fft_2d_gpu(const int direction, const int n[2], const int m,
                        const double *data_in, double *data_out) {
   const int key[4] = {2 + (direction < 0 ? FFT_PLAN_BACKWARD : 0) +
                           (transpose_in ? FFT_PLAN_TRANSPOSE_IN : 0) +
-                          (transpose_out ? FFT_PLAN_TRANSPOSE_OUT : 0),
+                          (transpose_out ? FFT_PLAN_TRANSPOSE_OUT : 0) +
+                          (data_in == data_out ? FFT_PLAN_INPLACE : 0),
                       n[0], n[1], m}; // first key entry is dimensions
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
@@ -382,7 +386,8 @@ static void fft_r2c_2d_gpu(const int direction, const int n[2], const int m,
   const int key[4] = {2 + FFT_GPU_R2C +
                           (direction < 0 ? FFT_PLAN_BACKWARD : 0) +
                           (transpose_in ? FFT_PLAN_TRANSPOSE_IN : 0) +
-                          (transpose_out ? FFT_PLAN_TRANSPOSE_OUT : 0),
+                          (transpose_out ? FFT_PLAN_TRANSPOSE_OUT : 0) +
+                          (data_in == data_out ? FFT_PLAN_INPLACE : 0),
                       n[0], n[1], m};
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
@@ -446,8 +451,9 @@ static void fft_r2c_2d_gpu(const int direction, const int n[2], const int m,
  ******************************************************************************/
 static void fft_3d_gpu(const int direction, const int nx, const int ny,
                        const int nz, double *data) {
-  const int key[4] = {3 + (direction < 0 ? FFT_PLAN_BACKWARD : 0), nx, ny,
-                      nz}; // first key entry is dimensions
+  const int key[4] = {3 + (direction < 0 ? FFT_PLAN_BACKWARD : 0) +
+                          (data == NULL ? FFT_PLAN_INPLACE : 0),
+                      nx, ny, nz}; // first key entry is dimensions
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
   if (plan == NULL) {
@@ -469,7 +475,8 @@ static void fft_r2c_3d_gpu(const int direction, const int nx, const int ny,
                            const int nz, const double *data_in,
                            double *data_out) {
   const int key[4] = {3 + FFT_PLAN_R2C +
-                          (direction < 0 ? FFT_PLAN_BACKWARD : 0),
+                          (direction < 0 ? FFT_PLAN_BACKWARD : 0) +
+                          (data_in == data_out ? FFT_PLAN_INPLACE : 0),
                       nx, ny, nz}; // first key entry is dimensions
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
