@@ -591,7 +591,7 @@ int fft_test_1d_local_r2c_inplace_low(const int fft_size, const int number_of_ff
     transpose ? number_of_ffts : 2*(fft_size/2+1), transpose ? number_of_ffts : fft_size/2+1,
                       output_array, input_array);
 
-  memset(input_array, 0, fft_size * number_of_ffts * sizeof(double));
+  memset(input_array, 0, 2*(fft_size/2+1) * number_of_ffts * sizeof(double));
   // Check the forward FFT
   if (transpose) {
 #pragma omp parallel for default(none)                                         \
