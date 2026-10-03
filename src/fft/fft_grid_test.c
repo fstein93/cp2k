@@ -55,9 +55,9 @@ int fft_test_3d_cartesian(const int npts_global[3], const int test_every) {
                        ((double)npts_global[1]) / ((double)npts_global[2]);
 
   double complex *rs_data = NULL;
-  fft_allocate_complex(my_number_of_elements_rs, &rs_data);
+  fft_allocate_complex(imax(1, my_number_of_elements_rs), &rs_data);
   double complex *gs_data = NULL;
-  fft_allocate_complex(my_number_of_elements_gs, &gs_data);
+  fft_allocate_complex(imax(1, my_number_of_elements_gs), &gs_data);
 
   // Check forward 3D FFTs
   double max_error = 0.0;
@@ -225,9 +225,9 @@ int fft_test_3d_cartesian_cart(const int npts_global[3], const int test_every) {
                        ((double)npts_global[1]) / ((double)npts_global[2]);
 
   double complex *rs_data = NULL;
-  fft_allocate_complex(my_number_of_elements_rs, &rs_data);
+  fft_allocate_complex(imax(1, my_number_of_elements_rs), &rs_data);
   double complex *gs_data = NULL;
-  fft_allocate_complex(my_number_of_elements_gs, &gs_data);
+  fft_allocate_complex(imax(1, my_number_of_elements_gs), &gs_data);
 
   // Check forward 3D FFTs
   double max_error = 0.0;
@@ -401,9 +401,9 @@ int fft_test_3d_r2c_cartesian(const int npts_global[3], const int test_every) {
                        cp_mpi_barrier(comm);
 
   double *rs_data = NULL;
-  fft_allocate_double(my_number_of_elements_rs, &rs_data);
+  fft_allocate_double(imax(1, my_number_of_elements_rs), &rs_data);
   double complex *gs_data = NULL;
-  fft_allocate_complex(my_number_of_elements_gs, &gs_data);
+  fft_allocate_complex(imax(1, my_number_of_elements_gs), &gs_data);
 
   // Check forward 3D FFTs
   double max_error = 0.0;
@@ -584,9 +584,9 @@ int fft_test_3d_r2c_cartesian_halfspace(const int npts_global[3],
                        ((double)npts_global[1]) / ((double)npts_global[2]);
 
   double *rs_data = NULL;
-  fft_allocate_double(my_number_of_elements_rs, &rs_data);
+  fft_allocate_double(imax(1, my_number_of_elements_rs), &rs_data);
   double complex *gs_data = NULL;
-  fft_allocate_complex(my_number_of_elements_gs, &gs_data);
+  fft_allocate_complex(imax(1, my_number_of_elements_gs), &gs_data);
 
   // Check forward 3D FFTs
   double max_error = 0.0;
@@ -762,9 +762,9 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
                        ((double)npts_global[1]) / ((double)npts_global[2]);
 
   double complex *buffer_1 =
-      calloc(my_number_of_elements_rs, sizeof(double complex));
+      calloc(imax(1, my_number_of_elements_rs), sizeof(double complex));
   double complex *buffer_2 =
-      calloc(my_number_of_elements_gs, sizeof(double complex));
+      calloc(imax(1, my_number_of_elements_gs), sizeof(double complex));
 
   // Check forward 3D FFTs
   double max_error = 0.0;
@@ -949,9 +949,9 @@ int fft_test_3d_r2c_ray(const int npts_global[3], const int npts_global_ref[3],
   const double scale = 1.0 / ((double)npts_global[0]) /
                        ((double)npts_global[1]) / ((double)npts_global[2]);
 
-  double *buffer_1 = calloc(my_number_of_elements_rs, sizeof(double));
+  double *buffer_1 = calloc(imax(1, my_number_of_elements_rs), sizeof(double));
   double complex *buffer_2 =
-      calloc(my_number_of_elements_gs, sizeof(double complex));
+      calloc(imax(1, my_number_of_elements_gs), sizeof(double complex));
 
   // Check forward 3D FFTs
   double max_error = 0.0;
@@ -1136,7 +1136,7 @@ int fft_test_3d_r2c_ray_halfspace(const int npts_global[3],
   const double scale = 1.0 / ((double)npts_global[0]) /
                        ((double)npts_global[1]) / ((double)npts_global[2]);
 
-  double *buffer_1 = calloc(my_number_of_elements_rs, sizeof(double));
+  double *buffer_1 = calloc(imax(1, my_number_of_elements_rs), sizeof(double));
   double complex *buffer_2 =
       calloc(my_number_of_elements_gs, sizeof(double complex));
 
