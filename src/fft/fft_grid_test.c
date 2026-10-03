@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
+#include <assert.h>
 
 /*******************************************************************************
  * \brief Function to test the parallel FFT backend.
