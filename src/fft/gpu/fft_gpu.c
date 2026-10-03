@@ -290,7 +290,7 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
 
   if (plan == NULL) {
     int nsize[1] = {n};
-    int inembed[1] = {data_in != data_out || direction == OFFLOAD_FFT_BACKWARD ? 0 : 2*(n/2+1)}; // Is ignored, but is not allowed to be NULL.
+    int inembed[1] = {data_in != data_out || direction == OFFLOAD_FFT_INVERSE ? 0 : 2*(n/2+1)}; // Is ignored, but is not allowed to be NULL.
     int onembed[1] = {data_in != data_out || direction == OFFLOAD_FFT_FORWARD ? 0 : 2*(n/2+1)};
     int batch = m;
     int istride, idist, ostride, odist;
