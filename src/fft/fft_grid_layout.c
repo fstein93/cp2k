@@ -1655,6 +1655,7 @@ void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs,
                         grid_layout->sub_comm);
     }
   }
+  assert(grid_rs != NULL);
 }
 
 /*******************************************************************************
