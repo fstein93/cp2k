@@ -393,22 +393,22 @@ static void fft_r2c_2d_gpu(const int direction, const int n[2], const int m,
     int istride, idist, ostride, odist;
     if (direction == OFFLOAD_FFT_FORWARD) {
       inembed[0] = n[0];
-      inembed[1] = n[1];
+      inembed[1] = data_in != data_out ? n[1] : 2*(n[1]/2+1);
       onembed[0] = n[0];
       onembed[1] = n[1] / 2 + 1;
       istride = 1;
-      idist = n[0] * n[1];
+      idist = n[0] * (data_in != data_out ? n[1] : 2*(n[1]/2+1));
       ostride = 1;
       odist = n[0] * (n[1] / 2 + 1);
     } else {
       inembed[0] = n[0];
       inembed[1] = n[1] / 2 + 1;
       onembed[0] = n[0];
-      onembed[1] = n[1];
+      onembed[1] = data_in != data_out ? n[1] : 2*(n[1]/2+1);
       istride = 1;
       idist = n[0] * (n[1] / 2 + 1);
       ostride = 1;
-      odist = n[0] * n[1];
+      odist = n[0] * (data_in != data_out ? n[1] : 2*(n[1]/2+1));
     }
     if (transpose_in) {
       istride = m;
@@ -651,10 +651,10 @@ void fft_r2c_gpu_fff(const double *zin, double *zout, const int dir,
 
   // Run FFT on the device.
   fft_r2c_3d_gpu(dir > 0 ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, npts[0],
-                 npts[1], npts[2], buffer_dev_1, buffer_dev_2);
+                 npts[1], npts[2], buffer_dev_1, zin != zout ? buffer_dev_2 : buffer_dev_1);
 
   // Download to host
-  offloadMemcpyAsyncDtoH(zout, buffer_dev_2,
+  offloadMemcpyAsyncDtoH(zout, zin != zout ? buffer_dev_2 : buffer_dev_1,
                          dir > 0 ? complex_size : real_size, stream);
   offloadStreamSynchronize(stream);
 #else
