@@ -294,17 +294,10 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
     int onembed[1] = {0};
     int batch = m;
     int istride, idist, ostride, odist;
-    if (direction == OFFLOAD_FFT_FORWARD) {
-      istride = 1;
-      idist = leading_dimension_in;
-      ostride = 1;
-      odist = leading_dimension_out;
-    } else {
-      istride = 1;
-      idist = leading_dimension_in;
-      ostride = 1;
-      odist = leading_dimension_out;
-    }
+    istride = 1;
+    idist = leading_dimension_in;
+    ostride = 1;
+    odist = leading_dimension_out;
     if (transpose_in) {
       istride = leading_dimension_in;
       idist = 1;
@@ -912,15 +905,15 @@ void fft_r2c_gpu_f(const double *zin, double *zout, const int dir, const int n,
   if (dir > 0) {
     fft_r2c_1d_gpu(OFFLOAD_FFT_FORWARD, n, m, transpose_in, transpose_out,
       leading_dimension_in, leading_dimension_out, 
-                   buffer_dev_1, (zin != zout ? buffer_dev_2 : buffer_dev_1));
+                   buffer_dev_1, buffer_dev_2);
   } else {
     fft_r2c_1d_gpu(OFFLOAD_FFT_INVERSE, n, m, transpose_out, transpose_in,
       leading_dimension_out, leading_dimension_in, 
-                   buffer_dev_1, (zin != zout ? buffer_dev_2 : buffer_dev_1));
+                   buffer_dev_1, buffer_dev_2));
   }
 
   // Download COMPLEX results from device.
-  offloadMemcpyAsyncDtoH(zout, (zin != zout ? buffer_dev_2 : buffer_dev_1),
+  offloadMemcpyAsyncDtoH(zout, buffer_dev_2,
                          (dir > 0 ? output_size : input_size), stream);
   offloadStreamSynchronize(stream);
 #else
