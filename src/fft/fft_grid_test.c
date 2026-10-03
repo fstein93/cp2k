@@ -396,10 +396,6 @@ int fft_test_3d_r2c_cartesian(const int npts_global[3], const int test_every) {
   const double scale = 1.0 / ((double)npts_global[0]) /
                        ((double)npts_global[1]) / ((double)npts_global[2]);
 
-                       printf("my_number_of_elements_rs=%i, my_number_of_elements_gs=%i, fft_grid_layout->npts_gs_local=%i\n", my_number_of_elements_rs, my_number_of_elements_gs, fft_grid_layout->npts_gs_local);
-                       fflush(stdout);
-                       cp_mpi_barrier(comm);
-
   double *rs_data = NULL;
   fft_allocate_double(imax(1, my_number_of_elements_rs), &rs_data);
   double complex *gs_data = NULL;
@@ -415,11 +411,6 @@ int fft_test_3d_r2c_cartesian(const int npts_global[3], const int test_every) {
         if (test_every > 0 && number_of_tests % test_every != 0) {
           continue;
         }
-        printf("Testing R2C 3D FFT (%i %i %i) with test %i/%i\n", nx, ny, nz,
-               number_of_tests, npts_global[0] * npts_global[1] *
-                                      npts_global[2] / test_every);
-        fflush(stdout);
-        cp_mpi_barrier(comm);
         memset(rs_data, 0, my_number_of_elements_rs * sizeof(double));
 
         if (nx >= my_bounds_rs[0][0] &&
