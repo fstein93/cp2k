@@ -993,7 +993,7 @@ void fft_r2c_gpu_ff(const double *zin, double *zout, const int dir,
 
   // Allocate device memory.
   offload_activate_chosen_device();
-  const int input_size = 2 * sizeof(double) * n[0] * (zin != zout ? n[1] : 2*(n[1]/2+1)) * m;
+  const int input_size = sizeof(double) * n[0] * (zin != zout ? n[1] : 2*(n[1]/2+1)) * m;
   const int output_size = 2 * (n[0] * (n[1] / 2 + 1)) * m;
   ensure_memory_sizes(imax(input_size, output_size), 0);
 
