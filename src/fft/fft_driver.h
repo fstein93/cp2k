@@ -17,9 +17,9 @@
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_3d_blocked(
-    const int npts_global[3], const int (*proc2local_rs)[3][2],
-    const int (*proc2local_ms)[3][2], const int (*proc2local_gs)[3][2],
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+    const int npts_global[3], int (*proc2local_rs)[3][2],
+    int (*proc2local_ms)[3][2], int (*proc2local_gs)[3][2],
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
 
 /*******************************************************************************
  * \brief Registers all FFTs using a blocked distribution.
@@ -27,18 +27,18 @@ void fft_register_3d_blocked(
  ******************************************************************************/
 void fft_register_3d_r2c_blocked(
     const int npts_global[3], const int npts_global_gspace[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_gs)[3][2],
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_gs)[3][2],
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
 
 /*******************************************************************************
  * \brief Registers all FFTs using a ray distribution.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_3d_ray(
-                   const int npts_global[3], const int (*proc2local_rs)[3][2],
-                   const int (*proc2local_ms)[3][2], const int *rays_per_process,
-                   const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+                   const int npts_global[3], int (*proc2local_rs)[3][2],
+                   int (*proc2local_ms)[3][2], int *rays_per_process,
+                   cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
 
 /*******************************************************************************
  * \brief Registers all FFTs using a ray distribution.
@@ -46,22 +46,22 @@ void fft_register_3d_ray(
  ******************************************************************************/
 void fft_register_3d_r2c_ray(
     const int npts_global[3], const int npts_global_gspace[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int *rays_per_process,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int *rays_per_process,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
 
 /*******************************************************************************
  * \brief Performs a forward 3D-FFT using a blocked distribution.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_fw_blocked(
-    const double complex *restrict grid_rs, const bool is_complex,
-    double complex *restrict grid_gs, const int *index_to_cart,
+    const double complex *restrict grid_rs, bool is_complex,
+    double complex *restrict grid_gs, int *index_to_cart,
     const int npts_gs_local, const int npts_global[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_gs)[3][2], const int (*proc2local_x_gs)[2],
-    const int (*proc2local_y_gs)[2], const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_gs)[3][2], int (*proc2local_x_gs)[2],
+    int (*proc2local_y_gs)[2], fft_redistribution_t *redistribution,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
 
 /*******************************************************************************
  * \brief Performs a forward 3D-FFT using a blocked distribution.
@@ -69,52 +69,52 @@ void fft_3d_fw_blocked(
  ******************************************************************************/
 void fft_3d_fw_r2c_blocked(
     const double *restrict grid_rs, double complex *restrict grid_gs,
-    const int (*index_to_cart_pos)[2], const int (*index_to_cart_neg)[2],
-    const int number_of_positive_points, const int number_of_negative_points,
+    int (*index_to_cart_pos)[2], int (*index_to_cart_neg)[2],
+    int number_of_positive_points, int number_of_negative_points,
     const int npts_global[3], const int npts_global_gspace[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_gs)[3][2], const int (*proc2local_x_gs)[2],
-    const int (*proc2local_y_gs)[2], const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_gs)[3][2], int (*proc2local_x_gs)[2],
+    int (*proc2local_y_gs)[2], fft_redistribution_t *redistribution,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
 
 /*******************************************************************************
  * \brief Performs a backward 3D-FFT using a blocked distribution.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_blocked(
-    const double complex *restrict grid_gs, const int *index_to_cart,
-    const int number_of_local_gpts, double complex *restrict grid_rs,
-    const bool is_complex, const int npts_global[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_gs)[3][2], const int (*proc2local_x_gs)[2],
-    const int (*proc2local_y_gs)[2], const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+    const double complex *restrict grid_gs, int *index_to_cart,
+    int number_of_local_gpts, double complex *restrict grid_rs,
+    bool is_complex, const int npts_global[3],
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_gs)[3][2], int (*proc2local_x_gs)[2],
+    int (*proc2local_y_gs)[2], fft_redistribution_t *redistribution,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
 
 /*******************************************************************************
  * \brief Performs a backward 3D-FFT using a blocked distribution.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_c2r_blocked(
-    const double complex *restrict grid_gs, const int (*index_to_cart_pos)[2],
-    const int number_of_local_gpts, double *restrict grid_rs,
+    const double complex *restrict grid_gs, int (*index_to_cart_pos)[2],
+    int number_of_local_gpts, double *restrict grid_rs,
     const int npts_global[3], const int npts_global_gspace[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_gs)[3][2], const int (*proc2local_x_gs)[2],
-    const int (*proc2local_y_gs)[2], const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_gs)[3][2], int (*proc2local_x_gs)[2],
+    int (*proc2local_y_gs)[2], fft_redistribution_t *redistribution,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
 
 /*******************************************************************************
  * \brief Performs a forward 3D-FFT using a ray distribution.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_fw_ray(const double complex *restrict grid_rs,
-                   const bool is_complex, double complex *restrict grid_gs,
+                   bool is_complex, double complex *restrict grid_gs,
                    const int npts_gs_local, const int npts_global[3],
-                   const int *index_to_cart, const int (*proc2local_rs)[3][2],
-                   const int (*proc2local_ms)[3][2],
-                   const int (*proc2local_x_gs)[2], const int *rays_per_process,
-                   const fft_redistribution_t *redistribution,
-                   const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+                   int *index_to_cart, int (*proc2local_rs)[3][2],
+                   int (*proc2local_ms)[3][2],
+                   int (*proc2local_x_gs)[2], int *rays_per_process,
+                   fft_redistribution_t *redistribution,
+                   cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
 
 /*******************************************************************************
  * \brief Performs a forward 3D-FFT using a ray distribution.
@@ -122,39 +122,39 @@ void fft_3d_fw_ray(const double complex *restrict grid_rs,
  ******************************************************************************/
 void fft_3d_fw_r2c_ray(
     const double *restrict grid_rs, double complex *restrict grid_gs,
-    const int (*index_to_ray_pos)[2], const int (*index_to_ray_neg)[2],
-    const int number_of_positive_points, const int number_of_negative_points,
+    int (*index_to_ray_pos)[2], int (*index_to_ray_neg)[2],
+    int number_of_positive_points, int number_of_negative_points,
     const int npts_global[3], const int npts_global_gspace[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_x_gs)[2], const int *rays_per_process,
-    const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_x_gs)[2], int *rays_per_process,
+    fft_redistribution_t *redistribution,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
 
 /*******************************************************************************
  * \brief Performs a backward 3D-FFT overwriting the buffers.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_ray(const double complex *restrict grid_gs,
-                   const int *index_to_g, const int number_of_local_gpts,
-                   double complex *restrict grid_rs, const bool is_complex,
-                   const int npts_global[3], const int (*proc2local_rs)[3][2],
-                   const int (*proc2local_ms)[3][2],
-                   const int (*proc2local_x_gs)[2], const int *rays_per_process,
-                   const fft_redistribution_t *redistribution,
-                   const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+                   int *index_to_g, int number_of_local_gpts,
+                   double complex *restrict grid_rs, bool is_complex,
+                   const int npts_global[3], int (*proc2local_rs)[3][2],
+                   int (*proc2local_ms)[3][2],
+                   int (*proc2local_x_gs)[2], int *rays_per_process,
+                   fft_redistribution_t *redistribution,
+                   cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
 
 /*******************************************************************************
  * \brief Performs a backward 3D-FFT overwriting the buffers.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_c2r_ray(
-    const double complex *restrict grid_gs, const int (*index_to_ray_pos)[2],
-    const int number_of_positive_points, double *restrict grid_rs,
+    const double complex *restrict grid_gs, int (*index_to_ray_pos)[2],
+    int number_of_positive_points, double *restrict grid_rs,
     const int npts_global[3], const int npts_global_gspace[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_x_gs)[2], const int *rays_per_process,
-    const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_x_gs)[2], int *rays_per_process,
+    fft_redistribution_t *redistribution,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]);
 #endif
 
 // EOF

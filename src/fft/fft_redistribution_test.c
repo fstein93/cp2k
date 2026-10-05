@@ -35,7 +35,7 @@ int fft_test_transpose_blocked(const int npts_global[3],
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               use_halfspace, -1.0, NULL, NULL);
 
-  const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
@@ -44,13 +44,13 @@ int fft_test_transpose_blocked(const int npts_global[3],
   const int my_number_of_elements_rs =
       fft_grid_layout->npts_global_gspace[0] * my_sizes_rs[1] * my_sizes_rs[2];
 
-  const int(*my_bounds_ms)[2] = fft_grid_layout->proc2local_ms[my_process];
+  int(*my_bounds_ms)[2] = fft_grid_layout->proc2local_ms[my_process];
   int my_sizes_ms[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_ms[dir] = my_bounds_ms[dir][1];
   const int my_number_of_elements_ms = product3(my_sizes_ms);
 
-  const int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
+  int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
   int my_sizes_gs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_gs[dir] = my_bounds_gs[dir][1];

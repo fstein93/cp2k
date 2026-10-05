@@ -30,9 +30,9 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
                               dh_inv, false, -1.0, NULL, NULL);
 
-  const int(*my_bound_rs)[2] =
+  int(*my_bound_rs)[2] =
       grid_layout->proc2local_rs[cp_mpi_comm_rank(grid_layout->comm)];
-  const int(*my_bound_gs)[2] =
+  int(*my_bound_gs)[2] =
       grid_layout->proc2local_gs[cp_mpi_comm_rank(grid_layout->comm)];
   double complex *grid_rs = NULL;
   fft_allocate_complex(
@@ -105,9 +105,9 @@ static void run_test_r2c(const int fft_size[3], const int number_of_runs,
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
                               dh_inv, use_halfspace, -1.0, NULL, NULL);
 
-  const int(*my_bound_rs)[2] =
+  int(*my_bound_rs)[2] =
       grid_layout->proc2local_rs[cp_mpi_comm_rank(grid_layout->comm)];
-  const int(*my_bound_gs)[2] =
+  int(*my_bound_gs)[2] =
       grid_layout->proc2local_gs[cp_mpi_comm_rank(grid_layout->comm)];
   
   double *grid_rs = NULL;
@@ -183,7 +183,7 @@ static void run_test_ray_c2c(const int fft_size[3], const int number_of_runs) {
   grid_create_fft_grid_layout_from_reference(&grid_layout_ray, fft_size, -1.0, NULL,
                                              grid_layout);
 
-  const int(*my_bound_rs)[2] =
+  int(*my_bound_rs)[2] =
       grid_layout_ray->proc2local_rs[cp_mpi_comm_rank(grid_layout_ray->comm)];
   double complex *grid_rs = NULL;
   fft_allocate_complex(
@@ -260,7 +260,7 @@ static void run_test_ray_r2c(const int fft_size[3], const int number_of_runs,
   grid_create_fft_grid_layout_from_reference(&grid_layout_ray, fft_size, -1.0, NULL,
                                              grid_layout);
 
-  const int(*my_bound_rs)[2] =
+  int(*my_bound_rs)[2] =
       grid_layout_ray->proc2local_rs[cp_mpi_comm_rank(grid_layout_ray->comm)];
   double *grid_rs = NULL;
   fft_allocate_double(my_bound_rs[0][1] * my_bound_rs[1][1] * my_bound_rs[2][1],

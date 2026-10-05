@@ -23,18 +23,18 @@
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_3d_blocked(
-    const int npts_global[3], const int (*proc2local_rs)[3][2],
-    const int (*proc2local_ms)[3][2], const int (*proc2local_gs)[3][2],
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+    const int npts_global[3], int (*proc2local_rs)[3][2],
+    int (*proc2local_ms)[3][2], int (*proc2local_gs)[3][2],
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
 
   const int my_process = cp_mpi_comm_rank(comm);
 
   double complex *grid_buffer_1 = get_buffer_1();
   double complex *grid_buffer_2 = get_buffer_2();
 
-  const int(*my_bounds_rs)[2] = proc2local_rs[my_process];
-  const int(*my_bounds_ms)[2] = proc2local_ms[my_process];
-  const int(*my_bounds_gs)[2] = proc2local_gs[my_process];
+  int(*my_bounds_rs)[2] = proc2local_rs[my_process];
+  int(*my_bounds_ms)[2] = proc2local_ms[my_process];
+  int(*my_bounds_gs)[2] = proc2local_gs[my_process];
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {my_bounds_rs[0][1], my_bounds_rs[1][1],
@@ -147,18 +147,18 @@ void fft_register_3d_blocked(
  ******************************************************************************/
 void fft_register_3d_r2c_blocked(
     const int npts_global[3], const int npts_global_gspace[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_gs)[3][2],
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_gs)[3][2],
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
 
   const int my_process = cp_mpi_comm_rank(comm);
 
   double complex *grid_buffer_1 = get_buffer_1();
   double complex *grid_buffer_2 = get_buffer_2();
 
-  const int(*my_bounds_rs)[2] = proc2local_rs[my_process];
-  const int(*my_bounds_ms)[2] = proc2local_ms[my_process];
-  const int(*my_bounds_gs)[2] = proc2local_gs[my_process];
+  int(*my_bounds_rs)[2] = proc2local_rs[my_process];
+  int(*my_bounds_ms)[2] = proc2local_ms[my_process];
+  int(*my_bounds_gs)[2] = proc2local_gs[my_process];
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {my_bounds_rs[0][1], my_bounds_rs[1][1],
@@ -336,9 +336,9 @@ void fft_register_3d_r2c_blocked(
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_3d_ray(
-                   const int npts_global[3], const int (*proc2local_rs)[3][2],
-                   const int (*proc2local_ms)[3][2], const int *rays_per_process,
-                   const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+                   const int npts_global[3], int (*proc2local_rs)[3][2],
+                   int (*proc2local_ms)[3][2], int *rays_per_process,
+                   cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
 
   const int my_process = cp_mpi_comm_rank(comm);
 
@@ -456,9 +456,9 @@ void fft_register_3d_ray(
  ******************************************************************************/
 void fft_register_3d_r2c_ray(
     const int npts_global[3], const int npts_global_gspace[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int *rays_per_process,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int *rays_per_process,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
 
   const int my_process = cp_mpi_comm_rank(comm);
 
@@ -658,13 +658,13 @@ void fft_register_3d_r2c_ray(
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_fw_blocked(
-    const double complex *restrict grid_rs, const bool is_complex,
-    double complex *restrict grid_gs, const int *index_to_cart,
+    const double complex *restrict grid_rs, bool is_complex,
+    double complex *restrict grid_gs, int *index_to_cart,
     const int npts_gs_local, const int npts_global[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_gs)[3][2], const int (*proc2local_x_gs)[2],
-    const int (*proc2local_y_gs)[2], const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_gs)[3][2], int (*proc2local_x_gs)[2],
+    int (*proc2local_y_gs)[2], fft_redistribution_t *redistribution,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_b");
@@ -680,9 +680,9 @@ void fft_3d_fw_blocked(
   double complex *grid_buffer_1 = get_buffer_1();
   double complex *grid_buffer_2 = get_buffer_2();
 
-  const int(*my_bounds_rs)[2] = proc2local_rs[my_process];
-  const int(*my_bounds_ms)[2] = proc2local_ms[my_process];
-  const int(*my_bounds_gs)[2] = proc2local_gs[my_process];
+  int(*my_bounds_rs)[2] = proc2local_rs[my_process];
+  int(*my_bounds_ms)[2] = proc2local_ms[my_process];
+  int(*my_bounds_gs)[2] = proc2local_gs[my_process];
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {my_bounds_rs[0][1], my_bounds_rs[1][1],
@@ -978,13 +978,13 @@ void fft_3d_fw_blocked(
  ******************************************************************************/
 void fft_3d_fw_r2c_blocked(
     const double *restrict grid_rs, double complex *restrict grid_gs,
-    const int (*index_to_cart_pos)[2], const int (*index_to_cart_neg)[2],
-    const int number_of_positive_points, const int number_of_negative_points,
+    int (*index_to_cart_pos)[2], int (*index_to_cart_neg)[2],
+    int number_of_positive_points, int number_of_negative_points,
     const int npts_global[3], const int npts_global_gspace[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_gs)[3][2], const int (*proc2local_x_gs)[2],
-    const int (*proc2local_y_gs)[2], const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_gs)[3][2], int (*proc2local_x_gs)[2],
+    int (*proc2local_y_gs)[2], fft_redistribution_t *redistribution,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_r2c_b");
@@ -1000,9 +1000,9 @@ void fft_3d_fw_r2c_blocked(
   double complex *grid_buffer_1 = get_buffer_1();
   double complex *grid_buffer_2 = get_buffer_2();
 
-  const int(*my_bounds_rs)[2] = proc2local_rs[my_process];
-  const int(*my_bounds_ms)[2] = proc2local_ms[my_process];
-  const int(*my_bounds_gs)[2] = proc2local_gs[my_process];
+  int(*my_bounds_rs)[2] = proc2local_rs[my_process];
+  int(*my_bounds_ms)[2] = proc2local_ms[my_process];
+  int(*my_bounds_gs)[2] = proc2local_gs[my_process];
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {my_bounds_rs[0][1], my_bounds_rs[1][1],
@@ -1212,6 +1212,7 @@ void fft_3d_fw_r2c_blocked(
       }
     }
   } else if (proc_grid[1] > 1) {
+    double complex *grid_result = NULL;
     if (fft_sizes_rs[2] > 0) {
       // Perform the first FFT
       if (fft_lib_use_mpi()) {
@@ -1228,6 +1229,7 @@ void fft_3d_fw_r2c_blocked(
             sub_comm[1], (double *)grid_buffer_2, grid_buffer_1);
         fft_1d_fw_local(npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1], false,
                         false, npts_global[2], npts_global[2], grid_buffer_1, grid_buffer_2);
+        grid_result = grid_buffer_2;
       } else {
         assert(grid_rs != NULL);
         memcpy((double *)grid_buffer_1, grid_rs,
@@ -1249,7 +1251,7 @@ void fft_3d_fw_r2c_blocked(
         fft_2d_fw_local((const int[2]){npts_global[1], npts_global[2]},
                         fft_sizes_gs[0], true, false, grid_buffer_2,
                         grid_buffer_1);
-        memcpy(grid_buffer_2, grid_buffer_1, product3(fft_sizes_gs)*sizeof(double complex));
+        grid_result = grid_buffer_1;
       }
     }
 
@@ -1257,26 +1259,27 @@ void fft_3d_fw_r2c_blocked(
     if (index_to_cart_neg != NULL && index_to_cart_pos != NULL) {
 #pragma omp parallel for default(none)                                         \
     shared(number_of_positive_points, index_to_cart_pos, grid_gs,              \
-               grid_buffer_2, scaling_factor)
+               grid_result, scaling_factor)
       for (int index = 0; index < number_of_positive_points; index++) {
         grid_gs[index_to_cart_pos[index][0]] =
-            scaling_factor * grid_buffer_2[index_to_cart_pos[index][1]];
+            scaling_factor * grid_result[index_to_cart_pos[index][1]];
       }
 #pragma omp parallel for default(none)                                         \
     shared(number_of_negative_points, index_to_cart_neg, grid_gs,              \
-               grid_buffer_2, scaling_factor)
+               grid_result, scaling_factor)
       for (int index = 0; index < number_of_negative_points; index++) {
         grid_gs[index_to_cart_neg[index][0]] =
-            scaling_factor * conj(grid_buffer_2[index_to_cart_neg[index][1]]);
+            scaling_factor * conj(grid_result[index_to_cart_neg[index][1]]);
       }
     } else {
 #pragma omp parallel for default(none)                                         \
-    shared(number_of_points_to_scale, grid_gs, grid_buffer_2, scaling_factor)
+    shared(number_of_points_to_scale, grid_gs, grid_result, scaling_factor)
       for (int index = 0; index < number_of_points_to_scale; index++) {
-        grid_gs[index] = scaling_factor * grid_buffer_2[index];
+        grid_gs[index] = scaling_factor * grid_result[index];
       }
     }
   } else {
+    double complex *grid_result = NULL;
     if (fft_sizes_rs[2] > 0) {
       // Perform the first FFT
       if (fft_lib_has_guru_interface()) {
@@ -1289,8 +1292,7 @@ void fft_3d_fw_r2c_blocked(
         memcpy((double *)grid_buffer_1, grid_rs,
                product3(fft_sizes_rs) * sizeof(double));
         fft_fw_guru_r2c(3, dims, 0, NULL, omp_get_max_threads(), (double*)grid_buffer_1, grid_buffer_2);
-        memcpy((double *)grid_buffer_1, grid_buffer_2,
-               product3(fft_sizes_gs) * sizeof(double complex));
+        grid_result = grid_buffer_2;
       } else {
         memcpy((double *)grid_buffer_1, grid_rs,
                product3(fft_sizes_rs) * sizeof(double));
@@ -1303,6 +1305,7 @@ void fft_3d_fw_r2c_blocked(
         fft_2d_fw_local((const int[2]){npts_global[1], npts_global[2]},
                         fft_sizes_gs[0], false, false, grid_buffer_2,
                         grid_buffer_1);
+        grid_result = grid_buffer_1;
       }
     }
 
@@ -1310,27 +1313,26 @@ void fft_3d_fw_r2c_blocked(
     if (index_to_cart_neg != NULL && index_to_cart_pos != NULL) {
 #pragma omp parallel for default(none)                                         \
     shared(number_of_positive_points, index_to_cart_pos, grid_gs,              \
-               grid_buffer_1, scaling_factor)
+               grid_result, scaling_factor)
       for (int index = 0; index < number_of_positive_points; index++) {
         grid_gs[index_to_cart_pos[index][0]] =
-            scaling_factor * grid_buffer_1[index_to_cart_pos[index][1]];
+            scaling_factor * grid_result[index_to_cart_pos[index][1]];
       }
 #pragma omp parallel for default(none)                                         \
     shared(number_of_negative_points, index_to_cart_neg, grid_gs,              \
-               grid_buffer_1, scaling_factor)
+               grid_result, scaling_factor)
       for (int index = 0; index < number_of_negative_points; index++) {
         grid_gs[index_to_cart_neg[index][0]] =
-            scaling_factor * conj(grid_buffer_1[index_to_cart_neg[index][1]]);
+            scaling_factor * conj(grid_result[index_to_cart_neg[index][1]]);
       }
     } else {
 #pragma omp parallel for default(none)                                         \
-    shared(number_of_points_to_scale, grid_gs, grid_buffer_1, scaling_factor)
+    shared(number_of_points_to_scale, grid_gs, grid_result, scaling_factor)
       for (int index = 0; index < number_of_points_to_scale; index++) {
-        grid_gs[index] = scaling_factor * grid_buffer_1[index];
+        grid_gs[index] = scaling_factor * grid_result[index];
       }
     }
   }
-        assert(grid_rs != NULL);
 
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1341,13 +1343,13 @@ void fft_3d_fw_r2c_blocked(
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_blocked(
-    const double complex *restrict grid_gs, const int *index_to_cart,
-    const int number_of_local_gpts, double complex *restrict grid_rs,
-    const bool is_complex, const int npts_global[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_gs)[3][2], const int (*proc2local_x_gs)[2],
-    const int (*proc2local_y_gs)[2], const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+    const double complex *restrict grid_gs, int *index_to_cart,
+    int number_of_local_gpts, double complex *restrict grid_rs,
+    bool is_complex, const int npts_global[3],
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_gs)[3][2], int (*proc2local_x_gs)[2],
+    int (*proc2local_y_gs)[2], fft_redistribution_t *redistribution,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_b");
@@ -1645,13 +1647,13 @@ void fft_3d_bw_blocked(
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_c2r_blocked(
-    const double complex *restrict grid_gs, const int (*index_to_cart_pos)[2],
-    const int number_of_positive_points, double *restrict grid_rs,
+    const double complex *restrict grid_gs, int (*index_to_cart_pos)[2],
+    int number_of_positive_points, double *restrict grid_rs,
     const int npts_global[3], const int npts_global_gspace[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_gs)[3][2], const int (*proc2local_x_gs)[2],
-    const int (*proc2local_y_gs)[2], const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_gs)[3][2], int (*proc2local_x_gs)[2],
+    int (*proc2local_y_gs)[2], fft_redistribution_t *redistribution,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_c2r_b");
@@ -1930,13 +1932,13 @@ void fft_3d_bw_c2r_blocked(
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_fw_ray(const double complex *restrict grid_rs,
-                   const bool is_complex, double complex *restrict grid_gs,
-                   const int npts_gs_local, const int npts_global[3],
-                   const int *index_to_ray, const int (*proc2local_rs)[3][2],
-                   const int (*proc2local_ms)[3][2],
-                   const int (*proc2local_x_gs)[2], const int *rays_per_process,
-                   const fft_redistribution_t *redistribution,
-                   const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+                   bool is_complex, double complex *restrict grid_gs,
+                   int npts_gs_local, const int npts_global[3],
+                   int *index_to_ray, int (*proc2local_rs)[3][2],
+                   int (*proc2local_ms)[3][2],
+                   int (*proc2local_x_gs)[2], int *rays_per_process,
+                   fft_redistribution_t *redistribution,
+                   cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_r");
@@ -2211,13 +2213,13 @@ void fft_3d_fw_ray(const double complex *restrict grid_rs,
  ******************************************************************************/
 void fft_3d_fw_r2c_ray(
     const double *restrict grid_rs, double complex *restrict grid_gs,
-    const int (*index_to_ray_pos)[2], const int (*index_to_ray_neg)[2],
-    const int number_of_positive_points, const int number_of_negative_points,
+    int (*index_to_ray_pos)[2], int (*index_to_ray_neg)[2],
+    int number_of_positive_points, int number_of_negative_points,
     const int npts_global[3], const int npts_global_gspace[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_x_gs)[2], const int *rays_per_process,
-    const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_x_gs)[2], int *rays_per_process,
+    fft_redistribution_t *redistribution,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_r2c_r");
@@ -2527,13 +2529,13 @@ void fft_3d_fw_r2c_ray(
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_ray(const double complex *restrict grid_gs,
-                   const int *index_to_ray, const int number_of_local_gpts,
-                   double complex *restrict grid_rs, const bool is_complex,
-                   const int npts_global[3], const int (*proc2local_rs)[3][2],
-                   const int (*proc2local_ms)[3][2],
-                   const int (*proc2local_x_gs)[2], const int *rays_per_process,
-                   const fft_redistribution_t *redistribution,
-                   const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+                   int *index_to_ray, int number_of_local_gpts,
+                   double complex *restrict grid_rs, bool is_complex,
+                   const int npts_global[3], int (*proc2local_rs)[3][2],
+                   int (*proc2local_ms)[3][2],
+                   int (*proc2local_x_gs)[2], int *rays_per_process,
+                   fft_redistribution_t *redistribution,
+                   cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_r");
@@ -2816,13 +2818,13 @@ void fft_3d_bw_ray(const double complex *restrict grid_gs,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_bw_c2r_ray(
-    const double complex *restrict grid_gs, const int (*index_to_ray_pos)[2],
-    const int number_of_positive_points, double *restrict grid_rs,
+    const double complex *restrict grid_gs, int (*index_to_ray_pos)[2],
+    int number_of_positive_points, double *restrict grid_rs,
     const int npts_global[3], const int npts_global_gspace[3],
-    const int (*proc2local_rs)[3][2], const int (*proc2local_ms)[3][2],
-    const int (*proc2local_x_gs)[2], const int *rays_per_process,
-    const fft_redistribution_t *redistribution,
-    const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
+    int (*proc2local_rs)[3][2], int (*proc2local_ms)[3][2],
+    int (*proc2local_x_gs)[2], int *rays_per_process,
+    fft_redistribution_t *redistribution,
+    cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_c2r_r");

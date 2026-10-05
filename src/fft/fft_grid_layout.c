@@ -30,7 +30,7 @@ typedef struct {
   int index;
 } double_index_pair;
 
-double squared_length_of_g_vector(const int g[3], const double h_inv[3][3]) {
+double squared_length_of_g_vector(const int g[3], double h_inv[3][3]) {
   if (g[0] == 0 && g[1] == 0 && g[2] == 0) {
     return 0.0;
   }
@@ -845,7 +845,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
     setup_proc2local(my_fft_grid, NULL);
   }
 
-  const int(*bounds_gs)[2] = my_fft_grid->proc2local_gs[my_process];
+  int(*bounds_gs)[2] = my_fft_grid->proc2local_gs[my_process];
 
   int number_of_positive_gs_points =
       bounds_gs[0][1] * bounds_gs[1][1] * bounds_gs[2][1];

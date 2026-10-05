@@ -39,13 +39,13 @@ int fft_test_3d_cartesian(const int npts_global[3], const int test_every) {
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               false, -1.0, NULL, NULL);
 
-  const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
   const int my_number_of_elements_rs = product3(my_sizes_rs);
 
-  const int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
+  int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
   int my_sizes_gs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_gs[dir] = my_bounds_gs[dir][1];
@@ -209,13 +209,13 @@ int fft_test_3d_cartesian_cart(const int npts_global[3], const int test_every) {
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               false, -1.0, NULL, NULL);
 
-  const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
   const int my_number_of_elements_rs = product3(my_sizes_rs);
 
-  const int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
+  int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
   int my_sizes_gs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_gs[dir] = my_bounds_gs[dir][1];
@@ -380,13 +380,13 @@ int fft_test_3d_r2c_cartesian(const int npts_global[3], const int test_every) {
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               false, -1.0, NULL, NULL);
 
-  const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
   const int my_number_of_elements_rs = product3(my_sizes_rs);
 
-  const int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
+  int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
   int my_sizes_gs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_gs[dir] = my_bounds_gs[dir][1];
@@ -558,13 +558,13 @@ int fft_test_3d_r2c_cartesian_halfspace(const int npts_global[3],
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               true, -1.0, NULL, NULL);
 
-  const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
   const int my_number_of_elements_rs = product3(my_sizes_rs);
 
-  const int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
+  int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
   int my_sizes_gs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_gs[dir] = my_bounds_gs[dir][1];
@@ -736,7 +736,7 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
   grid_create_fft_grid_layout_from_reference(&fft_grid_layout, npts_global, -1.0, NULL,
                                              ref_grid_layout);
 
-  const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
@@ -924,7 +924,7 @@ int fft_test_3d_r2c_ray(const int npts_global[3], const int npts_global_ref[3],
   grid_create_fft_grid_layout_from_reference(&fft_grid_layout, npts_global, -1.0, NULL,
                                              ref_grid_layout);
 
-  const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
@@ -1112,7 +1112,7 @@ int fft_test_3d_r2c_ray_halfspace(const int npts_global[3],
   grid_create_fft_grid_layout_from_reference(&fft_grid_layout, npts_global, -1.0, NULL,
                                              ref_grid_layout);
 
-  const int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];

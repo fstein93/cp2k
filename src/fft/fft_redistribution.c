@@ -44,13 +44,13 @@ void cleanup_redistribution(fft_redistribution_t *redistribution) {
  ******************************************************************************/
 void prepare_redistribution(fft_redistribution_t *redistribution,
                             const int npts_global_gspace[3],
-                            const int (*proc2local_ms)[3][2],
-                            const int (*proc2local_x_gs)[2],
-                            const int (*proc2local_y_rs)[2],
-                            const int (*proc2local_y_gs)[2],
-                            const int (*proc2local_z_rs)[2],
-                            const int *rays_per_process,
-                   const int (*ray_to_xy)[2],
+                            int (*proc2local_ms)[3][2],
+                            int (*proc2local_x_gs)[2],
+                            int (*proc2local_y_rs)[2],
+                            int (*proc2local_y_gs)[2],
+                            int (*proc2local_z_rs)[2],
+                            int *rays_per_process,
+                            int (*ray_to_xy)[2],
                             const cp_mpi_comm_t comm,
                             const cp_mpi_comm_t sub_comm[2]) {
 
@@ -132,9 +132,9 @@ void prepare_redistribution(fft_redistribution_t *redistribution,
   if (rays_per_process != NULL && ray_to_xy != NULL) {
     const int number_of_processes = cp_mpi_comm_size(comm);
     const int my_process = cp_mpi_comm_rank(comm);
-    const int (*my_bounds)[2] = proc2local_ms[my_process];
+    int (*my_bounds)[2] = proc2local_ms[my_process];
     const int my_number_of_rays = rays_per_process[my_process];
-    const int (*my_rays)[2] = ray_to_xy;
+    int (*my_rays)[2] = ray_to_xy;
     for (int process = 0; process < my_process; process++) my_rays += rays_per_process[process];
 
     // Allocate buffers
@@ -152,7 +152,7 @@ void prepare_redistribution(fft_redistribution_t *redistribution,
       const int recv_process =
           modulo(my_process - process_shift, number_of_processes);
 
-      const int(*proc2local_recv)[2] = proc2local_ms[recv_process];
+      int(*proc2local_recv)[2] = proc2local_ms[recv_process];
 
       // Determine the number of rays to receive from the given process
       int number_of_rays_to_recv = 0;
@@ -171,7 +171,7 @@ void prepare_redistribution(fft_redistribution_t *redistribution,
 
       // Determine the number of rays to send to the given process
       const int number_of_rays_send = rays_per_process[send_process];
-      const int(*send_rays)[2] = ray_to_xy;
+      int(*send_rays)[2] = ray_to_xy;
       for (int process = 0; process < send_process; process++)
         send_rays += rays_per_process[process];
       int number_of_rays_to_send = 0;
@@ -190,7 +190,7 @@ void prepare_redistribution(fft_redistribution_t *redistribution,
     }
     int ray_position = 0;
     for (int process = 0; process < number_of_processes; process++) {
-    const int(*proc2local_recv)[2] = proc2local_ms[process];
+    int(*proc2local_recv)[2] = proc2local_ms[process];
 
     // Unpack the received data
     int recv_ray = 0;
@@ -211,7 +211,7 @@ void prepare_redistribution(fft_redistribution_t *redistribution,
     for (int process = 0; process < number_of_processes; process++) {
       // Determine the number of rays to send to the given process
       const int number_of_rays_send = rays_per_process[process];
-      const int(*send_rays)[2] = ray_to_xy;
+      int(*send_rays)[2] = ray_to_xy;
       for (int preceding_process = 0; preceding_process < process; preceding_process++)
         send_rays += rays_per_process[preceding_process];
       int number_of_rays_to_send = 0;
@@ -250,7 +250,7 @@ void prepare_redistribution(fft_redistribution_t *redistribution,
 void collect_y_and_distribute_x_blocked_pack(
     double complex *restrict grid, double complex *restrict grid_packed,
     const fft_redistribution_t *redistribution,
-    const int (*proc2local_x_ms)[2]) {
+    int (*proc2local_x_ms)[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_y_dist_x_b_pack");
@@ -319,7 +319,7 @@ void collect_x_and_distribute_y_blocked_comm(
 void collect_x_and_distribute_y_blocked_unpack(
     double complex *restrict grid_packed, double complex *restrict grid,
     const fft_redistribution_t *redistribution,
-    const int (*proc2local_x_ms)[2]) {
+    int (*proc2local_x_ms)[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_x_dist_y_b_unpack");
@@ -351,7 +351,7 @@ void collect_x_and_distribute_y_blocked_unpack(
 void collect_z_and_distribute_y_blocked_transpose_pack(
     double complex *restrict grid, double complex *restrict grid_packed,
     const fft_redistribution_t *redistribution,
-    const int (*proc2local_y_gs)[2]) {
+    int (*proc2local_y_gs)[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_z_dist_y_bt_pack");
@@ -391,7 +391,7 @@ void collect_z_and_distribute_y_blocked_transpose_pack(
 void collect_y_and_distribute_z_blocked_transpose_unpack(
     double complex *restrict grid, double complex *restrict transposed,
     const fft_redistribution_t *redistribution,
-    const int (*proc2local_y_gs)[2]) {
+    int (*proc2local_y_gs)[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_y_dist_z_bt_unpack");
@@ -425,7 +425,7 @@ void collect_y_and_distribute_z_blocked_transpose_unpack(
 void collect_z_and_distribute_y_blocked_pack(
     double complex *restrict grid, double complex *restrict transposed,
     const fft_redistribution_t *redistribution,
-    const int (*proc2local_y_gs)[2]) {
+    int (*proc2local_y_gs)[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_z_dist_y_b_pack");
@@ -501,7 +501,7 @@ void collect_y_and_distribute_z_blocked_comm(
 void collect_y_and_distribute_z_blocked_unpack(
     double complex *restrict grid_packed, double complex *restrict grid,
     const fft_redistribution_t *redistribution,
-    const int (*proc2local_y_gs)[2]) {
+    int (*proc2local_y_gs)[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "coll_y_dist_z_b");

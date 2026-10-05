@@ -42,13 +42,13 @@ typedef struct {
 
 void prepare_redistribution(fft_redistribution_t *redistribution,
                             const int npts_global_gspace[3],
-                            const int (*proc2local_ms)[3][2],
-                            const int (*proc2local_x_gs)[2],
-                            const int (*proc2local_y_rs)[2],
-                            const int (*proc2local_y_gs)[2],
-                            const int (*proc2local_z_rs)[2],
-                            const int *rays_per_process,
-                   const int (*ray_to_xy)[2],
+                            int (*proc2local_ms)[3][2],
+                            int (*proc2local_x_gs)[2],
+                            int (*proc2local_y_rs)[2],
+                            int (*proc2local_y_gs)[2],
+                            int (*proc2local_z_rs)[2],
+                            int *rays_per_process,
+                            int (*ray_to_xy)[2],
                             const cp_mpi_comm_t comm,
                             const cp_mpi_comm_t sub_comm[2]);
 
@@ -61,7 +61,7 @@ void cleanup_redistribution(fft_redistribution_t *redistribution);
 void collect_y_and_distribute_x_blocked_pack(
     double complex *restrict grid, double complex *restrict grid_packed,
     const fft_redistribution_t *redistribution,
-    const int (*proc2local_x_ms)[2]);
+    int (*proc2local_x_ms)[2]);
 
 /*******************************************************************************
  * \brief Performs the communication (y_d,z_D,x)->(y,z_D,x_d).
@@ -69,7 +69,7 @@ void collect_y_and_distribute_x_blocked_pack(
  ******************************************************************************/
 void collect_y_and_distribute_x_blocked_comm(
     double complex *restrict grid, double complex *restrict transposed,
-    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm);
+    const fft_redistribution_t *redistribution, cp_mpi_comm_t comm);
 
 /*******************************************************************************
  * \brief Performs the communication of the transposition of (y,z_d,x_d) ->
@@ -86,7 +86,7 @@ void collect_x_and_distribute_y_blocked_comm(
 void collect_x_and_distribute_y_blocked_unpack(
     double complex *restrict grid_packed, double complex *restrict grid,
     const fft_redistribution_t *redistribution,
-    const int (*proc2local_x_ms)[2]);
+    int (*proc2local_x_ms)[2]);
 
 /*******************************************************************************
  * \brief Performs the packing to a transposition of the kind
@@ -95,7 +95,7 @@ void collect_x_and_distribute_y_blocked_unpack(
 void collect_z_and_distribute_y_blocked_transpose_pack(
     double complex *restrict grid, double complex *restrict grid_packed,
     const fft_redistribution_t *redistribution,
-    const int (*proc2local_y_gs)[2]);
+    int (*proc2local_y_gs)[2]);
 
 /*******************************************************************************
  * \brief Performs the unpacking to transposition of the kind
@@ -104,7 +104,7 @@ void collect_z_and_distribute_y_blocked_transpose_pack(
 void collect_y_and_distribute_z_blocked_transpose_unpack(
     double complex *restrict grid, double complex *restrict transposed,
     const fft_redistribution_t *redistribution,
-    const int (*proc2local_y_gs)[2]);
+    int (*proc2local_y_gs)[2]);
 
 /*******************************************************************************
  * \brief Performs the packing to a redistribution of (z_d,x_d,y)->(z,x_d,y_d).
@@ -113,7 +113,7 @@ void collect_y_and_distribute_z_blocked_transpose_unpack(
 void collect_z_and_distribute_y_blocked_pack(
     double complex *restrict grid, double complex *restrict transposed,
     const fft_redistribution_t *redistribution,
-    const int (*proc2local_y_gs)[2]);
+    int (*proc2local_y_gs)[2]);
 
 /*******************************************************************************
  * \brief Performs the communication to a redistribution of
@@ -138,7 +138,7 @@ void collect_y_and_distribute_z_blocked_comm(
 void collect_y_and_distribute_z_blocked_unpack(
     double complex *restrict grid_packed, double complex *restrict grid,
     const fft_redistribution_t *redistribution,
-    const int (*proc2local_y_gs)[2]);
+    int (*proc2local_y_gs)[2]);
 
 void collect_z_and_distribute_xy_ray_pack(const double complex *restrict grid,
                                      double complex *restrict transposed,
