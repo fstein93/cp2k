@@ -360,41 +360,36 @@ void fft_fftw_free_complex(double complex *buffer) {
  ******************************************************************************/
 fftw_plan *
 fft_fftw_create_1d_plan(const fft_key_t key, double complex* grid_in, double complex *grid_out) {
-  const int direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD ? FFTW_FORWARD : FFTW_BACKWARD;
-  const int fft_size = key[3];
-  const int number_of_threads = key[2];
-  const int number_of_ffts = key[4];
+  int rank, fft_size, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
+  bool direction, inplace;
+  int inembed[1], onembed[1];
+  fetch_data_from_key_nd(key, &rank, &fft_size, &number_of_ffts, &number_of_threads, &direction, &inplace, inembed, onembed, &idist, &odist, &istride, &ostride);
+  assert(rank == 1);
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_%cw_c2c_Plocal",
-           direction == FFTW_FORWARD ? 'f' : 'b');
+           direction ? 'f' : 'b');
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
            "fft_1d_%cw_c2c_Plocal_%i_%i",
-           direction == FFTW_FORWARD ? 'f' : 'b', fft_size, number_of_ffts);
+           direction ? 'f' : 'b', fft_size, number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   fftw_plan_with_nthreads(number_of_threads);
-  const int rank = 1;
-  const int n[] = {key[3]};
-  const int howmany = key[4];
-  const int *inembed = n;
-  const int *onembed = n;
-  const int idist = key[7];
-  const int odist = key[10];
-  const int istride = key[6];
-  const int ostride = key[9];
   fftw_plan *plan = malloc(sizeof(fftw_plan));
   if (grid_in == grid_out) {
+    assert(inplace);
     assert(istride == ostride);
     assert(idist == odist);
+  } else {
+    assert(!inplace);
   }
-  if (direction == FFTW_FORWARD) {
-    *plan = fftw_plan_many_dft(rank, n, howmany, grid_in, inembed, istride,
+  if (direction) {
+    *plan = fftw_plan_many_dft(rank, &fft_size, number_of_ffts, grid_in, inembed, istride,
                                 idist, grid_out, onembed, ostride, odist,
                                 FFTW_FORWARD, fftw_planning_mode);
   } else {
-    *plan = fftw_plan_many_dft(rank, n, howmany, grid_in, onembed, ostride,
+    *plan = fftw_plan_many_dft(rank, &fft_size, number_of_ffts, grid_in, onembed, ostride,
                                 odist, grid_out, inembed, istride, idist,
                                 FFTW_BACKWARD, fftw_planning_mode);
   }
