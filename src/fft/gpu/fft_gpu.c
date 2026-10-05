@@ -290,7 +290,7 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
 
   if (plan == NULL) {
     int nsize[1] = {n};
-    int inembed[] = {grid_rs == grid_gs ? 2*(n/2+1) : n};
+    int inembed[] = {data_in == data_out ? 2*(n/2+1) : n};
     int onembed[] = {n/2+1};
     int batch = m;
     int istride, idist, ostride, odist;
