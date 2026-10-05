@@ -170,8 +170,8 @@ static inline void get_key_3d_r2c(const bool direction,
  * \author Frederick Stein
  ******************************************************************************/
 static inline void get_key_guru(const bool direction, int rank,
-                                     const fft_iodim *dims, int howmany_rank,
-                                     const fft_iodim *howmany_dims,
+                                     const fftw_iodim *dims, int howmany_rank,
+                                     const fftw_iodim *howmany_dims,
                                      const int number_of_threads,
                                      const bool inplace, int *key) {
   assert(rank + howmany_rank <= 3 &&
@@ -204,8 +204,8 @@ static inline void get_key_guru(const bool direction, int rank,
  * \author Frederick Stein
  ******************************************************************************/
 static inline void get_key_guru_r2c(
-    const bool direction, int rank, const fft_iodim *dims, int howmany_rank,
-    const fft_iodim *howmany_dims, const int number_of_threads,
+    const bool direction, int rank, const fftw_iodim *dims, int howmany_rank,
+    const fftw_iodim *howmany_dims, const int number_of_threads,
     const bool inplace, int *key) {
   assert(rank + howmany_rank <= 3 &&
          "Larger combined ranks than 3 are not implemented\n");
@@ -395,7 +395,7 @@ static inline void fetch_data_from_key_nd(const fft_key_t key, int *rank, int *f
   *ostride = key[8+*rank];
 }
 
-static inline void fetch_data_from_key_guru(const fft_key_t key, bool *direction, int *rank, fft_iodim *dims, int *howmany_rank, fft_iodim *howmany_dims, int *number_of_threads, bool *inplace) {
+static inline void fetch_data_from_key_guru(const fft_key_t key, bool *direction, int *rank, fftw_iodim *dims, int *howmany_rank, fftw_iodim *howmany_dims, int *number_of_threads, bool *inplace) {
   assert(key[1] == cp_mpi_comm_c2f(cp_mpi_get_comm_null()) && "Distributed FFTs are not supported in this function!");
   *direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD;
   *inplace = (key[0] & FFT_KEY_INPLACE) == FFT_KEY_INPLACE;
