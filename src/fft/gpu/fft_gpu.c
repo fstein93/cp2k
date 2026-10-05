@@ -233,9 +233,9 @@ static void fft_1d_gpu(const int direction, const int n, const int m,
 
   if (plan == NULL) {
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
-  bool direction, inplace;
+  bool dir, inplace;
   int fft_size, inembed, onembed;
-  fetch_data_from_key_nd(key, &rank, &fft_size, &number_of_ffts, &number_of_threads, &direction, &inplace, &inembed, &onembed, &idist, &odist, &istride, &ostride);
+  fetch_data_from_key_nd(key, &rank, &fft_size, &number_of_ffts, &number_of_threads, &dir, &inplace, &inembed, &onembed, &idist, &odist, &istride, &ostride);
     plan = malloc(sizeof(cache_entry));
     offload_fftPlanMany(plan, 1, &fft_size, &inembed, istride, idist, &onembed,
                         ostride, odist, OFFLOAD_FFT_Z2Z, number_of_ffts);
@@ -264,15 +264,15 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
 
   if (plan == NULL) {
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
-  bool direction, inplace;
+  bool dir, inplace;
   int fft_size, inembed, onembed;
-  fetch_data_from_key_nd(key, &rank, &fft_size, &number_of_ffts, &number_of_threads, &direction, &inplace, &inembed, &onembed, &idist, &odist, &istride, &ostride);
+  fetch_data_from_key_nd(key, &rank, &fft_size, &number_of_ffts, &number_of_threads, &dir, &inplace, &inembed, &onembed, &idist, &odist, &istride, &ostride);
     plan = malloc(sizeof(cache_entry));
     if (direction == OFFLOAD_FFT_FORWARD) {
       offload_fftPlanMany(plan, 1, &fft_size, &inembed, istride, idist, &onembed,
                           ostride, odist, OFFLOAD_FFT_D2Z, number_of_ffts);
     } else {
-      offload_fftPlanMany(plan, 1, fft_size, onembed, istride, idist, inembed,
+      offload_fftPlanMany(plan, 1, &fft_size, &onembed, &istride, idist, &inembed,
                           ostride, odist, OFFLOAD_FFT_Z2D, number_of_ffts);
     }
     offload_fftSetStream(*plan, stream);
@@ -302,9 +302,9 @@ static void fft_2d_gpu(const int direction, const int n[2], const int m,
 
   if (plan == NULL) {
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
-  bool direction, inplace;
+  bool dir, inplace;
   int fft_size[2], inembed[2], onembed[2];
-  fetch_data_from_key_nd(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &direction, &inplace, inembed, onembed, &idist, &odist, &istride, &ostride);
+  fetch_data_from_key_nd(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &dir, &inplace, inembed, onembed, &idist, &odist, &istride, &ostride);
     plan = malloc(sizeof(cache_entry));
     offload_fftPlanMany(plan, 2, fft_size, inembed, istride, idist, onembed,
                         ostride, odist, OFFLOAD_FFT_Z2Z, number_of_ffts);
@@ -330,9 +330,9 @@ static void fft_r2c_2d_gpu(const int direction, const int n[2], const int m,
 
   if (plan == NULL) {
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
-  bool direction, inplace;
+  bool dir, inplace;
   int fft_size[2], inembed[2], onembed[2];
-  fetch_data_from_key_nd(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &direction, &inplace, inembed, onembed, &idist, &odist, &istride, &ostride);
+  fetch_data_from_key_nd(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &dir, &inplace, inembed, onembed, &idist, &odist, &istride, &ostride);
     plan = malloc(sizeof(cache_entry));
     if (direction == OFFLOAD_FFT_FORWARD) {
       offload_fftPlanMany(plan, 2, fft_size, inembed, istride, idist, onembed,
