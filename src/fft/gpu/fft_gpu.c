@@ -272,8 +272,8 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
       offload_fftPlanMany(plan, 1, &fft_size, &inembed, istride, idist, &onembed,
                           ostride, odist, OFFLOAD_FFT_D2Z, number_of_ffts);
     } else {
-      offload_fftPlanMany(plan, 1, &fft_size, &onembed, istride, idist, &inembed,
-                          ostride, odist, OFFLOAD_FFT_Z2D, number_of_ffts);
+      offload_fftPlanMany(plan, 1, &fft_size, &onembed, &ostride, &odist, &inembed,
+                          &istride, &idist, OFFLOAD_FFT_Z2D, number_of_ffts);
     }
     offload_fftSetStream(*plan, stream);
     add_plan_to_cache(key, plan);
@@ -338,8 +338,8 @@ static void fft_r2c_2d_gpu(const int direction, const int n[2], const int m,
       offload_fftPlanMany(plan, 2, fft_size, inembed, istride, idist, onembed,
                           ostride, odist, OFFLOAD_FFT_D2Z, number_of_ffts);
     } else {
-      offload_fftPlanMany(plan, 2, fft_size, inembed, istride, idist, onembed,
-                          ostride, odist, OFFLOAD_FFT_Z2D, number_of_ffts);
+      offload_fftPlanMany(plan, 2, fft_size, onembed, ostride, odist, inembed,
+                          istride, idist, OFFLOAD_FFT_Z2D, number_of_ffts);
     }
     offload_fftSetStream(*plan, stream);
     add_plan_to_cache(key, plan);
