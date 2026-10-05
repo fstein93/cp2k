@@ -31,14 +31,14 @@ typedef int fft_key_t[KEY_SIZE];
  * \brief Get key from FFT input parameters (1D, C2C-case)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_1d(const int direction, const int fft_size,
+static inline void get_key_1d(const bool direction, const int fft_size,
                         const int number_of_ffts,
                         const bool transpose_rs,
                         const bool transpose_gs, 
                      const int leading_dimension_rs, const int leading_dimension_gs,
                         const int number_of_threads, const bool inplace, int *key) {
   assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
-  key[0] = 1 + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 1 + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size;
@@ -56,13 +56,13 @@ static inline void get_key_1d(const int direction, const int fft_size,
  * \brief Get key from FFT input parameters (1D, R2C-case)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_1d_r2c(const int direction, const int fft_size,
+static inline void get_key_1d_r2c(const bool direction, const int fft_size,
                             const int number_of_ffts, const bool transpose_rs,
                             const bool transpose_gs,
                      const int leading_dimension_rs, const int leading_dimension_gs,
                             const int number_of_threads, const bool inplace, int *key) {
   assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
-  key[0] = 1 + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 1 + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size;
@@ -80,12 +80,12 @@ static inline void get_key_1d_r2c(const int direction, const int fft_size,
  * \brief Get key from FFT input parameters (2D, C2C-case)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_2d(const int direction, const int fft_size[2],
+static inline void get_key_2d(const bool direction, const int fft_size[2],
                         const int number_of_ffts, const bool transpose_rs,
                         const bool transpose_gs,
                         const int number_of_threads, const bool inplace, int *key) {
   assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
-  key[0] = 2 + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 2 + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -103,12 +103,12 @@ static inline void get_key_2d(const int direction, const int fft_size[2],
  * \brief Get key from FFT input parameters (2D, R2C-case)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_2d_r2c(const int direction, const int fft_size[2],
+static inline void get_key_2d_r2c(const bool direction, const int fft_size[2],
                             const int number_of_ffts, const bool transpose_rs,
                             const bool transpose_gs,
                             const int number_of_threads, const bool inplace, int *key) {
   assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
-  key[0] = 2 + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 2 + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -126,10 +126,10 @@ static inline void get_key_2d_r2c(const int direction, const int fft_size[2],
  * \brief Get key from FFT input parameters (3D, C2C-case)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_3d(const int direction, const int fft_size[3],
+static inline void get_key_3d(const bool direction, const int fft_size[3],
                                    const int number_of_threads,
                                    const bool inplace, int *key) {
-  key[0] = 3 + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 3 + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -147,11 +147,11 @@ static inline void get_key_3d(const int direction, const int fft_size[3],
  * \brief Get key from FFT input parameters (3D, R2C-case)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_3d_r2c(const int direction,
+static inline void get_key_3d_r2c(const bool direction,
                                        const int fft_size[3],
                                        const int number_of_threads,
                                        const bool inplace, int *key) {
-  key[0] = 3 + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 3 + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -169,7 +169,7 @@ static inline void get_key_3d_r2c(const int direction,
  * \brief Get key from FFT input parameters (Guru, C2C-case)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_guru(const int direction, int rank,
+static inline void get_key_guru(const bool direction, int rank,
                                      const fft_iodim *dims, int howmany_rank,
                                      const fft_iodim *howmany_dims,
                                      const int number_of_threads,
@@ -177,7 +177,7 @@ static inline void get_key_guru(const int direction, int rank,
   assert(rank + howmany_rank <= 3 &&
          "Larger combined ranks than 3 are not implemented\n");
 
-  key[0] = rank + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = rank + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = rank > 0 ? dims[0].n : (rank + howmany_rank > 0 ? howmany_dims[0].n : 0);
@@ -204,13 +204,13 @@ static inline void get_key_guru(const int direction, int rank,
  * \author Frederick Stein
  ******************************************************************************/
 static inline void get_key_guru_r2c(
-    const int direction, int rank, const fft_iodim *dims, int howmany_rank,
+    const bool direction, int rank, const fft_iodim *dims, int howmany_rank,
     const fft_iodim *howmany_dims, const int number_of_threads,
     const bool inplace, int *key) {
   assert(rank + howmany_rank <= 3 &&
          "Larger combined ranks than 3 are not implemented\n");
 
-  key[0] = rank + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = rank + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = rank > 0 ? dims[0].n : (rank + howmany_rank > 0 ? howmany_dims[0].n : 0);
@@ -262,12 +262,12 @@ static inline int get_buffer_size_from_key(const fft_key_t key) {
  * \brief Get key from FFT input parameters (2D, C2C-case, distributed)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_2d_distributed(const int direction,
+static inline void get_key_2d_distributed(const bool direction,
                                                const int fft_size[2],
                                                const int number_of_ffts,
                                                const cp_mpi_comm_t comm,
                                                   const int number_of_threads, int *key) {
-  key[0] = 2 + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 2 + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(comm);
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -285,12 +285,12 @@ static inline void get_key_2d_distributed(const int direction,
  * \brief Get key from FFT input parameters (2D, R2C-case, distributed)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_2d_r2c_distributed(const int direction,
+static inline void get_key_2d_r2c_distributed(const bool direction,
                                                    const int fft_size[2],
                                                    const int number_of_ffts,
                                                    const cp_mpi_comm_t comm,
                                                   const int number_of_threads, int *key) {
-  key[0] = 2 + FFT_KEY_R2C + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 2 + FFT_KEY_R2C + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(comm);
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -308,11 +308,11 @@ static inline void get_key_2d_r2c_distributed(const int direction,
  * \brief Get key from FFT input parameters (3D, C2C-case)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_3d_distributed(const int direction,
+static inline void get_key_3d_distributed(const bool direction,
                                                const int fft_size[3],
                                                const cp_mpi_comm_t comm,
                                                   const int number_of_threads, int *key) {
-  key[0] = 3 + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 3 + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(comm);
   key[2] = number_of_threads;
   key[3] = fft_size[0];
@@ -330,11 +330,11 @@ static inline void get_key_3d_distributed(const int direction,
  * \brief Get key from FFT input parameters (3D, R2C-case, distributed)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_3d_r2c_distributed(const int direction,
+static inline void get_key_3d_r2c_distributed(const bool direction,
                                                    const int fft_size[3],
                                                    const cp_mpi_comm_t comm,
                                                   const int number_of_threads, int *key) {
-  key[0] = 3 + FFT_KEY_R2C + (direction == FFTW_FORWARD ? FFT_KEY_FORWARD : 0);
+  key[0] = 3 + FFT_KEY_R2C + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(comm);
   key[2] = number_of_threads;
   key[3] = fft_size[0];

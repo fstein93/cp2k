@@ -951,7 +951,7 @@ void fft_fftw_register_1d_fw_local(const int fft_size, const int number_of_ffts,
     const int block_size =
         (number_of_ffts + number_of_threads - 1) / number_of_threads;
     fft_key_t key;
-    get_key_1d(FFTW_FORWARD, fft_size, block_size,
+    get_key_1d(true, fft_size, block_size,
                           transpose_rs, transpose_gs, 
                           leading_dimension_rs, leading_dimension_gs,
                           1, in_place, key);
@@ -962,7 +962,7 @@ void fft_fftw_register_1d_fw_local(const int fft_size, const int number_of_ffts,
       const int block_size_last_thread =
           number_of_ffts - (number_of_threads - 1) * block_size;
       fft_key_t key;
-      get_key_1d(FFTW_FORWARD, fft_size, block_size_last_thread,
+      get_key_1d(true, fft_size, block_size_last_thread,
                             transpose_rs, transpose_gs, 
                             leading_dimension_rs, leading_dimension_gs,
                             1, in_place, key);
@@ -972,7 +972,7 @@ void fft_fftw_register_1d_fw_local(const int fft_size, const int number_of_ffts,
     }
   } else {
     fft_key_t key;
-    get_key_1d(FFTW_FORWARD, fft_size, number_of_ffts,
+    get_key_1d(true, fft_size, number_of_ffts,
                           transpose_rs, transpose_gs, 
                           leading_dimension_rs, leading_dimension_gs,
                           omp_get_max_threads(), in_place, key);
@@ -1007,7 +1007,7 @@ void fft_fftw_register_1d_fw_local_r2c(const int fft_size, const int number_of_f
   if (fft_size == 0 || number_of_ffts == 0) return;
   fft_key_t key;
   get_key_1d_r2c(
-      FFTW_FORWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
+      true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
                                    leading_dimension_rs, leading_dimension_gs,
       omp_get_max_threads(), (double complex *)grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -1050,7 +1050,7 @@ void fft_fftw_register_1d_bw_local(const int fft_size, const int number_of_ffts,
     const int block_size =
         (number_of_ffts + number_of_threads - 1) / number_of_threads;
     fft_key_t key;
-    get_key_1d(FFTW_BACKWARD, fft_size, block_size,
+    get_key_1d(false, fft_size, block_size,
                           transpose_rs, transpose_gs, 
                           leading_dimension_rs, leading_dimension_gs,
                           1, in_place, key);
@@ -1061,7 +1061,7 @@ void fft_fftw_register_1d_bw_local(const int fft_size, const int number_of_ffts,
       const int block_size_last_thread =
           number_of_ffts - (number_of_threads - 1) * block_size;
       fft_key_t key;
-      get_key_1d(FFTW_BACKWARD, fft_size, block_size_last_thread,
+      get_key_1d(false, fft_size, block_size_last_thread,
                         transpose_rs, transpose_gs, 
                         leading_dimension_rs, leading_dimension_gs,
                         1, in_place, key);
@@ -1071,7 +1071,7 @@ void fft_fftw_register_1d_bw_local(const int fft_size, const int number_of_ffts,
     }
   } else {
     fft_key_t key;
-    get_key_1d(FFTW_BACKWARD, fft_size, number_of_ffts,
+    get_key_1d(false, fft_size, number_of_ffts,
                           transpose_rs, transpose_gs, 
                           leading_dimension_rs, leading_dimension_gs,
                           omp_get_max_threads(), in_place, key);
@@ -1106,7 +1106,7 @@ void fft_fftw_register_1d_bw_local_c2r(const int fft_size, const int number_of_f
   if (fft_size == 0 || number_of_ffts == 0) return;
   fft_key_t key;
   get_key_1d_r2c(
-      FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
+      false, fft_size, number_of_ffts, transpose_rs, transpose_gs,
       leading_dimension_rs, leading_dimension_gs,
       omp_get_max_threads(), grid_in == (double complex *)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -1137,7 +1137,7 @@ void fft_fftw_register_2d_fw_local(const int fft_size[2], const int number_of_ff
   assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d(FFTW_FORWARD, fft_size, number_of_ffts,
+  get_key_2d(true, fft_size, number_of_ffts,
                         transpose_rs, transpose_gs, 
                         omp_get_max_threads(), grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -1166,7 +1166,7 @@ void fft_fftw_register_2d_fw_local_r2c(const int fft_size[2], const int number_o
   assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d_r2c(FFTW_FORWARD, fft_size, number_of_ffts,
+  get_key_2d_r2c(true, fft_size, number_of_ffts,
                         transpose_rs, transpose_gs, 
                         omp_get_max_threads(), grid_in == (double*)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -1195,7 +1195,7 @@ void fft_fftw_register_2d_bw_local(const int fft_size[2], const int number_of_ff
   assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d(FFTW_BACKWARD, fft_size, number_of_ffts,
+  get_key_2d(false, fft_size, number_of_ffts,
                         transpose_rs, transpose_gs, 
                         omp_get_max_threads(), grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -1224,7 +1224,7 @@ void fft_fftw_register_2d_bw_local_c2r(const int fft_size[2], const int number_o
   assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d_r2c(FFTW_BACKWARD, fft_size, number_of_ffts,
+  get_key_2d_r2c(false, fft_size, number_of_ffts,
                         transpose_rs, transpose_gs, 
                         omp_get_max_threads(), grid_in == (double complex*)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -1260,7 +1260,7 @@ void fft_fftw_register_fw_guru(int rank, const fft_iodim *dims, int howmany_rank
   }
   fft_key_t key;
   get_key_guru(
-      FFTW_FORWARD, rank, dims, howmany_rank, howmany_dims, number_of_threads, grid_in == grid_out, key);
+      true, rank, dims, howmany_rank, howmany_dims, number_of_threads, grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
     plan = fft_fftw_create_guru_plan(key, grid_in, grid_out);
@@ -1294,7 +1294,7 @@ void fft_fftw_register_fw_guru_r2c(int rank, const fft_iodim *dims, int howmany_
     if (howmany_dims[r].n == 0) return;
   }
   fft_key_t key;
-  get_key_guru_r2c(FFTW_FORWARD, rank, dims, howmany_rank, howmany_dims, number_of_threads,
+  get_key_guru_r2c(true, rank, dims, howmany_rank, howmany_dims, number_of_threads,
       grid_in == (double *)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
@@ -1330,7 +1330,7 @@ void fft_fftw_register_bw_guru(int rank, const fft_iodim *dims, int howmany_rank
   }
   fft_key_t key;
   get_key_guru(
-      FFTW_BACKWARD, rank, dims, howmany_rank, howmany_dims, number_of_threads,
+      false, rank, dims, howmany_rank, howmany_dims, number_of_threads,
       grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
@@ -1365,7 +1365,7 @@ void fft_fftw_register_bw_guru_c2r(int rank, const fft_iodim *dims, int howmany_
     if (howmany_dims[r].n == 0) return;
   }
   fft_key_t key;
-  get_key_guru_r2c(FFTW_BACKWARD, rank, dims, howmany_rank, howmany_dims, number_of_threads,
+  get_key_guru_r2c(false, rank, dims, howmany_rank, howmany_dims, number_of_threads,
       (double *)grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
@@ -1414,7 +1414,7 @@ void fft_fftw_register_3d_fw_local(const int fft_size[3], double complex *grid_i
           .n = fft_size[0], .is = number_of_ffts, .os = number_of_ffts};
       fft_iodim howmany_dim = {.n = block_size, .is = 1, .os = 1};
       fft_key_t key;
-                get_key_guru(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+                get_key_guru(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
             
       plan = lookup_plan_from_cache(key);
       if (plan == NULL)
@@ -1424,7 +1424,7 @@ void fft_fftw_register_3d_fw_local(const int fft_size[3], double complex *grid_i
             number_of_ffts - (number_of_threads - 1) * block_size;
         fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
         fft_key_t key;
-        get_key_guru(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        get_key_guru(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         plan = lookup_plan_from_cache(key);
         if (plan == NULL)
           plan = fft_fftw_create_guru_plan(key, grid_in, grid_out);
@@ -1440,7 +1440,7 @@ void fft_fftw_register_3d_fw_local(const int fft_size[3], double complex *grid_i
                                     .os = fft_size[1] * fft_size[2]},
                                    {.n = fft_size[2], .is = 1, .os = 1}};
       fft_key_t key;
-      get_key_guru(FFTW_FORWARD, 1, &dim, 2, howmany_dims, 1, in_place, key);
+      get_key_guru(true, 1, &dim, 2, howmany_dims, 1, in_place, key);
       plan = lookup_plan_from_cache(key);
       if (plan == NULL)
         plan = fft_fftw_create_guru_plan(key, grid_out, grid_in);
@@ -1452,7 +1452,7 @@ void fft_fftw_register_3d_fw_local(const int fft_size[3], double complex *grid_i
                                       .os = fft_size[1] * fft_size[2]},
                                      {.n = fft_size[2], .is = 1, .os = 1}};
         fft_key_t key;
-        get_key_guru(FFTW_FORWARD, 1, &dim, 2, howmany_dims, 1, in_place, key);
+        get_key_guru(true, 1, &dim, 2, howmany_dims, 1, in_place, key);
         plan = lookup_plan_from_cache(key);
         if (plan == NULL)
           plan = fft_fftw_create_guru_plan(key, grid_out, grid_in);
@@ -1466,7 +1466,7 @@ void fft_fftw_register_3d_fw_local(const int fft_size[3], double complex *grid_i
       fft_iodim howmany_dim = {
           .n = block_size, .is = fft_size[2], .os = fft_size[2]};
       fft_key_t key;
-      get_key_guru(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       plan = lookup_plan_from_cache(key);
       if (plan == NULL)
         plan = fft_fftw_create_guru_plan(key, grid_in, grid_out);
@@ -1476,7 +1476,7 @@ void fft_fftw_register_3d_fw_local(const int fft_size[3], double complex *grid_i
         fft_iodim howmany_dim = {
             .n = block_size_last_thread, .is = fft_size[2], .os = fft_size[2]};
         fft_key_t key;
-        get_key_guru(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        get_key_guru(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
         plan = lookup_plan_from_cache(key);
         if (plan == NULL)
@@ -1485,7 +1485,7 @@ void fft_fftw_register_3d_fw_local(const int fft_size[3], double complex *grid_i
     }
   } else {
     fft_key_t key;
-    get_key_3d(FFTW_FORWARD, fft_size, omp_get_max_threads(), in_place, key);
+    get_key_3d(true, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL)
       plan = fft_fftw_create_3d_plan(key, grid_in, grid_out);
@@ -1529,7 +1529,7 @@ void fft_fftw_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
           .n = fft_size[0], .is = number_of_ffts, .os = number_of_ffts};
       fft_iodim howmany_dim = {.n = block_size, .is = 1, .os = 1};
       fft_key_t key;
-      get_key_guru(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1,
+      get_key_guru(true, 1, &dim, 1, &howmany_dim, 1,
                                       in_place, key);
         
       plan = lookup_plan_from_cache(key);
@@ -1540,7 +1540,7 @@ void fft_fftw_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
             number_of_ffts - (number_of_threads - 1) * block_size;
         fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
         fft_key_t key;
-        get_key_guru(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1,
+        get_key_guru(true, 1, &dim, 1, &howmany_dim, 1,
                                       in_place, key);
         
         plan = lookup_plan_from_cache(key);
@@ -1561,7 +1561,7 @@ void fft_fftw_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
            .os = fft_size[1] * (fft_size[2] / 2 + 1)},
           {.n = (fft_size[2] / 2 + 1), .is = 1, .os = 1}};
       fft_key_t key;
-      get_key_guru(FFTW_FORWARD, 1, &dim, 2, howmany_dims, 1,
+      get_key_guru(true, 1, &dim, 2, howmany_dims, 1,
                                       in_place, key);
         
       plan = lookup_plan_from_cache(key);
@@ -1576,7 +1576,7 @@ void fft_fftw_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
              .os = fft_size[1] * (fft_size[2] / 2 + 1)},
             {.n = fft_size[2] / 2 + 1, .is = 1, .os = 1}};
         fft_key_t key;
-        get_key_guru(FFTW_FORWARD, 1, &dim, 2, howmany_dims, 1,
+        get_key_guru(true, 1, &dim, 2, howmany_dims, 1,
                                       in_place, key);
         
         plan = lookup_plan_from_cache(key);
@@ -1592,7 +1592,7 @@ void fft_fftw_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
       fft_iodim howmany_dim = {
           .n = block_size, .is = fft_size[2], .os = fft_size[2] / 2 + 1};
       fft_key_t key;
-      get_key_guru_r2c(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru_r2c(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
       plan = lookup_plan_from_cache(key);
       if (plan == NULL)
@@ -1604,7 +1604,7 @@ void fft_fftw_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
                                  .is = fft_size[2],
                                  .os = fft_size[2] / 2 + 1};
         fft_key_t key;
-        get_key_guru_r2c(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        get_key_guru_r2c(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
         plan = lookup_plan_from_cache(key);
         if (plan == NULL)
@@ -1613,7 +1613,7 @@ void fft_fftw_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
     }
   } else {
     fft_key_t key;
-    get_key_3d_r2c(FFTW_FORWARD, fft_size, omp_get_max_threads(), in_place, key);
+    get_key_3d_r2c(true, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL)
       plan = fft_fftw_create_3d_plan_r2c(key, grid_in, grid_out);
@@ -1657,7 +1657,7 @@ void fft_fftw_register_3d_bw_local(const int fft_size[3], double complex *grid_i
           .n = fft_size[0], .is = number_of_ffts, .os = number_of_ffts};
       fft_iodim howmany_dim = {.n = block_size, .is = 1, .os = 1};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
       plan = lookup_plan_from_cache(key);
       if (plan == NULL)
@@ -1667,7 +1667,7 @@ void fft_fftw_register_3d_bw_local(const int fft_size[3], double complex *grid_i
             number_of_ffts - (number_of_threads - 1) * block_size;
         fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
         fft_key_t key;
-        get_key_guru(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
         plan = lookup_plan_from_cache(key);
         if (plan == NULL)
@@ -1684,7 +1684,7 @@ void fft_fftw_register_3d_bw_local(const int fft_size[3], double complex *grid_i
                                     .os = fft_size[1] * fft_size[2]},
                                    {.n = fft_size[2], .is = 1, .os = 1}};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 2, howmany_dims, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 2, howmany_dims, 1, in_place, key);
       plan = lookup_plan_from_cache(key);
       if (plan == NULL)
         plan = fft_fftw_create_guru_plan(key, grid_out, grid_out);
@@ -1696,7 +1696,7 @@ void fft_fftw_register_3d_bw_local(const int fft_size[3], double complex *grid_i
                                       .os = fft_size[1] * fft_size[2]},
                                      {.n = fft_size[2], .is = 1, .os = 1}};
         fft_key_t key;
-        get_key_guru(FFTW_BACKWARD, 1, &dim, 2, howmany_dims, 1, in_place, key);
+        get_key_guru(false, 1, &dim, 2, howmany_dims, 1, in_place, key);
           
         plan = lookup_plan_from_cache(key);
         if (plan == NULL)
@@ -1711,7 +1711,7 @@ void fft_fftw_register_3d_bw_local(const int fft_size[3], double complex *grid_i
       fft_iodim howmany_dim = {
           .n = block_size, .is = fft_size[2], .os = fft_size[2]};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
       plan = lookup_plan_from_cache(key);
       if (plan == NULL)
@@ -1722,7 +1722,7 @@ void fft_fftw_register_3d_bw_local(const int fft_size[3], double complex *grid_i
         fft_iodim howmany_dim = {
             .n = block_size_last_thread, .is = fft_size[2], .os = fft_size[2]};
         fft_key_t key;
-        get_key_guru(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
           
         plan = lookup_plan_from_cache(key);
         if (plan == NULL)
@@ -1731,7 +1731,7 @@ void fft_fftw_register_3d_bw_local(const int fft_size[3], double complex *grid_i
     }
   } else {
     fft_key_t key;
-    get_key_3d(FFTW_BACKWARD, fft_size, omp_get_max_threads(), in_place, key);
+    get_key_3d(false, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL)
       plan = fft_fftw_create_3d_plan(key, grid_in, grid_out);
@@ -1775,7 +1775,7 @@ void fft_fftw_register_3d_bw_local_c2r(const int fft_size[3], double complex *gr
           .n = fft_size[0], .is = number_of_ffts, .os = number_of_ffts};
       fft_iodim howmany_dim = {.n = block_size, .is = 1, .os = 1};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
       plan = lookup_plan_from_cache(key);
       if (plan == NULL)
@@ -1785,7 +1785,7 @@ void fft_fftw_register_3d_bw_local_c2r(const int fft_size[3], double complex *gr
             number_of_ffts - (number_of_threads - 1) * block_size;
         fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
         fft_key_t key;
-        get_key_guru(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
           
         plan = lookup_plan_from_cache(key);
         if (plan == NULL)
@@ -1805,7 +1805,7 @@ void fft_fftw_register_3d_bw_local_c2r(const int fft_size[3], double complex *gr
            .os = fft_size[1] * (fft_size[2] / 2 + 1)},
           {.n = (fft_size[2] / 2 + 1), .is = 1, .os = 1}};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 2, howmany_dims, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 2, howmany_dims, 1, in_place, key);
       
       plan = lookup_plan_from_cache(key);
       if (plan == NULL)
@@ -1819,7 +1819,7 @@ void fft_fftw_register_3d_bw_local_c2r(const int fft_size[3], double complex *gr
              .os = fft_size[1] * (fft_size[2] / 2 + 1)},
             {.n = fft_size[2] / 2 + 1, .is = 1, .os = 1}};
         fft_key_t key;
-        get_key_guru(FFTW_BACKWARD, 1, &dim, 2, howmany_dims, 1, in_place, key);
+        get_key_guru(false, 1, &dim, 2, howmany_dims, 1, in_place, key);
           
         plan = lookup_plan_from_cache(key);
         if (plan == NULL)
@@ -1834,7 +1834,7 @@ void fft_fftw_register_3d_bw_local_c2r(const int fft_size[3], double complex *gr
       fft_iodim howmany_dim = {
           .n = block_size, .is = fft_size[2] / 2 + 1, .os = fft_size[2]};
       fft_key_t key;
-      get_key_guru_r2c(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru_r2c(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
       plan = lookup_plan_from_cache(key);
       if (plan == NULL)
@@ -1846,7 +1846,7 @@ void fft_fftw_register_3d_bw_local_c2r(const int fft_size[3], double complex *gr
                                  .is = fft_size[2] / 2 + 1,
                                  .os = fft_size[2]};
         fft_key_t key;
-        get_key_guru_r2c(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        get_key_guru_r2c(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
           
         plan = lookup_plan_from_cache(key);
         if (plan == NULL)
@@ -1855,7 +1855,7 @@ void fft_fftw_register_3d_bw_local_c2r(const int fft_size[3], double complex *gr
     }
   } else {
     fft_key_t key;
-    get_key_3d_r2c(FFTW_BACKWARD, fft_size, omp_get_max_threads(), in_place, key);
+    get_key_3d_r2c(false, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL)
       plan = fft_fftw_create_3d_plan_r2c(key, grid_out, grid_in);
@@ -1883,7 +1883,7 @@ void fft_fftw_register_2d_fw_distributed(const int npts_global[2],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d_distributed(FFTW_FORWARD, npts_global, number_of_ffts,
+  get_key_2d_distributed(true, npts_global, number_of_ffts,
                           comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
@@ -1913,7 +1913,7 @@ void fft_fftw_register_2d_fw_distributed_r2c(const int npts_global[2],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d_r2c_distributed(FFTW_FORWARD, npts_global, number_of_ffts,
+  get_key_2d_r2c_distributed(true, npts_global, number_of_ffts,
                           comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
@@ -1944,7 +1944,7 @@ void fft_fftw_register_2d_bw_distributed(const int npts_global[2],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d_distributed(FFTW_BACKWARD, npts_global, number_of_ffts,
+  get_key_2d_distributed(false, npts_global, number_of_ffts,
                           comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
@@ -1974,7 +1974,7 @@ void fft_fftw_register_2d_bw_distributed_c2r(const int npts_global[2],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d_r2c_distributed(FFTW_BACKWARD, npts_global, number_of_ffts,
+  get_key_2d_r2c_distributed(false, npts_global, number_of_ffts,
                           comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
@@ -2004,7 +2004,7 @@ void fft_fftw_register_3d_fw_distributed(const int npts_global[3],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0) return;
   fft_key_t key;
-  get_key_3d_distributed(FFTW_FORWARD, npts_global, comm, omp_get_max_threads(), key);
+  get_key_3d_distributed(true, npts_global, comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
     plan = fft_fftw_create_distributed_3d_plan(key, grid_in, grid_out);
@@ -2031,7 +2031,7 @@ void fft_fftw_register_3d_fw_distributed_r2c(const int npts_global[3],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0) return;
   fft_key_t key;
-  get_key_3d_r2c_distributed(FFTW_FORWARD, npts_global, comm, omp_get_max_threads(), key);
+  get_key_3d_r2c_distributed(true, npts_global, comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
     plan = fft_fftw_create_distributed_3d_plan_r2c(key, grid_in, grid_out);
@@ -2059,7 +2059,7 @@ void fft_fftw_register_3d_bw_distributed(const int npts_global[3],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0) return;
   fft_key_t key;
-  get_key_3d_distributed(FFTW_BACKWARD, npts_global, comm, omp_get_max_threads(), key);
+  get_key_3d_distributed(false, npts_global, comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
     plan = fft_fftw_create_distributed_3d_plan(key, grid_in, grid_out);
@@ -2086,7 +2086,7 @@ void fft_fftw_register_3d_bw_distributed_c2r(const int npts_global[3],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0) return;
   fft_key_t key;
-  get_key_3d_r2c_distributed(FFTW_BACKWARD, npts_global, comm, omp_get_max_threads(), key);
+  get_key_3d_r2c_distributed(false, npts_global, comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
     plan = fft_fftw_create_distributed_3d_plan_r2c(key, grid_out, grid_in);
@@ -2125,7 +2125,7 @@ void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
     const int block_size =
         (number_of_ffts + number_of_threads - 1) / number_of_threads;
   fft_key_t key;
-  get_key_1d(FFTW_FORWARD, fft_size, block_size,
+  get_key_1d(true, fft_size, block_size,
                         transpose_rs, transpose_gs, 
                         leading_dimension_rs, leading_dimension_gs,
                         1, in_place, key);
@@ -2139,7 +2139,7 @@ void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
       const int block_size_last_thread =
           number_of_ffts - (number_of_threads - 1) * block_size;
       fft_key_t key;
-      get_key_1d(FFTW_FORWARD, fft_size, block_size_last_thread,
+      get_key_1d(true, fft_size, block_size_last_thread,
                             transpose_rs, transpose_gs, 
                             leading_dimension_rs, leading_dimension_gs,
                             1, in_place, key);
@@ -2168,7 +2168,7 @@ void fft_fftw_1d_fw_local(const int fft_size, const int number_of_ffts,
     }
   } else {
     fft_key_t key;
-    get_key_1d(FFTW_FORWARD, fft_size, number_of_ffts,
+    get_key_1d(true, fft_size, number_of_ffts,
                           transpose_rs, transpose_gs, 
                           leading_dimension_rs, leading_dimension_gs,
                           omp_get_max_threads(), in_place, key);
@@ -2207,7 +2207,7 @@ void fft_fftw_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
   if (fft_size == 0 || number_of_ffts == 0) return;
   fft_key_t key;
   get_key_1d_r2c(
-      FFTW_FORWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
+      true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
                                    leading_dimension_rs, leading_dimension_gs,
       omp_get_max_threads(), (double complex *)grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -2256,7 +2256,7 @@ void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts,
     const int block_size =
         (number_of_ffts + number_of_threads - 1) / number_of_threads;
     fft_key_t key;
-    get_key_1d(FFTW_BACKWARD, fft_size, block_size,
+    get_key_1d(false, fft_size, block_size,
                           transpose_rs, transpose_gs, 
                           leading_dimension_rs, leading_dimension_gs,
                           1, in_place, key);
@@ -2270,7 +2270,7 @@ void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts,
       const int block_size_last_thread =
           number_of_ffts - (number_of_threads - 1) * block_size;
       fft_key_t key;
-      get_key_1d(FFTW_BACKWARD, fft_size, block_size_last_thread,
+      get_key_1d(false, fft_size, block_size_last_thread,
                         transpose_rs, transpose_gs, 
                         leading_dimension_rs, leading_dimension_gs,
                         1, in_place, key);
@@ -2299,7 +2299,7 @@ void fft_fftw_1d_bw_local(const int fft_size, const int number_of_ffts,
     }
   } else {
     fft_key_t key;
-    get_key_1d(FFTW_BACKWARD, fft_size, number_of_ffts,
+    get_key_1d(false, fft_size, number_of_ffts,
                           transpose_rs, transpose_gs, 
                           leading_dimension_rs, leading_dimension_gs,
                           omp_get_max_threads(), in_place, key);
@@ -2338,7 +2338,7 @@ void fft_fftw_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
   if (fft_size == 0 || number_of_ffts == 0) return;
   fft_key_t key;
   get_key_1d_r2c(
-      FFTW_BACKWARD, fft_size, number_of_ffts, transpose_rs, transpose_gs,
+      false, fft_size, number_of_ffts, transpose_rs, transpose_gs,
       leading_dimension_rs, leading_dimension_gs,
       omp_get_max_threads(), grid_in == (double complex *)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -2373,7 +2373,7 @@ void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
   assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d(FFTW_FORWARD, fft_size, number_of_ffts,
+  get_key_2d(true, fft_size, number_of_ffts,
                         transpose_rs, transpose_gs, 
                         omp_get_max_threads(), grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -2406,7 +2406,7 @@ void fft_fftw_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
   assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d_r2c(FFTW_FORWARD, fft_size, number_of_ffts,
+  get_key_2d_r2c(true, fft_size, number_of_ffts,
                         transpose_rs, transpose_gs, 
                         omp_get_max_threads(), grid_in == (double*)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -2439,7 +2439,7 @@ void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
   assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d(FFTW_BACKWARD, fft_size, number_of_ffts,
+  get_key_2d(false, fft_size, number_of_ffts,
                         transpose_rs, transpose_gs, 
                         omp_get_max_threads(), grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -2472,7 +2472,7 @@ void fft_fftw_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
   assert(is_initialized);
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d_r2c(FFTW_BACKWARD, fft_size, number_of_ffts,
+  get_key_2d_r2c(false, fft_size, number_of_ffts,
                         transpose_rs, transpose_gs, 
                         omp_get_max_threads(), grid_in == (double complex*)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
@@ -2512,7 +2512,7 @@ void fft_fftw_fw_guru(int rank, const fft_iodim *dims, int howmany_rank,
   }
   fft_key_t key;
   get_key_guru(
-      FFTW_FORWARD, rank, dims, howmany_rank, howmany_dims, number_of_threads, grid_in == grid_out, key);
+      true, rank, dims, howmany_rank, howmany_dims, number_of_threads, grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
@@ -2550,7 +2550,7 @@ void fft_fftw_fw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
     if (howmany_dims[r].n == 0) return;
   }
   fft_key_t key;
-  get_key_guru_r2c(FFTW_FORWARD, rank, dims, howmany_rank, howmany_dims, number_of_threads,
+  get_key_guru_r2c(true, rank, dims, howmany_rank, howmany_dims, number_of_threads,
       grid_in == (double *)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -2590,7 +2590,7 @@ void fft_fftw_bw_guru(int rank, const fft_iodim *dims, int howmany_rank,
   }
   fft_key_t key;
   get_key_guru(
-      FFTW_BACKWARD, rank, dims, howmany_rank, howmany_dims, number_of_threads,
+      false, rank, dims, howmany_rank, howmany_dims, number_of_threads,
       grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -2629,7 +2629,7 @@ void fft_fftw_bw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
     if (howmany_dims[r].n == 0) return;
   }
   fft_key_t key;
-  get_key_guru_r2c(FFTW_BACKWARD, rank, dims, howmany_rank, howmany_dims, number_of_threads,
+  get_key_guru_r2c(false, rank, dims, howmany_rank, howmany_dims, number_of_threads,
       (double *)grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -2684,7 +2684,7 @@ void fft_fftw_3d_fw_local(const int fft_size[3], double complex *grid_in,
           .n = fft_size[0], .is = number_of_ffts, .os = number_of_ffts};
       fft_iodim howmany_dim = {.n = block_sizes[0], .is = 1, .os = 1};
       fft_key_t key;
-                get_key_guru(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+                get_key_guru(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
             
       plans[0] = lookup_plan_from_cache(key);
       if (plans[0] == NULL) {
@@ -2697,7 +2697,7 @@ void fft_fftw_3d_fw_local(const int fft_size[3], double complex *grid_in,
             number_of_ffts - (number_of_threads - 1) * block_sizes[0];
         fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
         fft_key_t key;
-        get_key_guru(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        get_key_guru(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         plans_last_thread[0] = lookup_plan_from_cache(key);
         if (plans_last_thread[0] == NULL) {
           double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
@@ -2717,7 +2717,7 @@ void fft_fftw_3d_fw_local(const int fft_size[3], double complex *grid_in,
                                     .os = fft_size[1] * fft_size[2]},
                                    {.n = fft_size[2], .is = 1, .os = 1}};
       fft_key_t key;
-      get_key_guru(FFTW_FORWARD, 1, &dim, 2, howmany_dims, 1, in_place, key);
+      get_key_guru(true, 1, &dim, 2, howmany_dims, 1, in_place, key);
       plans[1] = lookup_plan_from_cache(key);
       if (plans[1] == NULL) {
         double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
@@ -2732,7 +2732,7 @@ void fft_fftw_3d_fw_local(const int fft_size[3], double complex *grid_in,
                                       .os = fft_size[1] * fft_size[2]},
                                      {.n = fft_size[2], .is = 1, .os = 1}};
         fft_key_t key;
-        get_key_guru(FFTW_FORWARD, 1, &dim, 2, howmany_dims, 1, in_place, key);
+        get_key_guru(true, 1, &dim, 2, howmany_dims, 1, in_place, key);
         plans_last_thread[1] = lookup_plan_from_cache(key);
         if (plans_last_thread[1] == NULL) {
           double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
@@ -2750,7 +2750,7 @@ void fft_fftw_3d_fw_local(const int fft_size[3], double complex *grid_in,
       fft_iodim howmany_dim = {
           .n = block_sizes[2], .is = fft_size[2], .os = fft_size[2]};
       fft_key_t key;
-      get_key_guru(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       plans[2] = lookup_plan_from_cache(key);
       if (plans[2] == NULL) {
         double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
@@ -2763,7 +2763,7 @@ void fft_fftw_3d_fw_local(const int fft_size[3], double complex *grid_in,
         fft_iodim howmany_dim = {
             .n = block_size_last_thread, .is = fft_size[2], .os = fft_size[2]};
         fft_key_t key;
-        get_key_guru(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        get_key_guru(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
         plans_last_thread[2] = lookup_plan_from_cache(key);
         if (plans_last_thread[2] == NULL) {
@@ -2818,7 +2818,7 @@ void fft_fftw_3d_fw_local(const int fft_size[3], double complex *grid_in,
     }
   } else {
     fft_key_t key;
-    get_key_3d(FFTW_FORWARD, fft_size, omp_get_max_threads(), in_place, key);
+    get_key_3d(true, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
@@ -2868,7 +2868,7 @@ void fft_fftw_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
           .n = fft_size[0], .is = number_of_ffts, .os = number_of_ffts};
       fft_iodim howmany_dim = {.n = block_sizes[0], .is = 1, .os = 1};
       fft_key_t key;
-      get_key_guru(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1,
+      get_key_guru(true, 1, &dim, 1, &howmany_dim, 1,
                                       in_place, key);
         
       plans[0] = lookup_plan_from_cache(key);
@@ -2882,7 +2882,7 @@ void fft_fftw_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
             number_of_ffts - (number_of_threads - 1) * block_sizes[0];
         fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
         fft_key_t key;
-        get_key_guru(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1,
+        get_key_guru(true, 1, &dim, 1, &howmany_dim, 1,
                                       in_place, key);
         
         plans_last_thread[0] = lookup_plan_from_cache(key);
@@ -2907,7 +2907,7 @@ void fft_fftw_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
            .os = fft_size[1] * (fft_size[2] / 2 + 1)},
           {.n = (fft_size[2] / 2 + 1), .is = 1, .os = 1}};
       fft_key_t key;
-      get_key_guru(FFTW_FORWARD, 1, &dim, 2, howmany_dims, 1,
+      get_key_guru(true, 1, &dim, 2, howmany_dims, 1,
                                       in_place, key);
         
       plans[1] = lookup_plan_from_cache(key);
@@ -2925,7 +2925,7 @@ void fft_fftw_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
              .os = fft_size[1] * (fft_size[2] / 2 + 1)},
             {.n = fft_size[2] / 2 + 1, .is = 1, .os = 1}};
         fft_key_t key;
-        get_key_guru(FFTW_FORWARD, 1, &dim, 2, howmany_dims, 1,
+        get_key_guru(true, 1, &dim, 2, howmany_dims, 1,
                                       in_place, key);
         
         plans_last_thread[1] = lookup_plan_from_cache(key);
@@ -2945,7 +2945,7 @@ void fft_fftw_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
       fft_iodim howmany_dim = {
           .n = block_sizes[2], .is = fft_size[2], .os = fft_size[2] / 2 + 1};
       fft_key_t key;
-      get_key_guru_r2c(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru_r2c(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
       plans[2] = lookup_plan_from_cache(key);
       if (plans[2] == NULL) {
@@ -2960,7 +2960,7 @@ void fft_fftw_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
                                  .is = fft_size[2],
                                  .os = fft_size[2] / 2 + 1};
         fft_key_t key;
-        get_key_guru_r2c(FFTW_FORWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        get_key_guru_r2c(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
         plans_last_thread[2] = lookup_plan_from_cache(key);
         if (plans_last_thread[2] == NULL) {
@@ -3021,7 +3021,7 @@ void fft_fftw_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
     }
   } else {
     fft_key_t key;
-    get_key_3d_r2c(FFTW_FORWARD, fft_size, omp_get_max_threads(), in_place, key);
+    get_key_3d_r2c(true, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double *buffer = fftw_alloc_real(2*get_buffer_size_from_key(key));
@@ -3071,7 +3071,7 @@ void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
           .n = fft_size[0], .is = number_of_ffts, .os = number_of_ffts};
       fft_iodim howmany_dim = {.n = block_sizes[0], .is = 1, .os = 1};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
       plans[0] = lookup_plan_from_cache(key);
       if (plans[0] == NULL) {
@@ -3084,7 +3084,7 @@ void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
             number_of_ffts - (number_of_threads - 1) * block_sizes[0];
         fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
         fft_key_t key;
-        get_key_guru(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
         plans_last_thread[0] = lookup_plan_from_cache(key);
         if (plans_last_thread[0] == NULL) {
@@ -3105,7 +3105,7 @@ void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
                                     .os = fft_size[1] * fft_size[2]},
                                    {.n = fft_size[2], .is = 1, .os = 1}};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 2, howmany_dims, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 2, howmany_dims, 1, in_place, key);
       plans[1] = lookup_plan_from_cache(key);
       if (plans[1] == NULL) {
         double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
@@ -3120,7 +3120,7 @@ void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
                                       .os = fft_size[1] * fft_size[2]},
                                      {.n = fft_size[2], .is = 1, .os = 1}};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 2, howmany_dims, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 2, howmany_dims, 1, in_place, key);
         
       plans_last_thread[1] = lookup_plan_from_cache(key);
       if (plans_last_thread[1] == NULL) {
@@ -3139,7 +3139,7 @@ void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
       fft_iodim howmany_dim = {
           .n = block_sizes[2], .is = fft_size[2], .os = fft_size[2]};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
       plans[2] = lookup_plan_from_cache(key);
       if (plans[2] == NULL) {
@@ -3153,7 +3153,7 @@ void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
         fft_iodim howmany_dim = {
             .n = block_size_last_thread, .is = fft_size[2], .os = fft_size[2]};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
       plans_last_thread[2] = lookup_plan_from_cache(key);
       if (plans_last_thread[2] == NULL) {
@@ -3208,7 +3208,7 @@ void fft_fftw_3d_bw_local(const int fft_size[3], double complex *grid_in,
     }
   } else {
     fft_key_t key;
-    get_key_3d(FFTW_BACKWARD, fft_size, omp_get_max_threads(), in_place, key);
+    get_key_3d(false, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
@@ -3262,7 +3262,7 @@ void fft_fftw_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
           .n = fft_size[0], .is = number_of_ffts, .os = number_of_ffts};
       fft_iodim howmany_dim = {.n = block_sizes[0], .is = 1, .os = 1};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
       plans[0] = lookup_plan_from_cache(key);
       if (plans[0] == NULL) {
@@ -3273,7 +3273,7 @@ void fft_fftw_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
             number_of_ffts - (number_of_threads - 1) * block_sizes[0];
         fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
       plans_last_thread[0] = lookup_plan_from_cache(key);
       if (plans_last_thread[0] == NULL) {
@@ -3297,7 +3297,7 @@ void fft_fftw_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
            .os = fft_size[1] * (fft_size[2] / 2 + 1)},
           {.n = (fft_size[2] / 2 + 1), .is = 1, .os = 1}};
       fft_key_t key;
-      get_key_guru(FFTW_BACKWARD, 1, &dim, 2, howmany_dims, 1, in_place, key);
+      get_key_guru(false, 1, &dim, 2, howmany_dims, 1, in_place, key);
       
       plans[1] = lookup_plan_from_cache(key);
       if (plans[1] == NULL) {
@@ -3314,7 +3314,7 @@ void fft_fftw_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
              .os = fft_size[1] * (fft_size[2] / 2 + 1)},
             {.n = fft_size[2] / 2 + 1, .is = 1, .os = 1}};
         fft_key_t key;
-        get_key_guru(FFTW_BACKWARD, 1, &dim, 2, howmany_dims, 1, in_place, key);
+        get_key_guru(false, 1, &dim, 2, howmany_dims, 1, in_place, key);
           
         plans_last_thread[1] = lookup_plan_from_cache(key);
         if (plans_last_thread[1] == NULL) {
@@ -3333,7 +3333,7 @@ void fft_fftw_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
       fft_iodim howmany_dim = {
           .n = block_sizes[2], .is = fft_size[2] / 2 + 1, .os = fft_size[2]};
       fft_key_t key;
-      get_key_guru_r2c(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+      get_key_guru_r2c(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
       plans[2] = lookup_plan_from_cache(key);
       if (plans[2] == NULL) {
@@ -3348,7 +3348,7 @@ void fft_fftw_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
                                  .is = fft_size[2] / 2 + 1,
                                  .os = fft_size[2]};
         fft_key_t key;
-        get_key_guru_r2c(FFTW_BACKWARD, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        get_key_guru_r2c(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
           
         plans_last_thread[2] = lookup_plan_from_cache(key);
         if (plans_last_thread[2] == NULL) {
@@ -3408,7 +3408,7 @@ void fft_fftw_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
     fftw_free(buffer);
   } else {
     fft_key_t key;
-    get_key_3d_r2c(FFTW_BACKWARD, fft_size, omp_get_max_threads(), in_place, key);
+    get_key_3d_r2c(false, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
@@ -3629,7 +3629,7 @@ void fft_fftw_2d_fw_distributed(const int npts_global[2],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d_distributed(FFTW_FORWARD, npts_global, number_of_ffts,
+  get_key_2d_distributed(true, npts_global, number_of_ffts,
                           comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -3664,7 +3664,7 @@ void fft_fftw_2d_fw_distributed_r2c(const int npts_global[2],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d_r2c_distributed(FFTW_FORWARD, npts_global, number_of_ffts,
+  get_key_2d_r2c_distributed(true, npts_global, number_of_ffts,
                           comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -3700,7 +3700,7 @@ void fft_fftw_2d_bw_distributed(const int npts_global[2],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d_distributed(FFTW_BACKWARD, npts_global, number_of_ffts,
+  get_key_2d_distributed(false, npts_global, number_of_ffts,
                           comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -3735,7 +3735,7 @@ void fft_fftw_2d_bw_distributed_c2r(const int npts_global[2],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
-  get_key_2d_r2c_distributed(FFTW_BACKWARD, npts_global, number_of_ffts,
+  get_key_2d_r2c_distributed(false, npts_global, number_of_ffts,
                           comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -3770,7 +3770,7 @@ void fft_fftw_3d_fw_distributed(const int npts_global[3],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0) return;
   fft_key_t key;
-  get_key_3d_distributed(FFTW_FORWARD, npts_global, comm, omp_get_max_threads(), key);
+  get_key_3d_distributed(true, npts_global, comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
@@ -3802,7 +3802,7 @@ void fft_fftw_3d_fw_distributed_r2c(const int npts_global[3],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0) return;
   fft_key_t key;
-  get_key_3d_r2c_distributed(FFTW_FORWARD, npts_global, comm, omp_get_max_threads(), key);
+  get_key_3d_r2c_distributed(true, npts_global, comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
@@ -3835,7 +3835,7 @@ void fft_fftw_3d_bw_distributed(const int npts_global[3],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0) return;
   fft_key_t key;
-  get_key_3d_distributed(FFTW_BACKWARD, npts_global, comm, omp_get_max_threads(), key);
+  get_key_3d_distributed(false, npts_global, comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
@@ -3867,7 +3867,7 @@ void fft_fftw_3d_bw_distributed_c2r(const int npts_global[3],
   assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0) return;
   fft_key_t key;
-  get_key_3d_r2c_distributed(FFTW_BACKWARD, npts_global, comm, omp_get_max_threads(), key);
+  get_key_3d_r2c_distributed(false, npts_global, comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
