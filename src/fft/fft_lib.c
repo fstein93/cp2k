@@ -1094,7 +1094,7 @@ void fft_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_r2c_gpu_ff((const double *)grid_in, (double *)grid_out, -1, fft_size,
-                   number_of_ffts, transpose_gs, transpose_rs);
+                   number_of_ffts, transpose_rs, transpose_gs);
     break;
   case FFT_LIB_FFTW:
     fft_fftw_2d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs,
