@@ -635,30 +635,24 @@ fftw_plan *fft_fftw_create_3d_plan_r2c(const fft_key_t key,
 fftw_plan *fft_fftw_create_guru_plan(const fft_key_t key,
   double complex *grid_in,
                                      double complex *grid_out) {
-  const int direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD ? FFTW_FORWARD : FFTW_BACKWARD;
-  const int rank = key[0]%4;
-  const int howmany_rank = 3-rank-(key[5] == 0)-(key[4] == 0)-(key[3] == 0);
-  fft_iodim dims[3];
-  fft_iodim *howmany_dims = dims+rank;
-  for (int r = 0; r < 3; r++) {
-    dims[r].n = key[3+r];
-    dims[r].is = key[6+r];
-    dims[r].os = key[9+r];
-  }
-  const int number_of_threads = key[2];
+  bool direction, inplace;
+  int rank, howmany_rank, number_of_threads;
+  fft_iodim dims[3], howmany_dims[3];
+  fetch_data_from_key_guru(key, &direction, &rank, dims, &howmany_rank, howmany_dims, &number_of_threads, &inplace);
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_guru_%cw_c2c_Plocal_%i_%i",
-           direction == FFTW_FORWARD ? 'f' : 'b', rank, howmany_rank);
+           direction ? 'f' : 'b', rank, howmany_rank);
   const int handle = fft_start_timer(routine_name);
 
-  assert(rank + howmany_rank <= 3 &&
-         "Larger combined ranks than 3 are not implemented\n");
   fftw_plan_with_nthreads(number_of_threads);
   fftw_plan *plan = malloc(sizeof(fftw_plan));
   if ((double complex*)grid_in == grid_out) {
+    assert(inplace);
     for (int r = 0; r < rank; r++) assert(dims[r].is == dims[r].os);
     for (int r = 0; r < howmany_rank; r++) assert(howmany_dims[r].is == howmany_dims[r].os);
+  } else {
+    assert(!inplace);
   }
   *plan = fftw_plan_guru_dft(rank, dims, howmany_rank, howmany_dims, grid_in,
                               grid_out, direction, fftw_planning_mode);
@@ -674,37 +668,36 @@ fftw_plan *fft_fftw_create_guru_plan(const fft_key_t key,
  ******************************************************************************/
 fftw_plan *fft_fftw_create_guru_plan_r2c(
     const fft_key_t key, double *grid_rs, double complex *grid_gs) {
-  const int direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD ? FFTW_FORWARD : FFTW_BACKWARD;
-  const int rank = key[0]%4;
-  const int howmany_rank = 3-rank-(key[5] == 0)-(key[4] == 0)-(key[3] == 0);
-  fft_iodim dims[3];
-  for (int r = 0; r < 3; r++) {
-    dims[r].n = key[3+r];
-    dims[r].is = key[6+r];
-    dims[r].os = key[9+r];
-  }
-  fft_iodim *howmany_dims = dims+rank;
-  const int number_of_threads = key[2];
+  bool direction, inplace;
+  int rank, howmany_rank, number_of_threads;
+  fft_iodim dims[3], howmany_dims[3];
+  fetch_data_from_key_guru(key, &direction, &rank, dims, &howmany_rank, howmany_dims, &number_of_threads, &inplace);
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_guru_%s_Plocal_%i_%i",
-           direction == FFTW_FORWARD ? "fw_r2c" : "bw_c2r", rank, howmany_rank);
+           direction ? "fw_r2c" : "bw_c2r", rank, howmany_rank);
   const int handle = fft_start_timer(routine_name);
 
   fftw_plan_with_nthreads(number_of_threads);
   fftw_plan *plan = malloc(sizeof(fftw_plan));
-  if (direction == FFTW_FORWARD) {
+  if (direction) {
     if ((double complex*)grid_rs == grid_gs) {
+      assert(inplace);
       for (int r = 0; r < rank; r++) assert(dims[r].is == 2*dims[r].os);
       for (int r = 0; r < howmany_rank; r++) assert(howmany_dims[r].is == 2*howmany_dims[r].os);
+    } else {
+      assert(!inplace);
     }
     *plan = fftw_plan_guru_dft_r2c(rank, dims, howmany_rank, howmany_dims,
                                     grid_rs, grid_gs,
                                     fftw_planning_mode);
   } else {
     if ((double complex*)grid_rs == grid_gs) {
+      assert(inplace);
       for (int r = 0; r < rank; r++) assert(2*dims[r].is == dims[r].os);
       for (int r = 0; r < howmany_rank; r++) assert(2*howmany_dims[r].is == howmany_dims[r].os);
+    } else {
+      assert(!inplace);
     }
     // We use the buffers the other way around to prevent
     // out-of-bounds-accesses of the planner if the output array has only the

@@ -394,6 +394,25 @@ static inline void fetch_data_from_key_nd(const fft_key_t key, int *rank, int *f
   *istride = key[5+*rank];
   *ostride = key[8+*rank];
 }
+
+static inline void fetch_data_from_key_guru(const fft_key_t key, bool *direction, int *rank, fft_iodim *dims, int *howmany_rank, fft_iodim *howmany_dims, int *number_of_threads, bool *inplace) {
+  assert(key[1] == cp_mpi_comm_c2f(cp_mpi_get_comm_null()) && "Distributed FFTs are not supported in this function!");
+  *direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD;
+  *inplace = (key[0] & FFT_KEY_INPLACE) == FFT_KEY_INPLACE;
+  *rank = key[0]%4;
+  *howmany_rank = 3-*rank-(key[5] == 0)-(key[4] == 0)-(key[3] == 0);
+  for (int r = 0; r < *rank; r++) {
+    dims[r].n = key[3+r];
+    dims[r].is = key[6+r];
+    dims[r].os = key[9+r];
+  }
+  for (int r = 0; r < *howmany_rank; r++) {
+    howmany_dims[r].n = key[3+*rank+r];
+    howmany_dims[r].is = key[6+*rank+r];
+    howmany_dims[r].os = key[9+*rank+r];
+  }
+  *number_of_threads = key[2];
+}
 #endif
 
 #endif /* FFT_KEY_H */
