@@ -380,10 +380,11 @@ static inline void fetch_data_from_key_nd(const fft_key_t key, int *rank, int *f
   *rank = key[0]%4;
   *inplace = (key[0] & FFT_KEY_INPLACE) == FFT_KEY_INPLACE;
   *number_of_threads = key[2];
+  const int is_r2c = (key[0] & FFT_KEY_R2C) == FFT_KEY_R2C;
   for (int r = 0; r < *rank; r++) {
     fft_size[r] = key[3+r];
-    inembed[r] = key[3+r];
-    onembed[r] = key[3+r];
+    inembed[r] = is_r2c && *inplace ? 2*(key[3+r]/2 + 1) : key[3+r];
+    onembed[r] = is_r2c ? key[3+r]/2 + 1 : key[3+r];
   }
   *direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD;
   *number_of_threads = key[2];

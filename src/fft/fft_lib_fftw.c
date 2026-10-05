@@ -499,32 +499,24 @@ fft_fftw_create_2d_plan(const fft_key_t key, double complex *grid_in, double com
  ******************************************************************************/
 fftw_plan *
 fft_fftw_create_2d_plan_r2c(const fft_key_t key, double *grid_rs, double complex *grid_gs) {
-  const int direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD ? FFTW_FORWARD : FFTW_BACKWARD;
-  const int *fft_size = key+3;
-  const int number_of_threads = key[2];
-  const int number_of_ffts = key[5];
+  int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
+  bool direction, inplace;
+  int fft_size[3], inembed[3], onembed[3];
+  fetch_data_from_key_nd(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &direction, &inplace, inembed, onembed, &idist, &odist, &istride, &ostride);
+  assert(rank == 2);
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_%s_Plocal",
-           direction == FFTW_FORWARD ? "fw_r2c" : "bw_c2r");
+           direction ? "fw_r2c" : "bw_c2r");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_%s_Plocal_%i_%i_%i",
-           direction == FFTW_FORWARD ? "fw_r2c" : "bw_c2r", fft_size[0],
+           direction ? "fw_r2c" : "bw_c2r", fft_size[0],
            fft_size[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   fftw_plan_with_nthreads(number_of_threads);
   // We need the guru interface here because cuts the last dimension in half
   // whereas we want the first dimension
-  const int rank = key[0]%4;
-  const int *n = &key[3];
-  const int howmany = key[5];
-  const int inembed[] = {fft_size[0], (double complex*)grid_rs == grid_gs ? 2*(fft_size[1]/2+1) : fft_size[1]};
-  const int onembed[] = {fft_size[0], fft_size[1]/2+1};
-  const int idist = key[8];
-  const int odist = key[11];
-  const int istride = key[7];
-  const int ostride = key[10];
   fftw_plan *plan = malloc(sizeof(fftw_plan));
   if ((double complex*)grid_rs == grid_gs) {
     if (istride == 1) {
@@ -533,8 +525,8 @@ fft_fftw_create_2d_plan_r2c(const fft_key_t key, double *grid_rs, double complex
     }
     assert(istride == ostride);
   }
-  if (direction == FFTW_FORWARD) {
-    *plan = fftw_plan_many_dft_r2c(rank, n, howmany, grid_rs, inembed,
+  if (direction) {
+    *plan = fftw_plan_many_dft_r2c(rank, fft_size, number_of_ffts, grid_rs, inembed,
                                     istride, idist, grid_gs, onembed,
                                     ostride, odist, fftw_planning_mode);
   } else {
@@ -542,7 +534,7 @@ fft_fftw_create_2d_plan_r2c(const fft_key_t key, double *grid_rs, double complex
     // out-of-bounds-accesses of the planner if the output array has only the
     // minimum size
     *plan = fftw_plan_many_dft_c2r(
-        rank, n, howmany, grid_gs, onembed, ostride,
+        rank, fft_size, number_of_ffts, grid_gs, onembed, ostride,
         odist, grid_rs, inembed, istride, idist,
         fftw_planning_mode);
   }
@@ -597,23 +589,28 @@ fftw_plan *fft_fftw_create_3d_plan(const fft_key_t key,
 fftw_plan *fft_fftw_create_3d_plan_r2c(const fft_key_t key,
                                        double *grid_rs,
                                        double complex *grid_gs) {
-  const int direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD ? FFTW_FORWARD : FFTW_BACKWARD;
-  const int *fft_size = key+3;
-  const int number_of_threads = key[2];
+  int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
+  bool direction, inplace;
+  int fft_size[3], inembed[3], onembed[3];
+  fetch_data_from_key_nd(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &direction, &inplace, inembed, onembed, &idist, &odist, &istride, &ostride);
+  assert(rank == 3);
+  assert(istride == 1);
+  assert(ostride == 1);
+  assert(number_of_ffts == 1);
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_%s_Plocal",
-           direction == FFTW_FORWARD ? "fw_r2c" : "bw_c2r");
+           direction ? "fw_r2c" : "bw_c2r");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_%s_Plocal_%i_%i_%i",
-           direction == FFTW_FORWARD ? "fw_r2c" : "bw_c2r", fft_size[0],
+           direction ? "fw_r2c" : "bw_c2r", fft_size[0],
            fft_size[1], fft_size[2]);
   const int handle2 = fft_start_timer(routine_name);
   fftw_plan_with_nthreads(number_of_threads);
   fftw_plan *plan = malloc(sizeof(fftw_plan));
-  if (direction == FFTW_FORWARD) {
-    *plan = fftw_plan_dft_r2c_3d(key[3], key[4], key[5],
+  if (direction) {
+    *plan = fftw_plan_dft_r2c_3d(fft_size[0], fft_size[1], fft_size[2],
                                   grid_rs, grid_gs,
                                   fftw_planning_mode);
   } else {
@@ -621,7 +618,7 @@ fftw_plan *fft_fftw_create_3d_plan_r2c(const fft_key_t key,
     // out-of-bounds-accesses of the planner if the output array has only the
     // minimum size
     *plan =
-        fftw_plan_dft_c2r_3d(key[3], key[4], key[5],
+        fftw_plan_dft_c2r_3d(fft_size[0], fft_size[1], fft_size[2],
                               grid_gs, grid_rs, fftw_planning_mode);
   }
   add_plan_to_cache(key, plan);
