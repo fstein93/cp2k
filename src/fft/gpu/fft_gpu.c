@@ -814,15 +814,9 @@ void fft_r2c_gpu_f(const double *zin, double *zout, const int dir, const int n,
                          (dir > 0 ? input_size : output_size), stream);
 
   // Run FFT on the device.
-  if (dir > 0) {
-    fft_r2c_1d_gpu(OFFLOAD_FFT_FORWARD, n, m, transpose_in, transpose_out,
+    fft_r2c_1d_gpu(dir > 0 ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, n, m, transpose_in, transpose_out,
       leading_dimension_in, leading_dimension_out, 
                    buffer_dev_1, zin != zout ? buffer_dev_2 : buffer_dev_1);
-  } else {
-    fft_r2c_1d_gpu(OFFLOAD_FFT_INVERSE, n, m, transpose_out, transpose_in,
-      leading_dimension_out, leading_dimension_in, 
-                   buffer_dev_1, zin != zout ? buffer_dev_2 : buffer_dev_1);
-  }
 
   // Download COMPLEX results from device.
   offloadMemcpyAsyncDtoH(zout, zin != zout ? buffer_dev_2 : buffer_dev_1,
