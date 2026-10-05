@@ -290,8 +290,8 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
 
   if (plan == NULL) {
     int nsize[1] = {n};
-    int inembed[1] = {0}; // Is ignored, but is not allowed to be NULL.
-    int onembed[1] = {0};
+    int inembed[] = {(double complex*)grid_rs == grid_gs ? 2*(n[0]/2+1) : n[0]};
+    int onembed[] = {n[0]/2+1};
     int batch = m;
     int istride, idist, ostride, odist;
     istride = 1;
@@ -311,7 +311,7 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
       offload_fftPlanMany(plan, 1, nsize, inembed, istride, idist, onembed,
                           ostride, odist, OFFLOAD_FFT_D2Z, batch);
     } else {
-      offload_fftPlanMany(plan, 1, nsize, inembed, istride, idist, onembed,
+      offload_fftPlanMany(plan, 1, nsize, onembed, istride, idist, inembed,
                           ostride, odist, OFFLOAD_FFT_Z2D, batch);
     }
     offload_fftSetStream(*plan, stream);

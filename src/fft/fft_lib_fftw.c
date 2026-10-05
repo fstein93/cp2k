@@ -428,8 +428,8 @@ fft_fftw_create_1d_plan_r2c(const fft_key_t key, double *grid_rs, double complex
   const int rank = key[0]%4;
   const int n[] = {key[3]};
   const int howmany = key[4];
-  const int *inembed = NULL;
-  const int *onembed = NULL;
+  const int inembed[] = {(double complex*)grid_rs == grid_gs ? 2*(n[0]/2+1) : n[0]};
+  const int onembed[] = {n[0]/2+1};
   const int idist = key[7];
   const int odist = key[10];
   const int istride = key[6];
@@ -540,8 +540,8 @@ fft_fftw_create_2d_plan_r2c(const fft_key_t key, double *grid_rs, double complex
   const int rank = key[0]%4;
   const int *n = &key[3];
   const int howmany = key[5];
-  const int *inembed = NULL; // = fft_size;
-  const int *onembed = NULL; // = {fft_size[0],fft_size[1]/2+1};
+  const int inembed[] = {fft_size[0], (double complex*)grid_rs == grid_gs ? 2*(fft_size[1]/2+1) : fft_size[1]};
+  const int onembed[] = {fft_size[0], fft_size[1]/2+1};
   const int idist = key[8];
   const int odist = key[11];
   const int istride = key[7];
