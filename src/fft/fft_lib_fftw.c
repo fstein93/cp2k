@@ -720,20 +720,20 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(
 fftw_plan *fft_fftw_create_distributed_2d_plan(const fft_key_t key,
   double complex *grid_in,
                                                double complex *grid_out) {
-  const int direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD ? FFTW_FORWARD : FFTW_BACKWARD;
-  const int *fft_size = key+3;
-  const int number_of_ffts = key[5];
-  const int number_of_threads = key[2];
-  cp_mpi_comm_t comm = cp_mpi_comm_f2c(key[1]);
+  bool direction;
+  int fft_size[3], number_of_ffts, number_of_threads, rank;
+  cp_mpi_comm_t comm;
+  fetch_data_from_key_mpi(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &direction, &comm);
+  assert(rank == 2);
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_%cw_c2c_Pdistr",
-           direction == FFTW_FORWARD ? 'f' : 'b');
+           direction ? 'f' : 'b');
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
            "fft_2d_%cw_c2c_Pdistr_%i_%i_%i_%i",
-           direction == FFTW_FORWARD ? 'f' : 'b', cp_mpi_comm_size(comm),
+           direction ? 'f' : 'b', cp_mpi_comm_size(comm),
            fft_size[0], fft_size[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   fftw_plan_with_nthreads(number_of_threads);
@@ -749,14 +749,14 @@ fftw_plan *fft_fftw_create_distributed_2d_plan(const fft_key_t key,
       &local_0_start, &local_n1, &local_1_start);
   (void)buffer_size;
   fftw_plan *plan = malloc(sizeof(fftw_plan));
-  if (direction == FFTW_FORWARD) {
+  if (direction) {
     *plan = fftw_mpi_plan_many_dft(
         2, n, number_of_ffts, block_size_0, block_size_1, grid_in, grid_out, comm,
-        direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+        FFTW_FORWARD, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
   } else {
     *plan = fftw_mpi_plan_many_dft(
         2, n, number_of_ffts, block_size_1, block_size_0, grid_in, grid_out, comm,
-        direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
+        FFTW_BACKWARD, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
   }
   assert(plan != NULL);
   add_plan_to_cache(key, plan);
@@ -771,18 +771,18 @@ fftw_plan *fft_fftw_create_distributed_2d_plan(const fft_key_t key,
 fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const fft_key_t key,
   double *grid_rs,
                                                    double complex *grid_gs) {
-  const int direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD ? FFTW_FORWARD : FFTW_BACKWARD;
-  const int *fft_size = key+3;
-  const int number_of_ffts = key[5];
-  const int number_of_threads = key[2];
-  cp_mpi_comm_t comm = cp_mpi_comm_f2c(key[1]);
+  bool direction;
+  int fft_size[3], number_of_ffts, number_of_threads, rank;
+  cp_mpi_comm_t comm;
+  fetch_data_from_key_mpi(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &direction, &comm);
+  assert(rank == 2);
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_%s_Pdistr",
-           direction == FFTW_FORWARD ? "fw_r2c" : "bw_c2r");
+           direction ? "fw_r2c" : "bw_c2r");
   const int handle = fft_start_timer(routine_name);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_%s_Pdistr_%i_%i_%i_%i",
-           direction == FFTW_FORWARD ? "fw_r2c" : "bw_c2r",
+           direction ? "fw_r2c" : "bw_c2r",
            cp_mpi_comm_size(comm), fft_size[0], fft_size[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   fftw_plan_with_nthreads(number_of_threads);
@@ -801,7 +801,7 @@ fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const fft_key_t key,
       &local_1_start);
   (void)buffer_size;
   fftw_plan *plan = malloc(sizeof(fftw_plan));
-  if (direction == FFTW_FORWARD) {
+  if (direction) {
     *plan = fftw_mpi_plan_many_dft_r2c(
         2, n, howmany, block_size_0, block_size_1, grid_rs,
         grid_gs, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
@@ -827,18 +827,20 @@ fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const fft_key_t key,
 fftw_plan *fft_fftw_create_distributed_3d_plan(const fft_key_t key,
                                                double complex *grid_in,
                                                double complex *grid_out) {
-  const int direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD ? FFTW_FORWARD : FFTW_BACKWARD;
-  const int *fft_size = key+3;
-  const int number_of_threads = key[2];
-  cp_mpi_comm_t comm = cp_mpi_comm_f2c(key[1]);
+  bool direction;
+  int fft_size[3], number_of_ffts, number_of_threads, rank;
+  cp_mpi_comm_t comm;
+  fetch_data_from_key_mpi(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &direction, &comm);
+  assert(rank == 3);
+  assert(number_of_ffts == 1);
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_%s_Pdistr",
-           direction == FFTW_FORWARD ? "fw_r2c" : "bw_c2r");
+           direction ? "fw_r2c" : "bw_c2r");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_%s_Pdistr_%i_%i_%i_%i",
-           direction == FFTW_FORWARD ? "fw_r2c" : "bw_c2r",
+           direction ? "fw_r2c" : "bw_c2r",
            cp_mpi_comm_size(comm), fft_size[0], fft_size[1], fft_size[2]);
   const int handle2 = fft_start_timer(routine_name);
     fftw_plan_with_nthreads(number_of_threads);
@@ -854,14 +856,14 @@ fftw_plan *fft_fftw_create_distributed_3d_plan(const fft_key_t key,
         &local_n1, &local_1_start);
     (void)buffer_size;
     fftw_plan *plan = malloc(sizeof(fftw_plan));
-    if (direction == FFTW_FORWARD) {
+    if (direction) {
       *plan = fftw_mpi_plan_many_dft(
           3, n, 1, block_size_0, block_size_1, grid_in, grid_out, comm,
-          direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+          FFTW_FORWARD, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
     } else {
       *plan = fftw_mpi_plan_many_dft(
           3, n, 1, block_size_1, block_size_0, grid_in, grid_out, comm,
-          direction, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
+          FFTW_BACKWARD, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
     }
     assert(plan != NULL);
     add_plan_to_cache(key, plan);
@@ -877,18 +879,20 @@ fftw_plan *fft_fftw_create_distributed_3d_plan(const fft_key_t key,
 fftw_plan *fft_fftw_create_distributed_3d_plan_r2c(const fft_key_t key,
   double *grid_rs,
                                                    double complex *grid_gs) {
-  const int direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD ? FFTW_FORWARD : FFTW_BACKWARD;
-  const int *fft_size = key+3;
-  const int number_of_threads = key[2];
-  cp_mpi_comm_t comm = cp_mpi_comm_f2c(key[1]);
+  bool direction;
+  int fft_size[3], number_of_ffts, number_of_threads, rank;
+  cp_mpi_comm_t comm;
+  fetch_data_from_key_mpi(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &direction, &comm);
+  assert(rank == 3);
+  assert(number_of_ffts == 1);
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_%s_Pdistr",
-           direction == FFTW_FORWARD ? "fw_r2c" : "bw_c2r");
+           direction ? "fw_r2c" : "bw_c2r");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_%s_Pdistr_%i_%i_%i_%i",
-           direction == FFTW_FORWARD ? "fw_r2c" : "bw_c2r",
+           direction ? "fw_r2c" : "bw_c2r",
            cp_mpi_comm_size(comm), fft_size[0], fft_size[1], fft_size[2]);
   const int handle2 = fft_start_timer(routine_name);
     fftw_plan_with_nthreads(number_of_threads);
@@ -905,7 +909,7 @@ fftw_plan *fft_fftw_create_distributed_3d_plan_r2c(const fft_key_t key,
         &local_n1, &local_1_start);
     (void)buffer_size;
     fftw_plan *plan = malloc(sizeof(fftw_plan));
-    if (direction == FFTW_FORWARD) {
+    if (direction) {
       *plan = fftw_mpi_plan_many_dft_r2c(
           3, n, 1, block_size_0, block_size_1, grid_rs, grid_gs, comm,
           fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);

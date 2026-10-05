@@ -413,6 +413,17 @@ static inline void fetch_data_from_key_guru(const fft_key_t key, bool *direction
   }
   *number_of_threads = key[2];
 }
+
+static inline void fetch_data_from_key_mpi(const fft_key_t key, int *rank, int *fft_size, int *number_of_ffts, int *number_of_threads, bool *direction, cp_mpi_comm_t *comm) {
+  *direction = (key[0] & FFT_KEY_FORWARD) == FFT_KEY_FORWARD;
+  *rank = key[0]%4;
+  for (int r = 0; r < *rank; r++) {
+    fft_size[r] = key[3+r];
+  }
+  *number_of_ffts = *rank < 3 ? key[3+*rank] : 1;
+  *number_of_threads = key[2];
+  *comm = cp_mpi_comm_f2c(key[1]);
+}
 #endif
 
 #endif /* FFT_KEY_H */
