@@ -237,8 +237,8 @@ static void fft_1d_gpu(const int direction, const int n, const int m,
   int fft_size, inembed, onembed;
   fetch_data_from_key_nd(key, &rank, &fft_size, &number_of_ffts, &number_of_threads, &direction, &inplace, &inembed, &onembed, &idist, &odist, &istride, &ostride);
     plan = malloc(sizeof(cache_entry));
-    offload_fftPlanMany(plan, 1, fft_size, &inembed, istride, idist, &onembed,
-                        ostride, odist, OFFLOAD_FFT_Z2Z, batch);
+    offload_fftPlanMany(plan, 1, &fft_size, &inembed, istride, idist, &onembed,
+                        ostride, odist, OFFLOAD_FFT_Z2Z, number_of_ffts);
     offload_fftSetStream(*plan, stream);
     add_plan_to_cache(key, plan);
   }
@@ -269,7 +269,7 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
   fetch_data_from_key_nd(key, &rank, &fft_size, &number_of_ffts, &number_of_threads, &direction, &inplace, &inembed, &onembed, &idist, &odist, &istride, &ostride);
     plan = malloc(sizeof(cache_entry));
     if (direction == OFFLOAD_FFT_FORWARD) {
-      offload_fftPlanMany(plan, 1, fft_size, inembed, istride, idist, onembed,
+      offload_fftPlanMany(plan, 1, &fft_size, &inembed, istride, idist, &onembed,
                           ostride, odist, OFFLOAD_FFT_D2Z, number_of_ffts);
     } else {
       offload_fftPlanMany(plan, 1, fft_size, onembed, istride, idist, inembed,
@@ -297,7 +297,7 @@ static void fft_2d_gpu(const int direction, const int n[2], const int m,
                        const double *data_in, double *data_out) {
   fft_key_t key;
   get_key_2d(true, n, m, transpose_in, transpose_out, 
-                        omp_get_max_threads(), grid_in == grid_out, key);
+                        omp_get_max_threads(), data_in == data_out, key);
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
   if (plan == NULL) {
@@ -325,7 +325,7 @@ static void fft_r2c_2d_gpu(const int direction, const int n[2], const int m,
                            const double *data_in, double *data_out) {
   fft_key_t key;
   get_key_2d_r2c(true, n, m, transpose_in, transpose_out, 
-                        omp_get_max_threads(), grid_in == grid_out, key);
+                        omp_get_max_threads(), data_in == data_out, key);
   offload_fftHandle *plan = lookup_plan_from_cache(key);
 
   if (plan == NULL) {
@@ -335,11 +335,11 @@ static void fft_r2c_2d_gpu(const int direction, const int n[2], const int m,
   fetch_data_from_key_nd(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &direction, &inplace, inembed, onembed, &idist, &odist, &istride, &ostride);
     plan = malloc(sizeof(cache_entry));
     if (direction == OFFLOAD_FFT_FORWARD) {
-      offload_fftPlanMany(plan, 2, nsize, inembed, istride, idist, onembed,
-                          ostride, odist, OFFLOAD_FFT_D2Z, batch);
+      offload_fftPlanMany(plan, 2, fft_size, inembed, istride, idist, onembed,
+                          ostride, odist, OFFLOAD_FFT_D2Z, number_of_ffts);
     } else {
-      offload_fftPlanMany(plan, 2, nsize, inembed, istride, idist, onembed,
-                          ostride, odist, OFFLOAD_FFT_Z2D, batch);
+      offload_fftPlanMany(plan, 2, fft_size, inembed, istride, idist, onembed,
+                          ostride, odist, OFFLOAD_FFT_Z2D, number_of_ffts);
     }
     offload_fftSetStream(*plan, stream);
     add_plan_to_cache(key, plan);
