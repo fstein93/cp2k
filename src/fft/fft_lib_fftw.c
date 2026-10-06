@@ -635,6 +635,7 @@ fftw_plan *fft_fftw_create_3d_plan_r2c(const fft_key_t key,
 fftw_plan *fft_fftw_create_guru_plan(const fft_key_t key,
   double complex *grid_in,
                                      double complex *grid_out) {
+  assert(has_guru_interface);
   bool direction, inplace;
   int rank, howmany_rank, number_of_threads;
   fft_iodim dims[3], howmany_dims[3];
@@ -668,6 +669,7 @@ fftw_plan *fft_fftw_create_guru_plan(const fft_key_t key,
  ******************************************************************************/
 fftw_plan *fft_fftw_create_guru_plan_r2c(
     const fft_key_t key, double *grid_rs, double complex *grid_gs) {
+  assert(has_guru_interface);
   bool direction, inplace;
   int rank, howmany_rank, number_of_threads;
   fft_iodim dims[3], howmany_dims[3];
@@ -720,6 +722,7 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(
 fftw_plan *fft_fftw_create_distributed_2d_plan(const fft_key_t key,
   double complex *grid_in,
                                                double complex *grid_out) {
+  assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
   cp_mpi_comm_t comm;
@@ -771,6 +774,7 @@ fftw_plan *fft_fftw_create_distributed_2d_plan(const fft_key_t key,
 fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const fft_key_t key,
   double *grid_rs,
                                                    double complex *grid_gs) {
+  assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
   cp_mpi_comm_t comm;
@@ -827,6 +831,7 @@ fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const fft_key_t key,
 fftw_plan *fft_fftw_create_distributed_3d_plan(const fft_key_t key,
                                                double complex *grid_in,
                                                double complex *grid_out) {
+  assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
   cp_mpi_comm_t comm;
@@ -879,6 +884,7 @@ fftw_plan *fft_fftw_create_distributed_3d_plan(const fft_key_t key,
 fftw_plan *fft_fftw_create_distributed_3d_plan_r2c(const fft_key_t key,
   double *grid_rs,
                                                    double complex *grid_gs) {
+  assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
   cp_mpi_comm_t comm;
