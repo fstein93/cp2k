@@ -43,6 +43,8 @@ NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "
 
 %.o: %.cu $(ALL_HEADERS)
 	cd $(dir $<); $(NVCC) -c $(NVFLAGS) $(notdir $<)
+else
+  CFLAGS += -pedantic
 endif
 
 %.o: %.c $(ALL_HEADERS)

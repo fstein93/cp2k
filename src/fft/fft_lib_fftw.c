@@ -720,8 +720,8 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *fft_fftw_create_distributed_2d_plan(const fft_key_t key,
-  double complex *grid_in,
-                                               double complex *grid_out) {
+  double complex *restrict grid_in,
+                                               double complex *restrict grid_out) {
   assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
@@ -772,8 +772,8 @@ fftw_plan *fft_fftw_create_distributed_2d_plan(const fft_key_t key,
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const fft_key_t key,
-  double *grid_rs,
-                                                   double complex *grid_gs) {
+  double *restrict grid_rs,
+                                                   double complex *restrict grid_gs) {
   assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
@@ -829,8 +829,8 @@ fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const fft_key_t key,
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *fft_fftw_create_distributed_3d_plan(const fft_key_t key,
-                                               double complex *grid_in,
-                                               double complex *grid_out) {
+                                               double complex *restrict grid_in,
+                                               double complex *restrict grid_out) {
   assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
@@ -882,8 +882,8 @@ fftw_plan *fft_fftw_create_distributed_3d_plan(const fft_key_t key,
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *fft_fftw_create_distributed_3d_plan_r2c(const fft_key_t key,
-  double *grid_rs,
-                                                   double complex *grid_gs) {
+  double *restrict grid_rs,
+                                                   double complex *restrict grid_gs) {
   assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
@@ -3627,8 +3627,8 @@ int fft_fftw_3d_distributed_sizes_r2c(const int npts_global[3],
 void fft_fftw_2d_fw_distributed(const int npts_global[2],
                                 const int number_of_ffts,
                                 const cp_mpi_comm_t comm,
-                                double complex *grid_in,
-                                double complex *grid_out) {
+                                double complex *restrict grid_in,
+                                double complex *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
@@ -3662,8 +3662,8 @@ void fft_fftw_2d_fw_distributed(const int npts_global[2],
  ******************************************************************************/
 void fft_fftw_2d_fw_distributed_r2c(const int npts_global[2],
                                     const int number_of_ffts,
-                                    const cp_mpi_comm_t comm, double *grid_in,
-                                    double complex *grid_out) {
+                                    const cp_mpi_comm_t comm, double *restrict grid_in,
+                                    double complex *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
@@ -3698,7 +3698,7 @@ void fft_fftw_2d_fw_distributed_r2c(const int npts_global[2],
 void fft_fftw_2d_bw_distributed(const int npts_global[2],
                                 const int number_of_ffts,
                                 const cp_mpi_comm_t comm,
-                                double complex *grid_in,
+                                double complex *restrict grid_in,
                                 double complex *grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
@@ -3734,7 +3734,7 @@ void fft_fftw_2d_bw_distributed(const int npts_global[2],
 void fft_fftw_2d_bw_distributed_c2r(const int npts_global[2],
                                     const int number_of_ffts,
                                     const cp_mpi_comm_t comm,
-                                    double complex *grid_in, double *grid_out) {
+                                    double complex *restrict grid_in, double *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
@@ -3768,8 +3768,8 @@ void fft_fftw_2d_bw_distributed_c2r(const int npts_global[2],
  ******************************************************************************/
 void fft_fftw_3d_fw_distributed(const int npts_global[3],
                                 const cp_mpi_comm_t comm,
-                                double complex *grid_in,
-                                double complex *grid_out) {
+                                double complex *restrict grid_in,
+                                double complex *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
@@ -3800,8 +3800,8 @@ void fft_fftw_3d_fw_distributed(const int npts_global[3],
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_3d_fw_distributed_r2c(const int npts_global[3],
-                                    const cp_mpi_comm_t comm, double *grid_in,
-                                    double complex *grid_out) {
+                                    const cp_mpi_comm_t comm, double *restrict grid_in,
+                                    double complex *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
@@ -3833,8 +3833,8 @@ void fft_fftw_3d_fw_distributed_r2c(const int npts_global[3],
  ******************************************************************************/
 void fft_fftw_3d_bw_distributed(const int npts_global[3],
                                 const cp_mpi_comm_t comm,
-                                double complex *grid_in,
-                                double complex *grid_out) {
+                                double complex *restrict grid_in,
+                                double complex *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);
@@ -3866,7 +3866,7 @@ void fft_fftw_3d_bw_distributed(const int npts_global[3],
  ******************************************************************************/
 void fft_fftw_3d_bw_distributed_c2r(const int npts_global[3],
                                     const cp_mpi_comm_t comm,
-                                    double complex *grid_in, double *grid_out) {
+                                    double complex *restrict grid_in, double *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
   assert(omp_get_num_threads() == 1);
   assert(is_initialized);

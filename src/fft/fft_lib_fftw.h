@@ -220,8 +220,8 @@ void fft_fftw_register_bw_guru_c2r(int rank, const fft_iodim *dims, int howmany_
 void fft_fftw_register_2d_fw_distributed(const int npts_global[2],
                                 const int number_of_ffts,
                                 const cp_mpi_comm_t comm,
-                                double complex *grid_in,
-                                double complex *grid_out);
+                                double complex *restrict grid_in,
+                                double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed forward R2C 2D FFT.
@@ -229,8 +229,8 @@ void fft_fftw_register_2d_fw_distributed(const int npts_global[2],
  ******************************************************************************/
 void fft_fftw_register_2d_fw_distributed_r2c(const int npts_global[2],
                                     const int number_of_ffts,
-                                    const cp_mpi_comm_t comm, double *grid_in,
-                                    double complex *grid_out);
+                                    const cp_mpi_comm_t comm, double *restrict grid_in,
+                                    double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed backwards C2C 2D FFT.
@@ -239,8 +239,8 @@ void fft_fftw_register_2d_fw_distributed_r2c(const int npts_global[2],
 void fft_fftw_register_2d_bw_distributed(const int npts_global[2],
                                 const int number_of_ffts,
                                 const cp_mpi_comm_t comm,
-                                double complex *grid_in,
-                                double complex *grid_out);
+                                double complex *restrict grid_in,
+                                double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed backwards C2R 2D FFT.
@@ -249,7 +249,7 @@ void fft_fftw_register_2d_bw_distributed(const int npts_global[2],
 void fft_fftw_register_2d_bw_distributed_c2r(const int npts_global[2],
                                     const int number_of_ffts,
                                     const cp_mpi_comm_t comm,
-                                    double complex *grid_in, double *grid_out);
+                                    double complex *restrict grid_in, double *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed forwards C2C 3D FFT.
@@ -257,16 +257,16 @@ void fft_fftw_register_2d_bw_distributed_c2r(const int npts_global[2],
  ******************************************************************************/
 void fft_fftw_register_3d_fw_distributed(const int npts_global[3],
                                 const cp_mpi_comm_t comm,
-                                double complex *grid_in,
-                                double complex *grid_out);
+                                double complex *restrict grid_in,
+                                double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed forward R2C 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_register_3d_fw_distributed_r2c(const int npts_global[3],
-                                    const cp_mpi_comm_t comm, double *grid_in,
-                                    double complex *grid_out);
+                                    const cp_mpi_comm_t comm, double *restrict grid_in,
+                                    double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed backwards C2C 3D FFT.
@@ -274,8 +274,8 @@ void fft_fftw_register_3d_fw_distributed_r2c(const int npts_global[3],
  ******************************************************************************/
 void fft_fftw_register_3d_bw_distributed(const int npts_global[3],
                                 const cp_mpi_comm_t comm,
-                                double complex *grid_in,
-                                double complex *grid_out);
+                                double complex *restrict grid_in,
+                                double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed backwards C2R 3D FFT.
@@ -283,7 +283,7 @@ void fft_fftw_register_3d_bw_distributed(const int npts_global[3],
  ******************************************************************************/
 void fft_fftw_register_3d_bw_distributed_c2r(const int npts_global[3],
                                     const cp_mpi_comm_t comm,
-                                    double complex *grid_in, double *grid_out);
+                                    double complex *restrict grid_in, double *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a local forward C2C 1D FFT.
@@ -462,8 +462,8 @@ int fft_fftw_3d_distributed_sizes_r2c(const int npts_global[3],
 void fft_fftw_2d_fw_distributed(const int npts_global[2],
                                 const int number_of_ffts,
                                 const cp_mpi_comm_t comm,
-                                double complex *grid_in,
-                                double complex *grid_out);
+                                double complex *restrict grid_in,
+                                double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed forward R2C 2D FFT.
@@ -471,8 +471,8 @@ void fft_fftw_2d_fw_distributed(const int npts_global[2],
  ******************************************************************************/
 void fft_fftw_2d_fw_distributed_r2c(const int npts_global[2],
                                     const int number_of_ffts,
-                                    const cp_mpi_comm_t comm, double *grid_in,
-                                    double complex *grid_out);
+                                    const cp_mpi_comm_t comm, double *restrict grid_in,
+                                    double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed backwards C2C 2D FFT.
@@ -481,8 +481,8 @@ void fft_fftw_2d_fw_distributed_r2c(const int npts_global[2],
 void fft_fftw_2d_bw_distributed(const int npts_global[2],
                                 const int number_of_ffts,
                                 const cp_mpi_comm_t comm,
-                                double complex *grid_in,
-                                double complex *grid_out);
+                                double complex *restrict grid_in,
+                                double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed backwards C2R 2D FFT.
@@ -491,7 +491,7 @@ void fft_fftw_2d_bw_distributed(const int npts_global[2],
 void fft_fftw_2d_bw_distributed_c2r(const int npts_global[2],
                                     const int number_of_ffts,
                                     const cp_mpi_comm_t comm,
-                                    double complex *grid_in, double *grid_out);
+                                    double complex *restrict grid_in, double *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed forwards C2C 3D FFT.
@@ -499,16 +499,16 @@ void fft_fftw_2d_bw_distributed_c2r(const int npts_global[2],
  ******************************************************************************/
 void fft_fftw_3d_fw_distributed(const int npts_global[3],
                                 const cp_mpi_comm_t comm,
-                                double complex *grid_in,
-                                double complex *grid_out);
+                                double complex *restrict grid_in,
+                                double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed forward R2C 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_3d_fw_distributed_r2c(const int npts_global[3],
-                                    const cp_mpi_comm_t comm, double *grid_in,
-                                    double complex *grid_out);
+                                    const cp_mpi_comm_t comm, double *restrict grid_in,
+                                    double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed backwards C2C 3D FFT.
@@ -516,8 +516,8 @@ void fft_fftw_3d_fw_distributed_r2c(const int npts_global[3],
  ******************************************************************************/
 void fft_fftw_3d_bw_distributed(const int npts_global[3],
                                 const cp_mpi_comm_t comm,
-                                double complex *grid_in,
-                                double complex *grid_out);
+                                double complex *restrict grid_in,
+                                double complex *restrict grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed backwards C2R 3D FFT.
@@ -525,7 +525,7 @@ void fft_fftw_3d_bw_distributed(const int npts_global[3],
  ******************************************************************************/
 void fft_fftw_3d_bw_distributed_c2r(const int npts_global[3],
                                     const cp_mpi_comm_t comm,
-                                    double complex *grid_in, double *grid_out);
+                                    double complex *restrict grid_in, double *restrict grid_out);
 
 #endif /* FFT_LIB_FFTW_H */
 
