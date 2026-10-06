@@ -570,7 +570,7 @@ void fft_register_gpu_fff(const int dir, const int *npts, const bool inplace) {
   }
   // Run FFT on the device.
   fft_register_3d_gpu(dir > 0 ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, npts[0],
-             npts[1], npts[2], buffer_dev_1, buffer_dev_1);
+             npts[1], npts[2], inplace);
 #else
   (void)dir;
   (void)npts;
