@@ -55,6 +55,49 @@ void fft_gpu_free_complex(double complex *buffer);
  * \brief   Performs a (double precision complex) 1D-FFT on the GPU.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
+void fft_register_gpu_f(const int dir, const int n,
+               const int m, const bool transpose_in, const bool transpose_out,
+            const int leading_dimension_in, const int leading_dimension_out, const bool inplace);
+
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) R2C 1D-FFT on the GPU.
+ * \author  Andreas Gloess, Ole Schuett
+ ******************************************************************************/
+void fft_register_r2c_gpu_f(const int dir, const int n,
+                   const int m, const bool transpose_in,
+                   const bool transpose_out,
+            const int leading_dimension_in, const int leading_dimension_out, const bool inplace);
+
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) 1D-FFT on the GPU.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_register_gpu_ff(const int dir, const int n[2],
+                const int m, const bool transpose_in, const bool transpose_out, const bool inplace);
+
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) R2C 1D-FFT on the GPU.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_register_r2c_gpu_ff(const int dir, const int n[2], const int m, const bool transpose_in,
+                    const bool transpose_out, const bool inplace);
+
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) 3D-FFT on the GPU.
+ * \author  Andreas Gloess, Ole Schuett
+ ******************************************************************************/
+void fft_register_gpu_fff(const int dir, const int *npts, const bool inplace);
+
+/*******************************************************************************
+ * \brief   Performs a 3D-R2C/C2R-FFT, on the GPU.
+ * \author  Andreas Gloess, Ole Schuett
+ ******************************************************************************/
+void fft_register_r2c_gpu_fff(const int dir, const int *npts, const bool inplace);
+
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) 1D-FFT on the GPU.
+ * \author  Andreas Gloess, Ole Schuett
+ ******************************************************************************/
 void fft_gpu_f(const double *zin, double *zout, const int dir, const int n,
                const int m, const bool transpose_in, const bool transpose_out,
             const int leading_dimension_in, const int leading_dimension_out);
