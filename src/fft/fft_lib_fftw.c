@@ -1136,7 +1136,7 @@ void fft_fftw_register_1d_bw_local_c2r(const int fft_size, const int number_of_f
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_register_2d_fw_local(const int fft_size[2], const int number_of_ffts,
-                          const bool transpose_rs, const bool transpose_gs,
+                              const bool transpose_in, const bool transpose_out,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
@@ -1144,7 +1144,7 @@ void fft_fftw_register_2d_fw_local(const int fft_size[2], const int number_of_ff
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
   get_key_2d(true, fft_size, number_of_ffts,
-                        transpose_rs, transpose_gs, 
+                        transpose_in, transpose_out, 
                         omp_get_max_threads(), grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
@@ -1154,8 +1154,8 @@ void fft_fftw_register_2d_fw_local(const int fft_size[2], const int number_of_ff
   (void)number_of_ffts;
   (void)grid_in;
   (void)grid_out;
-  (void)transpose_rs;
-  (void)transpose_gs;
+  (void)transpose_in;
+  (void)transpose_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -1165,7 +1165,7 @@ void fft_fftw_register_2d_fw_local(const int fft_size[2], const int number_of_ff
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_register_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
-                              const bool transpose_rs, const bool transpose_gs,
+                              const bool transpose_in, const bool transpose_out,
                               double *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
@@ -1173,7 +1173,7 @@ void fft_fftw_register_2d_fw_local_r2c(const int fft_size[2], const int number_o
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
   get_key_2d_r2c(true, fft_size, number_of_ffts,
-                        transpose_rs, transpose_gs, 
+                        transpose_in, transpose_out, 
                         omp_get_max_threads(), grid_in == (double*)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
@@ -1183,8 +1183,8 @@ void fft_fftw_register_2d_fw_local_r2c(const int fft_size[2], const int number_o
   (void)number_of_ffts;
   (void)grid_in;
   (void)grid_out;
-  (void)transpose_rs;
-  (void)transpose_gs;
+  (void)transpose_in;
+  (void)transpose_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -1194,7 +1194,7 @@ void fft_fftw_register_2d_fw_local_r2c(const int fft_size[2], const int number_o
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_register_2d_bw_local(const int fft_size[2], const int number_of_ffts,
-                          const bool transpose_rs, const bool transpose_gs,
+                          const bool transpose_in, const bool transpose_out,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
@@ -1202,7 +1202,7 @@ void fft_fftw_register_2d_bw_local(const int fft_size[2], const int number_of_ff
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
   get_key_2d(false, fft_size, number_of_ffts,
-                        transpose_rs, transpose_gs, 
+                        transpose_out, transpose_in, 
                         omp_get_max_threads(), grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
@@ -1212,8 +1212,8 @@ void fft_fftw_register_2d_bw_local(const int fft_size[2], const int number_of_ff
   (void)number_of_ffts;
   (void)grid_in;
   (void)grid_out;
-  (void)transpose_rs;
-  (void)transpose_gs;
+  (void)transpose_in;
+  (void)transpose_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -1223,7 +1223,7 @@ void fft_fftw_register_2d_bw_local(const int fft_size[2], const int number_of_ff
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_register_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
-                              const bool transpose_rs, const bool transpose_gs,
+                              const bool transpose_in, const bool transpose_out,
                               double complex *grid_in, double *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
@@ -1231,7 +1231,7 @@ void fft_fftw_register_2d_bw_local_c2r(const int fft_size[2], const int number_o
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
   get_key_2d_r2c(false, fft_size, number_of_ffts,
-                        transpose_rs, transpose_gs, 
+                        transpose_out, transpose_in, 
                         omp_get_max_threads(), grid_in == (double complex*)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
@@ -1241,8 +1241,8 @@ void fft_fftw_register_2d_bw_local_c2r(const int fft_size[2], const int number_o
   (void)number_of_ffts;
   (void)grid_in;
   (void)grid_out;
-  (void)transpose_rs;
-  (void)transpose_gs;
+  (void)transpose_in;
+  (void)transpose_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -2372,7 +2372,7 @@ void fft_fftw_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
-                          const bool transpose_rs, const bool transpose_gs,
+                          const bool transpose_in, const bool transpose_out,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
@@ -2380,7 +2380,7 @@ void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
   get_key_2d(true, fft_size, number_of_ffts,
-                        transpose_rs, transpose_gs, 
+                        transpose_in, transpose_out, 
                         omp_get_max_threads(), grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -2394,8 +2394,8 @@ void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
   (void)number_of_ffts;
   (void)grid_in;
   (void)grid_out;
-  (void)transpose_rs;
-  (void)transpose_gs;
+  (void)transpose_in;
+  (void)transpose_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -2405,7 +2405,7 @@ void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
-                              const bool transpose_rs, const bool transpose_gs,
+                              const bool transpose_in, const bool transpose_out,
                               double *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
@@ -2413,7 +2413,7 @@ void fft_fftw_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
   get_key_2d_r2c(true, fft_size, number_of_ffts,
-                        transpose_rs, transpose_gs, 
+                        transpose_in, transpose_out, 
                         omp_get_max_threads(), grid_in == (double*)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -2427,8 +2427,8 @@ void fft_fftw_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
   (void)number_of_ffts;
   (void)grid_in;
   (void)grid_out;
-  (void)transpose_rs;
-  (void)transpose_gs;
+  (void)transpose_in;
+  (void)transpose_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -2438,7 +2438,7 @@ void fft_fftw_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
-                          const bool transpose_rs, const bool transpose_gs,
+                          const bool transpose_in, const bool transpose_out,
                           double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
@@ -2446,7 +2446,7 @@ void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
   get_key_2d(false, fft_size, number_of_ffts,
-                        transpose_rs, transpose_gs, 
+                        transpose_out, transpose_in, 
                         omp_get_max_threads(), grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -2460,8 +2460,8 @@ void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
   (void)number_of_ffts;
   (void)grid_in;
   (void)grid_out;
-  (void)transpose_rs;
-  (void)transpose_gs;
+  (void)transpose_in;
+  (void)transpose_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
@@ -2471,7 +2471,7 @@ void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
-                              const bool transpose_rs, const bool transpose_gs,
+                              const bool transpose_in, const bool transpose_out,
                               double complex *grid_in, double *grid_out) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
@@ -2479,7 +2479,7 @@ void fft_fftw_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
   if (fft_size[0] == 0 || fft_size[1] == 0 || number_of_ffts == 0) return;
   fft_key_t key;
   get_key_2d_r2c(false, fft_size, number_of_ffts,
-                        transpose_rs, transpose_gs, 
+                        transpose_out, transpose_in, 
                         omp_get_max_threads(), grid_in == (double complex*)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
@@ -2493,8 +2493,8 @@ void fft_fftw_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
   (void)number_of_ffts;
   (void)grid_in;
   (void)grid_out;
-  (void)transpose_rs;
-  (void)transpose_gs;
+  (void)transpose_in;
+  (void)transpose_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }

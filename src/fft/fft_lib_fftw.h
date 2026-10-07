@@ -326,7 +326,7 @@ void fft_fftw_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
-                          const bool transpose_rs, const bool transpose_gs,
+                          const bool transpose_in, const bool transpose_out,
                           double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
@@ -334,7 +334,7 @@ void fft_fftw_2d_fw_local(const int fft_size[2], const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
-                              const bool transpose_rs, const bool transpose_gs,
+                          const bool transpose_in, const bool transpose_out,
                               double *grid_in, double complex *grid_out);
 
 /*******************************************************************************
@@ -342,7 +342,7 @@ void fft_fftw_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
-                          const bool transpose_rs, const bool transpose_gs,
+                          const bool transpose_in, const bool transpose_out,
                           double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
@@ -350,7 +350,7 @@ void fft_fftw_2d_bw_local(const int fft_size[2], const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
-                              const bool transpose_rs, const bool transpose_gs,
+                          const bool transpose_in, const bool transpose_out,
                               double complex *grid_in, double *grid_out);
 
 /*******************************************************************************

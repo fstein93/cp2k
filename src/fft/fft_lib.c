@@ -459,7 +459,7 @@ void fft_register_2d_bw_local(const int fft_size[2], const int number_of_ffts,
                number_of_ffts, transpose_gs, transpose_rs, grid_in == grid_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_2d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    fft_fftw_register_2d_bw_local(fft_size, number_of_ffts, transpose_gs, transpose_rs,
                          grid_in, grid_out);
     break;
   default:
@@ -487,8 +487,7 @@ void fft_register_2d_bw_local_c2r(const int fft_size[2], const int number_of_fft
                    number_of_ffts, transpose_gs, transpose_rs, grid_in == (double complex*)grid_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_2d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs,
-                             transpose_gs, grid_in, grid_out);
+    fft_fftw_register_2d_bw_local_c2r(fft_size, number_of_ffts, transpose_gs, transpose_rs, grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -1067,7 +1066,7 @@ void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts,
                number_of_ffts, transpose_gs, transpose_rs);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_2d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    fft_fftw_2d_bw_local(fft_size, number_of_ffts, transpose_gs, transpose_rs,
                          grid_in, grid_out);
     break;
   default:
@@ -1095,8 +1094,7 @@ void fft_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
                    number_of_ffts, transpose_rs, transpose_gs);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_2d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs,
-                             transpose_gs, grid_in, grid_out);
+    fft_fftw_2d_bw_local_c2r(fft_size, number_of_ffts, transpose_gs, transpose_rs, grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
