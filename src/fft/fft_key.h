@@ -33,22 +33,22 @@ typedef int fft_key_t[KEY_SIZE];
  ******************************************************************************/
 static inline void get_key_1d(const bool direction, const int fft_size,
                         const int number_of_ffts,
-                        const bool transpose_rs,
-                        const bool transpose_gs, 
-                     const int leading_dimension_rs, const int leading_dimension_gs,
+                        const bool transpose_in,
+                        const bool transpose_out, 
+                     const int leading_dimension_in, const int leading_dimension_out,
                         const int number_of_threads, const bool inplace, int *key) {
-  assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
+  assert((!inplace || (transpose_in == transpose_out)) && "Inplace plans need the same strides for input and output arrays!");
   key[0] = 1 + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size;
   key[4] = number_of_ffts;
   key[5] = 0;
-  key[6] = transpose_rs ? leading_dimension_rs : 1;
-  key[7] = transpose_rs ? 1 : leading_dimension_rs;
+  key[6] = transpose_in ? leading_dimension_in : 1;
+  key[7] = transpose_in ? 1 : leading_dimension_in;
   key[8] = 0;
-  key[9] = transpose_gs ? leading_dimension_gs : 1;
-  key[10] = transpose_gs ? 1 : leading_dimension_gs;
+  key[9] = transpose_out ? leading_dimension_out : 1;
+  key[10] = transpose_out ? 1 : leading_dimension_out;
   key[11] = 0;
   }
 
@@ -57,22 +57,22 @@ static inline void get_key_1d(const bool direction, const int fft_size,
  * \author Frederick Stein
  ******************************************************************************/
 static inline void get_key_1d_r2c(const bool direction, const int fft_size,
-                            const int number_of_ffts, const bool transpose_rs,
-                            const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_gs,
+                            const int number_of_ffts, const bool transpose_in,
+                            const bool transpose_out,
+                     const int leading_dimension_in, const int leading_dimension_out,
                             const int number_of_threads, const bool inplace, int *key) {
-  assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
+  assert((!inplace || (transpose_in == transpose_out)) && "Inplace plans need the same strides for input and output arrays!");
   key[0] = 1 + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size;
   key[4] = number_of_ffts;
   key[5] = 0;
-  key[6] = transpose_rs ? leading_dimension_rs : 1;
-  key[7] = transpose_rs ? 1 : leading_dimension_rs;
+  key[6] = transpose_in ? leading_dimension_in : 1;
+  key[7] = transpose_in ? 1 : leading_dimension_in;
   key[8] = 0;
-  key[9] = transpose_gs ? leading_dimension_gs : 1;
-  key[10] = transpose_gs ? 1 : leading_dimension_gs;
+  key[9] = transpose_out ? leading_dimension_out : 1;
+  key[10] = transpose_out ? 1 : leading_dimension_out;
   key[11] = 0;
   }
 
@@ -81,22 +81,22 @@ static inline void get_key_1d_r2c(const bool direction, const int fft_size,
  * \author Frederick Stein
  ******************************************************************************/
 static inline void get_key_2d(const bool direction, const int fft_size[2],
-                        const int number_of_ffts, const bool transpose_rs,
-                        const bool transpose_gs,
+                        const int number_of_ffts, const bool transpose_in,
+                        const bool transpose_out,
                         const int number_of_threads, const bool inplace, int *key) {
-  assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
+  assert((!inplace || (transpose_in == transpose_out)) && "Inplace plans need the same strides for input and output arrays!");
   key[0] = 2 + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size[0];
   key[4] = fft_size[1];
   key[5] = number_of_ffts;
-  key[6] = (transpose_rs ? number_of_ffts : 1) * fft_size[1];
-  key[7] = transpose_rs ? number_of_ffts : 1;
-  key[8] = transpose_rs ? 1 : fft_size[0] * fft_size[1];
-  key[9] = (transpose_gs ? number_of_ffts : 1) * fft_size[1];
-  key[10] = transpose_gs ? number_of_ffts : 1;
-  key[11] = transpose_gs ? 1 : fft_size[0] * fft_size[1];
+  key[6] = (transpose_in ? number_of_ffts : 1) * fft_size[1];
+  key[7] = transpose_in ? number_of_ffts : 1;
+  key[8] = transpose_in ? 1 : fft_size[0] * fft_size[1];
+  key[9] = (transpose_out ? number_of_ffts : 1) * fft_size[1];
+  key[10] = transpose_out ? number_of_ffts : 1;
+  key[11] = transpose_out ? 1 : fft_size[0] * fft_size[1];
                         }
 
 /*******************************************************************************
@@ -104,22 +104,22 @@ static inline void get_key_2d(const bool direction, const int fft_size[2],
  * \author Frederick Stein
  ******************************************************************************/
 static inline void get_key_2d_r2c(const bool direction, const int fft_size[2],
-                            const int number_of_ffts, const bool transpose_rs,
-                            const bool transpose_gs,
+                            const int number_of_ffts, const bool transpose_in,
+                            const bool transpose_out,
                             const int number_of_threads, const bool inplace, int *key) {
-  assert((!inplace || (transpose_rs == transpose_gs)) && "Inplace plans need the same strides for input and output arrays!");
+  assert((!inplace || (transpose_in == transpose_out)) && "Inplace plans need the same strides for input and output arrays!");
   key[0] = 2 + FFT_KEY_R2C + FFT_KEY_INPLACE * inplace + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(cp_mpi_get_comm_null());
   key[2] = number_of_threads;
   key[3] = fft_size[0];
   key[4] = fft_size[1];
   key[5] = number_of_ffts;
-  key[6] = (transpose_rs ? number_of_ffts : 1) * ((transpose_rs || !inplace) ? fft_size[1] : 2*(fft_size[1] / 2 + 1));
-  key[7] = transpose_rs ? number_of_ffts : 1;
-  key[8] = transpose_rs ? 1 : fft_size[0] * ((transpose_rs || !inplace) ? fft_size[1] : 2*(fft_size[1] / 2 + 1));
-  key[9] = (transpose_gs ? number_of_ffts : 1) * (fft_size[1] / 2 + 1);
-  key[10] = transpose_gs ? number_of_ffts : 1;
-  key[11] = transpose_gs ? 1 : fft_size[0] * (fft_size[1] / 2 + 1);
+  key[6] = (transpose_in ? number_of_ffts : 1) * ((transpose_in || !inplace) ? fft_size[1] : 2*(fft_size[1] / 2 + 1));
+  key[7] = transpose_in ? number_of_ffts : 1;
+  key[8] = transpose_in ? 1 : fft_size[0] * ((transpose_out || !inplace) ? fft_size[1] : 2*(fft_size[1] / 2 + 1));
+  key[9] = (transpose_out ? number_of_ffts : 1) * (fft_size[1] / 2 + 1);
+  key[10] = transpose_out ? number_of_ffts : 1;
+  key[11] = transpose_out ? 1 : fft_size[0] * (fft_size[1] / 2 + 1);
   }
 
 /*******************************************************************************
@@ -157,11 +157,11 @@ static inline void get_key_3d_r2c(const bool direction,
   key[3] = fft_size[0];
   key[4] = fft_size[1];
   key[5] = fft_size[2];
-  key[6] = fft_size[1] * fft_size[2];
-  key[7] = fft_size[2];
+  key[6] = fft_size[1] * (direction ? fft_size[2] : fft_size[2] / 2 + 1);
+  key[7] = direction ? fft_size[2] : fft_size[2] / 2 + 1;
   key[8] = 1;
-  key[9] = fft_size[1] * (fft_size[2]/2+1);
-  key[10] = fft_size[2]/2+1;
+  key[9] = fft_size[1] * (!direction ? fft_size[2] : fft_size[2] / 2 + 1);
+  key[10] = !direction ? fft_size[2] : fft_size[2] / 2 + 1;
   key[11] = 1;
 }
 
