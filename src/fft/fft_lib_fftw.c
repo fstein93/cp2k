@@ -404,7 +404,7 @@ fft_fftw_create_1d_plan(const fft_key_t key, double complex* grid_in, double com
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *
-fft_fftw_create_1d_plan_r2c(const fft_key_t key, double *grid_rs, double complex *grid_gs) {
+fft_fftw_create_1d_plan_r2c(const fft_key_t key, double *grid_in, double *grid_out) {
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
   bool direction, inplace;
   int fft_size[3], inembed[3], onembed[3];
@@ -422,7 +422,7 @@ fft_fftw_create_1d_plan_r2c(const fft_key_t key, double *grid_rs, double complex
   const int handle2 = fft_start_timer(routine_name);
   fftw_plan_with_nthreads(number_of_threads);
   fftw_plan *plan = malloc(sizeof(fftw_plan));
-  if ((double complex*)grid_rs == grid_gs) {
+  if (grid_in == grid_out) {
     if (istride == 1) {
       // Check whether the arrays are correctly padded
       assert(idist == 2*odist);
@@ -430,16 +430,16 @@ fft_fftw_create_1d_plan_r2c(const fft_key_t key, double *grid_rs, double complex
     assert(istride == ostride);
   }
   if (direction) {
-    *plan = fftw_plan_many_dft_r2c(rank, fft_size, number_of_ffts, grid_rs, inembed,
-                                    istride, idist, grid_gs, onembed, ostride,
+    *plan = fftw_plan_many_dft_r2c(rank, fft_size, number_of_ffts, grid_in, inembed,
+                                    istride, idist, (double complex*)grid_out, onembed, ostride,
                                     odist, fftw_planning_mode);
   } else {
     // We use the buffers the other way around to prevent
     // out-of-bounds-accesses of the planner if the output array has only the
     // minimum size
     *plan = fftw_plan_many_dft_c2r(
-        rank, fft_size, number_of_ffts, grid_gs, onembed, ostride, odist,
-        grid_rs, inembed, istride, idist, fftw_planning_mode);
+        rank, fft_size, number_of_ffts, (double complex*)grid_in, onembed, ostride, odist,
+        grid_out, inembed, istride, idist, fftw_planning_mode);
   }
   assert(plan != NULL);
   add_plan_to_cache(key, plan);
@@ -498,7 +498,7 @@ fft_fftw_create_2d_plan(const fft_key_t key, double complex *grid_in, double com
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *
-fft_fftw_create_2d_plan_r2c(const fft_key_t key, double *grid_rs, double complex *grid_gs) {
+fft_fftw_create_2d_plan_r2c(const fft_key_t key, double *grid_in, double *grid_out) {
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
   bool direction, inplace;
   int fft_size[3], inembed[3], onembed[3];
@@ -518,7 +518,7 @@ fft_fftw_create_2d_plan_r2c(const fft_key_t key, double *grid_rs, double complex
   // We need the guru interface here because cuts the last dimension in half
   // whereas we want the first dimension
   fftw_plan *plan = malloc(sizeof(fftw_plan));
-  if ((double complex*)grid_rs == grid_gs) {
+  if (grid_in == grid_out) {
     if (istride == 1) {
       // Check whether the arrays are correctly padded
       assert(idist == 2*odist);
@@ -526,16 +526,16 @@ fft_fftw_create_2d_plan_r2c(const fft_key_t key, double *grid_rs, double complex
     assert(istride == ostride);
   }
   if (direction) {
-    *plan = fftw_plan_many_dft_r2c(rank, fft_size, number_of_ffts, grid_rs, inembed,
-                                    istride, idist, grid_gs, onembed,
+    *plan = fftw_plan_many_dft_r2c(rank, fft_size, number_of_ffts, grid_in, inembed,
+                                    istride, idist, (double complex*)grid_out, onembed,
                                     ostride, odist, fftw_planning_mode);
   } else {
     // We use the buffers the other way around to prevent
     // out-of-bounds-accesses of the planner if the output array has only the
     // minimum size
     *plan = fftw_plan_many_dft_c2r(
-        rank, fft_size, number_of_ffts, grid_gs, onembed, ostride,
-        odist, grid_rs, inembed, istride, idist,
+        rank, fft_size, number_of_ffts, (double complex*)grid_in, onembed, ostride,
+        odist, grid_out, inembed, istride, idist,
         fftw_planning_mode);
   }
   assert(plan != NULL);
@@ -587,8 +587,8 @@ fftw_plan *fft_fftw_create_3d_plan(const fft_key_t key,
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *fft_fftw_create_3d_plan_r2c(const fft_key_t key,
-                                       double *grid_rs,
-                                       double complex *grid_gs) {
+                                       double *grid_in,
+                                       double *grid_out) {
   int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
   bool direction, inplace;
   int fft_size[3], inembed[3], onembed[3];
@@ -611,7 +611,7 @@ fftw_plan *fft_fftw_create_3d_plan_r2c(const fft_key_t key,
   fftw_plan *plan = malloc(sizeof(fftw_plan));
   if (direction) {
     *plan = fftw_plan_dft_r2c_3d(fft_size[0], fft_size[1], fft_size[2],
-                                  grid_rs, grid_gs,
+                                  grid_in, (double complex*)grid_out,
                                   fftw_planning_mode);
   } else {
     // We use the buffers the other way around to prevent
@@ -619,7 +619,7 @@ fftw_plan *fft_fftw_create_3d_plan_r2c(const fft_key_t key,
     // minimum size
     *plan =
         fftw_plan_dft_c2r_3d(fft_size[0], fft_size[1], fft_size[2],
-                              grid_gs, grid_rs, fftw_planning_mode);
+                              (double complex*)grid_in, grid_out, fftw_planning_mode);
   }
   add_plan_to_cache(key, plan);
   assert(plan != NULL);
@@ -668,7 +668,7 @@ fftw_plan *fft_fftw_create_guru_plan(const fft_key_t key,
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *fft_fftw_create_guru_plan_r2c(
-    const fft_key_t key, double *grid_rs, double complex *grid_gs) {
+    const fft_key_t key, double *grid_in, double *grid_out) {
   assert(has_guru_interface);
   bool direction, inplace;
   int rank, howmany_rank, number_of_threads;
@@ -683,7 +683,7 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(
   fftw_plan_with_nthreads(number_of_threads);
   fftw_plan *plan = malloc(sizeof(fftw_plan));
   if (direction) {
-    if ((double complex*)grid_rs == grid_gs) {
+    if (grid_in == grid_out) {
       assert(inplace);
       for (int r = 0; r < rank; r++) assert(dims[r].is == 2*dims[r].os);
       for (int r = 0; r < howmany_rank; r++) assert(howmany_dims[r].is == 2*howmany_dims[r].os);
@@ -691,10 +691,10 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(
       assert(!inplace);
     }
     *plan = fftw_plan_guru_dft_r2c(rank, dims, howmany_rank, howmany_dims,
-                                    grid_rs, grid_gs,
+                                    grid_in, (double complex*)grid_out,
                                     fftw_planning_mode);
   } else {
-    if ((double complex*)grid_rs == grid_gs) {
+    if (grid_in == grid_out) {
       assert(inplace);
       for (int r = 0; r < rank; r++) assert(2*dims[r].is == dims[r].os);
       for (int r = 0; r < howmany_rank; r++) assert(2*howmany_dims[r].is == howmany_dims[r].os);
@@ -706,7 +706,7 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(
     // minimum size
     *plan =
         fftw_plan_guru_dft_c2r(rank, dims, howmany_rank, howmany_dims,
-                                grid_gs, grid_rs, fftw_planning_mode);
+                                (double complex*)grid_in, grid_out, fftw_planning_mode);
   }
   add_plan_to_cache(key, plan);
   assert(plan != NULL);
@@ -772,8 +772,8 @@ fftw_plan *fft_fftw_create_distributed_2d_plan(const fft_key_t key,
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const fft_key_t key,
-  double *restrict grid_rs,
-                                                   double complex *restrict grid_gs) {
+  double *restrict grid_in,
+                                                   double *restrict grid_out) {
   assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
@@ -807,15 +807,15 @@ fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const fft_key_t key,
   fftw_plan *plan = malloc(sizeof(fftw_plan));
   if (direction) {
     *plan = fftw_mpi_plan_many_dft_r2c(
-        2, n, howmany, block_size_0, block_size_1, grid_rs,
-        grid_gs, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+        2, n, howmany, block_size_0, block_size_1, grid_in,
+        (double complex*)grid_out, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
   } else {
     // We use the buffers the other way around to prevent
     // out-of-bounds-accesses of the planner if the output array has only the
     // minimum size
     *plan = fftw_mpi_plan_many_dft_c2r(
-        2, n, howmany, block_size_1, block_size_0, grid_gs,
-        grid_rs, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
+        2, n, howmany, block_size_1, block_size_0, (double complex*)grid_in,
+        grid_out, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
   }
   assert(plan != NULL);
   add_plan_to_cache(key, plan);
@@ -882,8 +882,8 @@ fftw_plan *fft_fftw_create_distributed_3d_plan(const fft_key_t key,
  * \author Frederick Stein
  ******************************************************************************/
 fftw_plan *fft_fftw_create_distributed_3d_plan_r2c(const fft_key_t key,
-  double *restrict grid_rs,
-                                                   double complex *restrict grid_gs) {
+  double *restrict grid_in,
+                                                   double *restrict grid_out) {
   assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
@@ -917,11 +917,11 @@ fftw_plan *fft_fftw_create_distributed_3d_plan_r2c(const fft_key_t key,
     fftw_plan *plan = malloc(sizeof(fftw_plan));
     if (direction) {
       *plan = fftw_mpi_plan_many_dft_r2c(
-          3, n, 1, block_size_0, block_size_1, grid_rs, grid_gs, comm,
+          3, n, 1, block_size_0, block_size_1, grid_in, (double complex*)grid_out, comm,
           fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
     } else {
       *plan = fftw_mpi_plan_many_dft_c2r(
-          3, n, 1, block_size_1, block_size_0, grid_gs, grid_rs, comm,
+          3, n, 1, block_size_1, block_size_0, (double complex*)grid_in, grid_out, comm,
           fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
     }
     assert(plan != NULL);
@@ -1018,7 +1018,7 @@ void fft_fftw_register_1d_fw_local_r2c(const int fft_size, const int number_of_f
       omp_get_max_threads(), (double complex *)grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
-    plan = fft_fftw_create_1d_plan_r2c(key, grid_in, grid_out);
+    plan = fft_fftw_create_1d_plan_r2c(key, grid_in, (double*)grid_out);
 #else
   (void)fft_size;
   (void)number_of_ffts;
@@ -1117,7 +1117,7 @@ void fft_fftw_register_1d_bw_local_c2r(const int fft_size, const int number_of_f
       omp_get_max_threads(), grid_in == (double complex *)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
-    plan = fft_fftw_create_1d_plan_r2c(key, grid_out, grid_in);
+    plan = fft_fftw_create_1d_plan_r2c(key, (double*)grid_in, grid_out);
 #else
   (void)fft_size;
   (void)number_of_ffts;
@@ -1177,7 +1177,7 @@ void fft_fftw_register_2d_fw_local_r2c(const int fft_size[2], const int number_o
                         omp_get_max_threads(), grid_in == (double*)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
-    plan = fft_fftw_create_2d_plan_r2c(key, grid_in, grid_out);
+    plan = fft_fftw_create_2d_plan_r2c(key, grid_in, (double*)grid_out);
 #else
   (void)fft_size;
   (void)number_of_ffts;
@@ -1235,7 +1235,7 @@ void fft_fftw_register_2d_bw_local_c2r(const int fft_size[2], const int number_o
                         omp_get_max_threads(), grid_in == (double complex*)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
-    plan = fft_fftw_create_2d_plan_r2c(key, grid_out, grid_in);
+    plan = fft_fftw_create_2d_plan_r2c(key, (double*)grid_in, grid_out);
 #else
   (void)fft_size;
   (void)number_of_ffts;
@@ -1304,7 +1304,7 @@ void fft_fftw_register_fw_guru_r2c(int rank, const fft_iodim *dims, int howmany_
       grid_in == (double *)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
-    plan = fft_fftw_create_guru_plan_r2c(key, grid_in, grid_out);
+    plan = fft_fftw_create_guru_plan_r2c(key, grid_in, (double*)grid_out);
 #else
   (void)rank;
   (void)dims;
@@ -1375,7 +1375,7 @@ void fft_fftw_register_bw_guru_c2r(int rank, const fft_iodim *dims, int howmany_
       (double *)grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
-    plan = fft_fftw_create_guru_plan_r2c(key, grid_out, grid_in);
+    plan = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in, grid_out);
 #else
   (void)rank;
   (void)dims;
@@ -1602,7 +1602,7 @@ void fft_fftw_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
       
       plan = lookup_plan_from_cache(key);
       if (plan == NULL)
-        plan = fft_fftw_create_guru_plan_r2c(key, grid_in, grid_out);
+        plan = fft_fftw_create_guru_plan_r2c(key, grid_in, (double*)grid_out);
       if (block_size * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
             number_of_ffts - (number_of_threads - 1) * block_size;
@@ -1614,7 +1614,7 @@ void fft_fftw_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
         
         plan = lookup_plan_from_cache(key);
         if (plan == NULL)
-          plan = fft_fftw_create_guru_plan_r2c(key, grid_in, grid_out);
+          plan = fft_fftw_create_guru_plan_r2c(key, grid_in, (double*)grid_out);
       }
     }
   } else {
@@ -1622,7 +1622,7 @@ void fft_fftw_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
     get_key_3d_r2c(true, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL)
-      plan = fft_fftw_create_3d_plan_r2c(key, grid_in, grid_out);
+      plan = fft_fftw_create_3d_plan_r2c(key, grid_in, (double*)grid_out);
   }
 #else
   (void)fft_size;
@@ -1844,7 +1844,7 @@ void fft_fftw_register_3d_bw_local_c2r(const int fft_size[3], double complex *gr
       
       plan = lookup_plan_from_cache(key);
       if (plan == NULL)
-        plan = fft_fftw_create_guru_plan_r2c(key, grid_out, grid_in);
+        plan = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in, grid_out);
       if (block_size * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
             number_of_ffts - (number_of_threads - 1) * block_size;
@@ -1856,7 +1856,7 @@ void fft_fftw_register_3d_bw_local_c2r(const int fft_size[3], double complex *gr
           
         plan = lookup_plan_from_cache(key);
         if (plan == NULL)
-          plan = fft_fftw_create_guru_plan_r2c(key, grid_out, grid_in);
+          plan = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in, grid_out);
       }
     }
   } else {
@@ -1864,7 +1864,7 @@ void fft_fftw_register_3d_bw_local_c2r(const int fft_size[3], double complex *gr
     get_key_3d_r2c(false, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL)
-      plan = fft_fftw_create_3d_plan_r2c(key, grid_out, grid_in);
+      plan = fft_fftw_create_3d_plan_r2c(key, (double*)grid_in, grid_out);
   }
 #else
   (void)fft_size;
@@ -1923,7 +1923,7 @@ void fft_fftw_register_2d_fw_distributed_r2c(const int npts_global[2],
                           comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
-    plan = fft_fftw_create_distributed_2d_plan_r2c(key, grid_in, grid_out);
+    plan = fft_fftw_create_distributed_2d_plan_r2c(key, grid_in, (double*)grid_out);
   assert(plan != NULL);
 #else
   (void)npts_global;
@@ -1984,7 +1984,7 @@ void fft_fftw_register_2d_bw_distributed_c2r(const int npts_global[2],
                           comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
-    plan = fft_fftw_create_distributed_2d_plan_r2c(key, grid_out, grid_in);
+    plan = fft_fftw_create_distributed_2d_plan_r2c(key, (double*)grid_in, grid_out);
   assert(plan != NULL);
 #else
   (void)npts_global;
@@ -2040,7 +2040,7 @@ void fft_fftw_register_3d_fw_distributed_r2c(const int npts_global[3],
   get_key_3d_r2c_distributed(true, npts_global, comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
-    plan = fft_fftw_create_distributed_3d_plan_r2c(key, grid_in, grid_out);
+    plan = fft_fftw_create_distributed_3d_plan_r2c(key, grid_in, (double*)grid_out);
   assert(plan != NULL);
 #else
   (void)npts_global;
@@ -2095,7 +2095,7 @@ void fft_fftw_register_3d_bw_distributed_c2r(const int npts_global[3],
   get_key_3d_r2c_distributed(false, npts_global, comm, omp_get_max_threads(), key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
-    plan = fft_fftw_create_distributed_3d_plan_r2c(key, grid_out, grid_in);
+    plan = fft_fftw_create_distributed_3d_plan_r2c(key, (double*)grid_in, grid_out);
   assert(plan != NULL);
 #else
   (void)npts_global;
@@ -2219,7 +2219,7 @@ void fft_fftw_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     double *buffer = fftw_alloc_real(2*get_buffer_size_from_key(key));
-    plan = fft_fftw_create_1d_plan_r2c(key, buffer, grid_in == (double*)grid_out ? (double complex*)buffer : grid_out);
+    plan = fft_fftw_create_1d_plan_r2c(key, buffer, grid_in == (double*)grid_out ? buffer : (double*)grid_out);
     fftw_free(buffer);
   }
   assert(plan != NULL);
@@ -2350,7 +2350,7 @@ void fft_fftw_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
-    plan = fft_fftw_create_1d_plan_r2c(key, (double*)grid_in == grid_out ? (double*)buffer : grid_out, buffer);
+    plan = fft_fftw_create_1d_plan_r2c(key, (double*)buffer, (double*)grid_in == grid_out ? (double*)buffer : grid_out);
     fftw_free(buffer);
   }
   fftw_execute_dft_c2r(*plan, grid_in, grid_out);
@@ -2418,7 +2418,7 @@ void fft_fftw_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     double *buffer = fftw_alloc_real(2*get_buffer_size_from_key(key));
-    plan = fft_fftw_create_2d_plan_r2c(key, buffer, grid_in == (double*)grid_out ? (double complex*)buffer : grid_out);
+    plan = fft_fftw_create_2d_plan_r2c(key, buffer, grid_in == (double*)grid_out ? buffer : (double*)grid_out);
     fftw_free(buffer);
   }
   fftw_execute_dft_r2c(*plan, grid_in, grid_out);
@@ -2484,7 +2484,7 @@ void fft_fftw_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
-    plan = fft_fftw_create_2d_plan_r2c(key, (double*)grid_in == grid_out ? (double*)buffer : grid_out, buffer);
+    plan = fft_fftw_create_2d_plan_r2c(key, (double*)buffer, (double*)grid_in == grid_out ? (double*)buffer : grid_out);
     fftw_free(buffer);
   }
   fftw_execute_dft_c2r(*plan, grid_in, grid_out);
@@ -2561,7 +2561,7 @@ void fft_fftw_fw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     double *buffer = fftw_alloc_real(2*get_buffer_size_from_key(key));
-    plan = fft_fftw_create_guru_plan_r2c(key, buffer, grid_in == (double*)grid_out ? (double complex*)buffer : grid_out);
+    plan = fft_fftw_create_guru_plan_r2c(key, buffer, grid_in == (double*)grid_out ? buffer : (double*)grid_out);
     fftw_free(buffer);
   }
   fftw_execute_dft_r2c(*plan, grid_in, grid_out);
@@ -2640,7 +2640,7 @@ void fft_fftw_bw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
-    plan = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in == grid_out ? (double*)buffer : grid_out, buffer);
+    plan = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in == grid_out ? (double*)buffer : grid_out, (double*)buffer);
     fftw_free(buffer);
   }
   fftw_execute_dft_c2r(*plan, grid_in, grid_out);
@@ -2956,7 +2956,7 @@ void fft_fftw_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
       plans[2] = lookup_plan_from_cache(key);
       if (plans[2] == NULL) {
         double *buffer = fftw_alloc_real(2*get_buffer_size_from_key(key));
-        plans[2] = fft_fftw_create_guru_plan_r2c(key, buffer, grid_out);
+        plans[2] = fft_fftw_create_guru_plan_r2c(key, buffer, (double*)grid_out);
         fftw_free(buffer);
       }
       if (block_sizes[2] * number_of_threads != number_of_ffts) {
@@ -2971,7 +2971,7 @@ void fft_fftw_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
         plans_last_thread[2] = lookup_plan_from_cache(key);
         if (plans_last_thread[2] == NULL) {
           double *buffer = fftw_alloc_real(2*get_buffer_size_from_key(key));
-          plans_last_thread[2] = fft_fftw_create_guru_plan_r2c(key, buffer, grid_out);
+          plans_last_thread[2] = fft_fftw_create_guru_plan_r2c(key, buffer, (double*)grid_out);
           fftw_free(buffer);
         }
         has_plan_for_last_thread[2] = true;
@@ -3031,7 +3031,7 @@ void fft_fftw_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double *buffer = fftw_alloc_real(2*get_buffer_size_from_key(key));
-      plan = fft_fftw_create_3d_plan_r2c(key, buffer, in_place ? (double complex*)buffer : grid_out);
+      plan = fft_fftw_create_3d_plan_r2c(key, buffer, in_place ? buffer : (double*)grid_out);
       fftw_free(buffer);
     }
     fftw_execute_dft_r2c(*plan, grid_in, grid_out);
@@ -3344,7 +3344,7 @@ void fft_fftw_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
       plans[2] = lookup_plan_from_cache(key);
       if (plans[2] == NULL) {
         double complex *buffer2 = fftw_alloc_complex(get_buffer_size_from_key(key));
-        plans[2] = fft_fftw_create_guru_plan_r2c(key, (double *)buffer, buffer2);
+        plans[2] = fft_fftw_create_guru_plan_r2c(key, (double *)buffer, (double*)buffer2);
         fftw_free(buffer2);
       }
       if (block_sizes[2] * number_of_threads != number_of_ffts) {
@@ -3359,7 +3359,7 @@ void fft_fftw_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
         plans_last_thread[2] = lookup_plan_from_cache(key);
         if (plans_last_thread[2] == NULL) {
           double complex *buffer2 = fftw_alloc_complex(get_buffer_size_from_key(key));
-          plans_last_thread[2] = fft_fftw_create_guru_plan_r2c(key, (double*)buffer, buffer2);
+          plans_last_thread[2] = fft_fftw_create_guru_plan_r2c(key, (double*)buffer, (double*)buffer2);
           fftw_free(buffer2);
         }
         has_plan_for_last_thread[2] = true;
@@ -3418,7 +3418,7 @@ void fft_fftw_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
       double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
-      plan = fft_fftw_create_3d_plan_r2c(key, in_place ? (double*)buffer : grid_out, buffer);
+      plan = fft_fftw_create_3d_plan_r2c(key, (double*)buffer, in_place ? (double*)buffer : grid_out);
       fftw_free(buffer);
     }
     fftw_execute_dft_c2r(*plan, grid_in, grid_out);
@@ -3676,7 +3676,7 @@ void fft_fftw_2d_fw_distributed_r2c(const int npts_global[2],
   if (plan == NULL) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
     double *buffer = fftw_alloc_real(2*buffer_size);
-    plan = fft_fftw_create_distributed_2d_plan_r2c(key, buffer, grid_out);
+    plan = fft_fftw_create_distributed_2d_plan_r2c(key, buffer, (double*)grid_out);
     fftw_free(buffer);
   }
   assert(plan != NULL);
@@ -3747,7 +3747,7 @@ void fft_fftw_2d_bw_distributed_c2r(const int npts_global[2],
   if (plan == NULL) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
     double complex* buffer = fftw_alloc_complex(buffer_size);
-    plan = fft_fftw_create_distributed_2d_plan_r2c(key, grid_out, buffer);
+    plan = fft_fftw_create_distributed_2d_plan_r2c(key, (double*)buffer, grid_out);
     fftw_free(buffer);
   }
   assert(plan != NULL);
@@ -3813,7 +3813,7 @@ void fft_fftw_3d_fw_distributed_r2c(const int npts_global[3],
   if (plan == NULL) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
     double *buffer = fftw_alloc_real(2*buffer_size);
-    plan = fft_fftw_create_distributed_3d_plan_r2c(key, buffer, grid_out);
+    plan = fft_fftw_create_distributed_3d_plan_r2c(key, buffer, (double*)grid_out);
     fftw_free(buffer);
   }
   assert(plan != NULL);
@@ -3878,7 +3878,7 @@ void fft_fftw_3d_bw_distributed_c2r(const int npts_global[3],
   if (plan == NULL) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
     double complex* buffer = fftw_alloc_complex(buffer_size);
-    plan = fft_fftw_create_distributed_3d_plan_r2c(key, grid_out, buffer);
+    plan = fft_fftw_create_distributed_3d_plan_r2c(key, (double*)buffer, grid_out);
     fftw_free(buffer);
   }
   assert(plan != NULL);
