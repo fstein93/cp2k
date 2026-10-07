@@ -292,7 +292,7 @@ void fft_register_1d_fw_local(const int fft_size, const int number_of_ffts,
                 leading_dimension_rs, leading_dimension_gs, grid_in == grid_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    fft_fftw_register_1d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
                 leading_dimension_rs, leading_dimension_gs,
                          grid_in, grid_out);
     break;
@@ -321,7 +321,7 @@ void fft_register_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
                 leading_dimension_rs, leading_dimension_gs, grid_in == (double*)grid_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_1d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs,
+    fft_fftw_register_1d_r2c_local(fft_size, number_of_ffts, transpose_rs,
                              transpose_gs,
                 leading_dimension_rs, leading_dimension_gs, grid_in, grid_out);
     break;
@@ -349,7 +349,7 @@ void fft_register_1d_bw_local(const int fft_size, const int number_of_ffts,
                 transpose_gs, transpose_rs, leading_dimension_rs, leading_dimension_gs, grid_in == grid_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_1d_bw_local(fft_size, number_of_ffts, transpose_gs,
+    fft_fftw_register_1d_local(false, fft_size, number_of_ffts, transpose_gs,
                              transpose_rs,
                 leading_dimension_gs, leading_dimension_rs,
                          grid_in, grid_out);
@@ -379,7 +379,7 @@ void fft_register_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
                 leading_dimension_rs, leading_dimension_gs, grid_in == (double complex*)grid_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_1d_bw_local_c2r(fft_size, number_of_ffts, transpose_gs,
+    fft_fftw_register_1d_c2r_local(fft_size, number_of_ffts, transpose_gs,
                              transpose_rs,
                 leading_dimension_gs, leading_dimension_rs, grid_in, grid_out);
     break;
@@ -406,7 +406,7 @@ void fft_register_2d_fw_local(const int fft_size[2], const int number_of_ffts,
                number_of_ffts, transpose_rs, transpose_gs, grid_in == grid_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_2d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    fft_fftw_register_2d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
                          grid_in, grid_out);
     break;
   default:
@@ -431,7 +431,7 @@ void fft_register_2d_fw_local_r2c(const int fft_size[2], const int number_of_fft
     fft_register_r2c_gpu_ff(1, fft_size, number_of_ffts, transpose_rs, transpose_gs, grid_in == (double*)grid_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_2d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs,
+    fft_fftw_register_2d_r2c_local(fft_size, number_of_ffts, transpose_rs,
                              transpose_gs, grid_in, grid_out);
     break;
   default:
@@ -459,7 +459,7 @@ void fft_register_2d_bw_local(const int fft_size[2], const int number_of_ffts,
                number_of_ffts, transpose_gs, transpose_rs, grid_in == grid_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_2d_bw_local(fft_size, number_of_ffts, transpose_gs, transpose_rs,
+    fft_fftw_register_2d_local(false, fft_size, number_of_ffts, transpose_gs, transpose_rs,
                          grid_in, grid_out);
     break;
   default:
@@ -487,7 +487,7 @@ void fft_register_2d_bw_local_c2r(const int fft_size[2], const int number_of_fft
                    number_of_ffts, transpose_gs, transpose_rs, grid_in == (double complex*)grid_out);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_register_2d_bw_local_c2r(fft_size, number_of_ffts, transpose_gs, transpose_rs, grid_in, grid_out);
+    fft_fftw_register_2d_c2r_local(fft_size, number_of_ffts, transpose_gs, transpose_rs, grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -512,7 +512,7 @@ void fft_register_3d_fw_local(const int fft_size[3], double complex *grid_in,
       fft_register_gpu_fff(+1, fft_size, grid_in == grid_out);
       break;
     case FFT_LIB_FFTW:
-      fft_fftw_register_3d_fw_local(fft_size, grid_in, grid_out);
+      fft_fftw_register_3d_local(true, fft_size, grid_in, grid_out);
       break;
     default:
       assert(0 && "Unknown FFT library.");
@@ -540,7 +540,7 @@ void fft_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
       fft_register_r2c_gpu_fff(+1, fft_size, grid_in == (double*)grid_out);
       break;
     case FFT_LIB_FFTW:
-      fft_fftw_register_3d_fw_local_r2c(fft_size, grid_in, grid_out);
+      fft_fftw_register_3d_r2c_local(fft_size, grid_in, grid_out);
       break;
     default:
       assert(0 && "Unknown FFT library.");
@@ -565,7 +565,7 @@ void fft_register_3d_bw_local(const int fft_size[3], double complex *grid_in,
       fft_register_gpu_fff(-1, fft_size, grid_in == grid_out);
       break;
     case FFT_LIB_FFTW:
-      fft_fftw_register_3d_bw_local(fft_size, grid_in, grid_out);
+      fft_fftw_register_3d_local(false, fft_size, grid_in, grid_out);
       break;
     default:
       assert(0 && "Unknown FFT library.");
@@ -590,7 +590,7 @@ void fft_register_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in
       fft_register_r2c_gpu_fff(-1, fft_size, grid_in == (double complex*)grid_out);
       break;
     case FFT_LIB_FFTW:
-      fft_fftw_register_3d_bw_local_c2r(fft_size, grid_in, grid_out);
+      fft_fftw_register_3d_c2r_local(fft_size, grid_in, grid_out);
       break;
     default:
       assert(0 && "Unknown FFT library.");
@@ -612,7 +612,7 @@ void fft_register_fw_guru(int rank, const fft_iodim *dims, int howmany_rank,
   const int handle = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_register_fw_guru(rank, dims, howmany_rank, howmany_dims, number_of_threads,
+    fft_fftw_register_guru(true, rank, dims, howmany_rank, howmany_dims, number_of_threads,
                      grid_in, grid_out);
     break;
   default:
@@ -635,8 +635,8 @@ void fft_register_fw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
   const int handle = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_register_fw_guru_r2c(rank, dims, howmany_rank, howmany_dims,
-                         number_of_threads, grid_in, grid_out);
+    fft_fftw_register_r2c_guru(rank, dims, howmany_rank, howmany_dims, number_of_threads,
+                         grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -658,8 +658,8 @@ void fft_register_bw_guru(int rank, const fft_iodim *dims, int howmany_rank,
   const int handle = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_register_bw_guru(rank, dims, howmany_rank, howmany_dims, number_of_threads,
-                     grid_in, grid_out);
+    fft_fftw_register_guru(false, rank, dims, howmany_rank, howmany_dims, number_of_threads,
+                         grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -681,8 +681,8 @@ void fft_register_bw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
   const int handle = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_register_bw_guru_c2r(rank, dims, howmany_rank, howmany_dims,
-                         number_of_threads, grid_in, grid_out);
+    fft_fftw_register_c2r_guru(rank, dims, howmany_rank, howmany_dims, number_of_threads,
+                         grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -705,7 +705,7 @@ void fft_register_2d_fw_distributed(const int npts_global[2], const int number_o
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_register_2d_fw_distributed(npts_global, number_of_ffts, comm, grid_in,
+    fft_fftw_register_2d_distributed(true, npts_global, number_of_ffts, comm, grid_in,
                                grid_out);
     break;
   default:
@@ -730,7 +730,7 @@ void fft_register_2d_fw_distributed_r2c(const int npts_global[2],
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_register_2d_fw_distributed_r2c(npts_global, number_of_ffts, comm, grid_in,
+    fft_fftw_register_2d_r2c_distributed(npts_global, number_of_ffts, comm, grid_in,
                                    grid_out);
     break;
   default:
@@ -754,7 +754,7 @@ void fft_register_2d_bw_distributed(const int npts_global[2], const int number_o
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_register_2d_bw_distributed(npts_global, number_of_ffts, comm, grid_in,
+    fft_fftw_register_2d_distributed(false, npts_global, number_of_ffts, comm, grid_in,
                                grid_out);
     break;
   default:
@@ -779,7 +779,7 @@ void fft_register_2d_bw_distributed_c2r(const int npts_global[2],
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_register_2d_bw_distributed_c2r(npts_global, number_of_ffts, comm, grid_in,
+    fft_fftw_register_2d_c2r_distributed(npts_global, number_of_ffts, comm, grid_in,
                                    grid_out);
     break;
   default:
@@ -802,7 +802,7 @@ void fft_register_3d_fw_distributed(const int npts_global[3], const cp_mpi_comm_
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_register_3d_fw_distributed(npts_global, comm, grid_in, grid_out);
+    fft_fftw_register_3d_distributed(true, npts_global, comm, grid_in, grid_out);
     break;
   default:
     assert(0 && "Distributed 3D FFT not available.");
@@ -825,7 +825,7 @@ void fft_register_3d_fw_distributed_r2c(const int npts_global[3],
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_register_3d_fw_distributed_r2c(npts_global, comm, grid_in, grid_out);
+    fft_fftw_register_3d_r2c_distributed(npts_global, comm, grid_in, grid_out);
     break;
   default:
     assert(0 && "Distributed 3D FFT not available.");
@@ -847,7 +847,7 @@ void fft_register_3d_bw_distributed(const int npts_global[3], const cp_mpi_comm_
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_register_3d_bw_distributed(npts_global, comm, grid_in, grid_out);
+    fft_fftw_register_3d_distributed(false, npts_global, comm, grid_in, grid_out);
     break;
   default:
     assert(0 && "Distributed 3D FFT not available.");
@@ -870,7 +870,7 @@ void fft_register_3d_bw_distributed_c2r(const int npts_global[3],
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_register_3d_bw_distributed_c2r(npts_global, comm, grid_in, grid_out);
+    fft_fftw_register_3d_c2r_distributed(npts_global, comm, grid_in, grid_out);
     break;
   default:
     assert(0 && "Distributed 3D FFT not available.");
@@ -897,7 +897,7 @@ void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
                 leading_dimension_rs, leading_dimension_gs);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    fft_fftw_1d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
                 leading_dimension_rs, leading_dimension_gs,
                          grid_in, grid_out);
     break;
@@ -926,7 +926,7 @@ void fft_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
                 leading_dimension_rs, leading_dimension_gs);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_1d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs,
+    fft_fftw_1d_r2c_local(fft_size, number_of_ffts, transpose_rs,
                              transpose_gs,
                 leading_dimension_rs, leading_dimension_gs, grid_in, grid_out);
     break;
@@ -955,7 +955,7 @@ void fft_1d_bw_local(const int fft_size, const int number_of_ffts,
                 transpose_gs, transpose_rs, leading_dimension_gs, leading_dimension_rs);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_1d_bw_local(fft_size, number_of_ffts, transpose_gs,
+    fft_fftw_1d_local(false, fft_size, number_of_ffts, transpose_gs,
                              transpose_rs,
                 leading_dimension_gs, leading_dimension_rs,
                          grid_in, grid_out);
@@ -985,7 +985,7 @@ void fft_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
                 leading_dimension_rs, leading_dimension_gs);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_1d_bw_local_c2r(fft_size, number_of_ffts, transpose_gs,
+    fft_fftw_1d_c2r_local(fft_size, number_of_ffts, transpose_gs,
                              transpose_rs,
                 leading_dimension_gs, leading_dimension_rs, grid_in, grid_out);
     break;
@@ -1012,7 +1012,7 @@ void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
                number_of_ffts, transpose_rs, transpose_gs);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_2d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+    fft_fftw_2d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
                          grid_in, grid_out);
     break;
   default:
@@ -1038,8 +1038,8 @@ void fft_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
                    number_of_ffts, transpose_rs, transpose_gs);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_2d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs,
-                             transpose_gs, grid_in, grid_out);
+    fft_fftw_2d_r2c_local(fft_size, number_of_ffts, transpose_rs,
+                           transpose_gs, grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -1066,8 +1066,8 @@ void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts,
                number_of_ffts, transpose_gs, transpose_rs);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_2d_bw_local(fft_size, number_of_ffts, transpose_gs, transpose_rs,
-                         grid_in, grid_out);
+    fft_fftw_2d_local(false, fft_size, number_of_ffts, transpose_gs, transpose_rs,
+                       grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -1094,7 +1094,7 @@ void fft_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
                    number_of_ffts, transpose_rs, transpose_gs);
     break;
   case FFT_LIB_FFTW:
-    fft_fftw_2d_bw_local_c2r(fft_size, number_of_ffts, transpose_gs, transpose_rs, grid_in, grid_out);
+    fft_fftw_2d_c2r_local(fft_size, number_of_ffts, transpose_gs, transpose_rs, grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -1135,7 +1135,7 @@ void fft_3d_fw_local(const int fft_size[3], double complex *grid_in,
       fft_gpu_fff((const double *)grid_in, (double *)grid_out, +1, fft_size);
       break;
     case FFT_LIB_FFTW:
-      fft_fftw_3d_fw_local(fft_size, grid_in, grid_out);
+      fft_fftw_3d_local(true, fft_size, grid_in, grid_out);
       break;
     default:
       assert(0 && "Unknown FFT library.");
@@ -1181,7 +1181,7 @@ void fft_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
                       fft_size);
       break;
     case FFT_LIB_FFTW:
-      fft_fftw_3d_fw_local_r2c(fft_size, grid_in, grid_out);
+      fft_fftw_3d_r2c_local(fft_size, grid_in, grid_out);
       break;
     default:
       assert(0 && "Unknown FFT library.");
@@ -1225,7 +1225,7 @@ void fft_3d_bw_local(const int fft_size[3], double complex *grid_in,
       fft_gpu_fff((const double *)grid_in, (double *)grid_out, -1, fft_size);
       break;
     case FFT_LIB_FFTW:
-      fft_fftw_3d_bw_local(fft_size, grid_in, grid_out);
+      fft_fftw_3d_local(false, fft_size, grid_in, grid_out);
       break;
     default:
       assert(0 && "Unknown FFT library.");
@@ -1272,7 +1272,7 @@ void fft_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
                       fft_size);
       break;
     case FFT_LIB_FFTW:
-      fft_fftw_3d_bw_local_c2r(fft_size, grid_in, grid_out);
+      fft_fftw_3d_c2r_local(fft_size, grid_in, grid_out);
       break;
     default:
       assert(0 && "Unknown FFT library.");
@@ -1297,7 +1297,7 @@ void fft_fw_guru(int rank, const fft_iodim *dims, int howmany_rank,
   const int handle = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_fw_guru(rank, dims, howmany_rank, howmany_dims, number_of_threads,
+    fft_fftw_guru(true, rank, dims, howmany_rank, howmany_dims, number_of_threads,
                      grid_in, grid_out);
     break;
   default:
@@ -1320,8 +1320,8 @@ void fft_fw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
   const int handle = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_fw_guru_r2c(rank, dims, howmany_rank, howmany_dims,
-                         number_of_threads, grid_in, grid_out);
+    fft_fftw_guru_r2c(rank, dims, howmany_rank, howmany_dims, number_of_threads,
+                     grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -1343,8 +1343,8 @@ void fft_bw_guru(int rank, const fft_iodim *dims, int howmany_rank,
   const int handle = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_bw_guru(rank, dims, howmany_rank, howmany_dims, number_of_threads,
-                     grid_in, grid_out);
+    fft_fftw_guru(false, rank, dims, howmany_rank, howmany_dims, number_of_threads,
+                  grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -1366,8 +1366,8 @@ void fft_bw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
   const int handle = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_bw_guru_c2r(rank, dims, howmany_rank, howmany_dims,
-                         number_of_threads, grid_in, grid_out);
+    fft_fftw_guru_c2r(rank, dims, howmany_rank, howmany_dims,
+                      number_of_threads, grid_in, grid_out);
     break;
   default:
     assert(0 && "Unknown FFT library.");
@@ -1460,7 +1460,7 @@ void fft_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_2d_fw_distributed(npts_global, number_of_ffts, comm, grid_in,
+    fft_fftw_2d_distributed(true, npts_global, number_of_ffts, comm, grid_in,
                                grid_out);
     break;
   default:
@@ -1485,7 +1485,7 @@ void fft_2d_fw_distributed_r2c(const int npts_global[2],
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_2d_fw_distributed_r2c(npts_global, number_of_ffts, comm, grid_in,
+    fft_fftw_2d_r2c_distributed(npts_global, number_of_ffts, comm, grid_in,
                                    grid_out);
     break;
   default:
@@ -1509,7 +1509,7 @@ void fft_2d_bw_distributed(const int npts_global[2], const int number_of_ffts,
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_2d_bw_distributed(npts_global, number_of_ffts, comm, grid_in,
+    fft_fftw_2d_distributed(false, npts_global, number_of_ffts, comm, grid_in,
                                grid_out);
     break;
   default:
@@ -1534,8 +1534,8 @@ void fft_2d_bw_distributed_c2r(const int npts_global[2],
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_2d_bw_distributed_c2r(npts_global, number_of_ffts, comm, grid_in,
-                                   grid_out);
+    fft_fftw_2d_c2r_distributed(npts_global, number_of_ffts, comm, grid_in,
+                                grid_out);
     break;
   default:
     assert(0 && "Distributed 2D FFT not available.");
@@ -1557,7 +1557,7 @@ void fft_3d_fw_distributed(const int npts_global[3], const cp_mpi_comm_t comm,
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_3d_fw_distributed(npts_global, comm, grid_in, grid_out);
+    fft_fftw_3d_distributed(true, npts_global, comm, grid_in, grid_out);
     break;
   default:
     assert(0 && "Distributed 3D FFT not available.");
@@ -1580,7 +1580,7 @@ void fft_3d_fw_distributed_r2c(const int npts_global[3],
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_3d_fw_distributed_r2c(npts_global, comm, grid_in, grid_out);
+    fft_fftw_3d_r2c_distributed(npts_global, comm, grid_in, grid_out);
     break;
   default:
     assert(0 && "Distributed 3D FFT not available.");
@@ -1602,7 +1602,7 @@ void fft_3d_bw_distributed(const int npts_global[3], const cp_mpi_comm_t comm,
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_3d_bw_distributed(npts_global, comm, grid_in, grid_out);
+    fft_fftw_3d_distributed(false, npts_global, comm, grid_in, grid_out);
     break;
   default:
     assert(0 && "Distributed 3D FFT not available.");
@@ -1625,7 +1625,7 @@ void fft_3d_bw_distributed_c2r(const int npts_global[3],
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    fft_fftw_3d_bw_distributed_c2r(npts_global, comm, grid_in, grid_out);
+    fft_fftw_3d_c2r_distributed(npts_global, comm, grid_in, grid_out);
     break;
   default:
     assert(0 && "Distributed 3D FFT not available.");
