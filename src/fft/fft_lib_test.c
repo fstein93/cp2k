@@ -37,11 +37,11 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
   fft_allocate_complex(fft_size * number_of_ffts, &input_array);
   fft_allocate_complex(fft_size * number_of_ffts, &output_array);
 
-  fft_register_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+  fft_register_1d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
     transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
                   input_array, output_array);
-  fft_register_1d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
+  fft_register_1d_local(false, fft_size, number_of_ffts, transpose_gs, transpose_rs,
+    transpose_gs ? number_of_ffts : fft_size, transpose_rs ? number_of_ffts : fft_size,
                   output_array, input_array);
 
   memset(input_array, 0, fft_size * number_of_ffts * sizeof(double complex));
@@ -64,7 +64,7 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
     }
   }
 
-  fft_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+  fft_1d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
     transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
                   input_array, output_array);
 
@@ -139,8 +139,8 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
     }
   }
 
-  fft_1d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
+  fft_1d_local(false, fft_size, number_of_ffts, transpose_gs, transpose_rs,
+    transpose_gs ? number_of_ffts : fft_size, transpose_rs ? number_of_ffts : fft_size,
                   output_array, input_array);
 
   max_error = 0.0;
@@ -218,10 +218,10 @@ int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
   double complex *input_array = NULL;
   fft_allocate_complex(fft_size * number_of_ffts, &input_array);
 
-  fft_register_1d_fw_local(fft_size, number_of_ffts, transpose, transpose,
+  fft_register_1d_local(true, fft_size, number_of_ffts, transpose, transpose,
     transpose ? number_of_ffts : fft_size, transpose ? number_of_ffts : fft_size,
                   input_array, input_array);
-  fft_register_1d_bw_local(fft_size, number_of_ffts, transpose, transpose,
+  fft_register_1d_local(false, fft_size, number_of_ffts, transpose, transpose,
     transpose ? number_of_ffts : fft_size, transpose ? number_of_ffts : fft_size,
                   input_array, input_array);
 
@@ -245,7 +245,7 @@ int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
     }
   }
 
-  fft_1d_fw_local(fft_size, number_of_ffts, transpose, transpose,
+  fft_1d_local(true, fft_size, number_of_ffts, transpose, transpose,
     transpose ? number_of_ffts : fft_size, transpose ? number_of_ffts : fft_size,
                   input_array, input_array);
 
@@ -320,7 +320,7 @@ int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
     }
   }
 
-  fft_1d_bw_local(fft_size, number_of_ffts, transpose, transpose,
+  fft_1d_local(false, fft_size, number_of_ffts, transpose, transpose,
     transpose ? number_of_ffts : fft_size, transpose ? number_of_ffts : fft_size,
                   input_array, input_array);
 
@@ -400,11 +400,11 @@ int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
   fft_allocate_double(2 * (fft_size / 2 + 1) * number_of_ffts, &input_array);
   fft_allocate_complex((fft_size / 2 + 1) * number_of_ffts + 4, &output_array);
 
-  fft_register_1d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+  fft_register_1d_r2c_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
     transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size/2+1,
                       input_array, output_array);
-  fft_register_1d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size/2+1,
+  fft_register_1d_c2r_local(fft_size, number_of_ffts, transpose_gs, transpose_rs,
+    transpose_gs ? number_of_ffts : fft_size/2+1, transpose_rs ? number_of_ffts : fft_size,
                       output_array, input_array);
 
   memset(input_array, 0, fft_size * number_of_ffts * sizeof(double));
@@ -426,7 +426,7 @@ int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
     }
   }
 
-  fft_1d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+  fft_1d_r2c_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
     transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size/2+1,
                       input_array, output_array);
 
@@ -507,8 +507,8 @@ int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
     }
   }
 
-  fft_1d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size/2+1,
+  fft_1d_c2r_local(fft_size, number_of_ffts, transpose_gs, transpose_rs,
+    transpose_gs ? number_of_ffts : fft_size/2+1, transpose_rs ? number_of_ffts : fft_size,
                       output_array, input_array);
 
   max_error = 0.0;
@@ -584,11 +584,11 @@ int fft_test_1d_local_r2c_inplace_low(const int fft_size, const int number_of_ff
   fft_allocate_double(2 * (fft_size / 2 + 1) * number_of_ffts, &input_array);
   double complex* output_array = (double complex*)input_array;
 
-  fft_register_1d_fw_local_r2c(fft_size, number_of_ffts, transpose, transpose,
+  fft_register_1d_r2c_local(fft_size, number_of_ffts, transpose, transpose,
     transpose ? number_of_ffts : 2*(fft_size/2+1), transpose ? number_of_ffts : fft_size/2+1,
                       input_array, output_array);
-  fft_register_1d_bw_local_c2r(fft_size, number_of_ffts, transpose, transpose,
-    transpose ? number_of_ffts : 2*(fft_size/2+1), transpose ? number_of_ffts : fft_size/2+1,
+  fft_register_1d_c2r_local(fft_size, number_of_ffts, transpose, transpose,
+    transpose ? number_of_ffts : fft_size/2+1, transpose ? number_of_ffts : 2*(fft_size/2+1),
                       output_array, input_array);
 
   memset(input_array, 0, 2*(fft_size/2+1) * number_of_ffts * sizeof(double));
@@ -610,7 +610,7 @@ int fft_test_1d_local_r2c_inplace_low(const int fft_size, const int number_of_ff
     }
   }
 
-  fft_1d_fw_local_r2c(fft_size, number_of_ffts, transpose, transpose,
+  fft_1d_r2c_local(fft_size, number_of_ffts, transpose, transpose,
     transpose ? number_of_ffts : 2*(fft_size/2+1), transpose ? number_of_ffts : fft_size/2+1,
                       input_array, output_array);
 
@@ -691,8 +691,8 @@ int fft_test_1d_local_r2c_inplace_low(const int fft_size, const int number_of_ff
     }
   }
 
-  fft_1d_bw_local_c2r(fft_size, number_of_ffts, transpose, transpose,
-    transpose ? number_of_ffts : 2*(fft_size/2+1), transpose ? number_of_ffts : fft_size/2+1,
+  fft_1d_c2r_local(fft_size, number_of_ffts, transpose, transpose,
+    transpose ? number_of_ffts : fft_size/2+1, transpose ? number_of_ffts : 2*(fft_size/2+1),
                       output_array, input_array);
 
   max_error = 0.0;
@@ -768,9 +768,9 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
   fft_allocate_complex(elements_per_fft * number_of_ffts, &input_array);
   fft_allocate_complex(elements_per_fft * number_of_ffts, &output_array);
 
-  fft_register_2d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+  fft_register_2d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
                   input_array, output_array);
-  fft_register_2d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+  fft_register_2d_local(false, fft_size, number_of_ffts, transpose_gs, transpose_rs,
                   output_array, input_array);
 
   memset(input_array, 0,
@@ -795,8 +795,8 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
     }
   }
 
-  fft_2d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-                  input_array, output_array);
+  fft_2d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
+               input_array, output_array);
 
   if (transpose_gs) {
 #pragma omp parallel for default(none)                                         \
@@ -883,8 +883,8 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
     }
   }
 
-  fft_2d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-                  output_array, input_array);
+  fft_2d_local(false, fft_size, number_of_ffts, transpose_gs, transpose_rs,
+               output_array, input_array);
 
   max_error = 0.0;
   if (transpose_rs) {
@@ -973,9 +973,9 @@ int fft_test_2d_local_inplace_low(const int fft_size[2], const int number_of_fft
   fft_allocate_complex(elements_per_fft * number_of_ffts, &input_array);
   double complex* output_array = input_array;
 
-  fft_register_2d_fw_local(fft_size, number_of_ffts, transpose, transpose,
+  fft_register_2d_local(true, fft_size, number_of_ffts, transpose, transpose,
                   input_array, output_array);
-  fft_register_2d_bw_local(fft_size, number_of_ffts, transpose, transpose,
+  fft_register_2d_local(false, fft_size, number_of_ffts, transpose, transpose,
                   output_array, input_array);
 
   memset(input_array, 0,
@@ -1000,8 +1000,8 @@ int fft_test_2d_local_inplace_low(const int fft_size[2], const int number_of_fft
     }
   }
 
-  fft_2d_fw_local(fft_size, number_of_ffts, transpose, transpose,
-                  input_array, output_array);
+  fft_2d_local(true, fft_size, number_of_ffts, transpose, transpose,
+               input_array, output_array);
 
   if (transpose) {
 #pragma omp parallel for default(none)                                         \
@@ -1088,8 +1088,8 @@ int fft_test_2d_local_inplace_low(const int fft_size[2], const int number_of_fft
     }
   }
 
-  fft_2d_bw_local(fft_size, number_of_ffts, transpose, transpose,
-                  output_array, input_array);
+  fft_2d_local(false, fft_size, number_of_ffts, transpose, transpose,
+               output_array, input_array);
 
   max_error = 0.0;
   if (transpose) {
@@ -1179,9 +1179,9 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
   fft_allocate_complex((fft_size[1] / 2 + 1) * fft_size[0] * number_of_ffts,
                        &complex_buffer);
 
-  fft_register_2d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+  fft_register_2d_r2c_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
                       real_buffer, complex_buffer);
-  fft_register_2d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+  fft_register_2d_c2r_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
                       complex_buffer, real_buffer);
 
   memset(real_buffer, 0,
@@ -1211,8 +1211,8 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
     }
   }
 
-  fft_2d_fw_local_r2c(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-                      real_buffer, complex_buffer);
+  fft_2d_r2c_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                    real_buffer, complex_buffer);
 
   if (transpose_gs) {
 #pragma omp parallel for default(none)                                         \
@@ -1322,8 +1322,8 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
     }
   }
 
-  fft_2d_bw_local_c2r(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-                      complex_buffer, real_buffer);
+  fft_2d_c2r_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+                    complex_buffer, real_buffer);
 
   max_error = 0.0;
   if (transpose_rs) {
@@ -1414,9 +1414,9 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of
                       &real_buffer);
   double complex* complex_buffer = (double complex*)real_buffer;
 
-  fft_register_2d_fw_local_r2c(fft_size, number_of_ffts, transpose, transpose,
+  fft_register_2d_r2c_local(fft_size, number_of_ffts, transpose, transpose,
                       real_buffer, complex_buffer);
-  fft_register_2d_bw_local_c2r(fft_size, number_of_ffts, transpose, transpose,
+  fft_register_2d_c2r_local(fft_size, number_of_ffts, transpose, transpose,
                       complex_buffer, real_buffer);
 
   memset(real_buffer, 0,
@@ -1446,8 +1446,8 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of
     }
   }
 
-  fft_2d_fw_local_r2c(fft_size, number_of_ffts, transpose, transpose,
-                      real_buffer, complex_buffer);
+  fft_2d_r2c_local(fft_size, number_of_ffts, transpose, transpose,
+                    real_buffer, complex_buffer);
 
   if (transpose) {
 #pragma omp parallel for default(none)                                         \
@@ -1557,8 +1557,8 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of
     }
   }
 
-  fft_2d_bw_local_c2r(fft_size, number_of_ffts, transpose, transpose,
-                      complex_buffer, real_buffer);
+  fft_2d_c2r_local(fft_size, number_of_ffts, transpose, transpose,
+                    complex_buffer, real_buffer);
 
   max_error = 0.0;
   if (transpose) {
@@ -1646,8 +1646,8 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
   fft_allocate_complex(fft_size[0] * fft_size[1] * fft_size[2], &input_array);
   fft_allocate_complex(fft_size[0] * fft_size[1] * fft_size[2], &output_array);
 
-        fft_register_3d_fw_local(fft_size, input_array, output_array);
-        fft_register_3d_bw_local(fft_size, output_array, input_array);
+        fft_register_3d_local(true, fft_size, input_array, output_array);
+        fft_register_3d_local(false, fft_size, output_array, input_array);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -1663,7 +1663,7 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
                fft_size[0] * fft_size[1] * fft_size[2] *
                    sizeof(double complex));
         input_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_fw_local(fft_size, input_array, output_array);
+        fft_3d_local(true, fft_size, input_array, output_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(output_array, fft_size, pi, mx, my, mz) reduction(max : max_error)  \
@@ -1709,7 +1709,7 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
         number_of_tests++;
         memset(output_array, 0, product3(fft_size) * sizeof(double complex));
         output_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_bw_local(fft_size, output_array, input_array);
+        fft_3d_local(false, fft_size, output_array, input_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, pi, mx, my, mz) reduction(max : max_error)   \
@@ -1767,8 +1767,8 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every) {
   fft_allocate_complex(fft_size[0] * fft_size[1] * fft_size[2], &input_array);
   double complex* output_array = input_array;
 
-        fft_register_3d_fw_local(fft_size, input_array, output_array);
-        fft_register_3d_bw_local(fft_size, output_array, input_array);
+        fft_register_3d_local(true, fft_size, input_array, output_array);
+        fft_register_3d_local(false, fft_size, output_array, input_array);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -1784,7 +1784,7 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every) {
                fft_size[0] * fft_size[1] * fft_size[2] *
                    sizeof(double complex));
         input_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_fw_local(fft_size, input_array, output_array);
+        fft_3d_local(true, fft_size, input_array, output_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(output_array, fft_size, pi, mx, my, mz) reduction(max : max_error)  \
@@ -1830,7 +1830,7 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every) {
         number_of_tests++;
         memset(output_array, 0, product3(fft_size) * sizeof(double complex));
         output_array[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_bw_local(fft_size, output_array, input_array);
+        fft_3d_local(false, fft_size, output_array, input_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(input_array, fft_size, pi, mx, my, mz) reduction(max : max_error)   \
@@ -1890,8 +1890,8 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
   fft_allocate_complex(fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1),
                        &complex_buffer);
 
-        fft_register_3d_fw_local_r2c(fft_size, double_buffer, complex_buffer);
-        fft_register_3d_bw_local_c2r(fft_size, complex_buffer, double_buffer);
+        fft_register_3d_r2c_local(fft_size, double_buffer, complex_buffer);
+        fft_register_3d_c2r_local(fft_size, complex_buffer, double_buffer);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -1905,7 +1905,7 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
         number_of_tests++;
         memset(double_buffer, 0, product3(fft_size) * sizeof(double));
         double_buffer[(mx * fft_size[1] + my) * fft_size[2] + mz] = 1.0;
-        fft_3d_fw_local_r2c(fft_size, double_buffer, complex_buffer);
+        fft_3d_r2c_local(fft_size, double_buffer, complex_buffer);
 
 #pragma omp parallel for default(none)                                         \
     shared(complex_buffer, fft_size, pi, mx, my, mz, my_process)               \
@@ -1970,7 +1970,7 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
             }
           }
         }
-        fft_3d_bw_local_c2r(fft_size, complex_buffer, double_buffer);
+        fft_3d_c2r_local(fft_size, complex_buffer, double_buffer);
 
 #pragma omp parallel for default(none)                                         \
     shared(double_buffer, fft_size, pi, mx, my, mz, my_process)                \
@@ -2031,8 +2031,8 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3], const int test_ever
                       &double_buffer);
   double complex* complex_buffer = (double complex*)double_buffer;
 
-        fft_register_3d_fw_local_r2c(fft_size, double_buffer, complex_buffer);
-        fft_register_3d_bw_local_c2r(fft_size, complex_buffer, double_buffer);
+        fft_register_3d_r2c_local(fft_size, double_buffer, complex_buffer);
+        fft_register_3d_c2r_local(fft_size, complex_buffer, double_buffer);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -2046,7 +2046,7 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3], const int test_ever
         number_of_tests++;
         memset(double_buffer, 0, 2 * fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1) * sizeof(double));
         double_buffer[(mx * fft_size[1] + my) * 2*(fft_size[2]/2+1) + mz] = 1.0;
-        fft_3d_fw_local_r2c(fft_size, double_buffer, complex_buffer);
+        fft_3d_r2c_local(fft_size, double_buffer, complex_buffer);
 
 #pragma omp parallel for default(none)                                         \
     shared(complex_buffer, fft_size, pi, mx, my, mz, my_process)               \
@@ -2111,7 +2111,7 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3], const int test_ever
             }
           }
         }
-        fft_3d_bw_local_c2r(fft_size, complex_buffer, double_buffer);
+        fft_3d_c2r_local(fft_size, complex_buffer, double_buffer);
 
 #pragma omp parallel for default(none)                                         \
     shared(double_buffer, fft_size, pi, mx, my, mz, my_process)                \
@@ -2247,9 +2247,9 @@ int fft_test_2d_distributed_low(const int fft_size[2],
   fft_allocate_complex(buffer_size, &input_array);
   fft_allocate_complex(buffer_size, &output_array);
 
-  fft_register_2d_fw_distributed(fft_size, number_of_ffts, comm, input_array,
+  fft_register_2d_distributed(true, fft_size, number_of_ffts, comm, input_array,
                         output_array);
-  fft_register_2d_bw_distributed(fft_size, number_of_ffts, comm, input_array,
+  fft_register_2d_distributed(false, fft_size, number_of_ffts, comm, input_array,
                         output_array);
 
   memset(input_array, 0, buffer_size * sizeof(double complex));
@@ -2267,7 +2267,7 @@ int fft_test_2d_distributed_low(const int fft_size[2],
     }
   }
 
-  fft_2d_fw_distributed(fft_size, number_of_ffts, comm, input_array,
+  fft_2d_distributed(true, fft_size, number_of_ffts, comm, input_array,
                         output_array);
 
 #pragma omp parallel for default(none)                                         \
@@ -2320,7 +2320,7 @@ int fft_test_2d_distributed_low(const int fft_size[2],
     }
   }
 
-  fft_2d_bw_distributed(fft_size, number_of_ffts, comm, input_array,
+  fft_2d_distributed(false, fft_size, number_of_ffts, comm, input_array,
                         output_array);
 
 #pragma omp parallel for default(none)                                         \
@@ -2390,9 +2390,9 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
   fft_allocate_double(2 * buffer_size, &input_array);
   fft_allocate_complex(buffer_size, &output_array);
 
-  fft_register_2d_fw_distributed_r2c(fft_size, number_of_ffts, comm, input_array,
+  fft_register_2d_r2c_distributed(fft_size, number_of_ffts, comm, input_array,
                             output_array);
-  fft_register_2d_bw_distributed_c2r(fft_size, number_of_ffts, comm, output_array,
+  fft_register_2d_c2r_distributed(fft_size, number_of_ffts, comm, output_array,
                             input_array);
 
   double max_error = 0.0;
@@ -2413,8 +2413,8 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
     }
   }
 
-  fft_2d_fw_distributed_r2c(fft_size, number_of_ffts, comm, input_array,
-                            output_array);
+  fft_2d_r2c_distributed(fft_size, number_of_ffts, comm, input_array,
+                         output_array);
 
 #pragma omp parallel for default(none)                                         \
     shared(output_array, fft_size, number_of_ffts, pi, local_n1,               \
@@ -2478,7 +2478,7 @@ int fft_test_2d_distributed_r2c_low(const int fft_size[2],
     }
   }
 
-  fft_2d_bw_distributed_c2r(fft_size, number_of_ffts, comm, output_array,
+  fft_2d_c2r_distributed(fft_size, number_of_ffts, comm, output_array,
                             input_array);
 
 #pragma omp parallel for default(none)                                         \
@@ -2549,11 +2549,9 @@ int fft_test_3d_distributed_low(const int fft_size[3], const int test_every) {
   fft_allocate_complex(buffer_size, &input_array);
   fft_allocate_complex(buffer_size, &output_array);
 
-        fft_register_3d_fw_distributed(
-            (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm,
+        fft_register_3d_distributed(true, (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm,
             input_array, output_array);
-        fft_register_3d_bw_distributed(
-            (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm,
+        fft_register_3d_distributed(false, (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm,
             output_array, input_array);
 
   double max_error = 0.0;
@@ -2570,8 +2568,7 @@ int fft_test_3d_distributed_low(const int fft_size[3], const int test_every) {
         if (mz >= local_n2_start && mz < local_n2_start + local_n2)
           input_array[(mz - local_n2_start) * fft_size[0] * fft_size[1] +
                       my * fft_size[0] + mx] = 1.0;
-        fft_3d_fw_distributed(
-            (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm,
+        fft_3d_distributed(true, (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm,
             input_array, output_array);
 
 #pragma omp parallel for default(none)                                         \
@@ -2628,8 +2625,7 @@ int fft_test_3d_distributed_low(const int fft_size[3], const int test_every) {
                            fft_size[0] +
                        mx] = 1.0;
 
-        fft_3d_bw_distributed(
-            (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm,
+        fft_3d_distributed(false, (const int[3]){fft_size[2], fft_size[1], fft_size[0]}, comm,
             output_array, input_array);
 
 #pragma omp parallel for default(none)                                         \
@@ -2701,8 +2697,8 @@ int fft_test_3d_distributed_r2c_low(const int fft_size[3],
   fft_allocate_double(2 * buffer_size, &real_buffer);
   fft_allocate_complex(buffer_size, &complex_buffer);
 
-        fft_register_3d_fw_distributed_r2c(fft_size, comm, real_buffer, complex_buffer);
-        fft_register_3d_bw_distributed_c2r(fft_size, comm, complex_buffer, real_buffer);
+        fft_register_3d_r2c_distributed(fft_size, comm, real_buffer, complex_buffer);
+        fft_register_3d_c2r_distributed(fft_size, comm, complex_buffer, real_buffer);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -2719,7 +2715,7 @@ int fft_test_3d_distributed_r2c_low(const int fft_size[3],
           real_buffer[(mx - local_n0_start) * fft_size[1] *
                           (fft_size[2] / 2 + 1) * 2 +
                       my * (fft_size[2] / 2 + 1) * 2 + mz] = 1.0;
-        fft_3d_fw_distributed_r2c(fft_size, comm, real_buffer, complex_buffer);
+        fft_3d_r2c_distributed(fft_size, comm, real_buffer, complex_buffer);
 
 #pragma omp parallel for default(none)                                         \
     shared(complex_buffer, fft_size, pi, mx, my, mz, local_n1, local_n1_start) \
@@ -2786,7 +2782,7 @@ int fft_test_3d_distributed_r2c_low(const int fft_size[3],
           }
         }
 
-        fft_3d_bw_distributed_c2r(fft_size, comm, complex_buffer, real_buffer);
+        fft_3d_c2r_distributed(fft_size, comm, complex_buffer, real_buffer);
 
 #pragma omp parallel for default(none)                                         \
     shared(real_buffer, fft_size, pi, mx, my, mz, local_n0, local_n0_start)    \

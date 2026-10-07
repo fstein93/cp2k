@@ -1871,6 +1871,7 @@ void fft_fftw_1d_local(const bool direction, const int fft_size, const int numbe
                           omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
     if (plan == NULL) {
+      assert(false);
       double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
       plan = fft_fftw_create_1d_plan(key, buffer, grid_in == grid_out ? buffer : grid_out);
       fftw_free(buffer);

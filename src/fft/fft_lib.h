@@ -459,7 +459,7 @@ void fft_3d_r2c_distributed(const int npts_global[3],
 void fft_3d_c2r_distributed(const int npts_global[3],
                             const cp_mpi_comm_t comm,
                             double complex *restrict grid_in,
-                            double *restrict grid_out)
+                            double *restrict grid_out);
 
 #endif /* FFT_LIB_H */
 
