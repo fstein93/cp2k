@@ -122,347 +122,256 @@ void fft_free_double(double *buffer);
 void fft_free_complex(double complex *buffer);
 
 /*******************************************************************************
- * \brief Registers a 1D Forward C2C FFT.
+ * \brief Register a local 1D C2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_1d_fw_local(const int fft_size, const int number_of_ffts,
+void fft_register_1d_local(const bool dir,const int fft_size, const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_out,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
                      double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
- * \brief Registers a 1D Forward R2C FFT.
+ * \brief Register a local 1D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
+void fft_register_1d_r2c_local(const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_out,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
                          double *grid_in, double complex *grid_out);
 
 /*******************************************************************************
- * \brief Registers a 1D Backward C2C FFT.
+ * \brief Register a local 1D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_1d_bw_local(const int fft_size, const int number_of_ffts,
-                     const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_out,
-                     double complex *grid_in, double complex *grid_out);
-
-/*******************************************************************************
- * \brief Registers a 1D Backward C2R FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_register_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
+void fft_register_1d_c2r_local(const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_out,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
                          double complex *grid_in, double *grid_out);
 
 /*******************************************************************************
- * \brief Registers a 2D Forward C2C FFT.
+ * \brief Register a local 2D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_2d_fw_local(const int fft_size[2], const int number_of_ffts,
+void fft_register_2d_local(const bool dir, const int fft_size[2], const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
- * \brief Registers a 2D Forward R2C FFT.
+ * \brief Register a local 2D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
+void fft_register_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
                          double *grid_in, double complex *grid_out);
 
 /*******************************************************************************
- * \brief Registers a 2D Backward C2C FFT.
+ * \brief Register a local 2D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_2d_bw_local(const int fft_size[2], const int number_of_ffts,
-                     const bool transpose_rs, const bool transpose_gs,
-                     double complex *grid_in, double complex *grid_out);
-
-/*******************************************************************************
- * \brief Registers a 2D Backward C2R 2D FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_register_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
+void fft_register_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
                          double complex *grid_in, double *grid_out);
 
 /*******************************************************************************
- * \brief Registers a 3D Forward C2C FFT.
+ * \brief Register a local 3D FFT.
+ * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
+ * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_3d_fw_local(const int fft_size[3], double complex *grid_in,
+void fft_register_3d_local(const bool dir, const int fft_size[3], double complex *grid_in,
                      double complex *grid_out);
 
 /*******************************************************************************
- * \brief Registers a 3D Forward R2C FFT.
+ * \brief Register a local 3D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
+void fft_register_3d_r2c_local(const int fft_size[3], double *grid_in,
                          double complex *grid_out);
 
 /*******************************************************************************
- * \brief Registers a 3D Backward C2C FFT.
+ * \brief Register a local 3D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_3d_bw_local(const int fft_size[3], double complex *grid_in,
-                     double complex *grid_out);
-
-/*******************************************************************************
- * \brief Registers a 3D Backward C2R FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_register_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
+void fft_register_3d_c2r_local(const int fft_size[3], double complex *grid_in,
                          double *grid_out);
 
 /*******************************************************************************
- * \brief Registers a Forward C2C FFT using the Guru interface.
+ * \brief Register a local C2C FFT using the Guru interface.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_fw_guru(int rank, const fft_iodim *dims, int howmany_rank,
+void fft_register_guru(const bool dir, const int rank, const fft_iodim *dims, int howmany_rank,
                  const fft_iodim *howmany_dims, const int number_of_threads,
                  double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
- * \brief Registers a Forward R2C FFT using the Guru interface.
+ * \brief Register a local forward R2C FFT using the Guru interface.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_fw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
+void fft_register_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
                      const fft_iodim *howmany_dims, const int number_of_threads,
                      double *grid_in, double complex *grid_out);
 
 /*******************************************************************************
- * \brief Registers a Backwards C2C FFT using the Guru interface.
+ * \brief Register a local backwards R2C FFT using the Guru interface.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_bw_guru(int rank, const fft_iodim *dims, int howmany_rank,
-                 const fft_iodim *howmany_dims, const int number_of_threads,
-                 double complex *grid_in, double complex *grid_out);
-
-/*******************************************************************************
- * \brief Registers a Backwards R2C FFT using the Guru interface.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_register_bw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
+void fft_register_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
                      const fft_iodim *howmany_dims, const int number_of_threads,
                      double complex *grid_in, double *grid_out);
 
 /*******************************************************************************
- * \brief Registers a distributed 2D C2C FFT.
+ * \brief Register a distributed 2D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
+void fft_register_2d_distributed(const bool dir, const int npts_global[2], const int number_of_ffts,
                            const cp_mpi_comm_t comm,
                            double complex *restrict grid_in,
                            double complex *restrict grid_out);
 
 /*******************************************************************************
- * \brief Registers a distributed 2D R2C FFT.
+ * \brief Register a distributed 2D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_2d_fw_distributed_r2c(const int npts_global[2],
+void fft_register_2d_r2c_distributed(const int npts_global[2],
                                const int number_of_ffts,
                                const cp_mpi_comm_t comm,
                                double *restrict grid_in,
                                double complex *restrict grid_out);
 
 /*******************************************************************************
- * \brief Registers a distributed 2D C2C FFT.
+ * \brief Register a distributed 2D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_2d_bw_distributed(const int npts_global[2], const int number_of_ffts,
-                           const cp_mpi_comm_t comm,
-                           double complex *restrict grid_in,
-                           double complex *restrict grid_out);
-
-/*******************************************************************************
- * \brief Registers a distributed 2D R2C FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_register_2d_bw_distributed_c2r(const int npts_global[2],
+void fft_register_2d_c2r_distributed(const int npts_global[2],
                                const int number_of_ffts,
                                const cp_mpi_comm_t comm,
                                double complex *restrict grid_in,
                                double *restrict grid_out);
 
 /*******************************************************************************
- * \brief Registers a distributed 3D C2C FFT.
+ * \brief Register a distributed 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_3d_fw_distributed(const int npts_global[3], const cp_mpi_comm_t comm,
+void fft_register_3d_distributed(const bool dir, const int npts_global[3], const cp_mpi_comm_t comm,
                            double complex *restrict grid_in,
                            double complex *restrict grid_out);
 
 /*******************************************************************************
- * \brief Registers a distributed 3D R2C FFT.
+ * \brief Register a distributed 3D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_3d_fw_distributed_r2c(const int npts_global[3],
+void fft_register_3d_r2c_distributed(const int npts_global[3],
                                const cp_mpi_comm_t comm,
                                double *restrict grid_in,
                                double complex *restrict grid_out);
 
 /*******************************************************************************
- * \brief Registers a distributed 3D C2C FFT.
+ * \brief Register a distributed 3D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_3d_bw_distributed(const int npts_global[3], const cp_mpi_comm_t comm,
-                           double complex *restrict grid_in,
-                           double complex *restrict grid_out);
-
-/*******************************************************************************
- * \brief Registers a distributed 3D C2R FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_register_3d_bw_distributed_c2r(const int npts_global[3],
+void fft_register_3d_c2r_distributed(const int npts_global[3],
                                const cp_mpi_comm_t comm,
                                double complex *restrict grid_in,
                                double *restrict grid_out);
 
 /*******************************************************************************
- * \brief 1D Forward FFT from transposed format.
+ * \brief Perform a local 1D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_1d_fw_local(const int fft_size, const int number_of_ffts,
+void fft_1d_local(const bool dir, const int fft_size, const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_out,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
                      double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
- * \brief 1D Forward FFT from transposed format.
+ * \brief Perform a local 1D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_1d_fw_local_r2c(const int fft_size, const int number_of_ffts,
+void fft_1d_r2c_local(const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_out,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
                          double *grid_in, double complex *grid_out);
 
 /*******************************************************************************
- * \brief 1D Backward FFT to transposed format.
+ * \brief Perform a local 1D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_1d_bw_local(const int fft_size, const int number_of_ffts,
-                     const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_out,
-                     double complex *grid_in, double complex *grid_out);
-
-/*******************************************************************************
- * \brief 1D Backward FFT to transposed format.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_1d_bw_local_c2r(const int fft_size, const int number_of_ffts,
+void fft_1d_c2r_local(const int fft_size, const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_out,
+                     const int leading_dimension_rs, const int leading_dimension_gs,
                          double complex *grid_in, double *grid_out);
 
 /*******************************************************************************
- * \brief Naive implementation of 2D FFT (transposed format, no normalization).
+ * \brief Perform a local 2D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_2d_fw_local(const int fft_size[2], const int number_of_ffts,
+void fft_2d_local(const bool dir, const int fft_size[2], const int number_of_ffts,
                      const bool transpose_rs, const bool transpose_gs,
                      double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
- * \brief Naive implementation of 2D FFT (transposed format, no normalization).
+ * \brief Perform a local 2D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_2d_fw_local_r2c(const int fft_size[2], const int number_of_ffts,
+void fft_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
                          double *grid_in, double complex *grid_out);
 
 /*******************************************************************************
- * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
- * \note fft_2d_bw_local(grid_gs, grid_rs, n1, n2, m) is the reverse to
- * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
+ * \brief Perform a local 2D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_2d_bw_local(const int fft_size[2], const int number_of_ffts,
-                     const bool transpose_rs, const bool transpose_gs,
-                     double complex *grid_in, double complex *grid_out);
-
-/*******************************************************************************
- * \brief Performs local 2D FFT (reverse to fw routine, no normalization).
- * \note fft_2d_bw_local(grid_gs, grid_rs, n1, n2, m) is the reverse to
- * fft_2d_rw_local(grid_rs, grid_gs, n1, n2, m) (ignoring normalization).
- * \author Frederick Stein
- ******************************************************************************/
-void fft_2d_bw_local_c2r(const int fft_size[2], const int number_of_ffts,
+void fft_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
                          const bool transpose_rs, const bool transpose_gs,
                          double complex *grid_in, double *grid_out);
 
 /*******************************************************************************
- * \brief Performs local 3D FFT (no normalization).
- * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
- * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \brief Perform a local 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_local(const int fft_size[3], double complex *grid_in,
+void fft_3d_local(const bool dir, const int fft_size[3], double complex *grid_in,
                      double complex *grid_out);
 
 /*******************************************************************************
- * \brief Performs local 3D FFT (no normalization).
- * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
- * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \brief Perform a local 3D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_local_r2c(const int fft_size[3], double *grid_in,
+void fft_3d_r2c_local(const int fft_size[3], double *grid_in,
                          double complex *grid_out);
 
 /*******************************************************************************
- * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
- * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
- * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
+ * \brief Perform a local 3D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_local(const int fft_size[3], double complex *grid_in,
-                     double complex *grid_out);
-
-/*******************************************************************************
- * \brief Performs local 3D FFT (reverse to fw routine, no normalization).
- * \note fft_3d_bw_local(grid_gs, grid_rs, n) is the reverse to
- * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
- * \author Frederick Stein
- ******************************************************************************/
-void fft_3d_bw_local_c2r(const int fft_size[3], double complex *grid_in,
+void fft_3d_c2r_local(const int fft_size[3], double complex *grid_in,
                          double *grid_out);
 
 /*******************************************************************************
- * \brief Performs a local C2C FFT using the Guru interface.
+ * \brief Perform a local C2C FFT using the Guru interface.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fw_guru(int rank, const fft_iodim *dims, int howmany_rank,
+void fft_guru(const bool dir, int rank, const fft_iodim *dims, int howmany_rank,
                  const fft_iodim *howmany_dims, const int number_of_threads,
                  double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
- * \brief Performs a local forward R2C FFT using the Guru interface.
+ * \brief Perform a local forward R2C FFT using the Guru interface.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
+void fft_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
                      const fft_iodim *howmany_dims, const int number_of_threads,
                      double *grid_in, double complex *grid_out);
 
 /*******************************************************************************
- * \brief Performs a local backwards C2C FFT using the Guru interface.
+ * \brief Perform a local backwards R2C FFT using the Guru interface.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_bw_guru(int rank, const fft_iodim *dims, int howmany_rank,
-                 const fft_iodim *howmany_dims, const int number_of_threads,
-                 double complex *grid_in, double complex *grid_out);
-
-/*******************************************************************************
- * \brief Performs a local backwards R2C FFT using the Guru interface.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_bw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
+void fft_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
                      const fft_iodim *howmany_dims, const int number_of_threads,
                      double complex *grid_in, double *grid_out);
 
 /*******************************************************************************
- * \brief Return buffer size and local sizes and start for distributed 2D FFTs.
+ * \brief Return buffer size, local sizes and start for distributed 2D FFTs.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_2d_distributed_sizes(const int npts_global[2], const int number_of_ffts,
@@ -471,7 +380,7 @@ int fft_2d_distributed_sizes(const int npts_global[2], const int number_of_ffts,
                              int *local_n1_start);
 
 /*******************************************************************************
- * \brief Return buffer size and local sizes and start for distributed 2D FFTs.
+ * \brief Return buffer size, local sizes and start for distributed 2D FFTs.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_2d_distributed_sizes_r2c(const int npts_global[2],
@@ -481,7 +390,7 @@ int fft_2d_distributed_sizes_r2c(const int npts_global[2],
                                  int *local_n1_start);
 
 /*******************************************************************************
- * \brief Return buffer size and local sizes and start for distributed 3D FFTs.
+ * \brief Return buffer size, local sizes and start for distributed 3D FFTs.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_3d_distributed_sizes(const int npts_global[3], const cp_mpi_comm_t comm,
@@ -489,7 +398,7 @@ int fft_3d_distributed_sizes(const int npts_global[3], const cp_mpi_comm_t comm,
                              int *local_n1_start);
 
 /*******************************************************************************
- * \brief Return buffer size and local sizes and start for distributed 3D FFTs.
+ * \brief Return buffer size, local sizes and start for distributed 3D FFTs.
  * \author Frederick Stein
  ******************************************************************************/
 int fft_3d_distributed_sizes_r2c(const int npts_global[3],
@@ -498,76 +407,59 @@ int fft_3d_distributed_sizes_r2c(const int npts_global[3],
                                  int *local_n1_start);
 
 /*******************************************************************************
- * \brief Performs a distributed 2D FFT.
+ * \brief Perform a distributed 2D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_2d_fw_distributed(const int npts_global[2], const int number_of_ffts,
+void fft_2d_distributed(const bool dir, const int npts_global[2], const int number_of_ffts,
                            const cp_mpi_comm_t comm,
                            double complex *restrict grid_in,
                            double complex *restrict grid_out);
 
 /*******************************************************************************
- * \brief Performs a distributed 2D FFT.
+ * \brief Perform a distributed R2C2D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_2d_fw_distributed_r2c(const int npts_global[2],
+void fft_2d_r2c_distributed(const int npts_global[2],
                                const int number_of_ffts,
                                const cp_mpi_comm_t comm,
                                double *restrict grid_in,
                                double complex *restrict grid_out);
 
 /*******************************************************************************
- * \brief Performs a distributed 2D FFT.
+ * \brief Perform a distributed 2D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_2d_bw_distributed(const int npts_global[2], const int number_of_ffts,
-                           const cp_mpi_comm_t comm,
-                           double complex *restrict grid_in,
-                           double complex *restrict grid_out);
-
-/*******************************************************************************
- * \brief Performs a distributed 2D FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_2d_bw_distributed_c2r(const int npts_global[2],
+void fft_2d_c2r_distributed(const int npts_global[2],
                                const int number_of_ffts,
                                const cp_mpi_comm_t comm,
                                double complex *restrict grid_in,
                                double *restrict grid_out);
 
 /*******************************************************************************
- * \brief Performs a distributed 3D FFT.
+ * \brief Perform a distributed 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_distributed(const int npts_global[3], const cp_mpi_comm_t comm,
+void fft_3d_distributed(const bool dir, const int npts_global[3], const cp_mpi_comm_t comm,
                            double complex *restrict grid_in,
                            double complex *restrict grid_out);
 
 /*******************************************************************************
- * \brief Performs a distributed 3D FFT.
+ * \brief Perform a distributed 3D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_fw_distributed_r2c(const int npts_global[3],
-                               const cp_mpi_comm_t comm,
-                               double *restrict grid_in,
-                               double complex *restrict grid_out);
+void fft_3d_r2c_distributed(const int npts_global[3],
+                            const cp_mpi_comm_t comm,
+                            double *restrict grid_in,
+                            double complex *restrict grid_out);
 
 /*******************************************************************************
- * \brief Performs a distributed 3D FFT.
+ * \brief Perform a distributed 3D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_bw_distributed(const int npts_global[3], const cp_mpi_comm_t comm,
-                           double complex *restrict grid_in,
-                           double complex *restrict grid_out);
-
-/*******************************************************************************
- * \brief Performs a distributed 3D FFT.
- * \author Frederick Stein
- ******************************************************************************/
-void fft_3d_bw_distributed_c2r(const int npts_global[3],
-                               const cp_mpi_comm_t comm,
-                               double complex *restrict grid_in,
-                               double *restrict grid_out);
+void fft_3d_c2r_distributed(const int npts_global[3],
+                            const cp_mpi_comm_t comm,
+                            double complex *restrict grid_in,
+                            double *restrict grid_out)
 
 #endif /* FFT_LIB_H */
 
