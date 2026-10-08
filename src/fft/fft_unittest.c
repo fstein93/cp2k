@@ -50,7 +50,6 @@ int main(int argc, char *argv[]) {
 
   const bool debug = false;
   const int backend = fft_lib_default_library();
-  const int planning_mode = FFT_MEASURE;
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
     printf("Number of MPI ranks: %i\n", cp_mpi_comm_size(cp_mpi_get_comm_world()));
@@ -67,22 +66,43 @@ int main(int argc, char *argv[]) {
   }
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
-  int errors = run_unittests(debug, backend, planning_mode, true, true, 0.01);
+  // First run tests with ESTIMATE mode, which is faster and should be sufficient to catch most errors
+  int errors = run_unittests(debug, backend, FFT_ESTIMATE, true, true, 0.01);
 
   // Test also the reference backend and without distributed FFTs from the
   // library
   if (fft_lib_use_mpi()) {
-    errors += run_unittests(debug, backend, planning_mode, false, true, 0.01);
+    errors += run_unittests(debug, backend, FFT_ESTIMATE, false, true, 0.01);
   }
 
   if (fft_lib_has_guru_interface()) {
 
-    errors += run_unittests(debug, backend, planning_mode, true, false, 0.01);
+    errors += run_unittests(debug, backend, FFT_ESTIMATE, true, false, 0.01);
 
     // Test also the reference backend and without distributed FFTs from the
     // library
     if (fft_lib_use_mpi()) {
-      errors += run_unittests(debug, backend, planning_mode, false, false, 0.01);
+      errors += run_unittests(debug, backend, FFT_ESTIMATE, false, false, 0.01);
+    }
+  }
+
+  // Rerun the tests with MEASURE mode, which is slower but more accurate and should catch any remaining errors
+  errors += run_unittests(debug, backend, FFT_MEASURE, true, true, 0.01);
+
+  // Test also the reference backend and without distributed FFTs from the
+  // library
+  if (fft_lib_use_mpi()) {
+    errors += run_unittests(debug, backend, FFT_MEASURE, false, true, 0.01);
+  }
+
+  if (fft_lib_has_guru_interface()) {
+
+    errors += run_unittests(debug, backend, FFT_MEASURE, true, false, 0.01);
+
+    // Test also the reference backend and without distributed FFTs from the
+    // library
+    if (fft_lib_use_mpi()) {
+      errors += run_unittests(debug, backend, FFT_MEASURE, false, false, 0.01);
     }
   }
 
