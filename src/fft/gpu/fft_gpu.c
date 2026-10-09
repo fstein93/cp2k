@@ -413,7 +413,7 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
                        const int leading_dimension_in, const int leading_dimension_out,
                            const double *data_in, double *data_out) {
     fft_key_t key;
-    get_key_1d_r2c(direction == OFFLOAD_FFT_FORWARD, n, m, transpose_in, transpose_out, 
+    get_key_1d_r2c(dir, n, m, transpose_in, transpose_out, 
                           leading_dimension_in, leading_dimension_out,
                           omp_get_max_threads(), data_in == data_out, key);
   offload_fftHandle *plan = lookup_plan_from_cache(key);
@@ -425,13 +425,8 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
   int fft_size, inembed, onembed;
   fetch_data_from_key_nd(key, &rank, &fft_size, &number_of_ffts, &number_of_threads, &dir, &inplace, &inembed, &onembed, &idist, &odist, &istride, &ostride);
     plan = malloc(sizeof(cache_entry));
-    if (direction == OFFLOAD_FFT_FORWARD) {
       offload_fftPlanMany(plan, 1, &fft_size, &inembed, istride, idist, &onembed,
-                          ostride, odist, OFFLOAD_FFT_D2Z, number_of_ffts);
-    } else {
-      offload_fftPlanMany(plan, 1, &fft_size, &inembed, istride, idist, &onembed,
-                          ostride, odist, OFFLOAD_FFT_Z2D, number_of_ffts);
-    }
+                          ostride, odist, dir ? OFFLOAD_FFT_D2Z : OFFLOAD_FFT_Z2D, number_of_ffts);
     offload_fftSetStream(*plan, stream);
     add_plan_to_cache(key, plan);
   }
@@ -1112,7 +1107,7 @@ void fft_r2c_gpu_f(const double *zin, double *zout, const bool dir, const int n,
   // Check inputs.
   assert(omp_get_num_threads() == 1);
   const int nrpts = n * m;
-  if (nrpts == 0) {
+  if (n == 0 || m == 0) {
     return;
   }
 
@@ -1172,10 +1167,10 @@ void fft_gpu_ff(const double *zin, double *zout, const bool dir, const int n[2],
 
   // Run FFT on the device.
     fft_2d_gpu(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, n, m, transpose_in, transpose_out,
-               buffer_dev_1, buffer_dev_2);
+               buffer_dev_1, zin != zout ? buffer_dev_2 : buffer_dev_1);
 
   // Download COMPLEX results from device.
-  offloadMemcpyAsyncDtoH(zout, buffer_dev_2, buffer_size, stream);
+  offloadMemcpyAsyncDtoH(zout, zin != zout ? buffer_dev_2 : buffer_dev_1, buffer_size, stream);
   offloadStreamSynchronize(stream);
 #else
   (void)zin;
