@@ -1106,7 +1106,6 @@ void fft_r2c_gpu_f(const double *zin, double *zout, const bool dir, const int n,
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   assert(omp_get_num_threads() == 1);
-  const int nrpts = n * m;
   if (n == 0 || m == 0) {
     return;
   }
@@ -1152,8 +1151,7 @@ void fft_gpu_ff(const double *zin, double *zout, const bool dir, const int n[2],
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   assert(omp_get_num_threads() == 1);
-  const int nrpts = n[0] * n[1] * m;
-  if (nrpts == 0) {
+  if (n[0] == 0 || n[1] == 0 || m == 0) {
     return;
   }
 
