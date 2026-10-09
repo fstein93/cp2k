@@ -681,7 +681,7 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(
   if (direction) {
     if (grid_in == grid_out) {
       assert(inplace);
-      for (int r = 0; r < rank; r++) assert(dims[r].is == 2*dims[r].os);
+      for (int r = 0; r < rank; r++) assert(dims[r].is == 2*dims[r].os || (dims[r].is == 1 && dims[r].os == 1));
       for (int r = 0; r < howmany_rank; r++) assert(howmany_dims[r].is == 2*howmany_dims[r].os);
     } else {
       assert(!inplace);
@@ -692,7 +692,7 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(
   } else {
     if (grid_in == grid_out) {
       assert(inplace);
-      for (int r = 0; r < rank; r++) assert(2*dims[r].is == dims[r].os);
+      for (int r = 0; r < rank; r++) assert(2*dims[r].is == dims[r].os || (dims[r].is == 1 && dims[r].os == 1));
       for (int r = 0; r < howmany_rank; r++) assert(2*howmany_dims[r].is == howmany_dims[r].os);
     } else {
       assert(!inplace);
@@ -1346,7 +1346,7 @@ void fft_fftw_register_3d_local(const bool direction, const int fft_size[3], dou
   const bool in_place = grid_in == grid_out;
   if (has_guru_interface &&
       ((fft_size[0] >= 256 || fft_size[1] >= 256 || fft_size[2] >= 256 ||
-       omp_get_max_threads() > 1)) && !in_place &&
+       omp_get_max_threads() > 1)) &&
       (fftw_planning_mode == FFTW_ESTIMATE)) {
     // The 3D FFT is not efficient with threading and estimate planning mode
     // So, we decompose it in a sequence of 1D FFTs
@@ -1356,90 +1356,94 @@ void fft_fftw_register_3d_local(const bool direction, const int fft_size[3], dou
 #pragma omp single
       { number_of_threads = omp_get_num_threads(); }
     }
-    fftw_plan *plan;
+    int block_sizes[3];
+    fftw_plan *plans[3], *plans_last_thread[3];
     {
       const int number_of_ffts = fft_size[1] * fft_size[2];
-      const int block_size =
+      block_sizes[0] =
           (number_of_ffts + number_of_threads - 1) / number_of_threads;
       fft_iodim dim = {
           .n = fft_size[0], .is = number_of_ffts, .os = number_of_ffts};
-      fft_iodim howmany_dim = {.n = block_size, .is = 1, .os = 1};
+      fft_iodim howmany_dim = {.n = block_sizes[0], .is = 1, .os = 1};
       fft_key_t key;
                 get_key_guru(direction, 1, &dim, 1, &howmany_dim, 1, in_place, key);
             
-      plan = lookup_plan_from_cache(key);
-      if (plan == NULL)
-        plan = fft_fftw_create_guru_plan(key, grid_in, grid_out);
-      if (block_size * number_of_threads != number_of_ffts) {
+      plans[0] = lookup_plan_from_cache(key);
+      if (plans[0] == NULL) {
+        plans[0] = fft_fftw_create_guru_plan(key, grid_in, grid_out);
+      }
+      if (block_sizes[0] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
-            number_of_ffts - (number_of_threads - 1) * block_size;
-        fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
+            number_of_ffts % block_sizes[0];
+        howmany_dim.n = block_size_last_thread;
         fft_key_t key;
         get_key_guru(direction, 1, &dim, 1, &howmany_dim, 1, in_place, key);
-        plan = lookup_plan_from_cache(key);
-        if (plan == NULL)
-          plan = fft_fftw_create_guru_plan(key, grid_in, grid_out);
+        plans_last_thread[0] = lookup_plan_from_cache(key);
+        if (plans_last_thread[0] == NULL) {
+          plans_last_thread[0] = fft_fftw_create_guru_plan(key, grid_in, grid_out);
+        }
       }
     }
     {
       const int number_of_ffts = fft_size[0];
-      const int block_size =
+      block_sizes[1] =
           (number_of_ffts + number_of_threads - 1) / number_of_threads;
       fft_iodim dim = {.n = fft_size[1], .is = fft_size[2], .os = fft_size[2]};
-      fft_iodim howmany_dims[2] = {{.n = block_size,
+      fft_iodim howmany_dims[2] = {{.n = block_sizes[1],
                                     .is = fft_size[1] * fft_size[2],
                                     .os = fft_size[1] * fft_size[2]},
                                    {.n = fft_size[2], .is = 1, .os = 1}};
       fft_key_t key;
       get_key_guru(direction, 1, &dim, 2, howmany_dims, 1, in_place, key);
-      plan = lookup_plan_from_cache(key);
-      if (plan == NULL)
-        plan = fft_fftw_create_guru_plan(key, grid_out, grid_in);
-      if (block_size * number_of_threads != number_of_ffts) {
+      plans[1] = lookup_plan_from_cache(key);
+      if (plans[1] == NULL) {
+        plans[1] = fft_fftw_create_guru_plan(key, grid_in, grid_out);
+      }
+      if (block_sizes[1] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
-            number_of_ffts - (number_of_threads - 1) * block_size;
-        fft_iodim howmany_dims[2] = {{.n = block_size_last_thread,
-                                      .is = fft_size[1] * fft_size[2],
-                                      .os = fft_size[1] * fft_size[2]},
-                                     {.n = fft_size[2], .is = 1, .os = 1}};
+            number_of_ffts % block_sizes[1];
+        howmany_dims[0].n = block_size_last_thread;
         fft_key_t key;
         get_key_guru(direction, 1, &dim, 2, howmany_dims, 1, in_place, key);
-        plan = lookup_plan_from_cache(key);
-        if (plan == NULL)
-          plan = fft_fftw_create_guru_plan(key, grid_out, grid_in);
+        plans_last_thread[1] = lookup_plan_from_cache(key);
+        if (plans_last_thread[1] == NULL) {
+          plans_last_thread[1] = fft_fftw_create_guru_plan(key, grid_in, grid_out);
+        }
       }
     }
     {
       const int number_of_ffts = fft_size[0] * fft_size[1];
-      const int block_size =
+      block_sizes[2] =
           (number_of_ffts + number_of_threads - 1) / number_of_threads;
       fft_iodim dim = {.n = fft_size[2], .is = 1, .os = 1};
       fft_iodim howmany_dim = {
-          .n = block_size, .is = fft_size[2], .os = fft_size[2]};
+          .n = block_sizes[2], .is = fft_size[2], .os = fft_size[2]};
       fft_key_t key;
       get_key_guru(direction, 1, &dim, 1, &howmany_dim, 1, in_place, key);
-      plan = lookup_plan_from_cache(key);
-      if (plan == NULL)
-        plan = fft_fftw_create_guru_plan(key, grid_in, grid_out);
-      if (block_size * number_of_threads != number_of_ffts) {
+      plans[2] = lookup_plan_from_cache(key);
+      if (plans[2] == NULL) {
+        plans[2] = fft_fftw_create_guru_plan(key, grid_in, grid_out);
+      }
+      if (block_sizes[2] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
-            number_of_ffts - (number_of_threads - 1) * block_size;
-        fft_iodim howmany_dim = {
-            .n = block_size_last_thread, .is = fft_size[2], .os = fft_size[2]};
+            number_of_ffts % block_sizes[2];
+        howmany_dim.n = block_size_last_thread;
         fft_key_t key;
         get_key_guru(direction, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
-        plan = lookup_plan_from_cache(key);
-        if (plan == NULL)
-          plan = fft_fftw_create_guru_plan(key, grid_in, grid_out);
+        plans_last_thread[2] = lookup_plan_from_cache(key);
+        if (plans_last_thread[2] == NULL) {
+          plans_last_thread[2] = fft_fftw_create_guru_plan(key, grid_in, grid_out);
+        }
       }
     }
   } else {
     fft_key_t key;
     get_key_3d(direction, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
-    if (plan == NULL)
+    if (plan == NULL) {
       plan = fft_fftw_create_3d_plan(key, grid_in, grid_out);
+    }
   }
 #else
   (void)fft_size;
@@ -1461,8 +1465,12 @@ void fft_fftw_register_3d_r2c_local(const int fft_size[3], double *grid_in,
   if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0) return;
     const bool in_place = grid_in == (double *)grid_out;
   if (has_guru_interface && ((fft_size[0] >= 256 || fft_size[1] >= 256 || fft_size[2] >= 256 ||
-       omp_get_max_threads() > 1)) && !in_place &&
+       omp_get_max_threads() > 1)) &&
       (fftw_planning_mode == FFTW_ESTIMATE)) {
+    // We cannot use the input buffer for planning because it may be too small
+    // So, we allocate a new one
+    double complex *buffer = in_place ? (double complex*)grid_in :
+        fftw_alloc_complex(fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1));
     // The 3D FFT is not efficient with threading and estimate planning mode
     // So, we decompose it in a sequence of 1D FFTs
     int number_of_threads = 1;
@@ -1471,103 +1479,103 @@ void fft_fftw_register_3d_r2c_local(const int fft_size[3], double *grid_in,
 #pragma omp single
       { number_of_threads = omp_get_num_threads(); }
     }
-    fftw_plan *plan;
+    int block_sizes[3];
+    fftw_plan *plans[3], *plans_last_thread[3];
     {
       const int number_of_ffts = fft_size[1] * (fft_size[2] / 2 + 1);
-      const int block_size =
+      block_sizes[0] =
           (number_of_ffts + number_of_threads - 1) / number_of_threads;
       fft_iodim dim = {
           .n = fft_size[0], .is = number_of_ffts, .os = number_of_ffts};
-      fft_iodim howmany_dim = {.n = block_size, .is = 1, .os = 1};
+      fft_iodim howmany_dim = {.n = block_sizes[0], .is = 1, .os = 1};
       fft_key_t key;
       get_key_guru(true, 1, &dim, 1, &howmany_dim, 1,
                                       in_place, key);
         
-      plan = lookup_plan_from_cache(key);
-      if (plan == NULL)
-        plan = fft_fftw_create_guru_plan(key, (double complex*)grid_in, grid_out);
-      if (block_size * number_of_threads != number_of_ffts) {
+      plans[0] = lookup_plan_from_cache(key);
+      if (plans[0] == NULL) {
+        plans[0] = fft_fftw_create_guru_plan(key, buffer, grid_out);
+      }
+      if (block_sizes[0] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
-            number_of_ffts - (number_of_threads - 1) * block_size;
-        fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
+            number_of_ffts % block_sizes[0];
+        howmany_dim.n = block_size_last_thread;
         fft_key_t key;
-        get_key_guru(true, 1, &dim, 1, &howmany_dim, 1,
-                                      in_place, key);
+        get_key_guru(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
-        plan = lookup_plan_from_cache(key);
-        if (plan == NULL)
-          plan = fft_fftw_create_guru_plan(key, (double complex*)grid_in, grid_out);
+        plans_last_thread[0] = lookup_plan_from_cache(key);
+        if (plans_last_thread[0] == NULL) {
+          plans_last_thread[0] = fft_fftw_create_guru_plan(key, buffer, grid_out);
+        }
       }
     }
     {
       const int number_of_ffts = fft_size[0];
-      const int block_size =
+      block_sizes[1] =
           (number_of_ffts + number_of_threads - 1) / number_of_threads;
       fft_iodim dim = {.n = fft_size[1],
                        .is = fft_size[2] / 2 + 1,
                        .os = fft_size[2] / 2 + 1};
       fft_iodim howmany_dims[2] = {
-          {.n = block_size,
+          {.n = block_sizes[1],
            .is = fft_size[1] * (fft_size[2] / 2 + 1),
            .os = fft_size[1] * (fft_size[2] / 2 + 1)},
           {.n = (fft_size[2] / 2 + 1), .is = 1, .os = 1}};
       fft_key_t key;
-      get_key_guru(true, 1, &dim, 2, howmany_dims, 1,
-                                      in_place, key);
+      get_key_guru(true, 1, &dim, 2, howmany_dims, 1, in_place, key);
         
-      plan = lookup_plan_from_cache(key);
-      if (plan == NULL)
-        plan = fft_fftw_create_guru_plan(key, grid_out, (double complex*)grid_in);
-      if (block_size * number_of_threads != number_of_ffts) {
+      plans[1] = lookup_plan_from_cache(key);
+      if (plans[1] == NULL) {
+        plans[1] = fft_fftw_create_guru_plan(key, buffer, grid_out);
+      }
+      if (block_sizes[1] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
-            number_of_ffts - (number_of_threads - 1) * block_size;
-        fft_iodim howmany_dims[2] = {
-            {.n = block_size_last_thread,
-             .is = fft_size[1] * (fft_size[2] / 2 + 1),
-             .os = fft_size[1] * (fft_size[2] / 2 + 1)},
-            {.n = fft_size[2] / 2 + 1, .is = 1, .os = 1}};
+            number_of_ffts % block_sizes[1];
+        howmany_dims[0].n = block_size_last_thread;
         fft_key_t key;
-        get_key_guru(true, 1, &dim, 2, howmany_dims, 1,
-                                      in_place, key);
+        get_key_guru(true, 1, &dim, 2, howmany_dims, 1, in_place, key);
         
-        plan = lookup_plan_from_cache(key);
-        if (plan == NULL)
-          plan = fft_fftw_create_guru_plan(key, grid_out, (double complex*)grid_in);
+        plans_last_thread[1] = lookup_plan_from_cache(key);
+        if (plans_last_thread[1] == NULL) {
+          plans_last_thread[1] = fft_fftw_create_guru_plan(key, buffer, grid_out);
+        }
       }
     }
     {
       const int number_of_ffts = fft_size[0] * fft_size[1];
-      const int block_size =
+      block_sizes[2] =
           (number_of_ffts + number_of_threads - 1) / number_of_threads;
       fft_iodim dim = {.n = fft_size[2], .is = 1, .os = 1};
       fft_iodim howmany_dim = {
-          .n = block_size, .is = fft_size[2], .os = fft_size[2] / 2 + 1};
+          .n = block_sizes[2], .is = in_place ? 2*(fft_size[2]/2+1) : fft_size[2], .os = fft_size[2] / 2 + 1};
       fft_key_t key;
       get_key_guru_r2c(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
-      plan = lookup_plan_from_cache(key);
-      if (plan == NULL)
-        plan = fft_fftw_create_guru_plan_r2c(key, grid_in, (double*)grid_out);
-      if (block_size * number_of_threads != number_of_ffts) {
+      plans[2] = lookup_plan_from_cache(key);
+      if (plans[2] == NULL) {
+        plans[2] = fft_fftw_create_guru_plan_r2c(key, grid_in, (double*)grid_out);
+      }
+      if (block_sizes[2] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
-            number_of_ffts - (number_of_threads - 1) * block_size;
-        fft_iodim howmany_dim = {.n = block_size_last_thread,
-                                 .is = fft_size[2],
-                                 .os = fft_size[2] / 2 + 1};
+            number_of_ffts % block_sizes[2];
+        howmany_dim.n = block_size_last_thread;
         fft_key_t key;
         get_key_guru_r2c(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
-        plan = lookup_plan_from_cache(key);
-        if (plan == NULL)
-          plan = fft_fftw_create_guru_plan_r2c(key, grid_in, (double*)grid_out);
+        plans_last_thread[2] = lookup_plan_from_cache(key);
+        if (plans_last_thread[2] == NULL) {
+          plans_last_thread[2] = fft_fftw_create_guru_plan_r2c(key, grid_in, (double*)grid_out);
+        }
       }
     }
+    if (!in_place) fftw_free(buffer);
   } else {
     fft_key_t key;
     get_key_3d_r2c(true, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
-    if (plan == NULL)
+    if (plan == NULL) {
       plan = fft_fftw_create_3d_plan_r2c(key, grid_in, (double*)grid_out);
+    }
   }
 #else
   (void)fft_size;
@@ -1589,8 +1597,12 @@ void fft_fftw_register_3d_c2r_local(const int fft_size[3], double complex *grid_
   if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0) return;
   const bool in_place = (double *)grid_in == grid_out;
   if (has_guru_interface && ((fft_size[0] >= 256 || fft_size[1] >= 256 || fft_size[2] >= 256 ||
-       omp_get_max_threads() > 1) && !in_place) &&
+       omp_get_max_threads() > 1)) &&
       (fftw_planning_mode == FFTW_ESTIMATE)) {
+    // We cannot use the output buffer for planning because it may be too small
+    // So, we allocate a new one
+    double complex *buffer = in_place ? grid_in :
+        fftw_alloc_complex(fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1));
     // The 3D FFT is not efficient with threading and estimate planning mode
     // So, we decompose it in a sequence of 1D FFTs
     int number_of_threads = 1;
@@ -1599,99 +1611,102 @@ void fft_fftw_register_3d_c2r_local(const int fft_size[3], double complex *grid_
 #pragma omp single
       { number_of_threads = omp_get_num_threads(); }
     }
-    fftw_plan *plan;
+    int block_sizes[3];
+    fftw_plan *plans[3], *plans_last_thread[3];
     {
       const int number_of_ffts = fft_size[1] * (fft_size[2] / 2 + 1);
-      const int block_size =
+      block_sizes[0] =
           (number_of_ffts + number_of_threads - 1) / number_of_threads;
       fft_iodim dim = {
           .n = fft_size[0], .is = number_of_ffts, .os = number_of_ffts};
-      fft_iodim howmany_dim = {.n = block_size, .is = 1, .os = 1};
+      fft_iodim howmany_dim = {.n = block_sizes[0], .is = 1, .os = 1};
       fft_key_t key;
       get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
-      plan = lookup_plan_from_cache(key);
-      if (plan == NULL)
-        plan = fft_fftw_create_guru_plan(key, grid_in, (double complex*)grid_out);
-      if (block_size * number_of_threads != number_of_ffts) {
+      plans[0] = lookup_plan_from_cache(key);
+      if (plans[0] == NULL) {
+        plans[0] = fft_fftw_create_guru_plan(key, grid_in, buffer);
+      }
+      if (block_sizes[0] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
-            number_of_ffts - (number_of_threads - 1) * block_size;
-        fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
-        fft_key_t key;
-        get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
-          
-        plan = lookup_plan_from_cache(key);
-        if (plan == NULL)
-          plan = fft_fftw_create_guru_plan(key, grid_in, (double complex*)grid_out);
+            number_of_ffts % block_sizes[0];
+        howmany_dim.n = block_size_last_thread;
+      fft_key_t key;
+      get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
+        
+      plans_last_thread[0] = lookup_plan_from_cache(key);
+      if (plans_last_thread[0] == NULL) {
+        plans_last_thread[0] = fft_fftw_create_guru_plan(key, grid_in, buffer);
+      }
       }
     }
     {
       const int number_of_ffts = fft_size[0];
-      const int block_size =
+      block_sizes[1] =
           (number_of_ffts + number_of_threads - 1) / number_of_threads;
       fft_iodim dim = {.n = fft_size[1],
                        .is = fft_size[2] / 2 + 1,
                        .os = fft_size[2] / 2 + 1};
       fft_iodim howmany_dims[2] = {
-          {.n = block_size,
+          {.n = block_sizes[1],
            .is = fft_size[1] * (fft_size[2] / 2 + 1),
            .os = fft_size[1] * (fft_size[2] / 2 + 1)},
           {.n = (fft_size[2] / 2 + 1), .is = 1, .os = 1}};
       fft_key_t key;
       get_key_guru(false, 1, &dim, 2, howmany_dims, 1, in_place, key);
       
-      plan = lookup_plan_from_cache(key);
-      if (plan == NULL)
-        plan = fft_fftw_create_guru_plan(key, (double complex*)grid_out, grid_in);
-      if (block_size * number_of_threads != number_of_ffts) {
+      plans[1] = lookup_plan_from_cache(key);
+      if (plans[1] == NULL) {
+        plans[1] = fft_fftw_create_guru_plan(key, grid_in, buffer);
+      }
+      if (block_sizes[1] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
-            number_of_ffts - (number_of_threads - 1) * block_size;
-        fft_iodim howmany_dims[2] = {
-            {.n = block_size_last_thread,
-             .is = fft_size[1] * (fft_size[2] / 2 + 1),
-             .os = fft_size[1] * (fft_size[2] / 2 + 1)},
-            {.n = fft_size[2] / 2 + 1, .is = 1, .os = 1}};
+            number_of_ffts % block_sizes[1];
+        howmany_dims[0].n = block_size_last_thread;
         fft_key_t key;
         get_key_guru(false, 1, &dim, 2, howmany_dims, 1, in_place, key);
           
-        plan = lookup_plan_from_cache(key);
-        if (plan == NULL)
-          plan = fft_fftw_create_guru_plan(key, (double complex*)grid_out, grid_in);
+        plans_last_thread[1] = lookup_plan_from_cache(key);
+        if (plans_last_thread[1] == NULL) {
+          plans_last_thread[1] = fft_fftw_create_guru_plan(key, grid_in, buffer);
+        }
       }
     }
     {
       const int number_of_ffts = fft_size[0] * fft_size[1];
-      const int block_size =
+      block_sizes[2] =
           (number_of_ffts + number_of_threads - 1) / number_of_threads;
       fft_iodim dim = {.n = fft_size[2], .is = 1, .os = 1};
       fft_iodim howmany_dim = {
-          .n = block_size, .is = fft_size[2] / 2 + 1, .os = fft_size[2]};
+          .n = block_sizes[2], .is = fft_size[2] / 2 + 1, .os = in_place ? 2*(fft_size[2]/2+1) : fft_size[2]};
       fft_key_t key;
       get_key_guru_r2c(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
-      plan = lookup_plan_from_cache(key);
-      if (plan == NULL)
-        plan = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in, grid_out);
-      if (block_size * number_of_threads != number_of_ffts) {
+      plans[2] = lookup_plan_from_cache(key);
+      if (plans[2] == NULL) {
+        plans[2] = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in, grid_out);
+      }
+      if (block_sizes[2] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
-            number_of_ffts - (number_of_threads - 1) * block_size;
-        fft_iodim howmany_dim = {.n = block_size_last_thread,
-                                 .is = fft_size[2] / 2 + 1,
-                                 .os = fft_size[2]};
+            number_of_ffts % block_sizes[2];
+        howmany_dim.n = block_size_last_thread;
         fft_key_t key;
         get_key_guru_r2c(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
           
-        plan = lookup_plan_from_cache(key);
-        if (plan == NULL)
-          plan = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in, grid_out);
+        plans_last_thread[2] = lookup_plan_from_cache(key);
+        if (plans_last_thread[2] == NULL) {
+          plans_last_thread[2] = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in, grid_out);
+        }
       }
     }
+    if (!in_place) fftw_free(buffer);
   } else {
     fft_key_t key;
     get_key_3d_r2c(false, fft_size, omp_get_max_threads(), in_place, key);
     fftw_plan *plan = lookup_plan_from_cache(key);
-    if (plan == NULL)
+    if (plan == NULL) {
       plan = fft_fftw_create_3d_plan_r2c(key, (double*)grid_in, grid_out);
+    }
   }
 #else
   (void)fft_size;
@@ -2383,7 +2398,7 @@ void fft_fftw_3d_local(const bool direction, const int fft_size[3], double compl
   const bool in_place = grid_in == grid_out;
   if (has_guru_interface &&
       ((fft_size[0] >= 256 || fft_size[1] >= 256 || fft_size[2] >= 256 ||
-       omp_get_max_threads() > 1)) && !in_place &&
+       omp_get_max_threads() > 1)) &&
       (fftw_planning_mode == FFTW_ESTIMATE)) {
     // The 3D FFT is not efficient with threading and estimate planning mode
     // So, we decompose it in a sequence of 1D FFTs
@@ -2567,7 +2582,7 @@ void fft_fftw_3d_r2c_local(const int fft_size[3], double *grid_in,
   if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0) return;
     const bool in_place = grid_in == (double *)grid_out;
   if (has_guru_interface && ((fft_size[0] >= 256 || fft_size[1] >= 256 || fft_size[2] >= 256 ||
-       omp_get_max_threads() > 1)) && !in_place &&
+       omp_get_max_threads() > 1)) &&
       (fftw_planning_mode == FFTW_ESTIMATE)) {
     // The 3D FFT is not efficient with threading and estimate planning mode
     // So, we decompose it in a sequence of 1D FFTs
@@ -2603,7 +2618,7 @@ void fft_fftw_3d_r2c_local(const int fft_size[3], double *grid_in,
       if (block_sizes[0] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
             number_of_ffts % block_sizes[0];
-        fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
+        howmany_dim.n = block_size_last_thread;
         fft_key_t key;
         get_key_guru(true, 1, &dim, 1, &howmany_dim, 1,
                                       in_place, key);
@@ -2643,11 +2658,7 @@ void fft_fftw_3d_r2c_local(const int fft_size[3], double *grid_in,
       if (block_sizes[1] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
             number_of_ffts % block_sizes[1];
-        fft_iodim howmany_dims[2] = {
-            {.n = block_size_last_thread,
-             .is = fft_size[1] * (fft_size[2] / 2 + 1),
-             .os = fft_size[1] * (fft_size[2] / 2 + 1)},
-            {.n = fft_size[2] / 2 + 1, .is = 1, .os = 1}};
+        howmany_dims[0].n = block_size_last_thread;
         fft_key_t key;
         get_key_guru(true, 1, &dim, 2, howmany_dims, 1,
                                       in_place, key);
@@ -2668,7 +2679,7 @@ void fft_fftw_3d_r2c_local(const int fft_size[3], double *grid_in,
       total_number_of_blocks[2] = (number_of_ffts+block_sizes[2]-1)/block_sizes[2];
       fft_iodim dim = {.n = fft_size[2], .is = 1, .os = 1};
       fft_iodim howmany_dim = {
-          .n = block_sizes[2], .is = fft_size[2], .os = fft_size[2] / 2 + 1};
+          .n = block_sizes[2], .is = in_place ? 2*(fft_size[2]/2+1) : fft_size[2], .os = fft_size[2] / 2 + 1};
       fft_key_t key;
       get_key_guru_r2c(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
@@ -2681,9 +2692,7 @@ void fft_fftw_3d_r2c_local(const int fft_size[3], double *grid_in,
       if (block_sizes[2] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
             number_of_ffts % block_sizes[2];
-        fft_iodim howmany_dim = {.n = block_size_last_thread,
-                                 .is = fft_size[2],
-                                 .os = fft_size[2] / 2 + 1};
+        howmany_dim.n = block_size_last_thread;
         fft_key_t key;
         get_key_guru_r2c(true, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
@@ -2697,18 +2706,18 @@ void fft_fftw_3d_r2c_local(const int fft_size[3], double *grid_in,
     }
 #pragma omp parallel default(none)                                             \
     shared(number_of_threads, total_number_of_blocks, number_of_full_blocks, plans,                 \
-               plans_last_thread, block_sizes, fft_size, grid_in, grid_out)
+               plans_last_thread, block_sizes, fft_size, grid_in, grid_out, in_place)
     {
       const int thread_id = omp_get_thread_num();
       if (thread_id < number_of_full_blocks[2]) {
         assert(*plans[2] != NULL);
         fftw_execute_dft_r2c(
-            *plans[2], grid_in + block_sizes[2] * fft_size[2] * thread_id,
+            *plans[2], grid_in + block_sizes[2] * (in_place ? 2*(fft_size[2]/2+1) : fft_size[2]) * thread_id,
             grid_out + block_sizes[2] * (fft_size[2] / 2 + 1) * thread_id);
       } else if (thread_id == total_number_of_blocks[2]-1) {
         assert(*plans_last_thread[2] != NULL);
         fftw_execute_dft_r2c(*plans_last_thread[2],
-                             grid_in + block_sizes[2] * fft_size[2] * thread_id,
+                             grid_in + block_sizes[2] * (in_place ? 2*(fft_size[2]/2+1) : fft_size[2]) * thread_id,
                              grid_out + block_sizes[2] * (fft_size[2] / 2 + 1) *
                                             thread_id);
       }
@@ -2774,7 +2783,7 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], double complex *grid_in,
   if (fft_size[0] == 0 || fft_size[1] == 0 || fft_size[2] == 0) return;
   const bool in_place = (double *)grid_in == grid_out;
   if (has_guru_interface && ((fft_size[0] >= 256 || fft_size[1] >= 256 || fft_size[2] >= 256 ||
-       omp_get_max_threads() > 1) && !in_place) &&
+       omp_get_max_threads() > 1)) &&
       (fftw_planning_mode == FFTW_ESTIMATE)) {
     // We cannot use the output buffer for planning because it may be too small
     // So, we allocate a new one
@@ -2811,7 +2820,7 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], double complex *grid_in,
       if (block_sizes[0] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
             number_of_ffts % block_sizes[0];
-        fft_iodim howmany_dim = {.n = block_size_last_thread, .is = 1, .os = 1};
+        howmany_dim.n = block_size_last_thread;
       fft_key_t key;
       get_key_guru(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
         
@@ -2849,11 +2858,7 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], double complex *grid_in,
       if (block_sizes[1] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
             number_of_ffts % block_sizes[1];
-        fft_iodim howmany_dims[2] = {
-            {.n = block_size_last_thread,
-             .is = fft_size[1] * (fft_size[2] / 2 + 1),
-             .os = fft_size[1] * (fft_size[2] / 2 + 1)},
-            {.n = fft_size[2] / 2 + 1, .is = 1, .os = 1}};
+        howmany_dims[0].n = block_size_last_thread;
         fft_key_t key;
         get_key_guru(false, 1, &dim, 2, howmany_dims, 1, in_place, key);
           
@@ -2873,7 +2878,7 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], double complex *grid_in,
       total_number_of_blocks[2] = (number_of_ffts+block_sizes[2]-1)/block_sizes[2];
       fft_iodim dim = {.n = fft_size[2], .is = 1, .os = 1};
       fft_iodim howmany_dim = {
-          .n = block_sizes[2], .is = fft_size[2] / 2 + 1, .os = fft_size[2]};
+          .n = block_sizes[2], .is = fft_size[2] / 2 + 1, .os = in_place ? 2*(fft_size[2]/2+1) : fft_size[2]};
       fft_key_t key;
       get_key_guru_r2c(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
       
@@ -2886,9 +2891,7 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], double complex *grid_in,
       if (block_sizes[2] * number_of_threads != number_of_ffts) {
         const int block_size_last_thread =
             number_of_ffts % block_sizes[2];
-        fft_iodim howmany_dim = {.n = block_size_last_thread,
-                                 .is = fft_size[2] / 2 + 1,
-                                 .os = fft_size[2]};
+        howmany_dim.n = block_size_last_thread;
         fft_key_t key;
         get_key_guru_r2c(false, 1, &dim, 1, &howmany_dim, 1, in_place, key);
           
@@ -2902,7 +2905,7 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], double complex *grid_in,
     }
 #pragma omp parallel default(none) shared(                                     \
         number_of_threads, total_number_of_blocks, number_of_full_blocks, plans, plans_last_thread, \
-            block_sizes, fft_size, grid_in, grid_out, buffer)
+            block_sizes, fft_size, grid_in, grid_out, buffer, in_place)
     {
       const int thread_id = omp_get_thread_num();
       if (thread_id < number_of_full_blocks[0]) {
@@ -2937,13 +2940,13 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], double complex *grid_in,
         fftw_execute_dft_c2r(
             *plans[2],
             grid_in + block_sizes[2] * (fft_size[2] / 2 + 1) * thread_id,
-            grid_out + block_sizes[2] * fft_size[2] * thread_id);
+            grid_out + block_sizes[2] * (in_place ? 2*(fft_size[2]/2+1) : fft_size[2]) * thread_id);
       } else if (thread_id == total_number_of_blocks[2]-1) {
         assert(*plans_last_thread[2] != NULL);
         fftw_execute_dft_c2r(
             *plans_last_thread[2],
             grid_in + block_sizes[2] * (fft_size[2] / 2 + 1) * thread_id,
-            grid_out + block_sizes[2] * fft_size[2] * thread_id);
+            grid_out + block_sizes[2] * (in_place ? 2*(fft_size[2]/2+1) : fft_size[2]) * thread_id);
       }
     }
     fftw_free(buffer);

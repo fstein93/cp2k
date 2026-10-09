@@ -2036,9 +2036,9 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3], const int test_ever
 
   const double pi = acos(-1);
 
+  const int buffer_size = fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1);
   double *double_buffer = NULL;
-  fft_allocate_double(2 * fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1),
-                      &double_buffer);
+  fft_allocate_double(2 * buffer_size, &double_buffer);
   double complex* complex_buffer = (double complex*)double_buffer;
 
         fft_register_3d_r2c_local(fft_size, double_buffer, complex_buffer);
@@ -2054,7 +2054,7 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3], const int test_ever
           continue;
         }
         number_of_tests++;
-        memset(double_buffer, 0, 2 * fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1) * sizeof(double));
+        memset(double_buffer, 0, 2 * buffer_size * sizeof(double));
         double_buffer[(mx * fft_size[1] + my) * 2*(fft_size[2]/2+1) + mz] = 1.0;
         fft_3d_r2c_local(fft_size, double_buffer, complex_buffer);
 
