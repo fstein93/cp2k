@@ -1113,7 +1113,7 @@ void fft_r2c_gpu_f(const double *zin, double *zout, const bool dir, const int n,
   // Allocate device memory.
   offload_activate_chosen_device();
   const size_t input_size = sizeof(double) * leading_dimension_in * (transpose_in ? (zin != zout && dir ? n : 2*(n/2+1)) : (dir ? m : 2*m));
-  const size_t output_size = sizeof(double) * leading_dimension_out * (transpose_out ? (zin != zout && dir ? n : 2*(n/2+1)) : (!dir ? m : 2*m));
+  const size_t output_size = sizeof(double) * leading_dimension_out * (transpose_out ? (zin != zout && !dir ? n : 2*(n/2+1)) : (!dir ? m : 2*m));
   ensure_memory_sizes(imax(input_size, output_size), 0);
 
   // Upload COMPLEX input to device.
