@@ -1666,7 +1666,7 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
         fft_3d_local(true, fft_size, input_array, output_array);
 
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, pi, mx, my, mz) reduction(max : max_error)  \
+    shared(output_array, fft_size, pi, mx, my, mz, my_process) reduction(max : max_error)  \
     collapse(3)
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
@@ -1679,6 +1679,11 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
                         ((double)my) * ny / fft_size[1] +
                         ((double)mz) * nz / fft_size[2]));
               double current_error = cabs(my_value - ref_value);
+              if (my_process == 0 && current_error > 1e-6)
+                printf("Error %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny,
+                      nz, mx, my, mz,
+                      creal(my_value), cimag(my_value),
+                      creal(ref_value), cimag(ref_value));
               max_error = fmax(max_error, current_error);
             }
           }
@@ -1712,7 +1717,7 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
         fft_3d_local(false, fft_size, output_array, input_array);
 
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, pi, mx, my, mz) reduction(max : max_error)   \
+    shared(input_array, fft_size, pi, mx, my, mz, my_process) reduction(max : max_error)   \
     collapse(3)
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
@@ -1725,6 +1730,11 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
                         ((double)my) * ny / fft_size[1] +
                         ((double)mz) * nz / fft_size[2]));
               double current_error = cabs(my_value - ref_value);
+              if (my_process == 0 && current_error > 1e-6)
+                printf("Error %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny,
+                      nz, mx, my, mz,
+                      creal(my_value), cimag(my_value),
+                      creal(ref_value), cimag(ref_value));
               max_error = fmax(max_error, current_error);
             }
           }
