@@ -285,6 +285,9 @@ void fft_register_1d_local(const bool dir,const int fft_size, const int number_o
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_local_%s_%s_%i_%i", dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", fft_size, number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_register_gpu_f(dir, fft_size,
@@ -299,6 +302,7 @@ void fft_register_1d_local(const bool dir,const int fft_size, const int number_o
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -314,6 +318,9 @@ void fft_register_1d_r2c_local(const int fft_size, const int number_of_ffts,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_r2c_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_r2c_local_%s_%i_%i", grid_in == (double*)grid_out ? "i" : "o", fft_size, number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_register_r2c_gpu_f(true, fft_size,
@@ -328,6 +335,7 @@ void fft_register_1d_r2c_local(const int fft_size, const int number_of_ffts,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -343,6 +351,9 @@ void fft_register_1d_c2r_local(const int fft_size, const int number_of_ffts,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_c2r_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_1d_c2r_local_%s_%i_%i", (double*)grid_in == grid_out ? "i" : "o", fft_size, number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_register_r2c_gpu_f(false, fft_size,
@@ -357,6 +368,7 @@ void fft_register_1d_c2r_local(const int fft_size, const int number_of_ffts,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -371,6 +383,9 @@ void fft_register_2d_local(const bool dir, const int fft_size[2], const int numb
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_local_%s_%s_%i_%i_%i", dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1], number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_register_gpu_ff(dir, fft_size,
@@ -383,6 +398,7 @@ void fft_register_2d_local(const bool dir, const int fft_size[2], const int numb
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -397,6 +413,9 @@ void fft_register_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_r2c_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_r2c_local_%s_%i_%i_%i", grid_in == (double*)grid_out ? "i" : "o", fft_size[0], fft_size[1], number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_register_r2c_gpu_ff(true, fft_size, number_of_ffts, transpose_rs, transpose_gs, grid_in == (double*)grid_out);
@@ -408,6 +427,7 @@ void fft_register_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -422,6 +442,9 @@ void fft_register_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_c2r_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_c2r_local_%s_%i_%i_%i", (double*)grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1], number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_register_r2c_gpu_ff(false, fft_size,
@@ -433,6 +456,7 @@ void fft_register_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -448,6 +472,9 @@ void fft_register_3d_local(const bool dir, const int fft_size[3], double complex
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_local_%s_%s_%i_%i_%i", dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1], fft_size[2]);
+  const int handle2 = fft_start_timer(routine_name);
     switch (fft_lib_choice) {
     case FFT_LIB_GPU:
       fft_register_gpu_fff(dir, fft_size, grid_in == grid_out);
@@ -458,6 +485,7 @@ void fft_register_3d_local(const bool dir, const int fft_size[3], double complex
     default:
       assert(0 && "Unknown FFT library.");
     }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -471,6 +499,9 @@ void fft_register_3d_r2c_local(const int fft_size[3], double *grid_in,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_r2c_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_r2c_local_%s_%i_%i_%i", grid_in == (double*)grid_out ? "i" : "o", fft_size[0], fft_size[1], fft_size[2]);
+  const int handle2 = fft_start_timer(routine_name);
     switch (fft_lib_choice) {
     case FFT_LIB_GPU:
       fft_register_r2c_gpu_fff(true, fft_size, grid_in == (double*)grid_out);
@@ -481,6 +512,7 @@ void fft_register_3d_r2c_local(const int fft_size[3], double *grid_in,
     default:
       assert(0 && "Unknown FFT library.");
     }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -494,6 +526,9 @@ void fft_register_3d_c2r_local(const int fft_size[3], double complex *grid_in,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_c2r_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_c2r_local_%s_%i_%i_%i", (double*)grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1], fft_size[2]);
+  const int handle2 = fft_start_timer(routine_name);
     switch (fft_lib_choice) {
     case FFT_LIB_GPU:
       fft_register_r2c_gpu_fff(false, fft_size, grid_in == (double complex*)grid_out);
@@ -504,6 +539,7 @@ void fft_register_3d_c2r_local(const int fft_size[3], double complex *grid_in,
     default:
       assert(0 && "Unknown FFT library.");
     }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -518,6 +554,9 @@ void fft_register_guru(const bool dir, const int rank, const fft_iodim *dims, in
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_guru");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_guru_%s_%s_%i_%i", dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", rank, howmany_rank);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_guru(dir, rank, dims, howmany_rank, howmany_dims, number_of_threads,
@@ -526,6 +565,7 @@ void fft_register_guru(const bool dir, const int rank, const fft_iodim *dims, in
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -540,6 +580,9 @@ void fft_register_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_guru_r2c");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_guru_r2c_%s_%i_%i", grid_in == (double*)grid_out ? "i" : "o", rank, howmany_rank);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_r2c_guru(rank, dims, howmany_rank, howmany_dims, number_of_threads,
@@ -548,6 +591,7 @@ void fft_register_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -562,6 +606,9 @@ void fft_register_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_guru_c2r");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_guru_c2r_%s_%i_%i", (double*)grid_in == grid_out ? "i" : "o", rank, howmany_rank);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_c2r_guru(rank, dims, howmany_rank, howmany_dims, number_of_threads,
@@ -570,6 +617,7 @@ void fft_register_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -585,6 +633,9 @@ void fft_register_2d_distributed(const bool dir, const int npts_global[2], const
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_distributed");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_distr_%s_%i_%i_%i", dir ? "fw" : "bw", npts_global[0], npts_global[1], number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
@@ -594,6 +645,7 @@ void fft_register_2d_distributed(const bool dir, const int npts_global[2], const
   default:
     assert(0 && "Distributed 2D FFT not available.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -610,6 +662,9 @@ void fft_register_2d_r2c_distributed(const int npts_global[2],
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_r2c_distributed");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_r2c_distr_%i_%i_%i", npts_global[0], npts_global[1], number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
@@ -619,6 +674,7 @@ void fft_register_2d_r2c_distributed(const int npts_global[2],
   default:
     assert(0 && "Distributed 2D FFT not available.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -635,6 +691,9 @@ void fft_register_2d_c2r_distributed(const int npts_global[2],
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_c2r_distributed");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_2d_c2r_distr_%i_%i_%i", npts_global[0], npts_global[1], number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
@@ -644,6 +703,7 @@ void fft_register_2d_c2r_distributed(const int npts_global[2],
   default:
     assert(0 && "Distributed 2D FFT not available.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -658,6 +718,9 @@ void fft_register_3d_distributed(const bool dir, const int npts_global[3], const
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_distributed");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_distr_%s_%i_%i_%i", dir ? "fw" : "bw", npts_global[0], npts_global[1], npts_global[2]);
+  const int handle2 = fft_start_timer(routine_name);
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
@@ -666,6 +729,7 @@ void fft_register_3d_distributed(const bool dir, const int npts_global[3], const
   default:
     assert(0 && "Distributed 3D FFT not available.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -681,6 +745,9 @@ void fft_register_3d_r2c_distributed(const int npts_global[3],
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_r2c_distributed");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_r2c_distr_%i_%i_%i", npts_global[0], npts_global[1], npts_global[2]);
+  const int handle2 = fft_start_timer(routine_name);
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
@@ -689,6 +756,7 @@ void fft_register_3d_r2c_distributed(const int npts_global[3],
   default:
     assert(0 && "Distributed 3D FFT not available.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -704,6 +772,9 @@ void fft_register_3d_c2r_distributed(const int npts_global[3],
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_c2r_distributed");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_register_3d_c2r_distr_%i_%i_%i", npts_global[0], npts_global[1], npts_global[2]);
+  const int handle2 = fft_start_timer(routine_name);
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
@@ -712,6 +783,7 @@ void fft_register_3d_c2r_distributed(const int npts_global[3],
   default:
     assert(0 && "Distributed 3D FFT not available.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -727,6 +799,9 @@ void fft_1d_local(const bool dir, const int fft_size, const int number_of_ffts,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_local_%s_%s_%i_%i", dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", fft_size, number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_gpu_f((const double *)grid_in, (double *)grid_out, dir, fft_size,
@@ -741,6 +816,7 @@ void fft_1d_local(const bool dir, const int fft_size, const int number_of_ffts,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -756,6 +832,9 @@ void fft_1d_r2c_local(const int fft_size, const int number_of_ffts,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_r2c_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_r2c_local_%s_%i_%i", grid_in == (double*)grid_out ? "i" : "o", fft_size, number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_r2c_gpu_f((const double *)grid_in, (double *)grid_out, true, fft_size,
@@ -770,6 +849,7 @@ void fft_1d_r2c_local(const int fft_size, const int number_of_ffts,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -785,6 +865,9 @@ void fft_1d_c2r_local(const int fft_size, const int number_of_ffts,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_c2r_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_1d_c2r_local_%s_%i_%i", (double*)grid_in == grid_out ? "i" : "o", fft_size, number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_r2c_gpu_f((const double *)grid_in, (double *)grid_out, false, fft_size,
@@ -799,6 +882,7 @@ void fft_1d_c2r_local(const int fft_size, const int number_of_ffts,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -813,6 +897,9 @@ void fft_2d_local(const bool dir, const int fft_size[2], const int number_of_fft
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_local_%s_%s_%i_%i_%i", dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1], number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_gpu_ff((const double *)grid_in, (double *)grid_out, dir, fft_size,
@@ -825,6 +912,7 @@ void fft_2d_local(const bool dir, const int fft_size[2], const int number_of_fft
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -839,6 +927,9 @@ void fft_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_r2c_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_r2c_local_%s_%i_%i_%i", grid_in == (double*)grid_out ? "i" : "o", fft_size[0], fft_size[1], number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_r2c_gpu_ff((const double *)grid_in, (double *)grid_out, true, fft_size,
@@ -851,6 +942,7 @@ void fft_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -865,6 +957,9 @@ void fft_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_c2r_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_c2r_local_%s_%i_%i_%i", (double*)grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1], number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_GPU:
     fft_r2c_gpu_ff((const double *)grid_in, (double *)grid_out, false, fft_size,
@@ -876,6 +971,7 @@ void fft_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -889,6 +985,9 @@ void fft_3d_local(const bool dir, const int fft_size[3], double complex *grid_in
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_local_%s_%s_%i_%i_%i", dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1], fft_size[2]);
+  const int handle2 = fft_start_timer(routine_name);
 #if defined(__FFT_FPGA)
   if (fft_fpga_check_bitstream_(get_data_dir(), fft_size)) {
     const int number_of_elements = product3(fft_size);
@@ -918,6 +1017,7 @@ void fft_3d_local(const bool dir, const int fft_size[3], double complex *grid_in
 #if defined(__FFT_FPGA)
   }
 #endif
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -931,6 +1031,9 @@ void fft_3d_r2c_local(const int fft_size[3], double *grid_in,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_r2c_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_r2c_local_%s_%i_%i_%i", grid_in == (double*)grid_out ? "i" : "o", fft_size[0], fft_size[1], fft_size[2]);
+  const int handle2 = fft_start_timer(routine_name);
 #if defined(__FFT_FPGA)
   if (fft_fpga_check_bitstream_(get_data_dir(), fft_size)) {
     const int number_of_elements = product3(fft_size);
@@ -962,6 +1065,7 @@ void fft_3d_r2c_local(const int fft_size[3], double *grid_in,
 #if defined(__FFT_FPGA)
   }
 #endif
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -975,6 +1079,9 @@ void fft_3d_c2r_local(const int fft_size[3], double complex *grid_in,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_c2r_local");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_c2r_local_%s_%i_%i_%i", (double*)grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1], fft_size[2]);
+  const int handle2 = fft_start_timer(routine_name);
 #if defined(__FFT_FPGA)
   if (fft_fpga_check_bitstream_(get_data_dir(), fft_size)) {
     const int number_of_elements =
@@ -1007,6 +1114,7 @@ void fft_3d_c2r_local(const int fft_size[3], double complex *grid_in,
 #if defined(__FFT_FPGA)
   }
 #endif
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -1021,6 +1129,9 @@ void fft_guru(const bool dir, int rank, const fft_iodim *dims, int howmany_rank,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_guru");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_guru_%s_%s_%i_%i", dir ? "fw" : "bw", grid_in == grid_out ? "i" : "o", rank, howmany_rank);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_guru(dir, rank, dims, howmany_rank, howmany_dims, number_of_threads,
@@ -1029,6 +1140,7 @@ void fft_guru(const bool dir, int rank, const fft_iodim *dims, int howmany_rank,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -1043,6 +1155,9 @@ void fft_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_guru_r2c");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_guru_r2c_%s_%i_%i", grid_in == (double*)grid_out ? "i" : "o", rank, howmany_rank);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_guru_r2c(rank, dims, howmany_rank, howmany_dims, number_of_threads,
@@ -1051,6 +1166,7 @@ void fft_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -1065,6 +1181,9 @@ void fft_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_guru_c2r");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_guru_c2r_%s_%i_%i", (double*)grid_in == grid_out ? "i" : "o", rank, howmany_rank);
+  const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_guru_c2r(rank, dims, howmany_rank, howmany_dims,
@@ -1073,6 +1192,7 @@ void fft_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
   default:
     assert(0 && "Unknown FFT library.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -1158,6 +1278,9 @@ void fft_2d_distributed(const bool dir, const int npts_global[2], const int numb
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_distributed");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_distributed_%s_%i_%i_%i", dir ? "fw" : "bw", npts_global[0], npts_global[1], number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
@@ -1167,6 +1290,7 @@ void fft_2d_distributed(const bool dir, const int npts_global[2], const int numb
   default:
     assert(0 && "Distributed 2D FFT not available.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -1183,6 +1307,9 @@ void fft_2d_r2c_distributed(const int npts_global[2],
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_r2c_distributed");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_r2c_distributed_%i_%i_%i", npts_global[0], npts_global[1], number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
@@ -1192,6 +1319,7 @@ void fft_2d_r2c_distributed(const int npts_global[2],
   default:
     assert(0 && "Distributed 2D FFT not available.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -1208,6 +1336,9 @@ void fft_2d_c2r_distributed(const int npts_global[2],
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_c2r_distributed");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_2d_c2r_distributed_%i_%i_%i", npts_global[0], npts_global[1], number_of_ffts);
+  const int handle2 = fft_start_timer(routine_name);
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
@@ -1217,6 +1348,7 @@ void fft_2d_c2r_distributed(const int npts_global[2],
   default:
     assert(0 && "Distributed 2D FFT not available.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -1231,6 +1363,9 @@ void fft_3d_distributed(const bool dir, const int npts_global[3], const cp_mpi_c
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_distributed");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_distributed_%s_%i_%i_%i", dir ? "fw" : "bw", npts_global[0], npts_global[1], npts_global[2]);
+  const int handle2 = fft_start_timer(routine_name);
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
@@ -1239,6 +1374,7 @@ void fft_3d_distributed(const bool dir, const int npts_global[3], const cp_mpi_c
   default:
     assert(0 && "Distributed 3D FFT not available.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -1254,6 +1390,9 @@ void fft_3d_r2c_distributed(const int npts_global[3],
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_r2c_distr");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_r2c_distr_%i_%i_%i", npts_global[0], npts_global[1], npts_global[2]);
+  const int handle2 = fft_start_timer(routine_name);
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
@@ -1262,6 +1401,7 @@ void fft_3d_r2c_distributed(const int npts_global[3],
   default:
     assert(0 && "Distributed 3D FFT not available.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 
@@ -1277,6 +1417,9 @@ void fft_3d_c2r_distributed(const int npts_global[3],
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_c2r_distr");
   const int handle = fft_start_timer(routine_name);
+  memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_c2r_distr_%i_%i_%i", npts_global[0], npts_global[1], npts_global[2]);
+  const int handle2 = fft_start_timer(routine_name);
   assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
@@ -1285,6 +1428,7 @@ void fft_3d_c2r_distributed(const int npts_global[3],
   default:
     assert(0 && "Distributed 3D FFT not available.");
   }
+  fft_stop_timer(handle2);
   fft_stop_timer(handle);
 }
 

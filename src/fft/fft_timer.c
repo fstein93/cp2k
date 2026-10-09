@@ -281,10 +281,10 @@ void fft_print_timing_report(const double threshold) {
                       "----------------------"
                       "------------------------\n");
       fprintf(stdout, " ROUTINE                                       CALLS    "
-                      "AVG SELF    MAX SELF    AVG TOTAL    MAX TOTAL \n");
+                      " AVG SELF     MAX SELF   AVG TOTAL    MAX TOTAL\n");
       fprintf(stdout,
               "                                                          "
-              " TIME         TIME   "
+              "  TIME         TIME  "
               "      TIME        TIME   \n");
       for (int routine = 0; routine < size_of_timing_statistics; routine++) {
         if (timing_statistics[routine].max_total_time >=

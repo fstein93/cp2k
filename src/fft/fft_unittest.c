@@ -49,6 +49,7 @@ int main(int argc, char *argv[]) {
   offload_set_chosen_device(0);
 
   const bool debug = false;
+  const double threshold = 1e-4;
   const int backend = fft_lib_default_library();
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
@@ -67,42 +68,42 @@ int main(int argc, char *argv[]) {
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
   // First run tests with ESTIMATE mode, which is faster and should be sufficient to catch most errors
-  int errors = run_unittests(debug, backend, FFT_ESTIMATE, true, true, 0.01);
+  int errors = run_unittests(debug, backend, FFT_ESTIMATE, true, true, threshold);
 
   // Test also the reference backend and without distributed FFTs from the
   // library
   if (fft_lib_use_mpi()) {
-    errors += run_unittests(debug, backend, FFT_ESTIMATE, false, true, 0.01);
+    errors += run_unittests(debug, backend, FFT_ESTIMATE, false, true, threshold);
   }
 
   if (fft_lib_has_guru_interface()) {
 
-    errors += run_unittests(debug, backend, FFT_ESTIMATE, true, false, 0.01);
+    errors += run_unittests(debug, backend, FFT_ESTIMATE, true, false, threshold);
 
     // Test also the reference backend and without distributed FFTs from the
     // library
     if (fft_lib_use_mpi()) {
-      errors += run_unittests(debug, backend, FFT_ESTIMATE, false, false, 0.01);
+      errors += run_unittests(debug, backend, FFT_ESTIMATE, false, false, threshold);
     }
   }
 
   // Rerun the tests with MEASURE mode, which is slower but more accurate and should catch any remaining errors
-  errors += run_unittests(debug, backend, FFT_MEASURE, true, true, 0.01);
+  errors += run_unittests(debug, backend, FFT_MEASURE, true, true, threshold);
 
   // Test also the reference backend and without distributed FFTs from the
   // library
   if (fft_lib_use_mpi()) {
-    errors += run_unittests(debug, backend, FFT_MEASURE, false, true, 0.01);
+    errors += run_unittests(debug, backend, FFT_MEASURE, false, true, threshold);
   }
 
   if (fft_lib_has_guru_interface()) {
 
-    errors += run_unittests(debug, backend, FFT_MEASURE, true, false, 0.01);
+    errors += run_unittests(debug, backend, FFT_MEASURE, true, false, threshold);
 
     // Test also the reference backend and without distributed FFTs from the
     // library
     if (fft_lib_use_mpi()) {
-      errors += run_unittests(debug, backend, FFT_MEASURE, false, false, 0.01);
+      errors += run_unittests(debug, backend, FFT_MEASURE, false, false, threshold);
     }
   }
 

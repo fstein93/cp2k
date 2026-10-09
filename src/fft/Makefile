@@ -5,7 +5,7 @@ all: fft_unittest.x fft_perftest.x
 clean:
 	rm -fv *.o */*.o *.x ../offload/*.o ../mpiwrap/*.o
 
-CFLAGS := -fopenmp -no-pie -g -O1 -march=native -Wall -Wextra -Wno-vla-parameter -D__FFTW3 -I${FFTW3_ROOT}/include -L${FFTW3_ROOT}/lib -I${OPENBLAS_ROOT}/include -L${OPENBLAS_ROOT}/lib
+CFLAGS := -fopenmp -no-pie -g -O3 -march=native -Wall -Wextra -Wno-vla-parameter -D__FFTW3 -I${FFTW3_ROOT}/include -L${FFTW3_ROOT}/lib -I${OPENBLAS_ROOT}/include -L${OPENBLAS_ROOT}/lib
 LIBS := -lopenblas
 
 MPICC_PATH := $(shell which mpicc)
