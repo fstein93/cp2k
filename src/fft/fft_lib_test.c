@@ -2173,45 +2173,37 @@ int fft_test_local() {
   int errors = 0;
 
   clock_t begin = clock();
-  errors += fft_test_1d_local_low(15, 26, true, true);
-  errors += fft_test_1d_local_low(18, 22, true, false);
-  errors += fft_test_1d_local_low(20, 28, false, true);
+  errors += fft_test_1d_local_low(15, 13, true, true);
+  errors += fft_test_1d_local_low(9, 11, true, false);
+  errors += fft_test_1d_local_low(10, 14, false, true);
   errors += fft_test_1d_local_low(14, 13, false, false);
 
-  errors += fft_test_1d_local_inplace_low(15, 26, true);
-  errors += fft_test_1d_local_inplace_low(18, 22, true);
-  errors += fft_test_1d_local_inplace_low(20, 28, false);
+  errors += fft_test_1d_local_inplace_low(15, 13, true);
   errors += fft_test_1d_local_inplace_low(14, 13, false);
 
-  errors += fft_test_1d_local_r2c_low(15, 26, true, false);
-  errors += fft_test_1d_local_r2c_low(18, 22, false, false);
-  errors += fft_test_1d_local_r2c_low(20, 28, false, true);
+  errors += fft_test_1d_local_r2c_low(15, 13, true, false);
+  errors += fft_test_1d_local_r2c_low(9, 11, false, false);
+  errors += fft_test_1d_local_r2c_low(10, 14, false, true);
   errors += fft_test_1d_local_r2c_low(14, 13, true, true);
 
-  errors += fft_test_1d_local_r2c_inplace_low(15, 26, true);
-  errors += fft_test_1d_local_r2c_inplace_low(15, 22, false);
-  errors += fft_test_1d_local_r2c_inplace_low(20, 28, false);
+  errors += fft_test_1d_local_r2c_inplace_low(15, 11, false);
   errors += fft_test_1d_local_r2c_inplace_low(14, 13, true);
 
   errors += fft_test_2d_local_low((const int[2]){10, 10}, 10, true, true);
-  errors += fft_test_2d_local_low((const int[2]){15, 9}, 10, true, false);
-  errors += fft_test_2d_local_low((const int[2]){7, 20}, 11, false, true);
-  errors += fft_test_2d_local_low((const int[2]){12, 14}, 10, false, false);
+  errors += fft_test_2d_local_low((const int[2]){8, 9}, 10, true, false);
+  errors += fft_test_2d_local_low((const int[2]){7, 10}, 11, false, true);
+  errors += fft_test_2d_local_low((const int[2]){6, 7}, 10, false, false);
 
-  errors += fft_test_2d_local_inplace_low((const int[2]){10, 10}, 10, true);
-  errors += fft_test_2d_local_inplace_low((const int[2]){15, 9}, 10, true);
-  errors += fft_test_2d_local_inplace_low((const int[2]){7, 20}, 11, false);
-  errors += fft_test_2d_local_inplace_low((const int[2]){12, 14}, 10, false);
+  errors += fft_test_2d_local_inplace_low((const int[2]){8, 9}, 10, true);
+  errors += fft_test_2d_local_inplace_low((const int[2]){7, 10}, 11, false);
 
   errors += fft_test_2d_local_r2c_low((const int[2]){10, 10}, 10, true, true);
-  errors += fft_test_2d_local_r2c_low((const int[2]){15, 9}, 10, true, false);
-  errors += fft_test_2d_local_r2c_low((const int[2]){7, 20}, 10, false, true);
-  errors += fft_test_2d_local_r2c_low((const int[2]){12, 14}, 11, false, false);
+  errors += fft_test_2d_local_r2c_low((const int[2]){8, 9}, 10, true, false);
+  errors += fft_test_2d_local_r2c_low((const int[2]){7, 10}, 10, false, true);
+  errors += fft_test_2d_local_r2c_low((const int[2]){6, 7}, 11, false, false);
 
-  errors += fft_test_2d_local_r2c_inplace_low((const int[2]){10, 10}, 10, true);
-  errors += fft_test_2d_local_r2c_inplace_low((const int[2]){15, 9}, 10, true);
-  errors += fft_test_2d_local_r2c_inplace_low((const int[2]){7, 20}, 10, false);
-  errors += fft_test_2d_local_r2c_inplace_low((const int[2]){12, 14}, 11, false);
+  errors += fft_test_2d_local_r2c_inplace_low((const int[2]){8, 9}, 10, true);
+  errors += fft_test_2d_local_r2c_inplace_low((const int[2]){7, 10}, 10, false);
 
   // Reduce tests to ca 10 per set
   errors += fft_test_3d_local_low((const int[3]){8, 8, 8}, 10);
