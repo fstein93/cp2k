@@ -838,10 +838,10 @@ void fft_gpu_fff(const double *zin, double *zout, const bool dir,
 
   // Run FFT on the device.
   fft_3d_gpu(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, npts[0],
-             npts[1], npts[2], buffer_dev_1, buffer_dev_1);
+             npts[1], npts[2], buffer_dev_1, zin != zout ? buffer_dev_2 : buffer_dev_1);
 
   // Download to host
-  offloadMemcpyAsyncDtoH(zout, buffer_dev_1, buffer_size, stream);
+  offloadMemcpyAsyncDtoH(zout, zin != zout ? buffer_dev_2 : buffer_dev_1, buffer_size, stream);
   offloadStreamSynchronize(stream);
 #else
   (void)zin;
