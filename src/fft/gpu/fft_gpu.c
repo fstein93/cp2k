@@ -1157,7 +1157,7 @@ void fft_gpu_ff(const double *zin, double *zout, const bool dir, const int n[2],
 
   // Allocate device memory.
   offload_activate_chosen_device();
-  const size_t buffer_size = 2 * sizeof(double) * nrpts;
+  const size_t buffer_size = 2 * sizeof(double) * n[0]*n[1]*m;
   ensure_memory_sizes(buffer_size, 0);
 
   // Upload COMPLEX input to device.
