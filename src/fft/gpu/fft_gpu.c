@@ -413,7 +413,7 @@ static void fft_r2c_1d_gpu(const int direction, const int n, const int m,
                        const int leading_dimension_in, const int leading_dimension_out,
                            const double *data_in, double *data_out) {
     fft_key_t key;
-    get_key_1d_r2c(dir, n, m, transpose_in, transpose_out, 
+    get_key_1d_r2c(direction == OFFLOAD_FFT_FORWARD, n, m, transpose_in, transpose_out, 
                           leading_dimension_in, leading_dimension_out,
                           omp_get_max_threads(), data_in == data_out, key);
   offload_fftHandle *plan = lookup_plan_from_cache(key);
