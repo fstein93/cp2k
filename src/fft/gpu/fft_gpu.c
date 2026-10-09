@@ -319,14 +319,10 @@ static void fft_register_r2c_2d_gpu(const int direction, const int n[2], const i
   bool dir, inpl;
   int fft_size[2], inembed[2], onembed[2];
   fetch_data_from_key_nd(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &dir, &inpl, inembed, onembed, &idist, &odist, &istride, &ostride);
+  printf("fft_register_r2c_2d_gpu: r %i, n %i %i, m %i, dir %i, inpl %i, embed (%i %i) (%i %i), dist %i %i, stride %i %i\n", rank, fft_size[0], fft_size[1], number_of_ffts, number_of_threads, dir, inpl, inembed[0], inembed[1], onembed[0], onembed[1], idist, odist, istride, ostride);
     offload_fftHandle *plan = malloc(sizeof(cache_entry));
-    if (direction == OFFLOAD_FFT_FORWARD) {
-      offload_fftPlanMany(plan, 2, fft_size, inembed, istride, idist, onembed,
-                          ostride, odist, OFFLOAD_FFT_D2Z, number_of_ffts);
-    } else {
-      offload_fftPlanMany(plan, 2, fft_size, inembed, istride, idist, onembed,
-                          ostride, odist, OFFLOAD_FFT_Z2D, number_of_ffts);
-    }
+    offload_fftPlanMany(plan, 2, fft_size, inembed, istride, idist, onembed,
+                        ostride, odist, dir ? OFFLOAD_FFT_D2Z : OFFLOAD_FFT_Z2D, number_of_ffts);
     offload_fftSetStream(*plan, stream);
     add_plan_to_cache(key, plan);
   }
@@ -488,13 +484,8 @@ static void fft_r2c_2d_gpu(const int direction, const int n[2], const int m,
   int fft_size[2], inembed[2], onembed[2];
   fetch_data_from_key_nd(key, &rank, fft_size, &number_of_ffts, &number_of_threads, &dir, &inplace, inembed, onembed, &idist, &odist, &istride, &ostride);
     plan = malloc(sizeof(cache_entry));
-    if (direction == OFFLOAD_FFT_FORWARD) {
-      offload_fftPlanMany(plan, 2, fft_size, inembed, istride, idist, onembed,
-                          ostride, odist, OFFLOAD_FFT_D2Z, number_of_ffts);
-    } else {
-      offload_fftPlanMany(plan, 2, fft_size, inembed, istride, idist, onembed,
-                          ostride, odist, OFFLOAD_FFT_Z2D, number_of_ffts);
-    }
+    offload_fftPlanMany(plan, 2, fft_size, inembed, istride, idist, onembed,
+                        ostride, odist, dir ? OFFLOAD_FFT_D2Z : OFFLOAD_FFT_Z2D, number_of_ffts);
     offload_fftSetStream(*plan, stream);
     add_plan_to_cache(key, plan);
   }
@@ -703,6 +694,8 @@ void fft_register_r2c_gpu_ff(const bool dir,
   if (n[0] == 0 || n[1] == 0 || m == 0) {
     return;
   }
+
+  printf("fft_register_r2c_gpu_ff: n %i %i, m %i, t %i %i\n", n[0], n[1], m, transpose_in, transpose_out);
 
   // Run FFT on the device.
     fft_register_r2c_2d_gpu(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, n, m, transpose_in, transpose_out,
@@ -1194,6 +1187,8 @@ void fft_r2c_gpu_ff(const double *zin, double *zout, const bool dir,
   if (n[0] == 0 || n[1] == 0 || m == 0) {
     return;
   }
+
+  printf("fft_r2c_gpu_ff: n %i %i, m %i, t %i %i\n", n[0], n[1], m, transpose_in, transpose_out);
 
   // Allocate device memory.
   offload_activate_chosen_device();
