@@ -1181,7 +1181,7 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
 
   fft_register_2d_r2c_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
                       real_buffer, complex_buffer);
-  fft_register_2d_c2r_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+  fft_register_2d_c2r_local(fft_size, number_of_ffts, transpose_gs, transpose_rs,
                       complex_buffer, real_buffer);
 
   memset(real_buffer, 0,
@@ -1322,7 +1322,7 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
     }
   }
 
-  fft_2d_c2r_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
+  fft_2d_c2r_local(fft_size, number_of_ffts, transpose_gs, transpose_rs,
                     complex_buffer, real_buffer);
 
   max_error = 0.0;
