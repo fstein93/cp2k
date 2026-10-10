@@ -394,10 +394,17 @@ static inline void fetch_data_from_key_nd(const fft_key_t key, int *rank, int *f
   }
   *number_of_threads = key[2];
   *number_of_ffts = *rank < 3 ? key[3 + *rank] : 1;
-  *idist = key[6+*rank];
-  *odist = key[9+*rank];
-  *istride = key[5+*rank];
-  *ostride = key[8+*rank];
+  if (*rank < 3) {
+    *idist = key[6+*rank];
+    *odist = key[9+*rank];
+    *istride = key[5+*rank];
+    *ostride = key[8+*rank];
+  } else {
+    *idist = 1;
+    *odist = 1;
+    *istride = 1;
+    *ostride = 1;
+  }
 }
 
 static inline void fetch_data_from_key_guru(const fft_key_t key, bool *direction, int *rank, fftw_iodim *dims, int *howmany_rank, fftw_iodim *howmany_dims, int *number_of_threads, bool *inplace) {
