@@ -14,7 +14,7 @@
 !> \author Robert Schade
 ! **************************************************************************************************
 
-MODULE pw_fpga
+MODULE fft_fpga
    USE ISO_C_BINDING,                   ONLY: C_CHAR,&
                                               C_DOUBLE_COMPLEX,&
                                               C_FLOAT_COMPLEX,&
@@ -29,30 +29,9 @@ MODULE pw_fpga
 
    PRIVATE
 
-   PUBLIC :: pw_fpga_init, pw_fpga_finalize
-   PUBLIC :: pw_fpga_init_bitstream
-   PUBLIC :: pw_fpga_r3dc1d_3d_sp, pw_fpga_c1dr3d_3d_sp
-   PUBLIC :: pw_fpga_r3dc1d_3d_dp, pw_fpga_c1dr3d_3d_dp
-
-   INTERFACE
-! **************************************************************************************************
-!> \brief Initialize FPGA
-!> \retval status if the routine failed or not
-! **************************************************************************************************
-      FUNCTION pw_fpga_initialize() RESULT(stat) &
-         BIND(C, name="pw_fpga_initialize_")
-         IMPORT
-         INTEGER(KIND=C_INT)                    :: stat
-      END FUNCTION pw_fpga_initialize
-
-! **************************************************************************************************
-!> \brief Destroy FPGA
-! **************************************************************************************************
-      SUBROUTINE pw_fpga_final() &
-         BIND(C, name="pw_fpga_final_")
-      END SUBROUTINE pw_fpga_final
-
-   END INTERFACE
+   PUBLIC :: fft_fpga_init_bitstream
+   PUBLIC :: fft_fpga_r3dc1d_3d_sp, fft_fpga_c1dr3d_3d_sp
+   PUBLIC :: fft_fpga_r3dc1d_3d_dp, fft_fpga_c1dr3d_3d_dp
 
    INTERFACE
 ! **************************************************************************************************
@@ -61,13 +40,13 @@ MODULE pw_fpga
 !> \param npts - fft3d size
 !> \return res - true if fft3d size supported
 ! **************************************************************************************************
-      FUNCTION pw_fpga_check_bitstream(data_path, n) RESULT(res) &
-         BIND(C, name="pw_fpga_check_bitstream_")
+      FUNCTION fft_fpga_check_bitstream(data_path, n) RESULT(res) &
+         BIND(C, name="fft_fpga_check_bitstream_")
          IMPORT
          CHARACTER(KIND=C_CHAR)        :: data_path(*)
          INTEGER(KIND=C_INT)           :: n(3)
          INTEGER(KIND=C_INT)           :: res
-      END FUNCTION pw_fpga_check_bitstream
+      END FUNCTION fft_fpga_check_bitstream
 
    END INTERFACE
 
@@ -78,13 +57,13 @@ MODULE pw_fpga
 !> \param npts - dimensions of FFT3d
 !> \param single precision c_in...
 ! **************************************************************************************************
-      SUBROUTINE pw_fpga_fft3d_sp(dir, n, c_in_sp) &
-         BIND(C, name="pw_fpga_fft3d_sp_")
+      SUBROUTINE fft_fpga_fft3d_sp(dir, n, c_in_sp) &
+         BIND(C, name="fft_fpga_fft3d_sp_")
          IMPORT
          INTEGER(KIND=C_INT), VALUE              :: dir
          INTEGER(KIND=C_INT)                     :: n(3)
          COMPLEX(KIND=C_FLOAT_COMPLEX)           :: c_in_sp(n(1), n(2), n(3))
-      END SUBROUTINE pw_fpga_fft3d_sp
+      END SUBROUTINE fft_fpga_fft3d_sp
    END INTERFACE
 
    INTERFACE
@@ -94,13 +73,13 @@ MODULE pw_fpga
 !> \param npts - dimensions of FFT3d
 !> \param double precision c_in...
 ! **************************************************************************************************
-      SUBROUTINE pw_fpga_fft3d_dp(dir, n, c_in_dp) &
-         BIND(C, name="pw_fpga_fft3d_dp_")
+      SUBROUTINE fft_fpga_fft3d_dp(dir, n, c_in_dp) &
+         BIND(C, name="fft_fpga_fft3d_dp_")
          IMPORT
          INTEGER(KIND=C_INT), VALUE              :: dir
          INTEGER(KIND=C_INT)                     :: n(3)
          COMPLEX(KIND=C_DOUBLE_COMPLEX)          :: c_in_dp(n(1), n(2), n(3))
-      END SUBROUTINE pw_fpga_fft3d_dp
+      END SUBROUTINE fft_fpga_fft3d_dp
    END INTERFACE
 
 CONTAINS
@@ -108,46 +87,46 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Allocates resources on the fpga device
 ! **************************************************************************************************
-   SUBROUTINE pw_fpga_init()
-#if defined (__PW_FPGA)
+   SUBROUTINE fft_fpga_init()
+#if defined (__fft_FPGA)
       INTEGER :: stat
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
 #error "OFFLOAD and FPGA cannot be configured concurrently! Recompile with -D__NO_OFFLOAD_PW."
       CPABORT("OFFLOAD and FPGA cannot be configured concurrently! Recompile with -D__NO_OFFLOAD_PW.")
 #endif
-      stat = pw_fpga_initialize()
+      stat = fft_fpga_initialize()
       IF (stat /= 0) THEN
-         CPABORT("pw_fpga_init: failed")
+         CPABORT("fft_fpga_init: failed")
       END IF
 #endif
 
-#if (__PW_FPGA_SP && !(__PW_FPGA))
-#error "Define both __PW_FPGA_SP and __PW_FPGA"
-      CPABORT("Define both __PW_FPGA_SP and __PW_FPGA")
+#if (__fft_FPGA_SP && !(__fft_FPGA))
+#error "Define both __fft_FPGA_SP and __fft_FPGA"
+      CPABORT("Define both __fft_FPGA_SP and __fft_FPGA")
 #endif
 
-   END SUBROUTINE pw_fpga_init
+   END SUBROUTINE fft_fpga_init
 
 ! **************************************************************************************************
 !> \brief Releases resources on the fpga device
 ! **************************************************************************************************
-   SUBROUTINE pw_fpga_finalize()
-#if defined (__PW_FPGA)
-      CALL pw_fpga_final()
+   SUBROUTINE fft_fpga_finalize()
+#if defined (__fft_FPGA)
+      CALL fft_fpga_final()
 #endif
-   END SUBROUTINE pw_fpga_finalize
+   END SUBROUTINE fft_fpga_finalize
 
 ! **************************************************************************************************
 !> \brief perform an in-place double precision fft3d on the FPGA
 !> \param n ...
 !> \param c_out  ...
 ! **************************************************************************************************
-   SUBROUTINE pw_fpga_r3dc1d_3d_dp(n, c_out)
+   SUBROUTINE fft_fpga_r3dc1d_3d_dp(n, c_out)
       INTEGER, DIMENSION(:), INTENT(IN)          :: n
       COMPLEX(KIND=dp), INTENT(INOUT)            :: c_out(n(1), n(2), n(3))
 
-#if ! defined (__PW_FPGA)
+#if ! defined (__fft_FPGA)
       MARK_USED(c_out)
       MARK_USED(n)
 #else
@@ -156,22 +135,22 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineX = 'fw_fft_fpga_r3dc1d_dp'
 
       CALL timeset(routineX, handle3)
-      CALL pw_fpga_fft3d_dp(+1, n, c_out)
+      CALL fft_fpga_fft3d_dp(+1, n, c_out)
       CALL timestop(handle3)
 
 #endif
-   END SUBROUTINE pw_fpga_r3dc1d_3d_dp
+   END SUBROUTINE fft_fpga_r3dc1d_3d_dp
 
 ! **************************************************************************************************
 !> \brief perform an in-place double precision inverse fft3d on the FPGA
 !> \param n ...
 !> \param c_out  ...
 ! **************************************************************************************************
-   SUBROUTINE pw_fpga_c1dr3d_3d_dp(n, c_out)
+   SUBROUTINE fft_fpga_c1dr3d_3d_dp(n, c_out)
       INTEGER, DIMENSION(:), INTENT(IN)                 :: n
       COMPLEX(KIND=dp), INTENT(INOUT)    :: c_out(n(1), n(2), n(3))
 
-#if ! defined (__PW_FPGA)
+#if ! defined (__fft_FPGA)
       MARK_USED(c_out)
       MARK_USED(n)
 #else
@@ -180,22 +159,22 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineX = 'bw_fft_fpga_c1dr3d_dp'
 
       CALL timeset(routineX, handle3)
-      CALL pw_fpga_fft3d_dp(-1, n, c_out)
+      CALL fft_fpga_fft3d_dp(-1, n, c_out)
       CALL timestop(handle3)
 
 #endif
-   END SUBROUTINE pw_fpga_c1dr3d_3d_dp
+   END SUBROUTINE fft_fpga_c1dr3d_3d_dp
 
 ! **************************************************************************************************
 !> \brief perform an in-place single precision fft3d on the FPGA
 !> \param n ...
 !> \param c_out  ...
 ! **************************************************************************************************
-   SUBROUTINE pw_fpga_r3dc1d_3d_sp(n, c_out)
+   SUBROUTINE fft_fpga_r3dc1d_3d_sp(n, c_out)
       INTEGER, DIMENSION(:), INTENT(IN)                 :: n
       COMPLEX(KIND=dp), INTENT(INOUT)             :: c_out(n(1), n(2), n(3))
 
-#if ! defined (__PW_FPGA)
+#if ! defined (__fft_FPGA)
       MARK_USED(c_out)
       MARK_USED(n)
 #else
@@ -209,7 +188,7 @@ CONTAINS
       c_in_sp = CMPLX(c_out, KIND=sp)
 
       CALL timeset(routineX, handle3)
-      CALL pw_fpga_fft3d_sp(+1, n, c_in_sp)
+      CALL fft_fpga_fft3d_sp(+1, n, c_in_sp)
       CALL timestop(handle3)
 
       ! typecast sp back to dp
@@ -218,18 +197,18 @@ CONTAINS
 
       DEALLOCATE (c_in_sp)
 #endif
-   END SUBROUTINE pw_fpga_r3dc1d_3d_sp
+   END SUBROUTINE fft_fpga_r3dc1d_3d_sp
 
 ! **************************************************************************************************
 !> \brief perform an in-place single precision inverse fft3d on the FPGA
 !> \param n ...
 !> \param c_out  ...
 ! **************************************************************************************************
-   SUBROUTINE pw_fpga_c1dr3d_3d_sp(n, c_out)
+   SUBROUTINE fft_fpga_c1dr3d_3d_sp(n, c_out)
       INTEGER, DIMENSION(:), INTENT(IN)                 :: n
       COMPLEX(KIND=dp), INTENT(INOUT)             :: c_out(n(1), n(2), n(3))
 
-#if ! defined (__PW_FPGA)
+#if ! defined (__fft_FPGA)
       MARK_USED(c_out)
       MARK_USED(n)
 
@@ -244,7 +223,7 @@ CONTAINS
       c_in_sp = CMPLX(c_out, KIND=sp)
 
       CALL timeset(routineX, handle3)
-      CALL pw_fpga_fft3d_sp(-1, n, c_in_sp)
+      CALL fft_fpga_fft3d_sp(-1, n, c_in_sp)
       CALL timestop(handle3)
 
       ! typecast sp back to dp
@@ -252,19 +231,19 @@ CONTAINS
 
       DEALLOCATE (c_in_sp)
 #endif
-   END SUBROUTINE pw_fpga_c1dr3d_3d_sp
+   END SUBROUTINE fft_fpga_c1dr3d_3d_sp
 
 ! **************************************************************************************************
-!> \brief  Invoke the pw_fpga_check_bitstream C function passing the path to the data dir
+!> \brief  Invoke the fft_fpga_check_bitstream C function passing the path to the data dir
 !> \param  n   - fft3d size
 !> \return ...
 !> \retval res - true if fft size found and initialized else false
 ! **************************************************************************************************
-   FUNCTION pw_fpga_init_bitstream(n) RESULT(res)
+   FUNCTION fft_fpga_init_bitstream(n) RESULT(res)
       INTEGER, DIMENSION(:), INTENT(IN)                 :: n
       INTEGER                                           :: res
 
-#if ! defined (__PW_FPGA)
+#if ! defined (__fft_FPGA)
       res = 0
       MARK_USED(n)
       MARK_USED(res)
@@ -275,9 +254,9 @@ CONTAINS
       data_path = TRIM(get_data_dir())//C_NULL_CHAR
       data_path_len = LEN_TRIM(data_path)
 
-      res = pw_fpga_check_bitstream(data_path, n)
+      res = fft_fpga_check_bitstream(data_path, n)
 #endif
-   END FUNCTION pw_fpga_init_bitstream
+   END FUNCTION fft_fpga_init_bitstream
 
-END MODULE pw_fpga
+END MODULE fft_fpga
 

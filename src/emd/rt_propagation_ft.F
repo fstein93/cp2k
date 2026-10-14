@@ -11,9 +11,9 @@
 ! **************************************************************************************************
 MODULE rt_propagation_ft
    USE fft_lib,                         ONLY: fft_1d,&
-                                              fft_alloc,&
+                                              fft_allocate,&
                                               fft_create_plan_1d,&
-                                              fft_dealloc,&
+                                              fft_deallocate,&
                                               fft_destroy_plan
    USE fft_plan,                        ONLY: fft_plan_type
    USE kinds,                           ONLY: dp
@@ -107,7 +107,7 @@ CONTAINS
 
       COMPLEX(kind=dp)                                   :: subtract_value
       COMPLEX(kind=dp), CONTIGUOUS, DIMENSION(:), &
-         POINTER                                         :: ft_samples, samples, samples_input
+         POINTER                                         :: ft_samples, samples_input
       INTEGER                                            :: handle, i, i0, j, nsamples, nseries, stat
       LOGICAL                                            :: subtract_initial
       REAL(kind=dp)                                      :: damping, delta_t, t0, t_total
@@ -183,12 +183,10 @@ CONTAINS
       ! Use FFTW3 library
       ! Allocate the in-out arrays (on every rank)
       CALL timeset(routineN, handle)
-      NULLIFY (samples)
       NULLIFY (samples_input)
       NULLIFY (ft_samples)
-      CALL fft_alloc(samples, [nsamples*nseries])
-      CALL fft_alloc(samples_input, [nsamples*nseries])
-      CALL fft_alloc(ft_samples, [nsamples*nseries])
+      CALL fft_allocate(samples_input, [nsamples*nseries])
+      CALL fft_allocate(ft_samples, [nsamples*nseries])
       ! Fill the samples with data
       DO i = 1, nseries
          DO j = 1, nsamples
@@ -204,7 +202,7 @@ CONTAINS
       END DO
       ! Create the plan (this overwrites samples and ft_samples with planning data)
       CALL fft_create_plan_1d(fft_plan, -1, .FALSE., .FALSE., &
-                              nsamples, nsamples, nsamples, nseries, samples, ft_samples)
+                              nsamples, nsamples, nsamples, nseries, samples_input, ft_samples)
       ! Carry out the transform
       ! Scale by dt - to transform to an integral
       CALL fft_1d(fft_plan, samples_input, ft_samples, delta_t, stat)
@@ -234,9 +232,8 @@ CONTAINS
          CPABORT("multi_fft produced abnormal Fourier amplitudes (NaN/Inf).")
       END IF
       ! Deallocate
-      CALL fft_dealloc(samples)
-      CALL fft_dealloc(ft_samples)
-      CALL fft_dealloc(samples_input)
+      CALL fft_deallocate(ft_samples)
+      CALL fft_deallocate(samples_input)
       CALL fft_destroy_plan(fft_plan)
       CALL timestop(handle)
    END SUBROUTINE multi_fft

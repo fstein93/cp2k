@@ -36,15 +36,15 @@ MODULE pw_methods
    USE mathconstants, ONLY: gaussi, &
                             z_zero
    USE pw_copy_all, ONLY: pw_copy_match
-   USE pw_fpga, ONLY: pw_fpga_c1dr3d_3d_dp, &
-                      pw_fpga_c1dr3d_3d_sp, &
-                      pw_fpga_init_bitstream, &
-                      pw_fpga_r3dc1d_3d_dp, &
-                      pw_fpga_r3dc1d_3d_sp
-   USE pw_gpu, ONLY: pw_gpu_c1dr3d_3d, &
-                     pw_gpu_c1dr3d_3d_ps, &
-                     pw_gpu_r3dc1d_3d, &
-                     pw_gpu_r3dc1d_3d_ps
+   USE fft_fpga, ONLY: fft_fpga_c1dr3d_3d_dp, &
+                      fft_fpga_c1dr3d_3d_sp, &
+                      fft_fpga_init_bitstream, &
+                      fft_fpga_r3dc1d_3d_dp, &
+                      fft_fpga_r3dc1d_3d_sp
+   USE fft_gpu, ONLY: fft_gpu_c1dr3d_3d, &
+                     fft_gpu_c1dr3d_3d_ps, &
+                     fft_gpu_r3dc1d_3d, &
+                     fft_gpu_r3dc1d_3d_ps
    USE pw_grid_types, ONLY: HALFSPACE, &
                             PW_MODE_DISTRIBUTED, &
                             PW_MODE_LOCAL, &
@@ -1166,7 +1166,7 @@ CONTAINS
                                  #:if (space=="rs" and kind=="r3d" and kind2=="c1d") or (space=="gs" and kind=="c1d" and kind2=="r3d")
                                     INTEGER, DIMENSION(3)                              :: nloc
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                                    LOGICAL                                            :: use_pw_gpu
+                                    LOGICAL                                            :: use_fft_gpu
 #endif
                                  #:endif
                                  INTEGER, DIMENSION(:), POINTER                     :: n
@@ -1237,17 +1237,17 @@ CONTAINS
                                           DEALLOCATE (c_out)
                                        #:elif kind=="r3d" and kind2=="c1d"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                                          CALL pw_gpu_r3dc1d_3d(pw1, pw2)
+                                          CALL fft_gpu_r3dc1d_3d(pw1, pw2)
 #elif defined (__PW_FPGA)
                                           ALLOCATE (c_out(n(1), n(2), n(3)))
                                           ! check if bitstream for the fft size is present
                                           ! if not, perform fft3d in CPU
-                                          IF (pw_fpga_init_bitstream(n) == 1) THEN
+                                          IF (fft_fpga_init_bitstream(n) == 1) THEN
                                              CALL pw_copy_to_array(pw1, c_out)
 #if (__PW_FPGA_SP && __PW_FPGA)
-                                             CALL pw_fpga_r3dc1d_3d_sp(n, c_out)
+                                             CALL fft_fpga_r3dc1d_3d_sp(n, c_out)
 #else
-                                             CALL pw_fpga_r3dc1d_3d_dp(n, c_out)
+                                             CALL fft_fpga_r3dc1d_3d_dp(n, c_out)
 #endif
                                              CALL zdscal(n(1)*n(2)*n(3), 1.0_dp/pw1%pw_grid%ngpts, c_out, 1)
                                              CALL pw_gather_s_${kind2}$_c3d(pw2, c_out)
@@ -1286,18 +1286,18 @@ CONTAINS
                                           CALL fft3d(BWFFT, n, c_out, debug=test)
                                        #:elif kind=="c1d" and kind2=="r3d"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-                                          CALL pw_gpu_c1dr3d_3d(pw1, pw2)
+                                          CALL fft_gpu_c1dr3d_3d(pw1, pw2)
 #elif defined (__PW_FPGA)
                                           ALLOCATE (c_out(n(1), n(2), n(3)))
                                           ! check if bitstream for the fft size is present
                                           ! if not, perform fft3d in CPU
-                                          IF (pw_fpga_init_bitstream(n) == 1) THEN
+                                          IF (fft_fpga_init_bitstream(n) == 1) THEN
                                              CALL pw_scatter_s_${kind}$_c3d(pw1, c_out)
                                              ! transform using FPGA
 #if (__PW_FPGA_SP && __PW_FPGA)
-                                             CALL pw_fpga_c1dr3d_3d_sp(n, c_out)
+                                             CALL fft_fpga_c1dr3d_3d_sp(n, c_out)
 #else
-                                             CALL pw_fpga_c1dr3d_3d_dp(n, c_out)
+                                             CALL fft_fpga_c1dr3d_3d_dp(n, c_out)
 #endif
                                              CALL zdscal(n(1)*n(2)*n(3), 1.0_dp, c_out, 1)
                                              ! use real part only
@@ -1372,9 +1372,9 @@ CONTAINS
                                        #:elif kind=="r3d" and kind2=="c1d"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
                                           ! (no ray dist. is not efficient in CUDA)
-                                          use_pw_gpu = pw1%pw_grid%para%ray_distribution
-                                          IF (use_pw_gpu) THEN
-                                             CALL pw_gpu_r3dc1d_3d_ps(pw1, pw2)
+                                          use_fft_gpu = pw1%pw_grid%para%ray_distribution
+                                          IF (use_fft_gpu) THEN
+                                             CALL fft_gpu_r3dc1d_3d_ps(pw1, pw2)
                                           ELSE
 #endif
 !..   prepare input
@@ -1422,9 +1422,9 @@ CONTAINS
                                        #:elif kind=="c1d" and kind2=="r3d"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
                                           ! (no ray dist. is not efficient in CUDA)
-                                          use_pw_gpu = pw1%pw_grid%para%ray_distribution
-                                          IF (use_pw_gpu) THEN
-                                             CALL pw_gpu_c1dr3d_3d_ps(pw1, pw2)
+                                          use_fft_gpu = pw1%pw_grid%para%ray_distribution
+                                          IF (use_fft_gpu) THEN
+                                             CALL fft_gpu_c1dr3d_3d_ps(pw1, pw2)
                                           ELSE
 #endif
 !..   prepare input

@@ -14,13 +14,12 @@
 !>        Unsupported grids retain the direct phase-sum fallback.
 ! **************************************************************************************************
 MODULE kpoint_lattice_fft
-   USE fft_lib,                         ONLY: fft_supports_arbitrary_lengths
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
                                               fft3d,&
-                                              fft_alloc,&
-                                              fft_dealloc,&
+                                              fft_allocate,&
+                                              fft_deallocate,&
                                               fft_radix_operations
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gaussi,&
@@ -134,7 +133,7 @@ CONTAINS
       nfft = n
       IF (ANY(n <= 0)) RETURN
       IF (PRESENT(allow_arbitrary)) THEN
-         IF (allow_arbitrary .AND. fft_supports_arbitrary_lengths()) THEN
+         IF (allow_arbitrary) THEN
             ! For capable backends, the PW grid radix list is a cost heuristic, not a capability limit.
             compatible = .TRUE.
             RETURN
@@ -232,8 +231,8 @@ CONTAINS
       END IF
 
       NULLIFY (fft_in, fft_out)
-      CALL fft_alloc(fft_in, nfft)
-      CALL fft_alloc(fft_out, nfft)
+      CALL fft_allocate(fft_in, nfft)
+      CALL fft_allocate(fft_out, nfft)
       ALLOCATE (cell_index(3, SIZE(values_rs, 3)), cell_factor(SIZE(values_rs, 3)))
       DO icell = 1, SIZE(values_rs, 3)
          DO d = 1, 3
@@ -275,8 +274,8 @@ CONTAINS
       END IF
       IF (PRESENT(used_fft)) used_fft = regular
 
-      CALL fft_dealloc(fft_in)
-      CALL fft_dealloc(fft_out)
+      CALL fft_deallocate(fft_in)
+      CALL fft_deallocate(fft_out)
       DEALLOCATE (cell_factor, cell_index, grid_index)
       CALL timestop(handle)
 
@@ -352,8 +351,8 @@ CONTAINS
       IF (work%regular) work%regular = lattice_fft_shape(nkp_grid, work%nfft, allow_incomplete)
       IF (.NOT. work%regular) RETURN
 
-      CALL fft_alloc(work%fft_in, work%nfft)
-      CALL fft_alloc(work%fft_out, work%nfft)
+      CALL fft_allocate(work%fft_in, work%nfft)
+      CALL fft_allocate(work%fft_out, work%nfft)
       ALLOCATE (work%cell_index(3, ncell), work%cell_phase(ncell))
       DO icell = 1, ncell
          DO d = 1, 3
@@ -429,8 +428,8 @@ CONTAINS
 
       TYPE(k_grid_to_cell_work_type), INTENT(INOUT)      :: work
 
-      IF (ASSOCIATED(work%fft_in)) CALL fft_dealloc(work%fft_in)
-      IF (ASSOCIATED(work%fft_out)) CALL fft_dealloc(work%fft_out)
+      IF (ASSOCIATED(work%fft_in)) CALL fft_deallocate(work%fft_in)
+      IF (ASSOCIATED(work%fft_out)) CALL fft_deallocate(work%fft_out)
       IF (ALLOCATED(work%xkp)) DEALLOCATE (work%xkp, work%cells, work%weight, work%grid_index)
       IF (ALLOCATED(work%cell_index)) DEALLOCATE (work%cell_index, work%cell_phase)
       work%regular = .FALSE.

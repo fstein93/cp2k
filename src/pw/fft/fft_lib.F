@@ -13,9 +13,7 @@ MODULE fft_lib
                                               fftsg_do_cleanup,&
                                               fftsg_do_init
    USE fftw3_lib,                       ONLY: &
-        fft_alloc => fftw_alloc, fft_dealloc => fftw_dealloc, fftw31dm, fftw33d, &
-        fftw3_create_plan_1d, fftw3_create_plan_3d, fftw3_destroy_plan, fftw3_do_cleanup, &
-        fftw3_do_init, fftw3_get_lengths
+        fftw31dm, fftw33d, fftw3_create_plan_1d, fftw3_create_plan_3d, fftw3_destroy_plan
 #include "../../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -25,106 +23,10 @@ MODULE fft_lib
 
    INTEGER, SAVE :: fft_type = 0
 
-   PUBLIC :: fft_do_cleanup, fft_do_init, fft_get_lengths, fft_create_plan_3d
-   PUBLIC :: fft_create_plan_1d, fft_1d, fft_library, fft_3d, fft_destroy_plan
-   PUBLIC :: fft_supports_arbitrary_lengths
-   PUBLIC :: fft_alloc, fft_dealloc
+   PUBLIC :: fft_create_plan_3d
+   PUBLIC :: fft_create_plan_1d, fft_1d, fft_3d, fft_destroy_plan
 
 CONTAINS
-! **************************************************************************************************
-!> \brief Interface to FFT libraries
-!> \param fftlib ...
-!> \return ...
-!> \par History
-!>      IAB 09-Jan-2009 : Modified to use fft_plan_type
-!>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
-!> \author JGH
-! **************************************************************************************************
-   FUNCTION fft_library(fftlib) RESULT(flib)
-
-      CHARACTER(len=*), INTENT(IN)                       :: fftlib
-      INTEGER                                            :: flib
-
-      SELECT CASE (fftlib)
-      CASE DEFAULT
-         flib = -1
-      CASE ("FFTSG")
-         flib = 1
-      CASE ("FFTW3")
-         flib = 3
-      END SELECT
-
-   END FUNCTION fft_library
-
-! **************************************************************************************************
-!> \brief Query whether the active FFT backend supports arbitrary transform lengths.
-!> \return whether arbitrary positive transform lengths are supported
-! **************************************************************************************************
-   LOGICAL FUNCTION fft_supports_arbitrary_lengths() RESULT(supported)
-
-      supported = fft_type == fft_library("FFTW3")
-
-   END FUNCTION fft_supports_arbitrary_lengths
-
-! **************************************************************************************************
-!> \brief ...
-!> \param fftlib ...
-!> \param plan_style ...
-!> \param wisdom_file ...
-! **************************************************************************************************
-   SUBROUTINE fft_do_init(fftlib, plan_style, wisdom_file)
-      CHARACTER(LEN=*), INTENT(IN)                       :: fftlib
-      INTEGER, INTENT(IN)                                :: plan_style
-      CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
-
-      fft_type = fft_library(fftlib)
-      SELECT CASE (fft_type)
-      CASE DEFAULT
-         CPABORT("fft_do_init")
-      CASE (1)
-         CALL fftsg_do_init()
-      CASE (3)
-         CALL fftw3_do_init(wisdom_file, plan_style)
-      END SELECT
-
-   END SUBROUTINE fft_do_init
-
-! **************************************************************************************************
-!> \brief ...
-!> \param wisdom_file ...
-!> \param ionode ...
-!> \param export_wisdom Export the FFTW wisdom to wisdom_file (default: no export)
-! **************************************************************************************************
-   SUBROUTINE fft_do_cleanup(wisdom_file, ionode, export_wisdom)
-      CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
-      LOGICAL, INTENT(IN)                                :: ionode
-      LOGICAL, INTENT(IN), OPTIONAL                      :: export_wisdom
-
-      SELECT CASE (fft_type)
-      CASE DEFAULT
-         CPABORT("fft_do_cleanup")
-      CASE (1)
-         CALL fftsg_do_cleanup()
-      CASE (3)
-         CALL fftw3_do_cleanup(wisdom_file, ionode, export_wisdom)
-      END SELECT
-
-   END SUBROUTINE fft_do_cleanup
-
-! **************************************************************************************************
-!> \brief ...
-!> \param DATA ...
-!> \param max_length ...
-! **************************************************************************************************
-   SUBROUTINE fft_get_lengths(DATA, max_length)
-      INTEGER, DIMENSION(*)                              :: DATA
-      INTEGER, INTENT(INOUT)                             :: max_length
-
-      CALL fftw3_get_lengths(DATA, max_length)
-
-   END SUBROUTINE fft_get_lengths
-
-! **************************************************************************************************
 
 ! **************************************************************************************************
 !> \brief ...

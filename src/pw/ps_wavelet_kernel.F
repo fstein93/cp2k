@@ -15,8 +15,8 @@ MODULE ps_wavelet_kernel
                                               fft_destroy_plan
    USE fft_plan,                        ONLY: fft_plan_type
    USE fft_tools,                       ONLY: BWFFT,&
-                                              fft_alloc,&
-                                              fft_dealloc
+                                              fft_allocate,&
+                                              fft_deallocate
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_comm_type
@@ -284,9 +284,9 @@ CONTAINS
       ALLOCATE (kernel(nker1, nact2/nproc, nker3))
       ALLOCATE (kernel_mpi(nker1, nact2/nproc, nker3/nproc, nproc))
       ALLOCATE (kernel_scf(n_range))
-      CALL fft_alloc(halfft_cache1, [MAX(ncache/4, n3/2)])
+      CALL fft_allocate(halfft_cache1, [MAX(ncache/4, n3/2)])
       halfft_cache1 = CMPLX(0.0_dp, 0.0_dp, dp)
-      CALL fft_alloc(halfft_cache2, [MAX(ncache/4, n3/2)])
+      CALL fft_allocate(halfft_cache2, [MAX(ncache/4, n3/2)])
       halfft_cache2 = CMPLX(0.0_dp, 0.0_dp, dp)
       ALLOCATE (cossinarr(2, n3/2 - 1))
 
@@ -487,8 +487,8 @@ CONTAINS
       !De-allocations
       DEALLOCATE (kernel)
       DEALLOCATE (kernel_mpi)
-      CALL fft_dealloc(halfft_cache1)
-      CALL fft_dealloc(halfft_cache2)
+      CALL fft_deallocate(halfft_cache1)
+      CALL fft_deallocate(halfft_cache2)
       DEALLOCATE (kernel_scf)
       DEALLOCATE (x_scf)
       DEALLOCATE (y_scf)
@@ -1090,11 +1090,11 @@ CONTAINS
       IF (MOD(n2, 2) == 0) lzt = lzt + 1
 
       !Allocations
-      CALL fft_alloc(zw1, [ncache/4])
+      CALL fft_allocate(zw1, [ncache/4])
       zw1 = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-      CALL fft_alloc(zw2, [ncache/4])
+      CALL fft_allocate(zw2, [ncache/4])
       zw2 = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
-      CALL fft_alloc(zt, [lzt, n1])
+      CALL fft_allocate(zt, [lzt, n1])
       zt = CMPLX(0.0_dp, 0.0_dp, KIND=dp)
       ALLOCATE (zmpi2(n1, nd2/nproc, nd3), SOURCE=CMPLX(0.0_dp, 0.0_dp, dp))
       ALLOCATE (cosinarr(2, n3/2))
@@ -1256,9 +1256,9 @@ CONTAINS
 
       !De-allocations
       DEALLOCATE (zmpi2)
-      CALL fft_dealloc(zw1)
-      CALL fft_dealloc(zw2)
-      CALL fft_dealloc(zt)
+      CALL fft_deallocate(zw1)
+      CALL fft_deallocate(zw2)
+      CALL fft_deallocate(zt)
       DEALLOCATE (cosinarr)
       IF (nproc > 1) DEALLOCATE (zmpi1)
 

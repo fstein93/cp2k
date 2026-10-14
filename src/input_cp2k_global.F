@@ -282,12 +282,11 @@ CONTAINS
          citations=[Frigo2005], &
          default_i_val=do_fft_fftw3, &
          enum_i_vals=[do_fft_sg, do_fft_fftw3, do_fft_fftw3], &
-         enum_c_vals=s2a("FFTSG", "FFTW3", "FFTW"), &
-         enum_desc=s2a("Stefan Goedecker's FFT (FFTSG), always available, "// &
-                       "will be used in case a FFT library is specified and not available.", &
-                       "a fast portable FFT library. Recommended. "// &
+         enum_c_vals=s2a("DEFAULT", "FFTW3", "GPU"), &
+         enum_desc=s2a("Equivalent to GPU if offloading was enabled, FFTW otherwise.", &
+                       "A fast portable FFT library. Recommended. "// &
                        "See also the FFTW_PLAN_TYPE, and FFTW_WISDOM_FILE_NAME keywords.", &
-                       "Same as FFTW3 (for compatibility with CP2K 2.3)"))
+                       "CUFFT/HIPFFT-based backend if offloading was enabled."))
       CALL section_add_keyword(section, keyword)
       CALL keyword_release(keyword)
 

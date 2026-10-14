@@ -193,6 +193,9 @@ list(
   farming_types.F
   fde_main.F
   fde_methods.F
+  fft/fft_api.F
+  fft/fpga/fft_fpga.F
+  fft/fft_tools.F
   fist_efield_methods.F
   fist_efield_types.F
   fist_energy_types.F
@@ -1309,7 +1312,6 @@ list(
   pw/ps_wavelet_types.F
   pw/ps_wavelet_util.F
   pw/pw_copy_all.F
-  pw/pw_fpga.F
   pw/pw_grid_info.F
   pw/pw_grids.F
   pw/pw_gpu.F
@@ -1324,7 +1326,7 @@ list(
   pw/realspace_grid_types.F
   pw/rs_methods.F)
 
-if(CP2K_USE_PW_GPU)
+if(CP2K_USE_FFT_GPU)
   list(APPEND CP2K_SRCS_F pw/pw_gpu.F)
 endif()
 
@@ -1528,6 +1530,14 @@ set(CP2K_DBM_SRCS_C
     dbm/dbm_multiply_cpu.c
     dbm/dbm_shard.c)
 
+set(CP2K_FFT_SRCS_C
+    fft/fft_api_F.C
+    fft/fft_lib.c
+    fft/fft_lib_fftw.c
+    fft/fft_lib_test.c
+    fft/fft_timer.c
+    fft/gpu/fft_gpu.c)
+
 set(CP2K_GRID_SRCS_C
     grid/common/grid_basis_set.c
     grid/common/grid_library.c
@@ -1594,8 +1604,7 @@ list(
 
 list(APPEND CP2K_SRCS_F grpp/libgrpp.F)
 
-set(CP2K_FPGA_SRC_C pw/fpga/fft_fpga.c pw/fpga/opencl_utils.c)
-set(CP2K_PW_SRCS_C pw/gpu/pw_gpu_internal.c)
+set(CP2K_FPGA_SRC_C fft/fpga/fft_fpga.c fft/fpga/opencl_utils.c)
 set(CP2K_SRCS_CPP torch_c_api.cpp ace_c_api.cpp)
 
 list(APPEND CP2K_SRCS_C "${CP2K_OFFLOAD_SRCS_C}" "${CP2K_MPIWRAP_SRCS_C}")
@@ -1613,10 +1622,10 @@ set(CP2K_GRID_SRCS_GPU
 set(CP2K_DBM_SRCS_GPU dbm/dbm_multiply_gpu_kernel.cu)
 set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)
 
-set(CP2K_PW_SRCS_GPU pw/gpu/pw_gpu_kernels.cu)
+set(CP2K_FFT_SRCS_GPU fft/gpu/fft_gpu_kernels.cu)
 
 set(CP2K_PROGS_C
-    grid/grid_miniapp.c;grid/grid_unittest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c
+    grid/grid_miniapp.c;grid/grid_unittest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c;fft/fft_unittest.c
 )
 set(CP2K_PROGS_F
     aobasis/orbital_transformation_matrices_unittest.F
@@ -1670,9 +1679,9 @@ endif()
 if(CP2K_USE_CUDA
    OR CP2K_USE_HIP
    OR CP2K_USE_OPENCL)
-  if(CP2K_ENABLE_PW_GPU)
+  if(CP2K_ENABLE_FFT_GPU)
     list(APPEND CP2K_SRCS_GPU "pw/gpu/pw_gpu_kernels.cu")
-    list(APPEND CP2K_SRCS_C ${CP2K_PW_SRCS_C})
+    list(APPEND CP2K_SRCS_C ${CP2K_FFT_SRCS_C})
   endif()
 
   if(CP2K_ENABLE_DBM_GPU)
@@ -1725,14 +1734,14 @@ list(APPEND CP2K_SRCS_CPP openpmd_c_api.cpp)
 
 if(CP2K_ENABLE_CONSISTENCY_CHECKS)
   cp2k_compare_src_with_list(
-    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_MPIWRAP_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_PW_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C}"
+    "${CP2K_FPGA_SRC_C};${CP2K_SRCS_C};${CP2K_MPIWRAP_SRCS_C};${CP2K_OFFLOAD_SRCS_C};${CP2K_DBM_SRCS_C};${CP2K_GRID_SRCS_C};${CP2K_FFT_SRCS_C};${CP2K_DBM_SRCS_GPU_C};${CP2K_PROGS_C}"
     "*.c"
     "${CP2K_EXCLUDED_SRCS_C}")
   cp2k_compare_src_with_list(
     "${CP2K_SRCS_F};${CP2K_OFFLOAD_SRCS_F};${CP2K_PROGS_F}" "*.F"
     "${CP2K_EXCLUDED_SRCS_F}")
   cp2k_compare_src_with_list(
-    "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_PW_SRCS_GPU}"
+    "${CP2K_GRID_SRCS_GPU};${CP2K_GRID_SRCS_HIP};${CP2K_DBM_SRCS_GPU};${CP2K_FFT_SRCS_GPU}"
     "*.cu"
     "")
   cp2k_compare_src_with_list("${CP2K_SRCS_CPP}" "*.cpp" "")
@@ -2037,7 +2046,7 @@ if(CP2K_USE_CUDA
            $<$<NOT:$<BOOL:${CP2K_ENABLE_ELPA_GPU}>>:__NO_OFFLOAD_ELPA>
            $<$<NOT:$<BOOL:${CP2K_ENABLE_GRID_GPU}>>:__NO_OFFLOAD_GRID>
            $<$<NOT:$<BOOL:${CP2K_ENABLE_DBM_GPU}>>:__NO_OFFLOAD_DBM>
-           $<$<NOT:$<BOOL:${CP2K_ENABLE_PW_GPU}>>:__NO_OFFLOAD_PW>)
+           $<$<NOT:$<BOOL:${CP2K_ENABLE_FFT_GPU}>>:__NO_OFFLOAD_FFT>)
 endif()
 
 add_dependencies(cp2k cp2k_build_info)

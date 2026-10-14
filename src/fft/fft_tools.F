@@ -32,9 +32,9 @@ MODULE fft_tools
                                               C_PTR,&
                                               C_SIZE_T
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
+   USE fft_api,                         ONLY: fft_library_init, fft_library_finalize, fft_allocate, fft_deallocate
    USE fft_lib,                         ONLY: &
-        fft_1d, fft_3d, fft_alloc, fft_create_plan_1d, fft_create_plan_3d, fft_dealloc, &
-        fft_destroy_plan, fft_do_cleanup, fft_do_init, fft_get_lengths
+        fft_1d, fft_3d, fft_create_plan_1d, fft_create_plan_3d, fft_destroy_plan
    USE fft_plan,                        ONLY: fft_plan_type
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
@@ -136,7 +136,7 @@ MODULE fft_tools
 
    PRIVATE
    PUBLIC :: init_fft, fft3d, finalize_fft
-   PUBLIC :: fft_alloc, fft_dealloc
+   PUBLIC :: fft_allocate, fft_deallocate
    PUBLIC :: init_fft_scratch_pool
    PUBLIC :: fft_radix_operations, fft_1d_many
    PUBLIC :: FWFFT, BWFFT
@@ -190,6 +190,7 @@ CONTAINS
 
       CALL release_fft_scratch_pool()
 
+      CALL fft_library_init(backend, planning_mode, use_guru_interface, wisdom_file)
       CALL fft_do_init(fftlib, plan_style, wisdom_file)
 
       ! setup the FFT scratch pool, if one is associated, clear first
@@ -216,9 +217,219 @@ CONTAINS
 
       ! finalize fft libs
 
-      CALL fft_do_cleanup(wisdom_file, para_env%is_source(), export_wisdom)
+      CALL fft_library_finalize(wisdom_file)
 
    END SUBROUTINE finalize_fft
+
+! **************************************************************************************************
+!> \brief ...
+!> \param DATA ...
+!> \param max_length ...
+!> \par History
+!>      JGH 23-Jan-2006 : initial version
+!>      Adapted for new interface
+!>      IAB 09-Jan-2009 : Modified to cache plans in fft_plan_type
+!>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+!>      IAB 09-Oct-2009 : Added OpenMP directives to 1D FFT, and planning routines
+!>                        (c) The Numerical Algorithms Group (NAG) Ltd, 2009 on behalf of the HECToR project
+!>      IAB 11-Sep-2012 : OpenMP parallel 3D FFT (Ruyman Reyes, PRACE)
+!> \author JGH
+! **************************************************************************************************
+   SUBROUTINE fft_get_lengths(DATA, max_length)
+
+      INTEGER, DIMENSION(:), INTENT(INOUT)               :: DATA
+      INTEGER, INTENT(INOUT)                             :: max_length
+
+      INTEGER                                            :: h, i, j, k, m, maxn, maxn_elevens, &
+                                                            maxn_fives, maxn_sevens, &
+                                                            maxn_thirteens, maxn_threes, &
+                                                            maxn_twos, ndata, nmax, number
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: dlocal, idx
+
+!------------------------------------------------------------------------------
+! compute ndata
+!! FFTW can do arbitrary(?) lengths, maybe you want to limit them to some
+!!    powers of small prime numbers though...
+
+      maxn_twos = 15
+      maxn_threes = 3
+      maxn_fives = 2
+      maxn_sevens = 1
+      maxn_elevens = 1
+      maxn_thirteens = 0
+      maxn = 37748736
+
+      ndata = 0
+      DO h = 0, maxn_twos
+         nmax = HUGE(0)/2**h
+         DO i = 0, maxn_threes
+            DO j = 0, maxn_fives
+               DO k = 0, maxn_sevens
+                  DO m = 0, maxn_elevens
+                     number = (3**i)*(5**j)*(7**k)*(11**m)
+
+                     IF (number > nmax) CYCLE
+
+                     number = number*2**h
+                     IF (number >= maxn) CYCLE
+
+                     ndata = ndata + 1
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
+
+      ALLOCATE (dlocal(ndata), idx(ndata))
+
+      ndata = 0
+      dlocal(:) = 0
+      DO h = 0, maxn_twos
+         nmax = HUGE(0)/2**h
+         DO i = 0, maxn_threes
+            DO j = 0, maxn_fives
+               DO k = 0, maxn_sevens
+                  DO m = 0, maxn_elevens
+                     number = (3**i)*(5**j)*(7**k)*(11**m)
+
+                     IF (number > nmax) CYCLE
+
+                     number = number*2**h
+                     IF (number >= maxn) CYCLE
+
+                     ndata = ndata + 1
+                     dlocal(ndata) = number
+                  END DO
+               END DO
+            END DO
+         END DO
+      END DO
+
+      CALL sortint(dlocal, ndata, idx)
+      ndata = MIN(ndata, max_length)
+      DATA(1:ndata) = dlocal(1:ndata)
+      max_length = ndata
+
+      DEALLOCATE (dlocal, idx)
+
+   END SUBROUTINE fft_get_lengths
+
+! **************************************************************************************************
+!> \brief ...
+!> \param iarr ...
+!> \param n ...
+!> \param index ...
+! **************************************************************************************************
+   SUBROUTINE sortint(iarr, n, index)
+
+      INTEGER, INTENT(IN)                                :: n
+      INTEGER, INTENT(INOUT)                             :: iarr(1:n)
+      INTEGER, INTENT(OUT)                               :: INDEX(1:n)
+
+      INTEGER, PARAMETER                                 :: m = 7, nstack = 50
+
+      INTEGER                                            :: a, i, ib, ir, istack(1:nstack), itemp, &
+                                                            j, jstack, k, l, temp
+
+!------------------------------------------------------------------------------
+
+      DO i = 1, n
+         INDEX(i) = i
+      END DO
+      jstack = 0
+      l = 1
+      ir = n
+      DO WHILE (.TRUE.)
+      IF (ir - l < m) THEN
+         DO j = l + 1, ir
+            a = iarr(j)
+            ib = INDEX(j)
+            DO i = j - 1, 0, -1
+               IF (i == 0) EXIT
+               IF (iarr(i) <= a) EXIT
+               iarr(i + 1) = iarr(i)
+               INDEX(i + 1) = INDEX(i)
+            END DO
+            iarr(i + 1) = a
+            INDEX(i + 1) = ib
+         END DO
+         IF (jstack == 0) RETURN
+         ir = istack(jstack)
+         l = istack(jstack - 1)
+         jstack = jstack - 2
+      ELSE
+         k = (l + ir)/2
+         temp = iarr(k)
+         iarr(k) = iarr(l + 1)
+         iarr(l + 1) = temp
+         itemp = INDEX(k)
+         INDEX(k) = INDEX(l + 1)
+         INDEX(l + 1) = itemp
+         IF (iarr(l + 1) > iarr(ir)) THEN
+            temp = iarr(l + 1)
+            iarr(l + 1) = iarr(ir)
+            iarr(ir) = temp
+            itemp = INDEX(l + 1)
+            INDEX(l + 1) = INDEX(ir)
+            INDEX(ir) = itemp
+         END IF
+         IF (iarr(l) > iarr(ir)) THEN
+            temp = iarr(l)
+            iarr(l) = iarr(ir)
+            iarr(ir) = temp
+            itemp = INDEX(l)
+            INDEX(l) = INDEX(ir)
+            INDEX(ir) = itemp
+         END IF
+         IF (iarr(l + 1) > iarr(l)) THEN
+            temp = iarr(l + 1)
+            iarr(l + 1) = iarr(l)
+            iarr(l) = temp
+            itemp = INDEX(l + 1)
+            INDEX(l + 1) = INDEX(l)
+            INDEX(l) = itemp
+         END IF
+         i = l + 1
+         j = ir
+         a = iarr(l)
+         ib = INDEX(l)
+         DO WHILE (.TRUE.)
+            i = i + 1
+            DO WHILE (iarr(i) < a)
+               i = i + 1
+            END DO
+            j = j - 1
+            DO WHILE (iarr(j) > a)
+               j = j - 1
+            END DO
+            IF (j < i) EXIT
+            temp = iarr(i)
+            iarr(i) = iarr(j)
+            iarr(j) = temp
+            itemp = INDEX(i)
+            INDEX(i) = INDEX(j)
+            INDEX(j) = itemp
+         END DO
+         iarr(l) = iarr(j)
+         iarr(j) = a
+         INDEX(l) = INDEX(j)
+         INDEX(j) = ib
+         jstack = jstack + 2
+         IF (jstack > nstack) CPABORT("Nstack too small in sortint")
+         IF (ir - i + 1 >= j - l) THEN
+            istack(jstack) = ir
+            istack(jstack - 1) = i
+            ir = j - 1
+         ELSE
+            istack(jstack) = j - 1
+            istack(jstack - 1) = l
+            l = i
+         END IF
+      END IF
+
+      END DO
+
+   END SUBROUTINE sortint
 
 ! **************************************************************************************************
 !> \brief Determine the allowed lengths of FFT's   '''
@@ -371,12 +582,12 @@ CONTAINS
 
       NULLIFY (ztmp)
       IF (trans_in) THEN
-         CALL fft_alloc(ztmp, [ldx_in*n])
+         CALL fft_allocate(ztmp, [ldx_in*n])
       ELSE
-         CALL fft_alloc(ztmp, [ldx_in*m])
+         CALL fft_allocate(ztmp, [ldx_in*m])
       END IF
       CALL fft_create_plan_1d(fft_plan, sign, trans_in, trans_out, ldx_in, ldx_out, n, m, ztmp, zout)
-      CALL fft_dealloc(ztmp)
+      CALL fft_deallocate(ztmp)
       CALL fft_1d(fft_plan, zin, zout, scale, stat)
       CALL fft_destroy_plan(fft_plan)
 
@@ -2628,20 +2839,20 @@ CONTAINS
 
       ! deallocate structures
       IF (ASSOCIATED(fft_scratch%ziptr)) THEN
-         CALL fft_dealloc(fft_scratch%ziptr)
+         CALL fft_deallocate(fft_scratch%ziptr)
       END IF
       IF (ASSOCIATED(fft_scratch%zoptr)) THEN
-         CALL fft_dealloc(fft_scratch%zoptr)
+         CALL fft_deallocate(fft_scratch%zoptr)
       END IF
       IF (ASSOCIATED(fft_scratch%p1buf)) THEN
-         CALL fft_dealloc(fft_scratch%p1buf)
+         CALL fft_deallocate(fft_scratch%p1buf)
       END IF
       IF (ASSOCIATED(fft_scratch%p2buf)) THEN
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
          dummy_ptr_z => fft_scratch%p2buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%p2buf)
+         CALL fft_deallocate(fft_scratch%p2buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%p3buf)) THEN
@@ -2649,7 +2860,7 @@ CONTAINS
          dummy_ptr_z => fft_scratch%p3buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%p3buf)
+         CALL fft_deallocate(fft_scratch%p3buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%p4buf)) THEN
@@ -2657,7 +2868,7 @@ CONTAINS
          dummy_ptr_z => fft_scratch%p4buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%p4buf)
+         CALL fft_deallocate(fft_scratch%p4buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%p5buf)) THEN
@@ -2665,18 +2876,18 @@ CONTAINS
          dummy_ptr_z => fft_scratch%p5buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%p5buf)
+         CALL fft_deallocate(fft_scratch%p5buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%p6buf)) THEN
-         CALL fft_dealloc(fft_scratch%p6buf)
+         CALL fft_deallocate(fft_scratch%p6buf)
       END IF
       IF (ASSOCIATED(fft_scratch%p7buf)) THEN
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
          dummy_ptr_z => fft_scratch%p7buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%p7buf)
+         CALL fft_deallocate(fft_scratch%p7buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%r1buf)) THEN
@@ -2684,37 +2895,37 @@ CONTAINS
          dummy_ptr_z => fft_scratch%r1buf(1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%r1buf)
+         CALL fft_deallocate(fft_scratch%r1buf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%r2buf)) THEN
-         CALL fft_dealloc(fft_scratch%r2buf)
+         CALL fft_deallocate(fft_scratch%r2buf)
       END IF
       IF (ASSOCIATED(fft_scratch%tbuf)) THEN
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
          dummy_ptr_z => fft_scratch%tbuf(1, 1, 1)
          ierr = offload_free_pinned_mem(c_loc(dummy_ptr_z))
 #else
-         CALL fft_dealloc(fft_scratch%tbuf)
+         CALL fft_deallocate(fft_scratch%tbuf)
 #endif
       END IF
       IF (ASSOCIATED(fft_scratch%a1buf)) THEN
-         CALL fft_dealloc(fft_scratch%a1buf)
+         CALL fft_deallocate(fft_scratch%a1buf)
       END IF
       IF (ASSOCIATED(fft_scratch%a2buf)) THEN
-         CALL fft_dealloc(fft_scratch%a2buf)
+         CALL fft_deallocate(fft_scratch%a2buf)
       END IF
       IF (ASSOCIATED(fft_scratch%a3buf)) THEN
-         CALL fft_dealloc(fft_scratch%a3buf)
+         CALL fft_deallocate(fft_scratch%a3buf)
       END IF
       IF (ASSOCIATED(fft_scratch%a4buf)) THEN
-         CALL fft_dealloc(fft_scratch%a4buf)
+         CALL fft_deallocate(fft_scratch%a4buf)
       END IF
       IF (ASSOCIATED(fft_scratch%a5buf)) THEN
-         CALL fft_dealloc(fft_scratch%a5buf)
+         CALL fft_deallocate(fft_scratch%a5buf)
       END IF
       IF (ASSOCIATED(fft_scratch%a6buf)) THEN
-         CALL fft_dealloc(fft_scratch%a6buf)
+         CALL fft_deallocate(fft_scratch%a6buf)
       END IF
       IF (ASSOCIATED(fft_scratch%scount)) THEN
          DEALLOCATE (fft_scratch%scount, fft_scratch%rcount, &
@@ -2987,12 +3198,12 @@ CONTAINS
                mz2 = fft_sizes%mz2
                my3 = fft_sizes%my3
                mz3 = fft_sizes%mz3
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a3buf, [mx2*mz2, n(2)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a4buf, [n(2), mx2*mz2])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a3buf, [mx2*mz2, n(2)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a4buf, [n(2), mx2*mz2])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
                fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
 
                dim = fft_sizes%rs_group%num_pe_cart
@@ -3051,13 +3262,13 @@ CONTAINS
                mz1 = fft_sizes%mz1
                my3 = fft_sizes%my3
                mz3 = fft_sizes%mz3
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a1buf, [mx1*my1, n(3)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a2buf, [n(3), mx1*my1])
                fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a3buf, [mx1*mz1, n(2)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a4buf, [n(2), mx1*mz1])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a3buf, [mx1*mz1, n(2)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a4buf, [n(2), mx1*mz1])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a5buf, [my3*mz3, n(1)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%a6buf, [n(1), my3*mz3])
 
                dim = fft_sizes%rs_group%num_pe_cart
                pos = fft_sizes%rs_group%mepos_cart
@@ -3111,11 +3322,11 @@ CONTAINS
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_tbuf, fft_scratch_new%fft_scratch%tbuf, [MAX(ny, 1), MAX(nz, 1), MAX(nx, 1)])
 #else
-               CALL fft_alloc(fft_scratch_new%fft_scratch%r1buf, [mmax, lmax])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%tbuf, [ny, nz, nx])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%r1buf, [mmax, lmax])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%tbuf, [ny, nz, nx])
 #endif
                fft_scratch_new%fft_scratch%group = fft_sizes%rs_group
-               CALL fft_alloc(fft_scratch_new%fft_scratch%r2buf, [lg, mg])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%r2buf, [lg, mg])
                nm = nmray*mx2
                IF (alltoall_sgl) THEN
                   ALLOCATE (fft_scratch_new%fft_scratch%ss(mmax, lmax))
@@ -3160,8 +3371,8 @@ CONTAINS
                m2 = fft_sizes%r_dim(2)
                nbx = fft_sizes%nbx
                nbz = fft_sizes%nbz
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p1buf, [mx1*my1, n(3)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p6buf, [lg, mg])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p1buf, [mx1*my1, n(3)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p6buf, [lg, mg])
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
                length = INT(2*dp_size*MAX(n(3), 1)*MAX(mx1*my1, 1), KIND=C_SIZE_T)
                ierr = offload_malloc_pinned_mem(cptr_p2buf, length)
@@ -3184,11 +3395,11 @@ CONTAINS
                CPASSERT(ierr == 0)
                CALL c_f_pointer(cptr_p7buf, fft_scratch_new%fft_scratch%p7buf, [MAX(mg, 1), MAX(lg, 1)])
 #else
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p2buf, [n(3), mx1*my1])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p3buf, [mx2*mz2, n(2)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p4buf, [n(2), mx2*mz2])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p5buf, [nyzray, n(1)])
-               CALL fft_alloc(fft_scratch_new%fft_scratch%p7buf, [mg, lg])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p2buf, [n(3), mx1*my1])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p3buf, [mx2*mz2, n(2)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p4buf, [n(2), mx2*mz2])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p5buf, [nyzray, n(1)])
+               CALL fft_allocate(fft_scratch_new%fft_scratch%p7buf, [mg, lg])
 #endif
                IF (alltoall_sgl) THEN
                   ALLOCATE (fft_scratch_new%fft_scratch%yzbuf_sgl(mg*lg))
@@ -3272,8 +3483,8 @@ CONTAINS
 
             CASE (400) ! serial FFT
                np = 0
-               CALL fft_alloc(fft_scratch_new%fft_scratch%ziptr, n)
-               CALL fft_alloc(fft_scratch_new%fft_scratch%zoptr, n)
+               CALL fft_allocate(fft_scratch_new%fft_scratch%ziptr, n)
+               CALL fft_allocate(fft_scratch_new%fft_scratch%zoptr, n)
 
                !in place plans
                CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), .TRUE., FWFFT, n, &
