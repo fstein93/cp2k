@@ -436,15 +436,19 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Registers a complex-to-complex 1D FFT
+!> \param direction ...
 !> \param fft_size ...
 !> \param number_of_ffts ...
 !> \param transpose_in ...
 !> \param transpose_out ...
+!> \param leading_dimension_in ...
+!> \param leading_dimension_out ...
 !> \param grid_in ...
 !> \param grid_out ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE fft_register_1d_local(direction, fft_size, number_of_ffts, transpose_in, transpose_out, leading_dimension_in, leading_dimension_out, grid_in, grid_out)
+   SUBROUTINE fft_register_1d_local(direction, fft_size, number_of_ffts, transpose_in, transpose_out, &
+   leading_dimension_in, leading_dimension_out, grid_in, grid_out)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
@@ -453,7 +457,8 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(leading_dimension_out*MERGE(fft_size, number_of_ffts, transpose_out)), INTENT(OUT)        :: grid_out
 
       INTERFACE
-         SUBROUTINE fft_register_1d_local_c(direction, fft_size, number_of_ffts, transpose_rs, transpose_out, leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
+         SUBROUTINE fft_register_1d_local_c(direction, fft_size, number_of_ffts, transpose_rs, transpose_out, &
+         leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
             BIND(C, name="fft_register_1d_local_F")
             IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
             LOGICAL(C_BOOL), VALUE :: direction
@@ -472,6 +477,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Registers a complex-to-complex 2D FFT
+!> \param direction ...
 !> \param fft_size ...
 !> \param number_of_ffts ...
 !> \param transpose_in ...
@@ -480,7 +486,8 @@ CONTAINS
 !> \param grid_out ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE fft_register_2d_local(direction, fft_size, number_of_ffts, transpose_in, transpose_out, grid_in, grid_out)
+   SUBROUTINE fft_register_2d_local(direction, fft_size, number_of_ffts, &
+         transpose_in, transpose_out, grid_in, grid_out)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
       INTEGER, INTENT(IN)                                :: number_of_ffts
@@ -489,7 +496,8 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(OUT)        :: grid_out
 
       INTERFACE
-         SUBROUTINE fft_register_2d_local_c(direction, fft_size, number_of_ffts, transpose_in, transpose_out, grid_in, grid_out) &
+         SUBROUTINE fft_register_2d_local_c(direction, fft_size, number_of_ffts, &
+         transpose_in, transpose_out, grid_in, grid_out) &
             BIND(C, name="fft_register_2d_local_F")
             IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
             LOGICAL(C_BOOL), VALUE :: direction
@@ -508,6 +516,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Registers a complex-to-complex 3D FFT
+!> \param direction ...
 !> \param fft_size ...
 !> \param grid_in ...
 !> \param grid_out ...
@@ -536,13 +545,16 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Registers a complex-to-complex 1D FFT
+!> \param direction ...
 !> \param fft_size ...
 !> \param number_of_ffts ...
 !> \param transpose ...
+!> \param leading_dimension ...
 !> \param grid ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE fft_register_1d_local_inplace(direction, fft_size, number_of_ffts, transpose, leading_dimension, grid)
+   SUBROUTINE fft_register_1d_local_inplace(direction, fft_size, number_of_ffts, &
+         transpose, leading_dimension, grid)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose
@@ -550,7 +562,8 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(leading_dimension*MERGE(fft_size, number_of_ffts, transpose)), INTENT(INOUT)      :: grid
 
       INTERFACE
-         SUBROUTINE fft_register_1d_local_inplace_c(direction, fft_size, number_of_ffts, transpose, leading_dimension, grid) &
+         SUBROUTINE fft_register_1d_local_inplace_c(direction, fft_size, number_of_ffts, &
+         transpose, leading_dimension, grid) &
             BIND(C, name="fft_register_1d_local_F")
             IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
             LOGICAL(C_BOOL), VALUE :: direction
@@ -561,12 +574,14 @@ CONTAINS
          END SUBROUTINE fft_register_1d_local_inplace_c
       END INTERFACE
 
-      CALL fft_register_1d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose, C_BOOL), leading_dimension, grid)
+      CALL fft_register_1d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, &
+         LOGICAL(transpose, C_BOOL), leading_dimension, grid)
 
    END SUBROUTINE fft_register_1d_local_inplace
 
 ! **************************************************************************************************
 !> \brief Registers a complex-to-complex 2D FFT
+!> \param direction ...
 !> \param fft_size ...
 !> \param number_of_ffts ...
 !> \param transpose ...
@@ -592,14 +607,17 @@ CONTAINS
          END SUBROUTINE fft_register_2d_local_inplace_c
       END INTERFACE
 
-      CALL fft_register_2d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose, C_BOOL), grid)
+      CALL fft_register_2d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, &
+         LOGICAL(transpose, C_BOOL), grid)
 
    END SUBROUTINE fft_register_2d_local_inplace
 
 ! **************************************************************************************************
 !> \brief Registers a complex-to-complex 3D FFT
+!> \param direction ...
 !> \param fft_size ...
-!> \param grid ...
+!> \param grid_in ...
+!> \param grid_out ...
 !> \author Frederick Stein
 ! **************************************************************************************************
    SUBROUTINE fft_register_3d_local_inplace(direction, fft_size, grid_in, grid_out)
@@ -623,24 +641,31 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Performs a complex-to-complex 1D FFT
+!> \param direction ...
 !> \param fft_size ...
 !> \param number_of_ffts ...
 !> \param transpose_in ...
 !> \param transpose_out ...
+!> \param leading_dimension_in ...
+!> \param leading_dimension_out ...
 !> \param grid_in ...
 !> \param grid_out ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE fft_1d_local(direction, fft_size, number_of_ffts, transpose_in, transpose_out, leading_dimension_in, leading_dimension_out, grid_in, grid_out)
+   SUBROUTINE fft_1d_local(direction, fft_size, number_of_ffts, transpose_in, transpose_out, &
+         leading_dimension_in, leading_dimension_out, grid_in, grid_out)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
       INTEGER, INTENT(IN)                                :: leading_dimension_in, leading_dimension_out
-      COMPLEX(KIND=dp), DIMENSION(leading_dimension_in*MERGE(fft_size, number_of_ffts, transpose_in)), INTENT(INOUT)      :: grid_in
-      COMPLEX(KIND=dp), DIMENSION(leading_dimension_out*MERGE(fft_size, number_of_ffts, transpose_out)), INTENT(OUT)        :: grid_out
+      COMPLEX(KIND=dp), DIMENSION(leading_dimension_in*MERGE(fft_size, number_of_ffts, transpose_in)), &
+         INTENT(INOUT)      :: grid_in
+      COMPLEX(KIND=dp), DIMENSION(leading_dimension_out*MERGE(fft_size, number_of_ffts, transpose_out)), &
+         INTENT(OUT)        :: grid_out
 
       INTERFACE
-         SUBROUTINE fft_1d_local_c(direction, fft_size, number_of_ffts, transpose_rs, transpose_out, leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
+         SUBROUTINE fft_1d_local_c(direction, fft_size, number_of_ffts, transpose_rs, transpose_out, &
+         leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
             BIND(C, name="fft_1d_local_F")
             IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
             LOGICAL(C_BOOL), VALUE :: direction
@@ -659,6 +684,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Performs a complex-to-complex 2D FFT
+!> \param direction ...
 !> \param fft_size ...
 !> \param number_of_ffts ...
 !> \param transpose_in ...
@@ -695,6 +721,7 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Performs a complex-to-complex 3D FFT
+!> \param direction ...
 !> \param fft_size ...
 !> \param grid_in ...
 !> \param grid_out ...
@@ -723,9 +750,11 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Performs a complex-to-complex 1D FFT
+!> \param direction ...
 !> \param fft_size ...
 !> \param number_of_ffts ...
 !> \param transpose ...
+!> \param leading_dimension ...
 !> \param grid ...
 !> \author Frederick Stein
 ! **************************************************************************************************
@@ -748,12 +777,14 @@ CONTAINS
          END SUBROUTINE fft_1d_local_inplace_c
       END INTERFACE
 
-      CALL fft_1d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose, C_BOOL), leading_dimension, grid)
+      CALL fft_1d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, &
+         LOGICAL(transpose, C_BOOL), leading_dimension, grid)
 
    END SUBROUTINE fft_1d_local_inplace
 
 ! **************************************************************************************************
 !> \brief Performs a complex-to-complex 2D FFT
+!> \param direction ...
 !> \param fft_size ...
 !> \param number_of_ffts ...
 !> \param transpose ...
@@ -785,8 +816,10 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Performs a complex-to-complex 3D FFT
+!> \param direction ...
 !> \param fft_size ...
-!> \param grid ...
+!> \param grid_in ...
+!> \param grid_out ...
 !> \author Frederick Stein
 ! **************************************************************************************************
    SUBROUTINE fft_3d_local_inplace(direction, fft_size, grid_in, grid_out)

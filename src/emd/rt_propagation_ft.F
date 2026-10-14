@@ -10,12 +10,9 @@
 !> \author Stepan Marek (08.24)
 ! **************************************************************************************************
 MODULE rt_propagation_ft
-   USE fft_lib,                         ONLY: fft_1d,&
-                                              fft_allocate,&
-                                              fft_create_plan_1d,&
-                                              fft_deallocate,&
-                                              fft_destroy_plan
-   USE fft_plan,                        ONLY: fft_plan_type
+   USE fft_api,                         ONLY: fft_1d_local
+   USE fft_lib,                         ONLY: fft_allocate,&
+                                              fft_deallocate
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi
 #include "../base/base_uses.f90"
@@ -111,7 +108,6 @@ CONTAINS
       INTEGER                                            :: handle, i, i0, j, nsamples, nseries, stat
       LOGICAL                                            :: subtract_initial
       REAL(kind=dp)                                      :: damping, delta_t, t0, t_total
-      TYPE(fft_plan_type)                                :: fft_plan
 
 ! For value and result series: Index 1 - different series, Index 2 - single series entry
 
@@ -201,11 +197,10 @@ CONTAINS
          END DO
       END DO
       ! Create the plan (this overwrites samples and ft_samples with planning data)
-      CALL fft_create_plan_1d(fft_plan, -1, .FALSE., .FALSE., &
-                              nsamples, nsamples, nsamples, nseries, samples_input, ft_samples)
       ! Carry out the transform
       ! Scale by dt - to transform to an integral
-      CALL fft_1d(fft_plan, samples_input, ft_samples, delta_t, stat)
+      CALL fft_1d_local(.FALSE., nsamples, nsamples, .FALSE., .FALSE., nsamples, nseries, samples_input, ft_samples)
+      ft_samples(:) = ft_samples*delta_t
       IF (stat /= 0) THEN
          ! Failed fftw3 - go to backup
          ! Uses value_series and result_series - no need to reassign data
@@ -234,7 +229,6 @@ CONTAINS
       ! Deallocate
       CALL fft_deallocate(ft_samples)
       CALL fft_deallocate(samples_input)
-      CALL fft_destroy_plan(fft_plan)
       CALL timestop(handle)
    END SUBROUTINE multi_fft
 ! **************************************************************************************************

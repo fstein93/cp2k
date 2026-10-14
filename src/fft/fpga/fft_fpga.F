@@ -91,9 +91,9 @@ CONTAINS
 #if defined (__fft_FPGA)
       INTEGER :: stat
 
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
-#error "OFFLOAD and FPGA cannot be configured concurrently! Recompile with -D__NO_OFFLOAD_PW."
-      CPABORT("OFFLOAD and FPGA cannot be configured concurrently! Recompile with -D__NO_OFFLOAD_PW.")
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+#error "OFFLOAD and FPGA cannot be configured concurrently! Recompile with -D__NO_OFFLOAD_FFT."
+      CPABORT("OFFLOAD and FPGA cannot be configured concurrently! Recompile with -D__NO_OFFLOAD_FFT.")
 #endif
       stat = fft_fpga_initialize()
       IF (stat /= 0) THEN

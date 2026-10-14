@@ -1293,13 +1293,6 @@ list(
   pw_env_methods.F
   pw_env/pw_env_types.F
   pw_env/rs_pw_interface.F
-  pw/fft/fft_kinds.F
-  pw/fft/fft_lib.F
-  pw/fft/fft_plan.F
-  pw/fft/fftsg_lib.F
-  pw/fft/fftw3_lib.F
-  pw/fft/mltfftsg_tools.F
-  pw/fft_tools.F
   pw/lazy.F
   pw/mt_util.F
   pw_poisson_read_input.F
@@ -1530,13 +1523,8 @@ set(CP2K_DBM_SRCS_C
     dbm/dbm_multiply_cpu.c
     dbm/dbm_shard.c)
 
-set(CP2K_FFT_SRCS_C
-    fft/fft_api_F.C
-    fft/fft_lib.c
-    fft/fft_lib_fftw.c
-    fft/fft_lib_test.c
-    fft/fft_timer.c
-    fft/gpu/fft_gpu.c)
+set(CP2K_FFT_SRCS_C fft/fft_api_F.C fft/fft_lib.c fft/fft_lib_fftw.c
+                    fft/fft_lib_test.c fft/fft_timer.c fft/gpu/fft_gpu.c)
 
 set(CP2K_GRID_SRCS_C
     grid/common/grid_basis_set.c

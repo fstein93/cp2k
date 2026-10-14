@@ -12,7 +12,7 @@ MODULE lattice_preconditioner_operator
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
-                                              fft_1d_many,&
+                                              fft_1d_local,&
                                               fft_allocate,&
                                               fft_deallocate,&
                                               fft_radix_operations
@@ -788,36 +788,36 @@ CONTAINS
       scale = 1.0_dp
       IF (fsign) scale = 1.0_dp/REAL(n, KIND=dp)
       CALL fft_1d_local(fsign, n, m, .FALSE., .FALSE., n, n, line_in, line_out)
-         iline = 0
-         SELECT CASE (direction)
-         CASE (1)
-            DO iz = 1, SIZE(grid, 4)
-               DO iy = 1, SIZE(grid, 3)
-                  DO ibatch = 1, SIZE(grid, 1)
-                     iline = iline + 1
-                     grid(ibatch, :, iy, iz) = line_out(:, iline)
-                  END DO
-               END DO
-            END DO
-         CASE (2)
-            DO iz = 1, SIZE(grid, 4)
-               DO ix = 1, SIZE(grid, 2)
-                  DO ibatch = 1, SIZE(grid, 1)
-                     iline = iline + 1
-                     grid(ibatch, ix, :, iz) = line_out(:, iline)
-                  END DO
-               END DO
-            END DO
-         CASE (3)
+      iline = 0
+      SELECT CASE (direction)
+      CASE (1)
+         DO iz = 1, SIZE(grid, 4)
             DO iy = 1, SIZE(grid, 3)
-               DO ix = 1, SIZE(grid, 2)
-                  DO ibatch = 1, SIZE(grid, 1)
-                     iline = iline + 1
-                     grid(ibatch, ix, iy, :) = line_out(:, iline)
-                  END DO
+               DO ibatch = 1, SIZE(grid, 1)
+                  iline = iline + 1
+                  grid(ibatch, :, iy, iz) = line_out(:, iline)
                END DO
             END DO
-         END SELECT
+         END DO
+      CASE (2)
+         DO iz = 1, SIZE(grid, 4)
+            DO ix = 1, SIZE(grid, 2)
+               DO ibatch = 1, SIZE(grid, 1)
+                  iline = iline + 1
+                  grid(ibatch, ix, :, iz) = line_out(:, iline)
+               END DO
+            END DO
+         END DO
+      CASE (3)
+         DO iy = 1, SIZE(grid, 3)
+            DO ix = 1, SIZE(grid, 2)
+               DO ibatch = 1, SIZE(grid, 1)
+                  iline = iline + 1
+                  grid(ibatch, ix, iy, :) = line_out(:, iline)
+               END DO
+            END DO
+         END DO
+      END SELECT
       CALL fft_deallocate(line_in)
       CALL fft_deallocate(line_out)
 

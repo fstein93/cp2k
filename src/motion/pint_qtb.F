@@ -18,7 +18,7 @@ MODULE pint_qtb
                                               cp_logger_type
    USE cp_output_handling,              ONLY: debug_print_level,&
                                               silent_print_level
-   USE fft_api,                       ONLY: fft_1d_local,&
+   USE fft_api,                         ONLY: fft_1d_local,&
                                               fft_allocate,&
                                               fft_deallocate
    USE input_constants,                 ONLY: propagator_rpmd
@@ -359,7 +359,7 @@ CONTAINS
 
             !compute the filter in time space - FFT
             CALL fft_1d_local(.TRUE., nf, 1, .FALSE., .FALSE., nf, nf, filter_in, filter_out)
-            
+
             !reordering + normalisation
             !normalisation : 1/nf comes from the DFT, 1/sqrt(step) is to
             !take into account the effective timestep h = step*dt and

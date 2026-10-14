@@ -74,52 +74,57 @@ void fft_free_complex(double complex *buffer);
  * \brief Register a local 1D C2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_1d_local(const bool dir,const int fft_size, const int number_of_ffts,
-                     const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_gs,
-                     double complex *grid_in, double complex *grid_out);
+void fft_register_1d_local(const bool dir, const int fft_size,
+                           const int number_of_ffts, const bool transpose_rs,
+                           const bool transpose_gs,
+                           const int leading_dimension_rs,
+                           const int leading_dimension_gs,
+                           double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
  * \brief Register a local 1D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_1d_r2c_local(const int fft_size, const int number_of_ffts,
-                         const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_gs,
-                         double *grid_in, double complex *grid_out);
+                               const bool transpose_rs, const bool transpose_gs,
+                               const int leading_dimension_rs,
+                               const int leading_dimension_gs, double *grid_in,
+                               double complex *grid_out);
 
 /*******************************************************************************
  * \brief Register a local 1D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_1d_c2r_local(const int fft_size, const int number_of_ffts,
-                         const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_gs,
-                         double complex *grid_in, double *grid_out);
+                               const bool transpose_rs, const bool transpose_gs,
+                               const int leading_dimension_rs,
+                               const int leading_dimension_gs,
+                               double complex *grid_in, double *grid_out);
 
 /*******************************************************************************
  * \brief Register a local 2D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_2d_local(const bool dir, const int fft_size[2], const int number_of_ffts,
-                     const bool transpose_rs, const bool transpose_gs,
-                     double complex *grid_in, double complex *grid_out);
+void fft_register_2d_local(const bool dir, const int fft_size[2],
+                           const int number_of_ffts, const bool transpose_rs,
+                           const bool transpose_gs, double complex *grid_in,
+                           double complex *grid_out);
 
 /*******************************************************************************
  * \brief Register a local 2D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
-                         const bool transpose_rs, const bool transpose_gs,
-                         double *grid_in, double complex *grid_out);
+                               const bool transpose_rs, const bool transpose_gs,
+                               double *grid_in, double complex *grid_out);
 
 /*******************************************************************************
  * \brief Register a local 2D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
-                         const bool transpose_rs, const bool transpose_gs,
-                         double complex *grid_in, double *grid_out);
+                               const bool transpose_rs, const bool transpose_gs,
+                               double complex *grid_in, double *grid_out);
 
 /*******************************************************************************
  * \brief Register a local 3D FFT.
@@ -127,94 +132,98 @@ void fft_register_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
  * fft_3d_rw_local(grid_rs, grid_gs, n) (ignoring normalization).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_register_3d_local(const bool dir, const int fft_size[3], double complex *grid_in,
-                     double complex *grid_out);
+void fft_register_3d_local(const bool dir, const int fft_size[3],
+                           double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
  * \brief Register a local 3D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_3d_r2c_local(const int fft_size[3], double *grid_in,
-                         double complex *grid_out);
+                               double complex *grid_out);
 
 /*******************************************************************************
  * \brief Register a local 3D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_register_3d_c2r_local(const int fft_size[3], double complex *grid_in,
-                         double *grid_out);
+                               double *grid_out);
 
 /*******************************************************************************
  * \brief Perform a local 1D FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_1d_local(const bool dir, const int fft_size, const int number_of_ffts,
-                     const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_gs,
-                     double complex *grid_in, double complex *grid_out);
+                  const bool transpose_rs, const bool transpose_gs,
+                  const int leading_dimension_rs,
+                  const int leading_dimension_gs, double complex *grid_in,
+                  double complex *grid_out);
 
 /*******************************************************************************
  * \brief Perform a local 1D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_1d_r2c_local(const int fft_size, const int number_of_ffts,
-                         const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_gs,
-                         double *grid_in, double complex *grid_out);
+                      const bool transpose_rs, const bool transpose_gs,
+                      const int leading_dimension_rs,
+                      const int leading_dimension_gs, double *grid_in,
+                      double complex *grid_out);
 
 /*******************************************************************************
  * \brief Perform a local 1D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_1d_c2r_local(const int fft_size, const int number_of_ffts,
-                         const bool transpose_rs, const bool transpose_gs,
-                     const int leading_dimension_rs, const int leading_dimension_gs,
-                         double complex *grid_in, double *grid_out);
+                      const bool transpose_rs, const bool transpose_gs,
+                      const int leading_dimension_rs,
+                      const int leading_dimension_gs, double complex *grid_in,
+                      double *grid_out);
 
 /*******************************************************************************
  * \brief Perform a local 2D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_2d_local(const bool dir, const int fft_size[2], const int number_of_ffts,
-                     const bool transpose_rs, const bool transpose_gs,
-                     double complex *grid_in, double complex *grid_out);
+void fft_2d_local(const bool dir, const int fft_size[2],
+                  const int number_of_ffts, const bool transpose_rs,
+                  const bool transpose_gs, double complex *grid_in,
+                  double complex *grid_out);
 
 /*******************************************************************************
  * \brief Perform a local 2D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
-                         const bool transpose_rs, const bool transpose_gs,
-                         double *grid_in, double complex *grid_out);
+                      const bool transpose_rs, const bool transpose_gs,
+                      double *grid_in, double complex *grid_out);
 
 /*******************************************************************************
  * \brief Perform a local 2D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
-                         const bool transpose_rs, const bool transpose_gs,
-                         double complex *grid_in, double *grid_out);
+                      const bool transpose_rs, const bool transpose_gs,
+                      double complex *grid_in, double *grid_out);
 
 /*******************************************************************************
  * \brief Perform a local 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_3d_local(const bool dir, const int fft_size[3], double complex *grid_in,
-                     double complex *grid_out);
+void fft_3d_local(const bool dir, const int fft_size[3],
+                  double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
  * \brief Perform a local 3D R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_r2c_local(const int fft_size[3], double *grid_in,
-                         double complex *grid_out);
+                      double complex *grid_out);
 
 /*******************************************************************************
  * \brief Perform a local 3D C2R FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_3d_c2r_local(const int fft_size[3], double complex *grid_in,
-                         double *grid_out);
+                      double *grid_out);
 
 #endif /* FFT_LIB_H */
 

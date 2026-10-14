@@ -55,11 +55,11 @@ MODULE input_cp2k_global
    USE input_constants,                 ONLY: &
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
         do_atom, do_band, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_farming, &
-        do_fft_fftw3, do_fft_sg, do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, &
-        do_test, do_tree_mc, do_tree_mc_ana, driver_run, ehrenfest, energy_force_run, energy_run, &
-        fftw_plan_estimate, fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, &
-        geo_opt_run, linear_response_run, mimic_run, mol_dyn_run, mon_car_run, mtlr_run, negf_run, &
-        none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
+        do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, do_test, do_tree_mc, &
+        do_tree_mc_ana, driver_run, ehrenfest, energy_force_run, energy_run, fftw_plan_estimate, &
+        fftw_plan_exhaustive, fftw_plan_measure, fftw_plan_patient, gaussian, geo_opt_run, &
+        linear_response_run, mimic_run, mol_dyn_run, mon_car_run, mtlr_run, negf_run, none_run, &
+        pint_run, real_time_propagation, tree_mc_run, vib_anal
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -272,16 +272,13 @@ CONTAINS
 
       CALL keyword_create( &
          keyword, __LOCATION__, name="PREFERRED_FFT_LIBRARY", &
-         description="Specifies the FFT library which should be preferred. "// &
-         "If it is not available, use FFTW3 if this is linked in, if FFTW3 is not available use FFTSG. "// &
-         "Improved performance with FFTW3 can be obtained specifying a proper value for FFTW_PLAN_TYPE. "// &
-         "Contrary to earlier CP2K versions, all libraries will result in the same grids, "// &
-         "i.e. the subset of grids which all FFT libraries can transform. "// &
-         "FFTW3 is often (close to) optimal, and well tested with CP2K.", &
+         description="Specifies the preferred FFT library for local FFTs. "// &
+         "Distributed FFTs are unaffected if CP2K was compiled with support for FFT offloading. "// &
+         "Improved performance with FFTW3 can be obtained specifying a proper value for FFTW_PLAN_TYPE. ", &
          usage="PREFERRED_FFT_LIBRARY FFTW3", &
          citations=[Frigo2005], &
-         default_i_val=do_fft_fftw3, &
-         enum_i_vals=[do_fft_sg, do_fft_fftw3, do_fft_fftw3], &
+         default_i_val=FFT_LIBRARY_BACKEND_DEFAULT, &
+         enum_i_vals=[FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_BACKEND_FFTW, FFT_LIBRARY_BACKEND_GPU], &
          enum_c_vals=s2a("DEFAULT", "FFTW3", "GPU"), &
          enum_desc=s2a("Equivalent to GPU if offloading was enabled, FFTW otherwise.", &
                        "A fast portable FFT library. Recommended. "// &

@@ -433,7 +433,7 @@ CONTAINS
       COMPLEX(kind=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: ztmp, ztmp_dct
       INTEGER :: handle, icol, ipoint, irow, ncols_local, nintervals, nintervals_half, &
-         nintervals_half_plus_1, nintervals_half_plus_2, nintervals_plus_2, nrows_local, stat
+         nintervals_half_plus_1, nintervals_half_plus_2, nintervals_plus_2, nrows_local
       LOGICAL                                            :: equiv
       REAL(kind=dp)                                      :: rscale
       REAL(kind=dp), ALLOCATABLE, DIMENSION(:)           :: weights

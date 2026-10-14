@@ -10,11 +10,11 @@ LIBS := -lopenblas
 
 MPICC_PATH := $(shell which mpicc)
 ifeq ($(MPICC_PATH),)
-  LIBS += -lfftw3 -lfftw3_omp -lm
+LIBS += -lfftw3 -lfftw3_omp -lm
 else
-  CC = mpicc
-  CFLAGS += -D__parallel
-  LIBS += -lfftw3 -lfftw3_omp -lm
+CC = mpicc
+CFLAGS += -D__parallel
+LIBS += -lfftw3 -lfftw3_omp -lm
 endif
 
 ALL_HEADERS := $(shell find . -name "*.h") $(shell find ../offload/ -name "*.h") $(shell find ../mpiwrap/ -name "*.h")
@@ -39,7 +39,7 @@ NVFLAGS := -g -O3 -lineinfo -arch sm_70 -Wno-deprecated-gpu-targets -Xcompiler "
 %.o: %.cu $(ALL_HEADERS)
 	cd $(dir $<); $(NVCC) -c $(NVFLAGS) $(notdir $<)
 else
-  CFLAGS += -pedantic
+CFLAGS += -pedantic
 endif
 
 %.o: %.c $(ALL_HEADERS)

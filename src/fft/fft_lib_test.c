@@ -37,12 +37,14 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
   fft_allocate_complex(fft_size * number_of_ffts, &input_array);
   fft_allocate_complex(fft_size * number_of_ffts, &output_array);
 
-  fft_register_1d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
-    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
-                  input_array, output_array);
-  fft_register_1d_local(false, fft_size, number_of_ffts, transpose_gs, transpose_rs,
-    transpose_gs ? number_of_ffts : fft_size, transpose_rs ? number_of_ffts : fft_size,
-                  output_array, input_array);
+  fft_register_1d_local(true, fft_size, number_of_ffts, transpose_rs,
+                        transpose_gs, transpose_rs ? number_of_ffts : fft_size,
+                        transpose_gs ? number_of_ffts : fft_size, input_array,
+                        output_array);
+  fft_register_1d_local(false, fft_size, number_of_ffts, transpose_gs,
+                        transpose_rs, transpose_gs ? number_of_ffts : fft_size,
+                        transpose_rs ? number_of_ffts : fft_size, output_array,
+                        input_array);
 
   memset(input_array, 0, fft_size * number_of_ffts * sizeof(double complex));
 
@@ -65,8 +67,9 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
   }
 
   fft_1d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
-    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size,
-                  input_array, output_array);
+               transpose_rs ? number_of_ffts : fft_size,
+               transpose_gs ? number_of_ffts : fft_size, input_array,
+               output_array);
 
   double max_error = 0.0;
   if (transpose_gs) {
@@ -140,8 +143,9 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
   }
 
   fft_1d_local(false, fft_size, number_of_ffts, transpose_gs, transpose_rs,
-    transpose_gs ? number_of_ffts : fft_size, transpose_rs ? number_of_ffts : fft_size,
-                  output_array, input_array);
+               transpose_gs ? number_of_ffts : fft_size,
+               transpose_rs ? number_of_ffts : fft_size, output_array,
+               input_array);
 
   max_error = 0.0;
   if (transpose_rs) {
@@ -208,7 +212,7 @@ int fft_test_1d_local_low(const int fft_size, const int number_of_ffts,
  * \author Frederick Stein
  ******************************************************************************/
 int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
-                          const int transpose) {
+                                  const int transpose) {
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
@@ -219,11 +223,13 @@ int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
   fft_allocate_complex(fft_size * number_of_ffts, &input_array);
 
   fft_register_1d_local(true, fft_size, number_of_ffts, transpose, transpose,
-    transpose ? number_of_ffts : fft_size, transpose ? number_of_ffts : fft_size,
-                  input_array, input_array);
+                        transpose ? number_of_ffts : fft_size,
+                        transpose ? number_of_ffts : fft_size, input_array,
+                        input_array);
   fft_register_1d_local(false, fft_size, number_of_ffts, transpose, transpose,
-    transpose ? number_of_ffts : fft_size, transpose ? number_of_ffts : fft_size,
-                  input_array, input_array);
+                        transpose ? number_of_ffts : fft_size,
+                        transpose ? number_of_ffts : fft_size, input_array,
+                        input_array);
 
   memset(input_array, 0, fft_size * number_of_ffts * sizeof(double complex));
 
@@ -246,13 +252,13 @@ int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
   }
 
   fft_1d_local(true, fft_size, number_of_ffts, transpose, transpose,
-    transpose ? number_of_ffts : fft_size, transpose ? number_of_ffts : fft_size,
-                  input_array, input_array);
+               transpose ? number_of_ffts : fft_size,
+               transpose ? number_of_ffts : fft_size, input_array, input_array);
 
   double max_error = 0.0;
   if (transpose) {
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, number_of_ffts, pi, my_process)             \
+    shared(input_array, fft_size, number_of_ffts, pi, my_process)              \
     reduction(max : max_error) collapse(2)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
@@ -271,7 +277,7 @@ int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
     }
   } else {
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, number_of_ffts, pi, my_process)             \
+    shared(input_array, fft_size, number_of_ffts, pi, my_process)              \
     reduction(max : max_error) collapse(2)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
@@ -293,8 +299,8 @@ int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
 
   if (max_error > 1.0e-4) {
     if (my_process == 0) {
-      printf("The fw 1D-FFT (inplace) does not work correctly (%i %i): %f!\n", fft_size,
-             number_of_ffts, max_error);
+      printf("The fw 1D-FFT (inplace) does not work correctly (%i %i): %f!\n",
+             fft_size, number_of_ffts, max_error);
       fflush(stdout);
     }
     errors++;
@@ -321,8 +327,8 @@ int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
   }
 
   fft_1d_local(false, fft_size, number_of_ffts, transpose, transpose,
-    transpose ? number_of_ffts : fft_size, transpose ? number_of_ffts : fft_size,
-                  input_array, input_array);
+               transpose ? number_of_ffts : fft_size,
+               transpose ? number_of_ffts : fft_size, input_array, input_array);
 
   max_error = 0.0;
   if (transpose) {
@@ -370,8 +376,8 @@ int fft_test_1d_local_inplace_low(const int fft_size, const int number_of_ffts,
 
   if (max_error > 1e-12) {
     if (my_process == 0) {
-      printf("The bw 1D FFT (inplace) does not work correctly (%i %i): %f!\n", fft_size,
-             number_of_ffts, max_error);
+      printf("The bw 1D FFT (inplace) does not work correctly (%i %i): %f!\n",
+             fft_size, number_of_ffts, max_error);
       fflush(stdout);
     }
     errors++;
@@ -400,12 +406,15 @@ int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
   fft_allocate_double(2 * (fft_size / 2 + 1) * number_of_ffts, &input_array);
   fft_allocate_complex((fft_size / 2 + 1) * number_of_ffts + 4, &output_array);
 
-  fft_register_1d_r2c_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size/2+1,
-                      input_array, output_array);
-  fft_register_1d_c2r_local(fft_size, number_of_ffts, transpose_gs, transpose_rs,
-    transpose_gs ? number_of_ffts : fft_size/2+1, transpose_rs ? number_of_ffts : fft_size,
-                      output_array, input_array);
+  fft_register_1d_r2c_local(fft_size, number_of_ffts, transpose_rs,
+                            transpose_gs,
+                            transpose_rs ? number_of_ffts : fft_size,
+                            transpose_gs ? number_of_ffts : fft_size / 2 + 1,
+                            input_array, output_array);
+  fft_register_1d_c2r_local(
+      fft_size, number_of_ffts, transpose_gs, transpose_rs,
+      transpose_gs ? number_of_ffts : fft_size / 2 + 1,
+      transpose_rs ? number_of_ffts : fft_size, output_array, input_array);
 
   memset(input_array, 0, fft_size * number_of_ffts * sizeof(double));
   // Check the forward FFT
@@ -427,8 +436,9 @@ int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
   }
 
   fft_1d_r2c_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-    transpose_rs ? number_of_ffts : fft_size, transpose_gs ? number_of_ffts : fft_size/2+1,
-                      input_array, output_array);
+                   transpose_rs ? number_of_ffts : fft_size,
+                   transpose_gs ? number_of_ffts : fft_size / 2 + 1,
+                   input_array, output_array);
 
   double max_error = 0.0;
   if (transpose_gs) {
@@ -508,8 +518,9 @@ int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
   }
 
   fft_1d_c2r_local(fft_size, number_of_ffts, transpose_gs, transpose_rs,
-    transpose_gs ? number_of_ffts : fft_size/2+1, transpose_rs ? number_of_ffts : fft_size,
-                      output_array, input_array);
+                   transpose_gs ? number_of_ffts : fft_size / 2 + 1,
+                   transpose_rs ? number_of_ffts : fft_size, output_array,
+                   input_array);
 
   max_error = 0.0;
   if (transpose_rs) {
@@ -572,8 +583,9 @@ int fft_test_1d_local_r2c_low(const int fft_size, const int number_of_ffts,
  * \brief Function to test the local FFT backend.
  * \author Frederick Stein
  ******************************************************************************/
-int fft_test_1d_local_r2c_inplace_low(const int fft_size, const int number_of_ffts,
-                              const int transpose) {
+int fft_test_1d_local_r2c_inplace_low(const int fft_size,
+                                      const int number_of_ffts,
+                                      const int transpose) {
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
@@ -582,16 +594,19 @@ int fft_test_1d_local_r2c_inplace_low(const int fft_size, const int number_of_ff
 
   double *input_array = NULL;
   fft_allocate_double(2 * (fft_size / 2 + 1) * number_of_ffts, &input_array);
-  double complex* output_array = (double complex*)input_array;
+  double complex *output_array = (double complex *)input_array;
 
   fft_register_1d_r2c_local(fft_size, number_of_ffts, transpose, transpose,
-    transpose ? number_of_ffts : 2*(fft_size/2+1), transpose ? number_of_ffts : fft_size/2+1,
-                      input_array, output_array);
+                            transpose ? number_of_ffts : 2 * (fft_size / 2 + 1),
+                            transpose ? number_of_ffts : fft_size / 2 + 1,
+                            input_array, output_array);
   fft_register_1d_c2r_local(fft_size, number_of_ffts, transpose, transpose,
-    transpose ? number_of_ffts : fft_size/2+1, transpose ? number_of_ffts : 2*(fft_size/2+1),
-                      output_array, input_array);
+                            transpose ? number_of_ffts : fft_size / 2 + 1,
+                            transpose ? number_of_ffts : 2 * (fft_size / 2 + 1),
+                            output_array, input_array);
 
-  memset(input_array, 0, 2*(fft_size/2+1) * number_of_ffts * sizeof(double));
+  memset(input_array, 0,
+         2 * (fft_size / 2 + 1) * number_of_ffts * sizeof(double));
   // Check the forward FFT
   if (transpose) {
 #pragma omp parallel for default(none)                                         \
@@ -606,13 +621,15 @@ int fft_test_1d_local_r2c_inplace_low(const int fft_size, const int number_of_ff
     shared(input_array, fft_size, number_of_ffts)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      input_array[(number_of_fft % fft_size) + number_of_fft * 2*(fft_size/2+1)] = 1.0;
+      input_array[(number_of_fft % fft_size) +
+                  number_of_fft * 2 * (fft_size / 2 + 1)] = 1.0;
     }
   }
 
   fft_1d_r2c_local(fft_size, number_of_ffts, transpose, transpose,
-    transpose ? number_of_ffts : 2*(fft_size/2+1), transpose ? number_of_ffts : fft_size/2+1,
-                      input_array, output_array);
+                   transpose ? number_of_ffts : 2 * (fft_size / 2 + 1),
+                   transpose ? number_of_ffts : fft_size / 2 + 1, input_array,
+                   output_array);
 
   double max_error = 0.0;
   if (transpose) {
@@ -658,8 +675,9 @@ int fft_test_1d_local_r2c_inplace_low(const int fft_size, const int number_of_ff
 
   if (max_error > 1.0e-8) {
     if (my_process == 0) {
-      printf("The fw R2C 1D-FFT (inplace) does not work correctly (%i %i): %f!\n",
-             fft_size, number_of_ffts, max_error);
+      printf(
+          "The fw R2C 1D-FFT (inplace) does not work correctly (%i %i): %f!\n",
+          fft_size, number_of_ffts, max_error);
       fflush(stdout);
     }
     errors++;
@@ -692,8 +710,9 @@ int fft_test_1d_local_r2c_inplace_low(const int fft_size, const int number_of_ff
   }
 
   fft_1d_c2r_local(fft_size, number_of_ffts, transpose, transpose,
-    transpose ? number_of_ffts : fft_size/2+1, transpose ? number_of_ffts : 2*(fft_size/2+1),
-                      output_array, input_array);
+                   transpose ? number_of_ffts : fft_size / 2 + 1,
+                   transpose ? number_of_ffts : 2 * (fft_size / 2 + 1),
+                   output_array, input_array);
 
   max_error = 0.0;
   if (transpose) {
@@ -721,7 +740,8 @@ int fft_test_1d_local_r2c_inplace_low(const int fft_size, const int number_of_ff
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
       for (int index = 0; index < fft_size; index++) {
-        const double my_value = input_array[index + number_of_fft * 2*(fft_size/2+1)];
+        const double my_value =
+            input_array[index + number_of_fft * 2 * (fft_size / 2 + 1)];
         const double ref_value =
             (number_of_fft % fft_size == index ? (double)fft_size : 0.0);
         const double current_error = fabs(my_value - ref_value);
@@ -736,8 +756,9 @@ int fft_test_1d_local_r2c_inplace_low(const int fft_size, const int number_of_ff
 
   if (max_error > 1e-8) {
     if (my_process == 0) {
-      printf("The bw C2R-1D FFT (inplace) does not work correctly (%i %i): %f!\n",
-             fft_size, number_of_ffts, max_error);
+      printf(
+          "The bw C2R-1D FFT (inplace) does not work correctly (%i %i): %f!\n",
+          fft_size, number_of_ffts, max_error);
       fflush(stdout);
     }
     errors++;
@@ -768,10 +789,10 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
   fft_allocate_complex(elements_per_fft * number_of_ffts, &input_array);
   fft_allocate_complex(elements_per_fft * number_of_ffts, &output_array);
 
-  fft_register_2d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs,
-                  input_array, output_array);
-  fft_register_2d_local(false, fft_size, number_of_ffts, transpose_gs, transpose_rs,
-                  output_array, input_array);
+  fft_register_2d_local(true, fft_size, number_of_ffts, transpose_rs,
+                        transpose_gs, input_array, output_array);
+  fft_register_2d_local(false, fft_size, number_of_ffts, transpose_gs,
+                        transpose_rs, output_array, input_array);
 
   memset(input_array, 0,
          elements_per_fft * number_of_ffts * sizeof(double complex));
@@ -960,8 +981,9 @@ int fft_test_2d_local_low(const int fft_size[2], const int number_of_ffts,
  * \brief Function to test the local FFT backend.
  * \author Frederick Stein
  ******************************************************************************/
-int fft_test_2d_local_inplace_low(const int fft_size[2], const int number_of_ffts,
-                          const int transpose) {
+int fft_test_2d_local_inplace_low(const int fft_size[2],
+                                  const int number_of_ffts,
+                                  const int transpose) {
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
@@ -971,12 +993,12 @@ int fft_test_2d_local_inplace_low(const int fft_size[2], const int number_of_fft
   double complex *input_array = NULL;
   const int elements_per_fft = fft_size[0] * fft_size[1];
   fft_allocate_complex(elements_per_fft * number_of_ffts, &input_array);
-  double complex* output_array = input_array;
+  double complex *output_array = input_array;
 
   fft_register_2d_local(true, fft_size, number_of_ffts, transpose, transpose,
-                  input_array, output_array);
+                        input_array, output_array);
   fft_register_2d_local(false, fft_size, number_of_ffts, transpose, transpose,
-                  output_array, input_array);
+                        output_array, input_array);
 
   memset(input_array, 0,
          elements_per_fft * number_of_ffts * sizeof(double complex));
@@ -1059,8 +1081,9 @@ int fft_test_2d_local_inplace_low(const int fft_size[2], const int number_of_fft
 
   if (max_error > 1.0e-3) {
     if (my_process == 0) {
-      printf("The fw 2D-FFT (inplace) does not work correctly (%i %i/%i): %f!\n",
-             fft_size[0], fft_size[1], number_of_ffts, max_error);
+      printf(
+          "The fw 2D-FFT (inplace) does not work correctly (%i %i/%i): %f!\n",
+          fft_size[0], fft_size[1], number_of_ffts, max_error);
       fflush(stdout);
     }
     errors++;
@@ -1147,16 +1170,17 @@ int fft_test_2d_local_inplace_low(const int fft_size[2], const int number_of_fft
 
   if (max_error > 1e-12) {
     if (my_process == 0) {
-      printf("The bw 2D-FFT (inplace) does not work correctly (%i %i/%i): %f!\n",
-             fft_size[0], fft_size[1], number_of_ffts, max_error);
+      printf(
+          "The bw 2D-FFT (inplace) does not work correctly (%i %i/%i): %f!\n",
+          fft_size[0], fft_size[1], number_of_ffts, max_error);
       fflush(stdout);
     }
     errors++;
   }
 
   if (errors == 0 && my_process == 0)
-    printf("The 2D FFT (inplace) does work correctly (%i %i/%i)!\n", fft_size[0],
-           fft_size[1], number_of_ffts);
+    printf("The 2D FFT (inplace) does work correctly (%i %i/%i)!\n",
+           fft_size[0], fft_size[1], number_of_ffts);
   return errors;
 }
 
@@ -1179,10 +1203,10 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
   fft_allocate_complex((fft_size[1] / 2 + 1) * fft_size[0] * number_of_ffts,
                        &complex_buffer);
 
-  fft_register_2d_r2c_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-                      real_buffer, complex_buffer);
-  fft_register_2d_c2r_local(fft_size, number_of_ffts, transpose_gs, transpose_rs,
-                      complex_buffer, real_buffer);
+  fft_register_2d_r2c_local(fft_size, number_of_ffts, transpose_rs,
+                            transpose_gs, real_buffer, complex_buffer);
+  fft_register_2d_c2r_local(fft_size, number_of_ffts, transpose_gs,
+                            transpose_rs, complex_buffer, real_buffer);
 
   memset(real_buffer, 0,
          2 * (fft_size[1] / 2 + 1) * fft_size[0] * number_of_ffts *
@@ -1212,7 +1236,7 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
   }
 
   fft_2d_r2c_local(fft_size, number_of_ffts, transpose_rs, transpose_gs,
-                    real_buffer, complex_buffer);
+                   real_buffer, complex_buffer);
 
   if (transpose_gs) {
 #pragma omp parallel for default(none)                                         \
@@ -1323,7 +1347,7 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
   }
 
   fft_2d_c2r_local(fft_size, number_of_ffts, transpose_gs, transpose_rs,
-                    complex_buffer, real_buffer);
+                   complex_buffer, real_buffer);
 
   max_error = 0.0;
   if (transpose_rs) {
@@ -1401,8 +1425,9 @@ int fft_test_2d_local_r2c_low(const int fft_size[2], const int number_of_ffts,
  * \brief Function to test the local FFT backend.
  * \author Frederick Stein
  ******************************************************************************/
-int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of_ffts,
-                              const int transpose) {
+int fft_test_2d_local_r2c_inplace_low(const int fft_size[2],
+                                      const int number_of_ffts,
+                                      const int transpose) {
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
@@ -1412,12 +1437,12 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of
   double *real_buffer = NULL;
   fft_allocate_double(2 * (fft_size[1] / 2 + 1) * fft_size[0] * number_of_ffts,
                       &real_buffer);
-  double complex* complex_buffer = (double complex*)real_buffer;
+  double complex *complex_buffer = (double complex *)real_buffer;
 
   fft_register_2d_r2c_local(fft_size, number_of_ffts, transpose, transpose,
-                      real_buffer, complex_buffer);
+                            real_buffer, complex_buffer);
   fft_register_2d_c2r_local(fft_size, number_of_ffts, transpose, transpose,
-                      complex_buffer, real_buffer);
+                            complex_buffer, real_buffer);
 
   memset(real_buffer, 0,
          2 * (fft_size[1] / 2 + 1) * fft_size[0] * number_of_ffts *
@@ -1430,7 +1455,8 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of
     shared(real_buffer, fft_size, number_of_ffts)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      real_buffer[(number_of_fft / fft_size[1] % fft_size[0] * 2*(fft_size[1]/2+1) +
+      real_buffer[(number_of_fft / fft_size[1] % fft_size[0] * 2 *
+                       (fft_size[1] / 2 + 1) +
                    number_of_fft % fft_size[1]) *
                       number_of_ffts +
                   number_of_fft] = 1.0;
@@ -1440,14 +1466,16 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of
     shared(real_buffer, fft_size, number_of_ffts)
     for (int number_of_fft = 0; number_of_fft < number_of_ffts;
          number_of_fft++) {
-      real_buffer[(number_of_fft / fft_size[1] % fft_size[0] * 2*(fft_size[1]/2+1) +
+      real_buffer[(number_of_fft / fft_size[1] % fft_size[0] * 2 *
+                       (fft_size[1] / 2 + 1) +
                    number_of_fft % fft_size[1]) +
-                  number_of_fft * (fft_size[0] * 2*(fft_size[1]/2+1))] = 1.0;
+                  number_of_fft * (fft_size[0] * 2 * (fft_size[1] / 2 + 1))] =
+          1.0;
     }
   }
 
-  fft_2d_r2c_local(fft_size, number_of_ffts, transpose, transpose,
-                    real_buffer, complex_buffer);
+  fft_2d_r2c_local(fft_size, number_of_ffts, transpose, transpose, real_buffer,
+                   complex_buffer);
 
   if (transpose) {
 #pragma omp parallel for default(none)                                         \
@@ -1506,7 +1534,8 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of
 
   if (max_error > 1.0e-12) {
     if (my_process == 0) {
-      printf("The fw R2C 2D-FFT (inplace) does not work correctly (%i %i/%i): %f!\n",
+      printf("The fw R2C 2D-FFT (inplace) does not work correctly (%i %i/%i): "
+             "%f!\n",
              fft_size[0], fft_size[1], number_of_ffts, max_error);
       fflush(stdout);
     }
@@ -1558,7 +1587,7 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of
   }
 
   fft_2d_c2r_local(fft_size, number_of_ffts, transpose, transpose,
-                    complex_buffer, real_buffer);
+                   complex_buffer, real_buffer);
 
   max_error = 0.0;
   if (transpose) {
@@ -1570,7 +1599,8 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of
         for (int number_of_fft = 0; number_of_fft < number_of_ffts;
              number_of_fft++) {
           const double my_value =
-              real_buffer[(index_0 * 2*(fft_size[1]/2+1) + index_1) * number_of_ffts +
+              real_buffer[(index_0 * 2 * (fft_size[1] / 2 + 1) + index_1) *
+                              number_of_ffts +
                           number_of_fft];
           const double ref_value =
               index_0 == number_of_fft / fft_size[1] % fft_size[0] &&
@@ -1595,8 +1625,9 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of
       for (int index_0 = 0; index_0 < fft_size[0]; index_0++) {
         for (int index_1 = 0; index_1 < fft_size[1]; index_1++) {
           const double my_value =
-              real_buffer[index_0 * 2*(fft_size[1]/2+1) + index_1 +
-                          number_of_fft * fft_size[0] * 2*(fft_size[1]/2+1)];
+              real_buffer[index_0 * 2 * (fft_size[1] / 2 + 1) + index_1 +
+                          number_of_fft * fft_size[0] * 2 *
+                              (fft_size[1] / 2 + 1)];
           const double ref_value =
               index_0 == number_of_fft / fft_size[1] % fft_size[0] &&
                       index_1 == number_of_fft % fft_size[1]
@@ -1618,7 +1649,8 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of
 
   if (max_error > 1e-8) {
     if (my_process == 0) {
-      printf("The bw C2R 2D-FFT (inplace) does not work correctly (%i %i/%i): %f!\n",
+      printf("The bw C2R 2D-FFT (inplace) does not work correctly (%i %i/%i): "
+             "%f!\n",
              fft_size[0], fft_size[1], number_of_ffts, max_error);
       fflush(stdout);
     }
@@ -1626,8 +1658,8 @@ int fft_test_2d_local_r2c_inplace_low(const int fft_size[2], const int number_of
   }
 
   if (errors == 0 && my_process == 0)
-    printf("The 2D R2C/C2R FFT (inplace) does work correctly (%i %i/%i)!\n", fft_size[0],
-           fft_size[1], number_of_ffts);
+    printf("The 2D R2C/C2R FFT (inplace) does work correctly (%i %i/%i)!\n",
+           fft_size[0], fft_size[1], number_of_ffts);
   return errors;
 }
 
@@ -1646,8 +1678,8 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
   fft_allocate_complex(fft_size[0] * fft_size[1] * fft_size[2], &input_array);
   fft_allocate_complex(fft_size[0] * fft_size[1] * fft_size[2], &output_array);
 
-        fft_register_3d_local(true, fft_size, input_array, output_array);
-        fft_register_3d_local(false, fft_size, output_array, input_array);
+  fft_register_3d_local(true, fft_size, input_array, output_array);
+  fft_register_3d_local(false, fft_size, output_array, input_array);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -1666,8 +1698,8 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
         fft_3d_local(true, fft_size, input_array, output_array);
 
 #pragma omp parallel for default(none)                                         \
-    shared(output_array, fft_size, pi, mx, my, mz, my_process) reduction(max : max_error)  \
-    collapse(3)
+    shared(output_array, fft_size, pi, mx, my, mz, my_process)                 \
+    reduction(max : max_error) collapse(3)
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
@@ -1680,10 +1712,9 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
                         ((double)mz) * nz / fft_size[2]));
               double current_error = cabs(my_value - ref_value);
               if (my_process == 0 && current_error > 1e-6)
-                printf("Error %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny,
-                      nz, mx, my, mz,
-                      creal(my_value), cimag(my_value),
-                      creal(ref_value), cimag(ref_value));
+                printf("Error %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny, nz,
+                       mx, my, mz, creal(my_value), cimag(my_value),
+                       creal(ref_value), cimag(ref_value));
               max_error = fmax(max_error, current_error);
             }
           }
@@ -1717,8 +1748,8 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
         fft_3d_local(false, fft_size, output_array, input_array);
 
 #pragma omp parallel for default(none)                                         \
-    shared(input_array, fft_size, pi, mx, my, mz, my_process) reduction(max : max_error)   \
-    collapse(3)
+    shared(input_array, fft_size, pi, mx, my, mz, my_process)                  \
+    reduction(max : max_error) collapse(3)
         for (int nx = 0; nx < fft_size[0]; nx++) {
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
@@ -1731,10 +1762,9 @@ int fft_test_3d_local_low(const int fft_size[3], const int test_every) {
                         ((double)mz) * nz / fft_size[2]));
               double current_error = cabs(my_value - ref_value);
               if (my_process == 0 && current_error > 1e-6)
-                printf("Error %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny,
-                      nz, mx, my, mz,
-                      creal(my_value), cimag(my_value),
-                      creal(ref_value), cimag(ref_value));
+                printf("Error %i %i %i/%i %i %i: (%f %f) (%f %f)\n", nx, ny, nz,
+                       mx, my, mz, creal(my_value), cimag(my_value),
+                       creal(ref_value), cimag(ref_value));
               max_error = fmax(max_error, current_error);
             }
           }
@@ -1775,10 +1805,10 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every) {
 
   double complex *input_array = NULL;
   fft_allocate_complex(fft_size[0] * fft_size[1] * fft_size[2], &input_array);
-  double complex* output_array = input_array;
+  double complex *output_array = input_array;
 
-        fft_register_3d_local(true, fft_size, input_array, output_array);
-        fft_register_3d_local(false, fft_size, output_array, input_array);
+  fft_register_3d_local(true, fft_size, input_array, output_array);
+  fft_register_3d_local(false, fft_size, output_array, input_array);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -1821,8 +1851,9 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every) {
 
   if (max_error > 1.0e-12) {
     if (my_process == 0) {
-      printf("The fw 3D-FFT (inplace) does not work correctly (%i %i %i): %f!\n",
-             fft_size[0], fft_size[1], fft_size[2], max_error);
+      printf(
+          "The fw 3D-FFT (inplace) does not work correctly (%i %i %i): %f!\n",
+          fft_size[0], fft_size[1], fft_size[2], max_error);
       fflush(stdout);
     }
     errors++;
@@ -1869,16 +1900,17 @@ int fft_test_3d_local_inplace_low(const int fft_size[3], const int test_every) {
 
   if (max_error > 1e-12) {
     if (my_process == 0) {
-      printf("The bw 3D-FFT (inplace) does not work correctly (%i %i %i): %f!\n",
-             fft_size[0], fft_size[1], fft_size[2], max_error);
+      printf(
+          "The bw 3D-FFT (inplace) does not work correctly (%i %i %i): %f!\n",
+          fft_size[0], fft_size[1], fft_size[2], max_error);
       fflush(stdout);
     }
     errors++;
   }
 
   if (errors == 0 && my_process == 0)
-    printf("The 3D FFT (inplace) does work correctly (%i %i %i)!\n", fft_size[0],
-           fft_size[1], fft_size[2]);
+    printf("The 3D FFT (inplace) does work correctly (%i %i %i)!\n",
+           fft_size[0], fft_size[1], fft_size[2]);
   return errors;
 }
 
@@ -1900,8 +1932,8 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
   fft_allocate_complex(fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1),
                        &complex_buffer);
 
-        fft_register_3d_r2c_local(fft_size, double_buffer, complex_buffer);
-        fft_register_3d_c2r_local(fft_size, complex_buffer, double_buffer);
+  fft_register_3d_r2c_local(fft_size, double_buffer, complex_buffer);
+  fft_register_3d_c2r_local(fft_size, complex_buffer, double_buffer);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -2029,7 +2061,8 @@ int fft_test_3d_local_r2c_low(const int fft_size[3], const int test_every) {
  * \brief Function to test the local FFT backend.
  * \author Frederick Stein
  ******************************************************************************/
-int fft_test_3d_local_r2c_inplace_low(const int fft_size[3], const int test_every) {
+int fft_test_3d_local_r2c_inplace_low(const int fft_size[3],
+                                      const int test_every) {
   const int my_process = cp_mpi_comm_rank(cp_mpi_get_comm_world());
 
   int errors = 0;
@@ -2039,10 +2072,10 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3], const int test_ever
   const int buffer_size = fft_size[0] * fft_size[1] * (fft_size[2] / 2 + 1);
   double *double_buffer = NULL;
   fft_allocate_double(2 * buffer_size, &double_buffer);
-  double complex* complex_buffer = (double complex*)double_buffer;
+  double complex *complex_buffer = (double complex *)double_buffer;
 
-        fft_register_3d_r2c_local(fft_size, double_buffer, complex_buffer);
-        fft_register_3d_c2r_local(fft_size, complex_buffer, double_buffer);
+  fft_register_3d_r2c_local(fft_size, double_buffer, complex_buffer);
+  fft_register_3d_c2r_local(fft_size, complex_buffer, double_buffer);
 
   double max_error = 0.0;
   int number_of_tests = 0;
@@ -2055,7 +2088,8 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3], const int test_ever
         }
         number_of_tests++;
         memset(double_buffer, 0, 2 * buffer_size * sizeof(double));
-        double_buffer[(mx * fft_size[1] + my) * 2*(fft_size[2]/2+1) + mz] = 1.0;
+        double_buffer[(mx * fft_size[1] + my) * 2 * (fft_size[2] / 2 + 1) +
+                      mz] = 1.0;
         fft_3d_r2c_local(fft_size, double_buffer, complex_buffer);
 
 #pragma omp parallel for default(none)                                         \
@@ -2090,7 +2124,8 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3], const int test_ever
 
   if (max_error > 1.0e-6) {
     if (my_process == 0) {
-      printf("The fw R2C 3D-FFT (inplace) does not work correctly (%i %i %i): %f!\n",
+      printf("The fw R2C 3D-FFT (inplace) does not work correctly (%i %i %i): "
+             "%f!\n",
              fft_size[0], fft_size[1], fft_size[2], max_error);
       fflush(stdout);
     }
@@ -2130,7 +2165,9 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3], const int test_ever
           for (int ny = 0; ny < fft_size[1]; ny++) {
             for (int nz = 0; nz < fft_size[2]; nz++) {
               const double my_value =
-                  double_buffer[(nx * fft_size[1] + ny) * 2*(fft_size[2]/2+1) + nz];
+                  double_buffer[(nx * fft_size[1] + ny) * 2 *
+                                    (fft_size[2] / 2 + 1) +
+                                nz];
               const double ref_value = (nx == mx && ny == my && nz == mz)
                                            ? (double)product3(fft_size)
                                            : 0.0;
@@ -2152,7 +2189,8 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3], const int test_ever
 
   if (max_error > 1e-6) {
     if (my_process == 0) {
-      printf("The bw 3D C2R FFT (inplace) does not work correctly (%i %i %i): %f!\n",
+      printf("The bw 3D C2R FFT (inplace) does not work correctly (%i %i %i): "
+             "%f!\n",
              fft_size[0], fft_size[1], fft_size[2], max_error);
       fflush(stdout);
     }
@@ -2160,8 +2198,8 @@ int fft_test_3d_local_r2c_inplace_low(const int fft_size[3], const int test_ever
   }
 
   if (errors == 0 && my_process == 0)
-    printf("The 3D R2C/C2R FFT (inplace) does work correctly (%i %i %i)!\n", fft_size[0],
-           fft_size[1], fft_size[2]);
+    printf("The 3D R2C/C2R FFT (inplace) does work correctly (%i %i %i)!\n",
+           fft_size[0], fft_size[1], fft_size[2]);
   return errors;
 }
 

@@ -37,14 +37,14 @@ MODULE pw_methods
                             z_zero
    USE pw_copy_all, ONLY: pw_copy_match
    USE fft_fpga, ONLY: fft_fpga_c1dr3d_3d_dp, &
-                      fft_fpga_c1dr3d_3d_sp, &
-                      fft_fpga_init_bitstream, &
-                      fft_fpga_r3dc1d_3d_dp, &
-                      fft_fpga_r3dc1d_3d_sp
+                       fft_fpga_c1dr3d_3d_sp, &
+                       fft_fpga_init_bitstream, &
+                       fft_fpga_r3dc1d_3d_dp, &
+                       fft_fpga_r3dc1d_3d_sp
    USE fft_gpu, ONLY: fft_gpu_c1dr3d_3d, &
-                     fft_gpu_c1dr3d_3d_ps, &
-                     fft_gpu_r3dc1d_3d, &
-                     fft_gpu_r3dc1d_3d_ps
+                      fft_gpu_c1dr3d_3d_ps, &
+                      fft_gpu_r3dc1d_3d, &
+                      fft_gpu_r3dc1d_3d_ps
    USE pw_grid_types, ONLY: HALFSPACE, &
                             PW_MODE_DISTRIBUTED, &
                             PW_MODE_LOCAL, &
@@ -1165,7 +1165,7 @@ CONTAINS
                                                                                        out_unit
                                  #:if (space=="rs" and kind=="r3d" and kind2=="c1d") or (space=="gs" and kind=="c1d" and kind2=="r3d")
                                     INTEGER, DIMENSION(3)                              :: nloc
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
                                     LOGICAL                                            :: use_fft_gpu
 #endif
                                  #:endif
@@ -1236,7 +1236,7 @@ CONTAINS
                                           CALL pw_gather_s_${kind2}$_c3d(pw2, c_out)
                                           DEALLOCATE (c_out)
                                        #:elif kind=="r3d" and kind2=="c1d"
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
                                           CALL fft_gpu_r3dc1d_3d(pw1, pw2)
 #elif defined (__PW_FPGA)
                                           ALLOCATE (c_out(n(1), n(2), n(3)))
@@ -1285,7 +1285,7 @@ CONTAINS
                                           CALL pw_scatter_s_${kind}$_c3d(pw1, c_out)
                                           CALL fft3d(BWFFT, n, c_out, debug=test)
                                        #:elif kind=="c1d" and kind2=="r3d"
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
                                           CALL fft_gpu_c1dr3d_3d(pw1, pw2)
 #elif defined (__PW_FPGA)
                                           ALLOCATE (c_out(n(1), n(2), n(3)))
@@ -1370,7 +1370,7 @@ CONTAINS
                                              WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
                                           CALL pw_gather_p_${kind2}$ (pw2, grays)
                                        #:elif kind=="r3d" and kind2=="c1d"
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
                                           ! (no ray dist. is not efficient in CUDA)
                                           use_fft_gpu = pw1%pw_grid%para%ray_distribution
                                           IF (use_fft_gpu) THEN
@@ -1397,7 +1397,7 @@ CONTAINS
                                              CALL pw_gather_p_${kind2}$ (pw2, grays)
                                              DEALLOCATE (c_in)
 
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
                                           END IF
 #endif
                                        #:endif
@@ -1420,7 +1420,7 @@ CONTAINS
                                           END IF
                                           !..prepare output (nothing to do)
                                        #:elif kind=="c1d" and kind2=="r3d"
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
                                           ! (no ray dist. is not efficient in CUDA)
                                           use_fft_gpu = pw1%pw_grid%para%ray_distribution
                                           IF (use_fft_gpu) THEN
@@ -1448,7 +1448,7 @@ CONTAINS
                                                 WRITE (out_unit, '(A)') "  Real part "
                                              CALL pw_copy_from_array(pw2, c_in)
                                              DEALLOCATE (c_in)
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_PW)
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
                                           END IF
 #endif
                                        #:endif

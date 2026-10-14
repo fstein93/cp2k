@@ -5,10 +5,10 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <omp.h>
 
 #include "../mpiwrap/cp_mpi.h"
 #include "../offload/offload_library.h"
@@ -47,13 +47,14 @@ int main(int argc, char *argv[]) {
   const int backend = fft_lib_default_library();
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
-    printf("Number of MPI ranks: %i\n", cp_mpi_comm_size(cp_mpi_get_comm_world()));
+    printf("Number of MPI ranks: %i\n",
+           cp_mpi_comm_size(cp_mpi_get_comm_world()));
     int number_of_threads = 1;
-    #pragma omp parallel default(none) shared(number_of_threads)
+#pragma omp parallel default(none) shared(number_of_threads)
     {
-    #pragma omp single
+#pragma omp single
       {
-      number_of_threads = omp_get_num_threads();
+        number_of_threads = omp_get_num_threads();
       }
     }
     printf("Number of OpenMP threads: %i\n", number_of_threads);
@@ -61,7 +62,8 @@ int main(int argc, char *argv[]) {
   }
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
-  // First run tests with ESTIMATE mode, which is faster and should be sufficient to catch most errors
+  // First run tests with ESTIMATE mode, which is faster and should be
+  // sufficient to catch most errors
   int errors = run_unittests(debug, backend, FFT_ESTIMATE, true, threshold);
 
   if (fft_lib_has_guru_interface()) {
@@ -69,7 +71,8 @@ int main(int argc, char *argv[]) {
     errors += run_unittests(debug, backend, FFT_ESTIMATE, false, threshold);
   }
 
-  // Rerun the tests with MEASURE mode, which is slower but more accurate and should catch any remaining errors
+  // Rerun the tests with MEASURE mode, which is slower but more accurate and
+  // should catch any remaining errors
   errors += run_unittests(debug, backend, FFT_MEASURE, true, threshold);
 
   if (fft_lib_has_guru_interface()) {

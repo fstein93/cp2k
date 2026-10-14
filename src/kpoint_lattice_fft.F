@@ -182,8 +182,7 @@ CONTAINS
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: cell_factor
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          POINTER                                         :: fft_in, fft_out
-      INTEGER                                            :: d, handle, i, icell, ik, ik_out, j, &
-                                                            nout, stat
+      INTEGER                                            :: d, handle, i, icell, ik, ik_out, j, nout
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cell_index, grid_index
       INTEGER, DIMENSION(3)                              :: n, nfft
       LOGICAL                                            :: regular
@@ -246,7 +245,6 @@ CONTAINS
          END IF
       END DO
 
-      stat = 0
       DO j = 1, SIZE(values_rs, 2)
          DO i = 1, SIZE(values_rs, 1)
             fft_in = z_zero
@@ -255,8 +253,7 @@ CONTAINS
                   fft_in(cell_index(1, icell), cell_index(2, icell), cell_index(3, icell)) + &
                   cell_factor(icell)*values_rs(i, j, icell)
             END DO
-            CALL fft3d(BWFFT, nfft, fft_in, fft_out, status=stat)
-            IF (stat /= 0) EXIT
+            CALL fft3d(BWFFT, nfft, fft_in, fft_out)
             DO ik_out = 1, nout
                ik = ik_out
                IF (PRESENT(selected_kpoints)) ik = selected_kpoints(ik_out)
@@ -264,14 +261,8 @@ CONTAINS
                   fft_out(grid_index(1, ik), grid_index(2, ik), grid_index(3, ik))
             END DO
          END DO
-         IF (stat /= 0) EXIT
       END DO
 
-      IF (stat /= 0) THEN
-         CALL direct_cell_to_k(values_rs, index_to_cell, xkp, values_k, deriv_direction, hmat, &
-                               selected_kpoints)
-         regular = .FALSE.
-      END IF
       IF (PRESENT(used_fft)) used_fft = regular
 
       CALL fft_deallocate(fft_in)
@@ -379,7 +370,7 @@ CONTAINS
       COMPLEX(KIND=dp), DIMENSION(:, :, :), INTENT(OUT)  :: values_rs
       LOGICAL, INTENT(OUT), OPTIONAL                     :: used_fft
 
-      INTEGER                                            :: handle, i, icell, ik, j, stat
+      INTEGER                                            :: handle, i, icell, ik, j
 
       CALL timeset("k_grid_to_cell_fft", handle)
       CPASSERT(ALLOCATED(work%xkp))
@@ -390,7 +381,6 @@ CONTAINS
          CALL cp_abort(__LOCATION__, "Inconsistent matrix batches in inverse lattice FFT")
       END IF
 
-      stat = 0
       IF (work%regular) THEN
          DO j = 1, SIZE(values_k, 2)
             DO i = 1, SIZE(values_k, 1)
@@ -399,8 +389,7 @@ CONTAINS
                   work%fft_in(work%grid_index(1, ik), work%grid_index(2, ik), work%grid_index(3, ik)) = &
                      work%weight(ik)*values_k(i, j, ik)
                END DO
-               CALL fft3d(FWFFT, work%nfft, work%fft_in, work%fft_out, status=stat)
-               IF (stat /= 0) EXIT
+               CALL fft3d(FWFFT, work%nfft, work%fft_in, work%fft_out)
                DO icell = 1, SIZE(values_rs, 3)
                   ! fft_tools applies 1/PRODUCT(nfft); weights are already final.
                   values_rs(i, j, icell) = REAL(PRODUCT(work%nfft), dp)*work%cell_phase(icell)* &
@@ -408,10 +397,8 @@ CONTAINS
                                                         work%cell_index(3, icell))
                END DO
             END DO
-            IF (stat /= 0) EXIT
          END DO
       END IF
-      IF (stat /= 0) work%regular = .FALSE.
       IF (.NOT. work%regular) THEN
          CALL direct_k_to_cell(values_k, work%xkp, work%cells, values_rs, work%weight)
       END IF

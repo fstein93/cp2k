@@ -67,7 +67,7 @@ CONTAINS
 
       INTEGER                                            :: i1, i3, j, j2, &
                                                             J2stb, J2stf, j3, Jp2stb, Jp2stf, lot1, lot2, lot3, &
-                                                            lzt, ma, mb, ncache, nfft, stat, &
+                                                            lzt, ma, mb, ncache, nfft, &
                                                             final_chunk_size3, final_chunk_size1, final_chunk_size2
       COMPLEX(KIND=dp), POINTER, CONTIGUOUS, DIMENSION(:, :)     :: zt
       COMPLEX(KIND=dp), POINTER, CONTIGUOUS, DIMENSION(:)        :: zw1, zw2
@@ -165,9 +165,9 @@ CONTAINS
                !input: I1,I3,J2,(Jp2)
                ! This is equivalent to
                IF (nfft == lot3) THEN
-                  CALL fft_1d(fft_plan_bw3, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw3, zw1, zw2, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_bw3_last, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw3_last, zw1, zw2, 1.0_dp)
                END IF
 
                !output: I1,i3,J2,(Jp2)
@@ -216,9 +216,9 @@ CONTAINS
                !input: I2,I1,j3,(jp3)
                ! This is equivalent to
                IF (nfft == lot1) THEN
-                  CALL fft_1d(fft_plan_bw1, zw1, zt(j:, 1), 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw1, zw1, zt(j:, 1), 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_bw1_last, zw1, zt(j:, 1), 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw1_last, zw1, zt(j:, 1), 1.0_dp)
                END IF
                !output: I2,i1,j3,(jp3)
             END DO
@@ -239,9 +239,9 @@ CONTAINS
                !input: i1,I2,j3,(jp3)
                ! This is equivalent to
                IF (nfft == lot2) THEN
-                  CALL fft_1d(fft_plan_bw2, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw2, zw1, zw2, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_bw2_last, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw2_last, zw1, zw2, 1.0_dp)
                END IF
                !output: i1,i2,j3,(jp3)
 
@@ -255,9 +255,9 @@ CONTAINS
                !input: i1,i2,j3,(jp3)
                ! This is equivalent to
                IF (nfft == lot2) THEN
-                  CALL fft_1d(fft_plan_fw2, zw2, zw1, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw2, zw2, zw1, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_fw2_last, zw2, zw1, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw2_last, zw2, zw1, 1.0_dp)
                END IF
 
                !reverse ordering
@@ -276,9 +276,9 @@ CONTAINS
                !performing FFT
                ! This is equivalent to
                IF (nfft == lot1) THEN
-                  CALL fft_1d(fft_plan_fw1, zt(j:, 1), zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw1, zt(j:, 1), zw2, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_fw1_last, zt(j:, 1), zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw1_last, zt(j:, 1), zw2, 1.0_dp)
                END IF
                !output: I2,I1,j3,(jp3)
 
@@ -320,9 +320,9 @@ CONTAINS
                !input: I1,i3,J2,(Jp2)
                ! This is equivalent to
                IF (nfft == lot3) THEN
-                  CALL fft_1d(fft_plan_fw3, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw3, zw1, zw2, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_fw3_last, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw3_last, zw1, zw2, 1.0_dp)
                END IF
                !output: I1,I3,J2,(Jp2)
 
@@ -824,7 +824,7 @@ CONTAINS
       INTEGER, PARAMETER                                 :: ncache_optimal = 8*1024
 
       INTEGER                                            :: handle, i1, i3, j, j2, J2stb, J2stf, j3, Jp2stb, &
-                                                            Jp2stf, lot1, lot2, lot3, lzt, ma, mb, ncache, nfft, stat, &
+                                                            Jp2stf, lot1, lot2, lot3, lzt, ma, mb, ncache, nfft, &
                                                             final_chunk_size1, final_chunk_size2, final_chunk_size3
       REAL(kind=dp)                                      :: twopion
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cosinarr
@@ -937,9 +937,9 @@ CONTAINS
                !input: I1,I3,J2,(Jp2)
                ! This is equivalent to
                IF (nfft == lot3) THEN
-                  CALL fft_1d(fft_plan_bw3, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw3, zw1, zw2, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_bw3_last, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw3_last, zw1, zw2, 1.0_dp)
                END IF
                !output: I1,i3,J2,(Jp2)
                !unpacking FFT in order to restore correct result,
@@ -986,9 +986,9 @@ CONTAINS
                !input: I2,I1,j3,(jp3)
                ! This is equivalent to
                IF (nfft == lot1) THEN
-                  CALL fft_1d(fft_plan_bw1, zw1, zt(j:, 1), 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw1, zw1, zt(j:, 1), 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_bw1_last, zw1, zt(j:, 1), 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw1_last, zw1, zt(j:, 1), 1.0_dp)
                END IF
                !output: I2,i1,j3,(jp3)
             END DO
@@ -1009,9 +1009,9 @@ CONTAINS
                !input: i1,I2,j3,(jp3)
                ! This is equivalent to
                IF (nfft == lot2) THEN
-                  CALL fft_1d(fft_plan_bw2, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw2, zw1, zw2, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_bw2_last, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw2_last, zw1, zw2, 1.0_dp)
                END IF
                !output: i1,i2,j3,(jp3)
 
@@ -1024,9 +1024,9 @@ CONTAINS
                !input: i1,i2,j3,(jp3)
                ! This is equivalent to
                IF (nfft == lot2) THEN
-                  CALL fft_1d(fft_plan_fw2, zw2, zw1, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw2, zw2, zw1, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_fw2_last, zw2, zw1, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw2_last, zw2, zw1, 1.0_dp)
                END IF
 
                !reverse ordering
@@ -1045,9 +1045,9 @@ CONTAINS
                !performing FFT
                ! This is equivalent to
                IF (nfft == lot1) THEN
-                  CALL fft_1d(fft_plan_fw1, zt(j:, 1), zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw1, zt(j:, 1), zw2, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_fw1_last, zt(j:, 1), zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw1_last, zt(j:, 1), zw2, 1.0_dp)
                END IF
                !output: I2,I1,j3,(jp3)
 
@@ -1091,9 +1091,9 @@ CONTAINS
                !input: I1,i3,J2,(Jp2)
                ! This is equivalent to
                IF (nfft == lot3) THEN
-                  CALL fft_1d(fft_plan_fw3, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw3, zw1, zw2, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_fw3_last, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw3_last, zw1, zw2, 1.0_dp)
                END IF
                !output: I1,I3,J2,(Jp2)
 
@@ -1530,7 +1530,7 @@ CONTAINS
 
       INTEGER                                            :: i1, i3, j, j2, &
                                                             J2stb, J2stf, j3, Jp2stb, Jp2stf, lot1, lot2, lot3, &
-                                                            lzt, ma, mb, ncache, nfft, stat, &
+                                                            lzt, ma, mb, ncache, nfft, &
                                                             final_chunk_size1, final_chunk_size2, final_chunk_size3
       REAL(kind=dp)                                      :: twopion
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: cosinarr
@@ -1642,9 +1642,9 @@ CONTAINS
                !input: I1,I3,J2,(Jp2)
                ! This is equivalent to
                IF (nfft == lot3) THEN
-                  CALL fft_1d(fft_plan_bw3, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw3, zw1, zw2, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_bw3_last, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw3_last, zw1, zw2, 1.0_dp)
                END IF
                !output: I1,i3,J2,(Jp2)
 
@@ -1694,9 +1694,9 @@ CONTAINS
                !input: I2,I1,j3,(jp3)
                ! This is equivalent to
                IF (nfft == lot1) THEN
-                  CALL fft_1d(fft_plan_bw1, zw1, zt(j:, 1), 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw1, zw1, zt(j:, 1), 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_bw1_last, zw1, zt(j:, 1), 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw1_last, zw1, zt(j:, 1), 1.0_dp)
                END IF
                !output: I2,i1,j3,(jp3)
             END DO
@@ -1717,9 +1717,9 @@ CONTAINS
                !input: i1,I2,j3,(jp3)
                ! This is equivalent to
                IF (nfft == lot2) THEN
-                  CALL fft_1d(fft_plan_bw2, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw2, zw1, zw2, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_bw2_last, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_bw2_last, zw1, zw2, 1.0_dp)
                END IF
                !output: i1,i2,j3,(jp3)
 
@@ -1732,9 +1732,9 @@ CONTAINS
                !input: i1,i2,j3,(jp3)
                ! This is equivalent to
                IF (nfft == lot2) THEN
-                  CALL fft_1d(fft_plan_fw2, zw2, zw1, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw2, zw2, zw1, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_fw2_last, zw2, zw1, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw2_last, zw2, zw1, 1.0_dp)
                END IF
 
                !reverse ordering
@@ -1753,9 +1753,9 @@ CONTAINS
                !performing FFT
                ! This is equivalent to
                IF (nfft == lot1) THEN
-                  CALL fft_1d(fft_plan_fw1, zt(j:, 1), zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw1, zt(j:, 1), zw2, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_fw1_last, zt(j:, 1), zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw1_last, zt(j:, 1), zw2, 1.0_dp)
                END IF
                !output: I2,I1,j3,(jp3)
 
@@ -1798,9 +1798,9 @@ CONTAINS
                !input: I1,i3,J2,(Jp2)
                ! This is equivalent to
                IF (nfft == lot3) THEN
-                  CALL fft_1d(fft_plan_fw3, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw3, zw1, zw2, 1.0_dp)
                ELSE
-                  CALL fft_1d(fft_plan_fw3_last, zw1, zw2, 1.0_dp, stat)
+                  CALL fft_1d(fft_plan_fw3_last, zw1, zw2, 1.0_dp)
                END IF
                !output: I1,I3,J2,(Jp2)
 
