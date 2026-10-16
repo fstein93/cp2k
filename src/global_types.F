@@ -20,8 +20,8 @@
 ! **************************************************************************************************
 MODULE global_types
 
-   USE fft_api, ONLY: FFT_LIBRARY_BACKEND_DEFAULT
    USE cp_blacs_env,                    ONLY: BLACS_GRID_SQUARE
+   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT
    USE kinds,                           ONLY: default_path_length,&
                                               default_string_length,&
                                               dp

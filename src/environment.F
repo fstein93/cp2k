@@ -53,8 +53,7 @@ MODULE environment
                                               silent_print_level
    USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT,&
                                               FFT_LIBRARY_BACKEND_FFTW,&
-                                              FFT_LIBRARY_BACKEND_GPU,&
-                                              fft_register_3d_local_inplace
+                                              FFT_LIBRARY_BACKEND_GPU
    USE fft_tools,                       ONLY: finalize_fft,&
                                               init_fft
    USE force_env_types,                 ONLY: multiple_fe_list

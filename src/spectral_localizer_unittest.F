@@ -1101,7 +1101,8 @@ CONTAINS
 
       io = cp_logger_get_default_io_unit()
       CALL dbcsr_init_lib(para_env%get_handle(), io)
-      CALL init_fft(FFT_LIBRARY_BACKEND_DEFAULT, alltoall=.FALSE., pool_limit=4, wisdom_file='', plan_style=FFT_LIBRARY_FFTW_MODE_ESTIMATE, status=status)
+      CALL init_fft(FFT_LIBRARY_BACKEND_DEFAULT, alltoall=.FALSE., pool_limit=4, wisdom_file='', &
+      plan_style=FFT_LIBRARY_FFTW_MODE_ESTIMATE, status=status)
       IF (status /= 0) CPABORT("FFT initalization step failed")
       nr = para_env%num_pe
       nc = 1

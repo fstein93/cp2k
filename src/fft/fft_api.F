@@ -10,11 +10,11 @@
 !> \author Frederick Stein
 ! **************************************************************************************************
 MODULE fft_api
-   USE ISO_C_BINDING,                   ONLY: &
-        C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_DOUBLE_COMPLEX, C_F_POINTER, C_INT, C_LOC, C_NULL_CHAR, &
-        C_NULL_PTR, C_PTR
-   USE kinds,                           ONLY: dp
-   USE message_passing,                 ONLY: mp_comm_type
+   USE ISO_C_BINDING, ONLY: &
+      C_ASSOCIATED, C_BOOL, C_CHAR, C_DOUBLE, C_DOUBLE_COMPLEX, C_F_POINTER, C_INT, C_LOC, C_NULL_CHAR, &
+      C_NULL_PTR, C_PTR
+   USE kinds, ONLY: dp
+   USE message_passing, ONLY: mp_comm_type
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -110,7 +110,7 @@ CONTAINS
       INTEGER                                            :: i
       INTERFACE
          INTEGER FUNCTION fft_library_init_c(backend, planning_mode, use_guru_interface, &
-                                       wisdom_file) BIND(C, name="fft_library_init_F")
+                                             wisdom_file) BIND(C, name="fft_library_init_F")
             IMPORT :: C_INT, C_BOOL, C_PTR
             INTEGER(C_INT), VALUE :: backend, planning_mode
             LOGICAL(C_BOOL), VALUE :: use_guru_interface
@@ -119,7 +119,7 @@ CONTAINS
          END FUNCTION fft_library_init_c
       END INTERFACE
 
-      WRITE(*,*) "fft_library_init", backend, planning_mode
+      WRITE (*, *) "fft_library_init", backend, planning_mode
 
       ALLOCATE (wisdom_file_c(LEN_TRIM(wisdom_file) + 1))
       DO i = 1, LEN_TRIM(wisdom_file)
@@ -128,7 +128,7 @@ CONTAINS
       wisdom_file_c(LEN_TRIM(wisdom_file) + 1) = C_NULL_CHAR
 
       status = INT(fft_library_init_c(backend, planning_mode, &
-                              LOGICAL(use_guru_interface, C_BOOL), C_LOC(wisdom_file_c)))
+                                      LOGICAL(use_guru_interface, C_BOOL), C_LOC(wisdom_file_c)))
 
       DEALLOCATE (wisdom_file_c)
 
@@ -222,28 +222,28 @@ CONTAINS
 
    #:set maxdim = 3
    #:for dim in range(1, maxdim+1)
-   #:for type in ["COMPLEX", "REAL"]
+      #:for type in ["COMPLEX", "REAL"]
 ! **************************************************************************************************
 !> \brief Allocate an array for use with the FFT library
 !> \param buffer ...
 !> \param length ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE fft_allocate_${type}$_${dim}$(buffer, length)
-      ${type}$(KIND=dp), CONTIGUOUS, DIMENSION(:${", :"*(dim-1)}$), &
-         POINTER                                         :: buffer
-      INTEGER, DIMENSION(${dim}$), INTENT(IN)                                :: length
+         SUBROUTINE fft_allocate_${type}$_${dim}$ (buffer, length)
+            ${type}$ (KIND=dp), CONTIGUOUS, DIMENSION(:${", :"*(dim-1)}$), &
+               POINTER                                         :: buffer
+            INTEGER, DIMENSION(${dim}$), INTENT(IN)                                :: length
 
-      TYPE(C_PTR)                                        :: buffer_c
+            TYPE(C_PTR)                                        :: buffer_c
 
-      buffer_c = C_NULL_PTR
+            buffer_c = C_NULL_PTR
 
-      CALL fft_allocate_complex_c(INT(PRODUCT(length), C_INT), buffer_c)
+            CALL fft_allocate_complex_c(INT(PRODUCT(length), C_INT), buffer_c)
 
-      CALL C_F_POINTER(buffer_c, buffer, length)
+            CALL C_F_POINTER(buffer_c, buffer, length)
 
-   END SUBROUTINE fft_allocate_${type}$_${dim}$
-   #:endfor
+         END SUBROUTINE fft_allocate_${type}$_${dim}$
+      #:endfor
    #:endfor
 
 ! **************************************************************************************************
@@ -349,19 +349,19 @@ CONTAINS
 !> \author Frederick Stein
 ! **************************************************************************************************
    SUBROUTINE fft_register_1d_local(direction, fft_size, number_of_ffts, transpose_in, transpose_out, &
-   leading_dimension_in, leading_dimension_out, grid_in, grid_out)
+                                    leading_dimension_in, leading_dimension_out, grid_in, grid_out)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
       INTEGER, INTENT(IN)                                :: leading_dimension_in, leading_dimension_out
       COMPLEX(KIND=dp), DIMENSION(leading_dimension_in*MERGE(fft_size, number_of_ffts, transpose_in)), &
-      INTENT(INOUT)      :: grid_in
+         INTENT(INOUT)      :: grid_in
       COMPLEX(KIND=dp), DIMENSION(leading_dimension_out*MERGE(fft_size, number_of_ffts, transpose_out)), &
-      INTENT(OUT)        :: grid_out
+         INTENT(OUT)        :: grid_out
 
       INTERFACE
          SUBROUTINE fft_register_1d_local_c(direction, fft_size, number_of_ffts, transpose_in, transpose_out, &
-         leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
+                                            leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
             BIND(C, name="fft_register_1d_local_F")
             IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
             LOGICAL(C_BOOL), VALUE :: direction
@@ -374,7 +374,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_register_1d_local_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose_in, C_BOOL), &
-                             LOGICAL(transpose_out, C_BOOL), leading_dimension_in, leading_dimension_out, grid_in, grid_out)
+                                   LOGICAL(transpose_out, C_BOOL), leading_dimension_in, leading_dimension_out, grid_in, grid_out)
 
    END SUBROUTINE fft_register_1d_local
 
@@ -390,7 +390,7 @@ CONTAINS
 !> \author Frederick Stein
 ! **************************************************************************************************
    SUBROUTINE fft_register_2d_local(direction, fft_size, number_of_ffts, &
-         transpose_in, transpose_out, grid_in, grid_out)
+                                    transpose_in, transpose_out, grid_in, grid_out)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
       INTEGER, INTENT(IN)                                :: number_of_ffts
@@ -400,7 +400,7 @@ CONTAINS
 
       INTERFACE
          SUBROUTINE fft_register_2d_local_c(direction, fft_size, number_of_ffts, &
-         transpose_in, transpose_out, grid_in, grid_out) &
+                                            transpose_in, transpose_out, grid_in, grid_out) &
             BIND(C, name="fft_register_2d_local_F")
             IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
             LOGICAL(C_BOOL), VALUE :: direction
@@ -413,7 +413,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_register_2d_local_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose_in, C_BOOL), &
-                             LOGICAL(transpose_out, C_BOOL), grid_in, grid_out)
+                                   LOGICAL(transpose_out, C_BOOL), grid_in, grid_out)
 
    END SUBROUTINE fft_register_2d_local
 
@@ -457,7 +457,7 @@ CONTAINS
 !> \author Frederick Stein
 ! **************************************************************************************************
    SUBROUTINE fft_register_1d_local_inplace(direction, fft_size, number_of_ffts, &
-         transpose, leading_dimension, grid)
+                                            transpose, leading_dimension, grid)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose
@@ -466,7 +466,7 @@ CONTAINS
 
       INTERFACE
          SUBROUTINE fft_register_1d_local_inplace_c(direction, fft_size, number_of_ffts, &
-         transpose, leading_dimension, grid) &
+                                                    transpose, leading_dimension, grid) &
             BIND(C, name="fft_register_1d_local_F")
             IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
             LOGICAL(C_BOOL), VALUE :: direction
@@ -478,7 +478,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_register_1d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, &
-         LOGICAL(transpose, C_BOOL), leading_dimension, grid)
+                                           LOGICAL(transpose, C_BOOL), leading_dimension, grid)
 
    END SUBROUTINE fft_register_1d_local_inplace
 
@@ -511,7 +511,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_register_2d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, &
-         LOGICAL(transpose, C_BOOL), grid)
+                                           LOGICAL(transpose, C_BOOL), grid)
 
    END SUBROUTINE fft_register_2d_local_inplace
 
@@ -555,7 +555,7 @@ CONTAINS
 !> \author Frederick Stein
 ! **************************************************************************************************
    SUBROUTINE fft_1d_local(direction, fft_size, number_of_ffts, transpose_in, transpose_out, &
-         leading_dimension_in, leading_dimension_out, grid_in, grid_out)
+                           leading_dimension_in, leading_dimension_out, grid_in, grid_out)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
@@ -567,7 +567,7 @@ CONTAINS
 
       INTERFACE
          SUBROUTINE fft_1d_local_c(direction, fft_size, number_of_ffts, transpose_in, transpose_out, &
-         leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
+                                   leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
             BIND(C, name="fft_1d_local_F")
             IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
             LOGICAL(C_BOOL), VALUE :: direction
@@ -580,7 +580,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_1d_local_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose_in, C_BOOL), &
-                             LOGICAL(transpose_out, C_BOOL), leading_dimension_in, leading_dimension_out, grid_in, grid_out)
+                          LOGICAL(transpose_out, C_BOOL), leading_dimension_in, leading_dimension_out, grid_in, grid_out)
 
    END SUBROUTINE fft_1d_local
 
@@ -617,7 +617,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_2d_local_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose_in, C_BOOL), &
-                             LOGICAL(transpose_out, C_BOOL), grid_in, grid_out)
+                          LOGICAL(transpose_out, C_BOOL), grid_in, grid_out)
 
    END SUBROUTINE fft_2d_local
 
@@ -680,7 +680,7 @@ CONTAINS
       END INTERFACE
 
       CALL fft_1d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, &
-         LOGICAL(transpose, C_BOOL), leading_dimension, grid)
+                                  LOGICAL(transpose, C_BOOL), leading_dimension, grid)
 
    END SUBROUTINE fft_1d_local_inplace
 

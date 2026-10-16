@@ -5,7 +5,8 @@
 !   SPDX-License-Identifier: GPL-2.0-or-later                                                      !
 !--------------------------------------------------------------------------------------------------!
 PROGRAM kpoint_lattice_fft_unittest
-   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_FFTW_MODE_ESTIMATE
+   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT,&
+                                              FFT_LIBRARY_FFTW_MODE_ESTIMATE
    USE fft_tools,                       ONLY: finalize_fft,&
                                               init_fft
    USE kinds,                           ONLY: dp

@@ -47,13 +47,13 @@ MODULE input_cp2k_global
                                               low_print_level,&
                                               medium_print_level,&
                                               silent_print_level
-   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT, &
-                                              FFT_LIBRARY_BACKEND_FFTW, &
-                                              FFT_LIBRARY_BACKEND_GPU, &
-                                              FFT_LIBRARY_FFTW_MODE_ESTIMATE, &
-                                              FFT_LIBRARY_FFTW_MODE_MEASURE, &
-                                              FFT_LIBRARY_FFTW_MODE_PATIENT, &
-                                              FFT_LIBRARY_FFTW_MODE_EXHAUSTIVE
+   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT,&
+                                              FFT_LIBRARY_BACKEND_FFTW,&
+                                              FFT_LIBRARY_BACKEND_GPU,&
+                                              FFT_LIBRARY_FFTW_MODE_ESTIMATE,&
+                                              FFT_LIBRARY_FFTW_MODE_EXHAUSTIVE,&
+                                              FFT_LIBRARY_FFTW_MODE_MEASURE,&
+                                              FFT_LIBRARY_FFTW_MODE_PATIENT
    USE grid_api,                        ONLY: GRID_BACKEND_AUTO,&
                                               GRID_BACKEND_CPU,&
                                               GRID_BACKEND_DGEMM,&
@@ -63,9 +63,9 @@ MODULE input_cp2k_global
         bsse_run, callgraph_all, callgraph_master, callgraph_none, cell_opt_run, debug_run, &
         do_atom, do_band, do_cosma, do_cp2k, do_dgemm_blas, do_dgemm_spla, do_farming, &
         do_opt_basis, do_optimize_input, do_scalapack, do_swarm, do_tamc, do_test, do_tree_mc, &
-        do_tree_mc_ana, driver_run, ehrenfest, energy_force_run, energy_run, gaussian, geo_opt_run, &
-        linear_response_run, mimic_run, mol_dyn_run, mon_car_run, mtlr_run, negf_run, none_run, &
-        pint_run, real_time_propagation, tree_mc_run, vib_anal
+        do_tree_mc_ana, driver_run, ehrenfest, energy_force_run, energy_run, gaussian, &
+        geo_opt_run, linear_response_run, mimic_run, mol_dyn_run, mon_car_run, mtlr_run, negf_run, &
+        none_run, pint_run, real_time_propagation, tree_mc_run, vib_anal
    USE input_keyword_types,             ONLY: keyword_create,&
                                               keyword_release,&
                                               keyword_type
@@ -349,7 +349,8 @@ CONTAINS
                           usage="FFTW_PLAN_TYPE PATIENT", &
                           citations=[Frigo2005], &
                           default_i_val=FFT_LIBRARY_FFTW_MODE_ESTIMATE, &
-                          enum_i_vals=[FFT_LIBRARY_FFTW_MODE_ESTIMATE, FFT_LIBRARY_FFTW_MODE_MEASURE, FFT_LIBRARY_FFTW_MODE_PATIENT, FFT_LIBRARY_FFTW_MODE_EXHAUSTIVE], &
+                          enum_i_vals=[FFT_LIBRARY_FFTW_MODE_ESTIMATE, FFT_LIBRARY_FFTW_MODE_MEASURE, &
+                          FFT_LIBRARY_FFTW_MODE_PATIENT, FFT_LIBRARY_FFTW_MODE_EXHAUSTIVE], &
                           enum_c_vals=s2a("ESTIMATE", &
                                           "MEASURE", &
                                           "PATIENT", &

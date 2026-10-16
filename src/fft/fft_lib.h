@@ -20,7 +20,7 @@ typedef enum { FFT_LIB_FFTW, FFT_LIB_GPU, FFT_LIB_DEFAULT } fft_lib;
  * \author Frederick Stein
  ******************************************************************************/
 int fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
-                  const bool use_guru_interface, const char *wisdom_file);
+                 const bool use_guru_interface, const char *wisdom_file);
 
 /*******************************************************************************
  * \brief Finalize the FFT library (if not done externally).

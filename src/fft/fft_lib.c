@@ -54,12 +54,13 @@ int fft_init_acc_lib() {
  * \author Frederick Stein
  ******************************************************************************/
 int fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
-                  const bool use_guru_interface, const char *wisdom_file) {
+                 const bool use_guru_interface, const char *wisdom_file) {
   if (fft_lib_initialized) {
     return 0;
   }
   fft_lib_initialized = true;
-  if (lib != FFT_LIB_DEFAULT) fft_lib_choice = lib;
+  if (lib != FFT_LIB_DEFAULT)
+    fft_lib_choice = lib;
 #if defined(__FFT_FPGA)
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
 #error                                                                         \
@@ -73,7 +74,8 @@ int fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
   int status = 1;
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
-    status = fft_fftw_init_lib(fftw_planning_flag, use_guru_interface, wisdom_file);
+    status =
+        fft_fftw_init_lib(fftw_planning_flag, use_guru_interface, wisdom_file);
     printf("Using FFTW library.\n");
     break;
   case FFT_LIB_GPU:

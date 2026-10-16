@@ -36,8 +36,7 @@ typedef enum {
  * \author Frederick Stein, Ole Schuett
  ******************************************************************************/
 int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
-                       const bool use_guru_interface,
-                       const char *wisdom_file);
+                      const bool use_guru_interface, const char *wisdom_file);
 
 /*******************************************************************************
  * \brief Finalize the FFT library (if not done externally).

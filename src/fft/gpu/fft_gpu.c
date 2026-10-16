@@ -6,9 +6,9 @@
 /*----------------------------------------------------------------------------*/
 #include "fft_gpu.h"
 #include "../../offload/offload_runtime.h"
-#include "../mpiwrap/cp_mpi.h"
 #include "../fft_key.h"
 #include "../fft_utils.h"
+#include "../mpiwrap/cp_mpi.h"
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
 #include "../../offload/offload_fft.h"

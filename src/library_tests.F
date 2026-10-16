@@ -51,7 +51,8 @@ MODULE library_tests
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_init,          ONLY: init_input_type
    USE dbm_tests,                       ONLY: dbm_run_tests
-   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_FFTW, FFT_LIBRARY_BACKEND_GPU
+   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_FFTW,&
+                                              FFT_LIBRARY_BACKEND_GPU
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_CLOSEST,&
                                               FWFFT,&
@@ -560,8 +561,8 @@ CONTAINS
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
       LOGICAL, INTENT(IN)                                :: export_wisdom
 
-      INTEGER, PARAMETER                                 :: ndate(3) = [12, 48, 96]
-      INTEGER, PARAMETER                                 :: backends(2) = [FFT_LIBRARY_BACKEND_FFTW, FFT_LIBRARY_BACKEND_GPU]
+      INTEGER, PARAMETER :: backends(2) = [FFT_LIBRARY_BACKEND_FFTW, FFT_LIBRARY_BACKEND_GPU], &
+         ndate(3) = [12, 48, 96]
 
       INTEGER                                            :: iall, it, j, len, n(3), ntim, radix_in, &
                                                             radix_out, siz, status
@@ -583,11 +584,11 @@ CONTAINS
          ELSE IF (backends(iall) == FFT_LIBRARY_BACKEND_GPU) THEN
             method = "GPU   "
          ELSE
-           EXIT
+            EXIT
          END IF
          CALL init_fft(backends(iall), alltoall=.FALSE., wisdom_file=wisdom_file, &
-                        pool_limit=10, plan_style=fftw_plan_type, status=status)
-         IF (status /= 0)THEN
+                       pool_limit=10, plan_style=fftw_plan_type, status=status)
+         IF (status /= 0) THEN
             CYCLE
          END IF
          n = 4
@@ -701,7 +702,8 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pw_transfer_test'
 
-      INTEGER                                            :: halo_size, handle, i_loop, n_loop, ns_max, status
+      INTEGER                                            :: halo_size, handle, i_loop, n_loop, &
+                                                            ns_max, status
       INTEGER, DIMENSION(3)                              :: no, np
       INTEGER, DIMENSION(:), POINTER                     :: i_vals
       LOGICAL                                            :: do_rs2pw
@@ -721,7 +723,7 @@ CONTAINS
                     pool_limit=globenv%fft_pool_scratch_limit, &
                     wisdom_file=globenv%fftw_wisdom_file_name, &
                     plan_style=globenv%fftw_plan_type, status=status)
-      IF (status /= 0)THEN
+      IF (status /= 0) THEN
          CPABORT("Initialization of the FFT library failed!")
       END IF
 
@@ -817,7 +819,8 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: toler = 1.e-11_dp
 
       INTEGER                                            :: blocked_id, grid_span, i_layout, i_rep, &
-                                                            ig, ip, itmp, n_loop, n_rep, nn, p, q, status
+                                                            ig, ip, itmp, n_loop, n_rep, nn, p, q, &
+                                                            status
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: layouts
       INTEGER, DIMENSION(2)                              :: distribution_layout
       INTEGER, DIMENSION(3)                              :: no, np
@@ -838,7 +841,7 @@ CONTAINS
                     pool_limit=globenv%fft_pool_scratch_limit, &
                     wisdom_file=globenv%fftw_wisdom_file_name, &
                     plan_style=globenv%fftw_plan_type, status=status)
-      IF (status /= 0)THEN
+      IF (status /= 0) THEN
          CPABORT("Initialization of the FFT library failed!")
       END IF
 

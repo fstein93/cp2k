@@ -1708,7 +1708,8 @@ if(CP2K_USE_CUDA
   endif()
 endif()
 
-list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C} ${CP2K_FFT_SRCS_C})
+list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C}
+     ${CP2K_FFT_SRCS_C})
 
 list(APPEND CP2K_SRCS_F openpmd_api.F input/cp_output_handling_openpmd.F
      cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)
@@ -1764,23 +1765,24 @@ endif()
 add_library(cp2k_linalg_libs INTERFACE)
 target_link_libraries(
   cp2k_linalg_libs
-  INTERFACE cp2k::LAPACK::lapack
-            $<$<BOOL:${CP2K_USE_OPENCL}>:OpenCL::OpenCL>
-            $<$<BOOL:${CP2K_USE_OPENCL}>:libxstream::libxstream>
-            $<$<BOOL:${CP2K_USE_LIBXS}>:libxs::libxs>
-            $<$<BOOL:${CP2K_USE_LIBXSMM}>:libxsmm::libxsmm>
-            cp2k::BLAS::blas
-            $<$<BOOL:${CP2K_USE_CUDA}>:cp2k_cuda_libs>
-            $<$<BOOL:${CP2K_USE_HIP}>:cp2k_hip_libs>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
-            $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_CXX>
-            cp2k::FFTW3::fftw3
-            $<$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>:cp2k::FFTW3::fftw3_threads>
-            $<$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>:cp2k::FFTW3::fftw3_omp>
-            OpenMP::OpenMP_Fortran
-            OpenMP::OpenMP_C
-            OpenMP::OpenMP_CXX)
+  INTERFACE
+    cp2k::LAPACK::lapack
+    $<$<BOOL:${CP2K_USE_OPENCL}>:OpenCL::OpenCL>
+    $<$<BOOL:${CP2K_USE_OPENCL}>:libxstream::libxstream>
+    $<$<BOOL:${CP2K_USE_LIBXS}>:libxs::libxs>
+    $<$<BOOL:${CP2K_USE_LIBXSMM}>:libxsmm::libxsmm>
+    cp2k::BLAS::blas
+    $<$<BOOL:${CP2K_USE_CUDA}>:cp2k_cuda_libs>
+    $<$<BOOL:${CP2K_USE_HIP}>:cp2k_hip_libs>
+    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>
+    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
+    $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_CXX>
+    cp2k::FFTW3::fftw3
+    $<$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>:cp2k::FFTW3::fftw3_threads>
+    $<$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>:cp2k::FFTW3::fftw3_omp>
+    OpenMP::OpenMP_Fortran
+    OpenMP::OpenMP_C
+    OpenMP::OpenMP_CXX)
 
 if(CMAKE_HIP_PLATFORM MATCHES "amd")
   set(CP2K_GPU_PLATFORM_DFLAGS "__HIP_PLATFORM_AMD__")
@@ -2274,8 +2276,16 @@ foreach(__app fft_unittest)
     target_compile_definitions(${__app} PUBLIC ${CP2K_GPU_DFLAGS})
   endif()
 
-  target_include_directories(${__app} PRIVATE $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:${CP2K_FFTW3_INCLUDE_DIRS}>)
-  target_link_libraries(${__app} PRIVATE $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:${CP2K_FFTW3_LINK_LIBRARIES}>)
+  target_include_directories(
+    ${__app}
+    PRIVATE
+      $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:${CP2K_FFTW3_INCLUDE_DIRS}>
+  )
+  target_link_libraries(
+    ${__app}
+    PRIVATE
+      $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:${CP2K_FFTW3_LINK_LIBRARIES}>
+  )
 endforeach()
 
 # ##############################################################################
@@ -2321,7 +2331,8 @@ endforeach()
 # installation
 # ##############################################################################
 install(
-  TARGETS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest dbm_miniapp fft_unittest
+  TARGETS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest dbm_miniapp
+          fft_unittest
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
   INCLUDES

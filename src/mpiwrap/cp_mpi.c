@@ -162,7 +162,9 @@ cp_mpi_comm_t cp_mpi_get_comm_null(void) {
 cp_mpi_comm_t cp_mpi_comm_f2c(const int fortran_comm) {
 #if defined(__parallel)
   // Attempt to support "no MPI" if __parallel is defined (0 -> MPI_COMM_NULL).
-  return MPI_Comm_c2f(cp_mpi_get_comm_null()) != fortran_comm ? MPI_Comm_f2c(fortran_comm) : cp_mpi_get_comm_null();
+  return MPI_Comm_c2f(cp_mpi_get_comm_null()) != fortran_comm
+             ? MPI_Comm_f2c(fortran_comm)
+             : cp_mpi_get_comm_null();
 #else
   (void)fortran_comm; // mark used
   return -1;

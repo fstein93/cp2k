@@ -183,12 +183,13 @@ CONTAINS
 !> \param pool_limit ...
 !> \param wisdom_file ...
 !> \param plan_style ...
+!> \param status ...
 !> \author JGH
 ! **************************************************************************************************
    SUBROUTINE init_fft(fftlib, alltoall, pool_limit, wisdom_file, &
                        plan_style, status)
 
-      INTEGER, INTENT(IN)                       :: fftlib
+      INTEGER, INTENT(IN)                                :: fftlib
       LOGICAL, INTENT(IN)                                :: alltoall
       INTEGER, INTENT(IN)                                :: pool_limit
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
@@ -569,8 +570,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fft_create_plan_1d(plan, fsign, trans_in, trans_out, ldx_in, ldx_out, n, m, zin, zout)
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
-      LOGICAL, INTENT(IN)                                :: fsign
-      LOGICAL, INTENT(IN)                                :: trans_in, trans_out
+      LOGICAL, INTENT(IN)                                :: fsign, trans_in, trans_out
       INTEGER, INTENT(IN)                                :: ldx_in, ldx_out, n, m
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
 
@@ -616,8 +616,7 @@ CONTAINS
    SUBROUTINE fft_create_plan_3d(plan, fft_in_place, fsign, n, zin, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
-      LOGICAL, INTENT(IN)                                :: fft_in_place
-      LOGICAL, INTENT(IN)                                :: fsign
+      LOGICAL, INTENT(IN)                                :: fft_in_place, fsign
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), DIMENSION(PRODUCT(n)), &
          INTENT(INOUT)                                   :: zin, zout
@@ -683,7 +682,7 @@ CONTAINS
       IF (plan%n*plan%m > 0) THEN
          CALL fft_1d_local(plan%fsign, plan%n, plan%m, plan%trans_in, plan%trans_out, plan%ldx_in, plan%ldx_out, zin, zout)
          IF (scale /= 1.0_dp) zout(1:plan%ldx_out*MERGE(plan%m, plan%n, plan%trans_out)) = &
-         zout(1:plan%ldx_out*MERGE(plan%m, plan%n, plan%trans_out))*scale
+            zout(1:plan%ldx_out*MERGE(plan%m, plan%n, plan%trans_out))*scale
       END IF
 
    END SUBROUTINE fft_1d
