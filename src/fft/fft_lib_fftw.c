@@ -1911,6 +1911,9 @@ void fft_fftw_3d_local(const bool direction, const int fft_size[3],
       plan = fft_fftw_create_3d_plan(key, buffer, in_place ? buffer : grid_out);
       fftw_free(buffer);
     }
+    assert(plan != NULL);
+    assert(grid_in != NULL);
+    assert(grid_out != NULL);
     fftw_execute_dft(*plan, grid_in, grid_out);
   }
 #else
@@ -2132,6 +2135,9 @@ void fft_fftw_3d_r2c_local(const int fft_size[3], double *grid_in,
           key, buffer, in_place ? buffer : (double *)grid_out);
       fftw_free(buffer);
     }
+    assert(plan != NULL);
+    assert(grid_in != NULL);
+    assert(grid_out != NULL);
     fftw_execute_dft_r2c(*plan, grid_in, grid_out);
   }
 #else
@@ -2358,6 +2364,9 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], double complex *grid_in,
           key, (double *)buffer, in_place ? (double *)buffer : grid_out);
       fftw_free(buffer);
     }
+    assert(plan != NULL);
+    assert(grid_in != NULL);
+    assert(grid_out != NULL);
     fftw_execute_dft_c2r(*plan, grid_in, grid_out);
   }
 #else

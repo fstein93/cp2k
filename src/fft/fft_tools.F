@@ -626,7 +626,7 @@ CONTAINS
       plan%n_3d = n
 
       IF (fft_in_place) THEN
-         CALL fft_register_3d_local_inplace(fsign, n, zout)
+         CALL fft_register_3d_local_inplace(fsign, n, zin)
       ELSE
          CALL fft_register_3d_local(fsign, n, zin, zout)
       END IF
