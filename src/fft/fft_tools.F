@@ -648,7 +648,7 @@ CONTAINS
 
       IF (ALL(plan%n_3d > 0)) THEN
          IF (plan%fft_in_place) THEN
-            CALL fft_3d_local_inplace(plan%fsign, plan%n_3d, zout)
+            CALL fft_3d_local_inplace(plan%fsign, plan%n_3d, zin)
          ELSE
             CALL fft_3d_local(plan%fsign, plan%n_3d, zin, zout)
          END IF
