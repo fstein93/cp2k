@@ -99,23 +99,27 @@ CONTAINS
 !> \param wisdom_file ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE fft_library_init(backend, planning_mode, use_guru_interface, wisdom_file)
+   SUBROUTINE fft_library_init(backend, planning_mode, use_guru_interface, wisdom_file, status)
       INTEGER, INTENT(IN)                                :: backend, planning_mode
       LOGICAL, INTENT(IN)                                :: use_guru_interface
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
+      INTEGER, INTENT(OUT)                               :: status
 
       CHARACTER(KIND=C_CHAR, LEN=1), ALLOCATABLE, &
          DIMENSION(:), TARGET                            :: wisdom_file_c
       INTEGER                                            :: i
       INTERFACE
-         SUBROUTINE fft_library_init_c(backend, planning_mode, use_guru_interface, &
+         INTEGER FUNCTION fft_library_init_c(backend, planning_mode, use_guru_interface, &
                                        wisdom_file) BIND(C, name="fft_library_init_F")
             IMPORT :: C_INT, C_BOOL, C_PTR
             INTEGER(C_INT), VALUE :: backend, planning_mode
             LOGICAL(C_BOOL), VALUE :: use_guru_interface
             TYPE(C_PTR), VALUE :: wisdom_file
-         END SUBROUTINE fft_library_init_c
+
+         END FUNCTION fft_library_init_c
       END INTERFACE
+
+      WRITE(*,*) "fft_library_init", backend, planning_mode
 
       ALLOCATE (wisdom_file_c(LEN_TRIM(wisdom_file) + 1))
       DO i = 1, LEN_TRIM(wisdom_file)
@@ -123,8 +127,8 @@ CONTAINS
       END DO
       wisdom_file_c(LEN_TRIM(wisdom_file) + 1) = C_NULL_CHAR
 
-      CALL fft_library_init_c(backend, planning_mode, &
-                              LOGICAL(use_guru_interface, C_BOOL), C_LOC(wisdom_file_c))
+      status = INT(fft_library_init_c(backend, planning_mode, &
+                              LOGICAL(use_guru_interface, C_BOOL), C_LOC(wisdom_file_c)))
 
       DEALLOCATE (wisdom_file_c)
 
@@ -216,37 +220,19 @@ CONTAINS
 
    END FUNCTION fft_has_guru_interface
 
+   #:set maxdim = 3
+   #:for dim in range(1, maxdim+1)
+   #:for type in ["COMPLEX", "REAL"]
 ! **************************************************************************************************
-!> \brief Allocate a complex array for use with the FFT library
+!> \brief Allocate an array for use with the FFT library
 !> \param buffer ...
 !> \param length ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE fft_allocate_complex_1(buffer, length)
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:), &
+   SUBROUTINE fft_allocate_${type}$_${dim}$(buffer, length)
+      ${type}$(KIND=dp), CONTIGUOUS, DIMENSION(:${", :"*(dim-1)}$), &
          POINTER                                         :: buffer
-      INTEGER, INTENT(IN)                                :: length
-
-      TYPE(C_PTR)                                        :: buffer_c
-
-      buffer_c = C_NULL_PTR
-
-      CALL fft_allocate_complex_c(INT(length, C_INT), buffer_c)
-
-      CALL C_F_POINTER(buffer_c, buffer, [length])
-
-   END SUBROUTINE fft_allocate_complex_1
-
-! **************************************************************************************************
-!> \brief Allocate a complex array for use with the FFT library
-!> \param buffer ...
-!> \param length ...
-!> \author Frederick Stein
-! **************************************************************************************************
-   SUBROUTINE fft_allocate_complex_2(buffer, length)
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: buffer
-      INTEGER, DIMENSION(2), INTENT(IN)                  :: length
+      INTEGER, DIMENSION(${dim}$), INTENT(IN)                                :: length
 
       TYPE(C_PTR)                                        :: buffer_c
 
@@ -256,94 +242,9 @@ CONTAINS
 
       CALL C_F_POINTER(buffer_c, buffer, length)
 
-   END SUBROUTINE fft_allocate_complex_2
-
-! **************************************************************************************************
-!> \brief Allocate a complex array for use with the FFT library
-!> \param buffer ...
-!> \param length ...
-!> \author Frederick Stein
-! **************************************************************************************************
-   SUBROUTINE fft_allocate_complex_3(buffer, length)
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: buffer
-      INTEGER, DIMENSION(3), INTENT(IN)                  :: length
-
-      TYPE(C_PTR)                                        :: buffer_c
-
-      buffer_c = C_NULL_PTR
-
-      CALL fft_allocate_complex_c(INT(PRODUCT(length), C_INT), buffer_c)
-
-      CALL C_F_POINTER(buffer_c, buffer, length)
-
-   END SUBROUTINE fft_allocate_complex_3
-
-! **************************************************************************************************
-!> \brief Allocate a double array for use with the FFT library
-!> \param buffer ...
-!> \param length ...
-!> \author Frederick Stein
-! **************************************************************************************************
-   SUBROUTINE fft_allocate_real_1(buffer, length)
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), POINTER   :: buffer
-      INTEGER, INTENT(IN)                                :: length
-
-      TYPE(C_PTR)                                        :: buffer_c
-
-      buffer_c = C_NULL_PTR
-
-      CALL fft_allocate_double_c(INT(length, C_INT), buffer_c)
-
-      CALL C_F_POINTER(buffer_c, buffer, [length])
-
-   END SUBROUTINE fft_allocate_real_1
-
-! **************************************************************************************************
-!> \brief Allocate a double array for use with the FFT library
-!> \param buffer ...
-!> \param length ...
-!> \author Frederick Stein
-! **************************************************************************************************
-   SUBROUTINE fft_allocate_real_2(buffer, length)
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :), &
-         POINTER                                         :: buffer
-      INTEGER, DIMENSION(2), INTENT(IN)                  :: length
-
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:), POINTER   :: buffer_1d
-      TYPE(C_PTR)                                        :: buffer_c
-
-      buffer_c = C_NULL_PTR
-
-      CALL fft_allocate_double_c(INT(PRODUCT(length), C_INT), buffer_c)
-
-      CALL C_F_POINTER(buffer_c, buffer_1d, [PRODUCT(length)])
-
-      buffer(1:length(1), 1:length(2)) => buffer_1d
-
-   END SUBROUTINE fft_allocate_real_2
-
-! **************************************************************************************************
-!> \brief Allocate a double array for use with the FFT library
-!> \param buffer ...
-!> \param length ...
-!> \author Frederick Stein
-! **************************************************************************************************
-   SUBROUTINE fft_allocate_real_3(buffer, length)
-
-      REAL(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: buffer
-      INTEGER, DIMENSION(3), INTENT(IN)                  :: length
-
-      TYPE(C_PTR)                                        :: buffer_c
-
-      buffer_c = C_NULL_PTR
-
-      CALL fft_allocate_double_c(INT(PRODUCT(length), C_INT), buffer_c)
-
-      CALL C_F_POINTER(buffer_c, buffer, length)
-
-   END SUBROUTINE fft_allocate_real_3
+   END SUBROUTINE fft_allocate_${type}$_${dim}$
+   #:endfor
+   #:endfor
 
 ! **************************************************************************************************
 !> \brief Free a complex array allocated with fft_allocate_complex
@@ -453,11 +354,13 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
       INTEGER, INTENT(IN)                                :: leading_dimension_in, leading_dimension_out
-      COMPLEX(KIND=dp), DIMENSION(leading_dimension_in*MERGE(fft_size, number_of_ffts, transpose_in)), INTENT(INOUT)      :: grid_in
-      COMPLEX(KIND=dp), DIMENSION(leading_dimension_out*MERGE(fft_size, number_of_ffts, transpose_out)), INTENT(OUT)        :: grid_out
+      COMPLEX(KIND=dp), DIMENSION(leading_dimension_in*MERGE(fft_size, number_of_ffts, transpose_in)), &
+      INTENT(INOUT)      :: grid_in
+      COMPLEX(KIND=dp), DIMENSION(leading_dimension_out*MERGE(fft_size, number_of_ffts, transpose_out)), &
+      INTENT(OUT)        :: grid_out
 
       INTERFACE
-         SUBROUTINE fft_register_1d_local_c(direction, fft_size, number_of_ffts, transpose_rs, transpose_out, &
+         SUBROUTINE fft_register_1d_local_c(direction, fft_size, number_of_ffts, transpose_in, transpose_out, &
          leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
             BIND(C, name="fft_register_1d_local_F")
             IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
@@ -509,7 +412,7 @@ CONTAINS
          END SUBROUTINE fft_register_2d_local_c
       END INTERFACE
 
-      CALL fft_register_2d_local_c(direction, fft_size, number_of_ffts, LOGICAL(transpose_in, C_BOOL), &
+      CALL fft_register_2d_local_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose_in, C_BOOL), &
                              LOGICAL(transpose_out, C_BOOL), grid_in, grid_out)
 
    END SUBROUTINE fft_register_2d_local
@@ -616,11 +519,10 @@ CONTAINS
 !> \brief Registers a complex-to-complex 3D FFT
 !> \param direction ...
 !> \param fft_size ...
-!> \param grid_in ...
-!> \param grid_out ...
+!> \param grid ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE fft_register_3d_local_inplace(direction, fft_size, grid_in, grid_out)
+   SUBROUTINE fft_register_3d_local_inplace(direction, fft_size, grid)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: grid
@@ -664,7 +566,7 @@ CONTAINS
          INTENT(OUT)        :: grid_out
 
       INTERFACE
-         SUBROUTINE fft_1d_local_c(direction, fft_size, number_of_ffts, transpose_rs, transpose_out, &
+         SUBROUTINE fft_1d_local_c(direction, fft_size, number_of_ffts, transpose_in, transpose_out, &
          leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
             BIND(C, name="fft_1d_local_F")
             IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
@@ -714,7 +616,7 @@ CONTAINS
          END SUBROUTINE fft_2d_local_c
       END INTERFACE
 
-      CALL fft_2d_local_c(direction, fft_size, number_of_ffts, LOGICAL(transpose_in, C_BOOL), &
+      CALL fft_2d_local_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose_in, C_BOOL), &
                              LOGICAL(transpose_out, C_BOOL), grid_in, grid_out)
 
    END SUBROUTINE fft_2d_local
@@ -818,11 +720,10 @@ CONTAINS
 !> \brief Performs a complex-to-complex 3D FFT
 !> \param direction ...
 !> \param fft_size ...
-!> \param grid_in ...
-!> \param grid_out ...
+!> \param grid ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE fft_3d_local_inplace(direction, fft_size, grid_in, grid_out)
+   SUBROUTINE fft_3d_local_inplace(direction, fft_size, grid)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
       COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: grid

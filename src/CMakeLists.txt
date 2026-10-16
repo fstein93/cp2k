@@ -194,6 +194,7 @@ list(
   fde_main.F
   fde_methods.F
   fft/fft_api.F
+  fft/fft_gpu.F
   fft/fpga/fft_fpga.F
   fft/fft_tools.F
   fist_efield_methods.F
@@ -1307,7 +1308,6 @@ list(
   pw/pw_copy_all.F
   pw/pw_grid_info.F
   pw/pw_grids.F
-  pw/pw_gpu.F
   pw/pw_grid_types.F
   pw/pw_methods.F
   pw/pw_poisson_methods.F
@@ -1320,7 +1320,7 @@ list(
   pw/rs_methods.F)
 
 if(CP2K_USE_FFT_GPU)
-  list(APPEND CP2K_SRCS_F pw/pw_gpu.F)
+  list(APPEND CP2K_SRCS_F fft/fft_gpu.F)
 endif()
 
 list(
@@ -1523,7 +1523,7 @@ set(CP2K_DBM_SRCS_C
     dbm/dbm_multiply_cpu.c
     dbm/dbm_shard.c)
 
-set(CP2K_FFT_SRCS_C fft/fft_api_F.C fft/fft_lib.c fft/fft_lib_fftw.c
+set(CP2K_FFT_SRCS_C fft/fft_api_F.c fft/fft_lib.c fft/fft_lib_fftw.c
                     fft/fft_lib_test.c fft/fft_timer.c fft/gpu/fft_gpu.c)
 
 set(CP2K_GRID_SRCS_C
@@ -1613,7 +1613,7 @@ set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)
 set(CP2K_FFT_SRCS_GPU fft/gpu/fft_gpu_kernels.cu)
 
 set(CP2K_PROGS_C
-    grid/grid_miniapp.c;grid/grid_unittest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c;fft/fft_unittest.c
+    grid/grid_miniapp.c;grid/grid_unittest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c;fft/fft_unittest.c;
 )
 set(CP2K_PROGS_F
     aobasis/orbital_transformation_matrices_unittest.F
@@ -1669,7 +1669,6 @@ if(CP2K_USE_CUDA
    OR CP2K_USE_OPENCL)
   if(CP2K_ENABLE_FFT_GPU)
     list(APPEND CP2K_SRCS_GPU "pw/gpu/pw_gpu_kernels.cu")
-    list(APPEND CP2K_SRCS_C ${CP2K_FFT_SRCS_C})
   endif()
 
   if(CP2K_ENABLE_DBM_GPU)
@@ -1709,7 +1708,7 @@ if(CP2K_USE_CUDA
   endif()
 endif()
 
-list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C})
+list(APPEND CP2K_SRCS_C ${CP2K_DBM_SRCS_C} ${CP2K_GRID_SRCS_C} ${CP2K_FFT_SRCS_C})
 
 list(APPEND CP2K_SRCS_F openpmd_api.F input/cp_output_handling_openpmd.F
      cp_realspace_grid_openpmd.F pw/realspace_grid_openpmd.F)
@@ -1776,6 +1775,9 @@ target_link_libraries(
             $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>
             $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
             $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_CXX>
+            cp2k::FFTW3::fftw3
+            $<$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>:cp2k::FFTW3::fftw3_threads>
+            $<$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>:cp2k::FFTW3::fftw3_omp>
             OpenMP::OpenMP_Fortran
             OpenMP::OpenMP_C
             OpenMP::OpenMP_CXX)
@@ -2250,6 +2252,32 @@ foreach(__app grid_miniapp grid_unittest)
   endif()
 endforeach()
 
+foreach(__app fft_unittest)
+  add_executable(
+    ${__app}
+    "fft/${__app}.c"
+    ${CP2K_FFT_SRCS_C}
+    $<$<OR:$<BOOL:${CP2K_USE_CUDA}>,$<BOOL:${CP2K_USE_HIP}>>:${CP2K_FFT_SRCS_GPU}>
+    $<$<BOOL:${CP2K_USE_HIP}>:${CP2K_FFT_SRCS_HIP}>
+    ${CP2K_MPIWRAP_SRCS_C}
+    ${CP2K_OFFLOAD_SRCS_C})
+  target_compile_definitions(
+    ${__app}
+    PRIVATE
+      $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
+      $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
+      $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
+
+  if(CP2K_DISABLE_GRID_GPU)
+    target_compile_definitions(${__app} PUBLIC __NO_OFFLOAD_FFT)
+  else()
+    target_compile_definitions(${__app} PUBLIC ${CP2K_GPU_DFLAGS})
+  endif()
+
+  target_include_directories(${__app} PRIVATE $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:${CP2K_FFTW3_INCLUDE_DIRS}>)
+  target_link_libraries(${__app} PRIVATE $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:${CP2K_FFTW3_LINK_LIBRARIES}>)
+endforeach()
+
 # ##############################################################################
 # common to all c executables
 # ##############################################################################
@@ -2257,7 +2285,7 @@ endforeach()
 # list of all targets that share the same properties. simplify code as most
 # cmake function can work on list of targets
 
-foreach(__app grid_miniapp grid_unittest dbm_miniapp)
+foreach(__app grid_miniapp grid_unittest dbm_miniapp fft_unittest)
   set_target_properties(
     ${__app}
     PROPERTIES POSITION_INDEPENDENT_CODE ON
@@ -2293,7 +2321,7 @@ endforeach()
 # installation
 # ##############################################################################
 install(
-  TARGETS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest dbm_miniapp
+  TARGETS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest dbm_miniapp fft_unittest
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
   INCLUDES

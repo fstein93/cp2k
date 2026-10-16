@@ -21,13 +21,15 @@ const int FFT_LIBRARY_FFTW_MODE_MEASURE = 12;
 const int FFT_LIBRARY_FFTW_MODE_PATIENT = 13;
 const int FFT_LIBRARY_FFTW_MODE_EXHAUSTIVE = 14;
 
-void fft_library_init_F(const int backend_F, const int fftw_plan,
+int fft_library_init_F(const int backend_F, const int fftw_plan,
                         const bool use_guru_interface,
                         const char *wisdom_file) {
+  printf("fft_library_init_F %i %i\n", backend_F, fftw_plan);
+  fflush(stdout);
   fft_lib backend;
   switch (backend_F) {
   case FFT_LIBRARY_BACKEND_DEFAULT:
-    backend = fft_lib_default_library();
+    backend = FFT_LIB_DEFAULT;
     break;
   case FFT_LIBRARY_BACKEND_FFTW:
     backend = FFT_LIB_FFTW;
@@ -54,11 +56,12 @@ void fft_library_init_F(const int backend_F, const int fftw_plan,
     plan_type = FFT_EXHAUSTIVE;
     break;
   default:
-    assert(false && "Unknown FFT library backend!");
+    assert(false && "Unknown FFT planning mode!");
     plan_type = FFT_ESTIMATE;
   }
-  fft_init_lib(backend, plan_type, use_guru_interface, wisdom_file);
+  const int status = fft_init_lib(backend, plan_type, use_guru_interface, wisdom_file);
   fft_init_timer(false);
+  return status;
 }
 
 void fft_library_finalize_F(const char *wisdom_file) {

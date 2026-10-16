@@ -10,8 +10,8 @@
 !> \author Stepan Marek (08.24)
 ! **************************************************************************************************
 MODULE rt_propagation_ft
-   USE fft_api,                         ONLY: fft_1d_local
-   USE fft_lib,                         ONLY: fft_allocate,&
+   USE fft_api,                         ONLY: fft_1d_local,&
+                                              fft_allocate,&
                                               fft_deallocate
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: twopi

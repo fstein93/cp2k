@@ -20,7 +20,6 @@
 
 #if defined(__FFTW3)
 #include <fftw3.h>
-#endif
 
 /*******************************************************************************
  * \brief Static variables for retaining objects that are expensive to create.
@@ -114,12 +113,12 @@ bool is_guru_interface_available() {
  * \brief Initialize the FFT library (if not done externally).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
+int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
                        const bool use_guru_interface, const char *wisdom_file) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   if (is_initialized) {
-    return;
+    return 0;
   }
   const bool is_print_rank = cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0;
   memset(cache, 0, sizeof(cache_entry) * FFTW_CACHE_SIZE);
@@ -172,8 +171,11 @@ void fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
               "Importing wisdom failed! Maybe the file does not exist.");
   }
 #else
+  assert(false && "The grid library was not compiled with FFTW support.");
   (void)fftw_planning_flag;
+  (void)use_guru_interface;
   (void)wisdom_file;
+  return 0;
 #endif
 }
 
@@ -205,6 +207,7 @@ void fft_fftw_finalize_lib(const char *wisdom_file) {
   fftw_planning_mode = -1;
   fftw_cleanup_threads();
 #else
+  assert(false && "The grid library was not compiled with FFTW support.");
   (void)wisdom_file;
 #endif
 }

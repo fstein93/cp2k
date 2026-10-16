@@ -3,17 +3,17 @@
 /*  Copyright 2000-2026 CP2K developers group <https://cp2k.org>              */
 /*                                                                            */
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
-/*----------------------------------------------------------------------------*/
+/*----------------------------------------------------------------------------*/                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                         
 
 #ifndef FFT_KEY_H
 #define FFT_KEY_H
 
-#include "../mpiwrap/cp_mpi.h"
+// Does not work with fft_gpu, so each file including fft_key.h must include cp_mpi.h on this own
+//#include "../mpiwrap/cp_mpi.h"
 #include "fft_utils.h"
 
 #if defined(__FFTW3)
 #include <fftw3.h>
-#endif
 
 #include <assert.h>
 

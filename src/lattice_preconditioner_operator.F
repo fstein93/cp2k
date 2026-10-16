@@ -9,12 +9,12 @@
 !> \brief Block-circulant inverse operators for replicated-cell OT preconditioners.
 ! **************************************************************************************************
 MODULE lattice_preconditioner_operator
+   USE fft_api,                       ONLY: fft_1d_local,&
+                                              fft_allocate,&
+                                              fft_deallocate
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
-                                              fft_1d_local,&
-                                              fft_allocate,&
-                                              fft_deallocate,&
                                               fft_radix_operations
    USE ieee_arithmetic,                 ONLY: ieee_is_finite
    USE kinds,                           ONLY: dp

@@ -51,6 +51,7 @@ MODULE library_tests
                                               cp_print_key_unit_nr
    USE cp_realspace_grid_init,          ONLY: init_input_type
    USE dbm_tests,                       ONLY: dbm_run_tests
+   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_FFTW, FFT_LIBRARY_BACKEND_GPU
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_CLOSEST,&
                                               FWFFT,&
@@ -560,9 +561,10 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: export_wisdom
 
       INTEGER, PARAMETER                                 :: ndate(3) = [12, 48, 96]
+      INTEGER, PARAMETER                                 :: backends(2) = [FFT_LIBRARY_BACKEND_FFTW, FFT_LIBRARY_BACKEND_GPU]
 
       INTEGER                                            :: iall, it, j, len, n(3), ntim, radix_in, &
-                                                            radix_out, siz
+                                                            radix_out, siz, status
       COMPLEX(KIND=dp), DIMENSION(4, 4, 4)               :: zz
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: ca, cb, cc
       CHARACTER(LEN=7)                                   :: method
@@ -575,21 +577,19 @@ CONTAINS
       IF (para_env%is_source()) WRITE (iw, '(//,A,/)') " Test of 3D-FFT "
       siz = ABS(runtest(3))
 
-      DO iall = 1, 100
-         SELECT CASE (iall)
-         CASE DEFAULT
-            EXIT
-         CASE (1)
-            CALL init_fft("FFTSG", alltoall=.FALSE., wisdom_file=wisdom_file, &
-                          pool_limit=10, plan_style=fftw_plan_type)
-            method = "FFTSG  "
-         CASE (2)
+      DO iall = 1, 2
+         IF (backends(iall) == FFT_LIBRARY_BACKEND_FFTW) THEN
+            method = "FFTW  "
+         ELSE IF (backends(iall) == FFT_LIBRARY_BACKEND_GPU) THEN
+            method = "GPU   "
+         ELSE
+           EXIT
+         END IF
+         CALL init_fft(backends(iall), alltoall=.FALSE., wisdom_file=wisdom_file, &
+                        pool_limit=10, plan_style=fftw_plan_type, status=status)
+         IF (status /= 0)THEN
             CYCLE
-         CASE (3)
-            CALL init_fft("FFTW3", alltoall=.FALSE., wisdom_file=wisdom_file, &
-                          pool_limit=10, plan_style=fftw_plan_type)
-            method = "FFTW3  "
-         END SELECT
+         END IF
          n = 4
          zz = 0.0_dp
          CALL fft3d(FWFFT, n, zz)
@@ -701,7 +701,7 @@ CONTAINS
 
       CHARACTER(LEN=*), PARAMETER :: routineN = 'rs_pw_transfer_test'
 
-      INTEGER                                            :: halo_size, handle, i_loop, n_loop, ns_max
+      INTEGER                                            :: halo_size, handle, i_loop, n_loop, ns_max, status
       INTEGER, DIMENSION(3)                              :: no, np
       INTEGER, DIMENSION(:), POINTER                     :: i_vals
       LOGICAL                                            :: do_rs2pw
@@ -720,7 +720,10 @@ CONTAINS
       CALL init_fft(globenv%default_fft_library, alltoall=.FALSE., &
                     pool_limit=globenv%fft_pool_scratch_limit, &
                     wisdom_file=globenv%fftw_wisdom_file_name, &
-                    plan_style=globenv%fftw_plan_type)
+                    plan_style=globenv%fftw_plan_type, status=status)
+      IF (status /= 0)THEN
+         CPABORT("Initialization of the FFT library failed!")
+      END IF
 
       ! .. set cell (should otherwise be irrelevant)
       NULLIFY (box)
@@ -814,7 +817,7 @@ CONTAINS
       REAL(KIND=dp), PARAMETER                           :: toler = 1.e-11_dp
 
       INTEGER                                            :: blocked_id, grid_span, i_layout, i_rep, &
-                                                            ig, ip, itmp, n_loop, n_rep, nn, p, q
+                                                            ig, ip, itmp, n_loop, n_rep, nn, p, q, status
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: layouts
       INTEGER, DIMENSION(2)                              :: distribution_layout
       INTEGER, DIMENSION(3)                              :: no, np
@@ -834,7 +837,10 @@ CONTAINS
       CALL init_fft(globenv%default_fft_library, alltoall=.FALSE., &
                     pool_limit=globenv%fft_pool_scratch_limit, &
                     wisdom_file=globenv%fftw_wisdom_file_name, &
-                    plan_style=globenv%fftw_plan_type)
+                    plan_style=globenv%fftw_plan_type, status=status)
+      IF (status /= 0)THEN
+         CPABORT("Initialization of the FFT library failed!")
+      END IF
 
       !..the unit cell (should not really matter, the number of grid points do)
       NULLIFY (box, grid)

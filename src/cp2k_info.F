@@ -177,10 +177,10 @@ CONTAINS
       flags = TRIM(flags)//" deepmd"
 #endif
 #if defined(__FFT_FPGA)
-      flags = TRIM(flags)//" pw_fpga"
+      flags = TRIM(flags)//" fft_fpga"
 #endif
 #if defined(__FFT_FPGA_SP)
-      flags = TRIM(flags)//" pw_fpga_sp"
+      flags = TRIM(flags)//" fft_fpga_sp"
 #endif
 #if defined(__LIBXS)
       flags = TRIM(flags)//" libxs"

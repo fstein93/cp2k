@@ -9,9 +9,7 @@
 #include "fft_utils.h"
 
 #include "../mpiwrap/cp_mpi.h"
-#include "fft_grid_layout.h"
 #include "fft_lib.h"
-#include "fft_redistribution.h"
 #include "fft_utils.h"
 
 #include <assert.h>

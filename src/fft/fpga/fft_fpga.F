@@ -23,7 +23,7 @@ MODULE fft_fpga
    USE cp_files,                        ONLY: get_data_dir
    USE kinds,                           ONLY: dp,&
                                               sp
-#include "../base/base_uses.f90"
+#include "../../base/base_uses.f90"
 
    IMPLICIT NONE
 
@@ -83,39 +83,6 @@ MODULE fft_fpga
    END INTERFACE
 
 CONTAINS
-
-! **************************************************************************************************
-!> \brief Allocates resources on the fpga device
-! **************************************************************************************************
-   SUBROUTINE fft_fpga_init()
-#if defined (__fft_FPGA)
-      INTEGER :: stat
-
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
-#error "OFFLOAD and FPGA cannot be configured concurrently! Recompile with -D__NO_OFFLOAD_FFT."
-      CPABORT("OFFLOAD and FPGA cannot be configured concurrently! Recompile with -D__NO_OFFLOAD_FFT.")
-#endif
-      stat = fft_fpga_initialize()
-      IF (stat /= 0) THEN
-         CPABORT("fft_fpga_init: failed")
-      END IF
-#endif
-
-#if (__fft_FPGA_SP && !(__fft_FPGA))
-#error "Define both __fft_FPGA_SP and __fft_FPGA"
-      CPABORT("Define both __fft_FPGA_SP and __fft_FPGA")
-#endif
-
-   END SUBROUTINE fft_fpga_init
-
-! **************************************************************************************************
-!> \brief Releases resources on the fpga device
-! **************************************************************************************************
-   SUBROUTINE fft_fpga_finalize()
-#if defined (__fft_FPGA)
-      CALL fft_fpga_final()
-#endif
-   END SUBROUTINE fft_fpga_finalize
 
 ! **************************************************************************************************
 !> \brief perform an in-place double precision fft3d on the FPGA

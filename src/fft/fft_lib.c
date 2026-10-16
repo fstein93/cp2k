@@ -37,38 +37,29 @@ double complex *buffer_2 = NULL;
 int buffer_size = -1;
 
 /*******************************************************************************
- * \brief Initialize the FFT library (if not done externally).
- * \author Frederick Stein
- ******************************************************************************/
-void fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
-                  const bool use_guru_interface, const char *wisdom_file) {
-  if (fft_lib_initialized) {
-    return;
-  }
-  fft_lib_initialized = true;
-  fft_lib_choice = lib;
-  switch (fft_lib_choice) {
-  case FFT_LIB_FFTW:
-    fft_fftw_init_lib(fftw_planning_flag, use_guru_interface, wisdom_file);
-    printf("Using FFTW library.\n");
-    break;
-  case FFT_LIB_GPU:
-    fft_init_acc_lib();
-    printf("Using GPU-FFT library.\n");
-    break;
-  default:
-    assert(0 && "Unknown FFT library.");
-  }
-  fft_allocate_complex(1, &buffer_1);
-  fft_allocate_complex(1, &buffer_2);
-  buffer_size = 1;
-}
-
-/*******************************************************************************
  * \brief Initialize the accelerated FFT library (FPGA+GPU).
  * \author Frederick Stein
  ******************************************************************************/
-void fft_init_acc_lib() {
+int fft_init_acc_lib() {
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+  fft_gpu_init();
+  return 0;
+#else
+  return 1;
+#endif
+}
+
+/*******************************************************************************
+ * \brief Initialize the FFT library (if not done externally).
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
+                  const bool use_guru_interface, const char *wisdom_file) {
+  if (fft_lib_initialized) {
+    return 0;
+  }
+  fft_lib_initialized = true;
+  if (lib != FFT_LIB_DEFAULT) fft_lib_choice = lib;
 #if defined(__FFT_FPGA)
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
 #error                                                                         \
@@ -79,26 +70,22 @@ void fft_init_acc_lib() {
   const int stat = fft_fpga_initialize()
       assert(stat == 0 && "Initialization of FPGA failed!");
 #endif
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
-  fft_gpu_init();
-#endif
-}
-
-/*******************************************************************************
- * \brief Finalize the FFT library (if not done externally).
- * \author Frederick Stein
- ******************************************************************************/
-void fft_finalize_lib(const char *wisdom_file) {
-  if (buffer_1 != NULL)
-    fft_free_complex(buffer_1);
-  if (buffer_2 != NULL)
-    fft_free_complex(buffer_2);
-  buffer_1 = NULL;
-  buffer_2 = NULL;
-  buffer_size = -1;
-  fft_fftw_finalize_lib(wisdom_file);
-  fft_finalize_acc_lib();
-  fft_lib_initialized = false;
+  int status = 1;
+  switch (fft_lib_choice) {
+  case FFT_LIB_FFTW:
+    status = fft_fftw_init_lib(fftw_planning_flag, use_guru_interface, wisdom_file);
+    printf("Using FFTW library.\n");
+    break;
+  case FFT_LIB_GPU:
+    status = fft_init_acc_lib();
+    printf("Using GPU-FFT library.\n");
+    break;
+  default:
+    assert(0 && "Unknown FFT library.");
+  }
+  fft_allocate_complex(1, &buffer_1);
+  fft_allocate_complex(1, &buffer_2);
+  buffer_size = 1;
 }
 
 /*******************************************************************************
@@ -118,6 +105,23 @@ void fft_finalize_acc_lib() {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   fft_gpu_finalize();
 #endif
+}
+
+/*******************************************************************************
+ * \brief Finalize the FFT library (if not done externally).
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_finalize_lib(const char *wisdom_file) {
+  if (buffer_1 != NULL)
+    fft_free_complex(buffer_1);
+  if (buffer_2 != NULL)
+    fft_free_complex(buffer_2);
+  buffer_1 = NULL;
+  buffer_2 = NULL;
+  buffer_size = -1;
+  fft_fftw_finalize_lib(wisdom_file);
+  fft_finalize_acc_lib();
+  fft_lib_initialized = false;
 }
 
 /*******************************************************************************

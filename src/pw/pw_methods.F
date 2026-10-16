@@ -1238,13 +1238,13 @@ CONTAINS
                                        #:elif kind=="r3d" and kind2=="c1d"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
                                           CALL fft_gpu_r3dc1d_3d(pw1, pw2)
-#elif defined (__PW_FPGA)
+#elif defined (__FFT_FPGA)
                                           ALLOCATE (c_out(n(1), n(2), n(3)))
                                           ! check if bitstream for the fft size is present
                                           ! if not, perform fft3d in CPU
                                           IF (fft_fpga_init_bitstream(n) == 1) THEN
                                              CALL pw_copy_to_array(pw1, c_out)
-#if (__PW_FPGA_SP && __PW_FPGA)
+#if (__FFT_FPGA_SP && __FFT_FPGA)
                                              CALL fft_fpga_r3dc1d_3d_sp(n, c_out)
 #else
                                              CALL fft_fpga_r3dc1d_3d_dp(n, c_out)
@@ -1287,14 +1287,14 @@ CONTAINS
                                        #:elif kind=="c1d" and kind2=="r3d"
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
                                           CALL fft_gpu_c1dr3d_3d(pw1, pw2)
-#elif defined (__PW_FPGA)
+#elif defined (__FFT_FPGA)
                                           ALLOCATE (c_out(n(1), n(2), n(3)))
                                           ! check if bitstream for the fft size is present
                                           ! if not, perform fft3d in CPU
                                           IF (fft_fpga_init_bitstream(n) == 1) THEN
                                              CALL pw_scatter_s_${kind}$_c3d(pw1, c_out)
                                              ! transform using FPGA
-#if (__PW_FPGA_SP && __PW_FPGA)
+#if (__FFT_FPGA_SP && __FFT_FPGA)
                                              CALL fft_fpga_c1dr3d_3d_sp(n, c_out)
 #else
                                              CALL fft_fpga_c1dr3d_3d_dp(n, c_out)

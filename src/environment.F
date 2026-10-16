@@ -1089,13 +1089,8 @@ CONTAINS
       TYPE(section_vals_type), POINTER                   :: global_section
 
       CHARACTER(LEN=3*default_string_length)             :: message
-      COMPLEX(KIND=dp), DIMENSION(4, 4, 4)               :: zz
       INTEGER                                            :: stat
-      INTEGER, DIMENSION(3)                              :: n
       LOGICAL                                            :: try_fftw
-
-      n(:) = 4
-      zz(:, :, :) = 0.0_dp
 
       ! Setup the FFT library
       ! If the user has specified PREFERRED_FFT_LIBRARY try that first (default FFTW3)
@@ -1113,13 +1108,11 @@ CONTAINS
                     alltoall=section_get_lval(global_section, "ALLTOALL_SGL"), &
                     pool_limit=globenv%fft_pool_scratch_limit, &
                     wisdom_file=globenv%fftw_wisdom_file_name, &
-                    plan_style=globenv%fftw_plan_type)
+                    plan_style=globenv%fftw_plan_type, status=stat)
 
-      ! Check for FFT library
-      CALL fft_register_3d_local_inplace(.TRUE., n, zz)
       IF (stat /= 0) THEN
          IF (try_fftw) THEN
-            IF (FFT_LIBRARY_BACKEND_DEFAULT) THEN
+            IF (globenv%default_fft_library == FFT_LIBRARY_BACKEND_DEFAULT) THEN
                message = "FFT library DEFAULT is not available. Trying FFT library FFTW."
             ELSE
                message = "FFT library GPU is not available. Trying FFT library FFTW."
@@ -1130,9 +1123,7 @@ CONTAINS
                           alltoall=section_get_lval(global_section, "ALLTOALL_SGL"), &
                           pool_limit=globenv%fft_pool_scratch_limit, &
                           wisdom_file=globenv%fftw_wisdom_file_name, &
-                          plan_style=globenv%fftw_plan_type)
-
-            CALL fft_register_3d_local_inplace(.TRUE., n, zz)
+                          plan_style=globenv%fftw_plan_type, status=stat)
          END IF
          IF (stat /= 0) THEN
             CPABORT("FFT library FFTW does not work. No FFT library available.")

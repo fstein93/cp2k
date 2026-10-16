@@ -10,13 +10,13 @@
 !> \author Florian Schiffmann (09.2007,fschiff)
 ! **************************************************************************************************
 MODULE ps_wavelet_kernel
-   USE fft_lib,                         ONLY: fft_1d,&
-                                              fft_create_plan_1d,&
-                                              fft_destroy_plan
-   USE fft_plan,                        ONLY: fft_plan_type
-   USE fft_tools,                       ONLY: BWFFT,&
-                                              fft_allocate,&
+   USE fft_api,                         ONLY: fft_allocate,&
                                               fft_deallocate
+   USE fft_tools,                       ONLY: BWFFT,&
+                                              fft_1d,&
+                                              fft_create_plan_1d,&
+                                              fft_destroy_plan,&
+                                              fft_plan_type
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_comm_type
