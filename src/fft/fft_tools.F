@@ -572,7 +572,7 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       LOGICAL, INTENT(IN)                                :: fsign, trans_in, trans_out
       INTEGER, INTENT(IN)                                :: ldx_in, ldx_out, n, m
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: zin, zout
 
       plan%fsign = fsign
       plan%trans_in = trans_in
@@ -607,32 +607,51 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief ...
 !> \param plan ...
-!> \param fft_in_place ...
 !> \param fsign ...
 !> \param n ...
 !> \param zin ...
 !> \param zout ...
 ! **************************************************************************************************
-   SUBROUTINE fft_create_plan_3d(plan, fft_in_place, fsign, n, zin, zout)
+   SUBROUTINE fft_create_plan_3d(plan, fsign, n, zin, zout)
 
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
-      LOGICAL, INTENT(IN)                                :: fft_in_place, fsign
+      LOGICAL, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), DIMENSION(PRODUCT(n)), &
-         INTENT(INOUT)                                   :: zin, zout
+         INTENT(INOUT), TARGET                                   :: zin, zout
 
       plan%fsign = fsign
-      plan%fft_in_place = fft_in_place
+      plan%fft_in_place = .FALSE.
       plan%n_3d = n
 
-      IF (fft_in_place) THEN
-         CALL fft_register_3d_local_inplace(fsign, n, zin)
-      ELSE
-         CALL fft_register_3d_local(fsign, n, zin, zout)
-      END IF
+      CALL fft_register_3d_local(fsign, n, zin, zout)
       plan%valid = .TRUE.
 
    END SUBROUTINE fft_create_plan_3d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+!> \param fsign ...
+!> \param n ...
+!> \param zinout ...
+! **************************************************************************************************
+   SUBROUTINE fft_create_plan_3d_inplace(plan, fsign, n, zinout)
+
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
+      LOGICAL, INTENT(IN)                                :: fsign
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: n
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(n)), &
+         INTENT(INOUT), TARGET                                   :: zinout
+
+      plan%fsign = fsign
+      plan%fft_in_place = .TRUE.
+      plan%n_3d = n
+
+      CALL fft_register_3d_local_inplace(fsign, n, zinout)
+      plan%valid = .TRUE.
+
+   END SUBROUTINE fft_create_plan_3d_inplace
 
 ! **************************************************************************************************
 !> \brief ...
@@ -644,17 +663,35 @@ CONTAINS
    SUBROUTINE fft_3d(plan, scale, zin, zout)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       REAL(KIND=dp), INTENT(IN)                          :: scale
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: zin, zout
+
+      CPASSERT(.NOT. plan%fft_in_place)
 
       IF (ALL(plan%n_3d > 0)) THEN
-         IF (plan%fft_in_place) THEN
-            CALL fft_3d_local_inplace(plan%fsign, plan%n_3d, zin)
-         ELSE
-            CALL fft_3d_local(plan%fsign, plan%n_3d, zin, zout)
-         END IF
+         CALL fft_3d_local(plan%fsign, plan%n_3d, zin, zout)
       END IF
 
    END SUBROUTINE fft_3d
+
+! **************************************************************************************************
+!> \brief ...
+!> \param plan ...
+!> \param scale ...
+!> \param zin ...
+!> \param zout ...
+! **************************************************************************************************
+   SUBROUTINE fft_3d_inplace(plan, scale, zinout)
+      TYPE(fft_plan_type), INTENT(IN)                    :: plan
+      REAL(KIND=dp), INTENT(IN)                          :: scale
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: zinout
+
+      CPASSERT(plan%fft_in_place)
+
+      IF (ALL(plan%n_3d > 0)) THEN
+         CALL fft_3d_local_inplace(plan%fsign, plan%n_3d, zinout)
+      END IF
+
+   END SUBROUTINE fft_3d_inplace
 
 ! **************************************************************************************************
 !> \brief ...
@@ -676,7 +713,7 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fft_1d(plan, zin, zout, scale)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: zin, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       IF (plan%n*plan%m > 0) THEN
@@ -703,16 +740,14 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         INTENT(INOUT)                                   :: zin
+         INTENT(INOUT), TARGET                                   :: zin
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(INOUT), OPTIONAL, TARGET                 :: zout
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft3d_s'
 
-      COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         POINTER                                         :: zoptr
-      COMPLEX(KIND=dp), DIMENSION(1, 1, 1), TARGET       :: zdum
+
       INTEGER                                            :: handle, ld(3), lo(3), output_unit
       LOGICAL                                            :: fft_in_place, test
       REAL(KIND=dp)                                      :: in_sum, norm, out_sum
@@ -754,11 +789,10 @@ CONTAINS
       CALL get_fft_scratch(fft_scratch, tf_type=400, n=n)
 
       IF (fft_in_place) THEN
-         zoptr => zdum
          IF (fsign) THEN
-            CALL fft_3d(fft_scratch%fft_plan(1), norm, zin, zoptr)
+            CALL fft_3d_inplace(fft_scratch%fft_plan(1), norm, zin)
          ELSE
-            CALL fft_3d(fft_scratch%fft_plan(2), norm, zin, zoptr)
+            CALL fft_3d_inplace(fft_scratch%fft_plan(2), norm, zin)
          END IF
       ELSE
          IF (fsign) THEN
@@ -3537,14 +3571,14 @@ CONTAINS
                CALL fft_allocate(fft_scratch_new%fft_scratch%zoptr, n)
 
                !in place plans
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(1), .TRUE., FWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(2), .TRUE., BWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%ziptr)
+               CALL fft_create_plan_3d_inplace(fft_scratch_new%fft_scratch%fft_plan(1), FWFFT, n, &
+                                       fft_scratch_new%fft_scratch%ziptr)
+               CALL fft_create_plan_3d_inplace(fft_scratch_new%fft_scratch%fft_plan(2), BWFFT, n, &
+                                       fft_scratch_new%fft_scratch%ziptr)
                ! out of place plans
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(3), .FALSE., FWFFT, n, &
+               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(3), FWFFT, n, &
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
-               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(4), .FALSE., BWFFT, n, &
+               CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(4), BWFFT, n, &
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)
 
             END SELECT

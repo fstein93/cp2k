@@ -23,8 +23,6 @@ const int FFT_LIBRARY_FFTW_MODE_EXHAUSTIVE = 14;
 
 int fft_library_init_F(const int backend_F, const int fftw_plan,
                        const bool use_guru_interface, const char *wisdom_file) {
-  printf("fft_library_init_F %i %i\n", backend_F, fftw_plan);
-  fflush(stdout);
   fft_lib backend;
   switch (backend_F) {
   case FFT_LIBRARY_BACKEND_DEFAULT:
@@ -37,8 +35,7 @@ int fft_library_init_F(const int backend_F, const int fftw_plan,
     backend = FFT_LIB_GPU;
     break;
   default:
-    assert(false && "Unknown FFT library backend!");
-    backend = fft_lib_default_library();
+    return 1;
   }
   fftw_plan_type plan_type;
   switch (fftw_plan) {
@@ -55,8 +52,7 @@ int fft_library_init_F(const int backend_F, const int fftw_plan,
     plan_type = FFT_EXHAUSTIVE;
     break;
   default:
-    assert(false && "Unknown FFT planning mode!");
-    plan_type = FFT_ESTIMATE;
+    return 1;
   }
   const int status =
       fft_init_lib(backend, plan_type, use_guru_interface, wisdom_file);
@@ -100,7 +96,7 @@ void fft_register_2d_local_F(const bool dir, const int fft_size[2],
 void fft_register_3d_local_F(const bool dir, const int fft_size[3],
                              double complex *grid_in,
                              double complex *grid_out) {
-  fft_register_3d_local(dir, fft_size, grid_in, grid_out);
+  fft_register_3d_local(dir, (const int[]){fft_size[2], fft_size[1], fft_size[0]}, grid_in, grid_out);
 }
 
 void fft_register_1d_local_inplace_F(const bool dir, const int fft_size,
@@ -145,7 +141,7 @@ void fft_2d_local_F(const bool dir, const int fft_size[2],
 
 void fft_3d_local_F(const bool dir, const int fft_size[3],
                     double complex *grid_in, double complex *grid_out) {
-  fft_3d_local(dir, fft_size, grid_in, grid_out);
+  fft_3d_local(dir, (const int[]){fft_size[2], fft_size[1], fft_size[0]}, grid_in, grid_out);
 }
 
 void fft_1d_local_inplace_F(const bool dir, const int fft_size,

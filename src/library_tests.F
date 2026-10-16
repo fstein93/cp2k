@@ -575,7 +575,7 @@ CONTAINS
 
 ! test for 3d FFT
 
-      IF (para_env%is_source()) WRITE (iw, '(//,A,/)') " Test of 3D-FFT "
+      IF (iw > 0) WRITE (iw, '(//,A,/)') " Test of 3D-FFT "
       siz = ABS(runtest(3))
 
       DO iall = 1, 2
@@ -588,9 +588,7 @@ CONTAINS
          END IF
          CALL init_fft(backends(iall), alltoall=.FALSE., wisdom_file=wisdom_file, &
                        pool_limit=10, plan_style=fftw_plan_type, status=status)
-         IF (status /= 0) THEN
-            CYCLE
-         END IF
+         IF (status /= 0) CYCLE
          n = 4
          zz = 0.0_dp
          CALL fft3d(FWFFT, n, zz)
@@ -624,14 +622,14 @@ CONTAINS
                perf = 0.0_dp
             END IF
 
-            IF (para_env%is_source()) THEN
+            IF (iw > 0) THEN
                WRITE (iw, '(T2,A,A,i6,T59,F14.4,A)') &
                   ADJUSTR(method), " test (in-place)    Size = ", len, perf, " Mflop/s"
             END IF
             DEALLOCATE (ca)
             DEALLOCATE (ra)
          END DO
-         IF (para_env%is_source()) WRITE (iw, *)
+         IF (iw > 0) WRITE (iw, *)
          ! test if input data is preserved
          len = 24
          n = len
@@ -647,12 +645,12 @@ CONTAINS
          CALL fft3d(FWFFT, n, ca, cb)
          tdiff = MAXVAL(ABS(ca - cc))
          IF (tdiff > 1.0E-12_dp) THEN
-            IF (para_env%is_source()) THEN
+            IF (iw > 0) THEN
                WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         FWFFT ", &
                   "             Input array is changed in out-of-place FFT !"
             END IF
          ELSE
-            IF (para_env%is_source()) THEN
+            IF (iw > 0) THEN
                WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         FWFFT ", &
                   "         Input array is not changed in out-of-place FFT !"
             END IF
@@ -661,17 +659,17 @@ CONTAINS
          CALL fft3d(BWFFT, n, ca, cb)
          tdiff = MAXVAL(ABS(ca - cc))
          IF (tdiff > 1.0E-12_dp) THEN
-            IF (para_env%is_source()) THEN
+            IF (iw > 0) THEN
                WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         BWFFT ", &
                   "             Input array is changed in out-of-place FFT !"
             END IF
          ELSE
-            IF (para_env%is_source()) THEN
+            IF (iw > 0) THEN
                WRITE (iw, '(T2,A,A,A)') ADJUSTR(method), "         BWFFT ", &
                   "         Input array is not changed in out-of-place FFT !"
             END IF
          END IF
-         IF (para_env%is_source()) WRITE (iw, *)
+         IF (iw > 0) WRITE (iw, *)
 
          DEALLOCATE (ra)
          DEALLOCATE (ca)

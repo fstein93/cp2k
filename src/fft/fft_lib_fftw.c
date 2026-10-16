@@ -124,10 +124,6 @@ int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   memset(cache, 0, sizeof(cache_entry) * FFTW_CACHE_SIZE);
   cache_oldest_entry = 0;
 
-  is_initialized = true;
-  // We need a threaded library!
-  fftw_init_threads();
-
   fftw_planning_mode = fftw_planning_flag;
   switch (fftw_planning_flag) {
   case FFT_ESTIMATE:
@@ -145,6 +141,10 @@ int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   default:
     assert(0 && "Unknown FFTW planning flag.");
   }
+
+  // We need a threaded library!
+  const int status = fftw_init_threads();
+  if (status == 0) return 1;
 
   has_guru_interface = use_guru_interface;
   if (has_guru_interface) {
@@ -170,6 +170,9 @@ int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
       fprintf(stderr,
               "Importing wisdom failed! Maybe the file does not exist.");
   }
+
+  is_initialized = true;
+  return 0;
 #else
   assert(false && "The grid library was not compiled with FFTW support.");
   (void)fftw_planning_flag;

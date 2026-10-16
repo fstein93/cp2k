@@ -85,9 +85,14 @@ int fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
   default:
     assert(0 && "Unknown FFT library.");
   }
-  fft_allocate_complex(1, &buffer_1);
-  fft_allocate_complex(1, &buffer_2);
-  buffer_size = 1;
+  if (status == 0) {
+    fft_allocate_complex(1, &buffer_1);
+    fft_allocate_complex(1, &buffer_2);
+    buffer_size = 1;
+  } else {
+    fft_finalize_lib(NULL);
+  }
+  return status;
 }
 
 /*******************************************************************************

@@ -355,26 +355,27 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
       INTEGER, INTENT(IN)                                :: leading_dimension_in, leading_dimension_out
       COMPLEX(KIND=dp), DIMENSION(leading_dimension_in*MERGE(fft_size, number_of_ffts, transpose_in)), &
-         INTENT(INOUT)      :: grid_in
+         INTENT(INOUT), TARGET      :: grid_in
       COMPLEX(KIND=dp), DIMENSION(leading_dimension_out*MERGE(fft_size, number_of_ffts, transpose_out)), &
-         INTENT(OUT)        :: grid_out
+         INTENT(OUT), TARGET        :: grid_out
 
       INTERFACE
          SUBROUTINE fft_register_1d_local_c(direction, fft_size, number_of_ffts, transpose_in, transpose_out, &
                                             leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
             BIND(C, name="fft_register_1d_local_F")
-            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
             LOGICAL(C_BOOL), VALUE :: direction
             INTEGER(C_INT), VALUE :: fft_size, number_of_ffts
             LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
             INTEGER(C_INT), VALUE :: leading_dimension_in, leading_dimension_out
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(INOUT) :: grid_in
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(OUT) :: grid_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
          END SUBROUTINE fft_register_1d_local_c
       END INTERFACE
 
-      CALL fft_register_1d_local_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose_in, C_BOOL), &
-                                   LOGICAL(transpose_out, C_BOOL), leading_dimension_in, leading_dimension_out, grid_in, grid_out)
+      CALL fft_register_1d_local_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
+      INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                                   LOGICAL(transpose_out, C_BOOL), leading_dimension_in, leading_dimension_out, &
+                                   C_LOC(grid_in), C_LOC(grid_out))
 
    END SUBROUTINE fft_register_1d_local
 
@@ -395,25 +396,25 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
       INTEGER, INTENT(IN)                                :: number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
-      COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(INOUT)      :: grid_in
-      COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(OUT)        :: grid_out
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(INOUT), TARGET      :: grid_in
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(OUT), TARGET        :: grid_out
 
       INTERFACE
          SUBROUTINE fft_register_2d_local_c(direction, fft_size, number_of_ffts, &
                                             transpose_in, transpose_out, grid_in, grid_out) &
             BIND(C, name="fft_register_2d_local_F")
-            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
             LOGICAL(C_BOOL), VALUE :: direction
             INTEGER(C_INT), DIMENSION(2) :: fft_size
             INTEGER(C_INT), VALUE :: number_of_ffts
             LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(INOUT) :: grid_in
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(OUT) :: grid_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
          END SUBROUTINE fft_register_2d_local_c
       END INTERFACE
 
-      CALL fft_register_2d_local_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose_in, C_BOOL), &
-                                   LOGICAL(transpose_out, C_BOOL), grid_in, grid_out)
+      CALL fft_register_2d_local_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
+      INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                                   LOGICAL(transpose_out, C_BOOL), C_LOC(grid_in), C_LOC(grid_out))
 
    END SUBROUTINE fft_register_2d_local
 
@@ -428,21 +429,21 @@ CONTAINS
    SUBROUTINE fft_register_3d_local(direction, fft_size, grid_in, grid_out)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: grid_in
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(OUT)        :: grid_out
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: grid_in
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(OUT), TARGET        :: grid_out
 
       INTERFACE
          SUBROUTINE fft_register_3d_local_c(direction, fft_size, grid_in, grid_out) &
             BIND(C, name="fft_register_3d_local_F")
-            IMPORT :: C_INT, C_DOUBLE_COMPLEX, C_BOOL
+            IMPORT :: C_INT, C_DOUBLE_COMPLEX, C_BOOL, C_PTR
             LOGICAL(C_BOOL), VALUE :: direction
-            INTEGER(C_INT), DIMENSION(3) :: fft_size
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(INOUT) :: grid_in
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(OUT) :: grid_out
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
          END SUBROUTINE fft_register_3d_local_c
       END INTERFACE
 
-      CALL fft_register_3d_local_c(LOGICAL(direction, C_BOOL), fft_size, grid_in, grid_out)
+      CALL fft_register_3d_local_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
+      C_LOC(grid_in), C_LOC(grid_out))
 
    END SUBROUTINE fft_register_3d_local
 
@@ -462,23 +463,24 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose
       INTEGER, INTENT(IN)                                :: leading_dimension
-      COMPLEX(KIND=dp), DIMENSION(leading_dimension*MERGE(fft_size, number_of_ffts, transpose)), INTENT(INOUT)      :: grid
+      COMPLEX(KIND=dp), DIMENSION(leading_dimension*MERGE(fft_size, number_of_ffts, transpose)), INTENT(INOUT), TARGET      :: grid
 
       INTERFACE
          SUBROUTINE fft_register_1d_local_inplace_c(direction, fft_size, number_of_ffts, &
                                                     transpose, leading_dimension, grid) &
-            BIND(C, name="fft_register_1d_local_F")
-            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
+            BIND(C, name="fft_register_1d_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
             LOGICAL(C_BOOL), VALUE :: direction
             INTEGER(C_INT), VALUE :: fft_size, number_of_ffts
             LOGICAL(C_BOOL), VALUE :: transpose
             INTEGER(C_INT), VALUE :: leading_dimension
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(INOUT) :: grid
+            TYPE(C_PTR), VALUE :: grid
          END SUBROUTINE fft_register_1d_local_inplace_c
       END INTERFACE
 
-      CALL fft_register_1d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, &
-                                           LOGICAL(transpose, C_BOOL), leading_dimension, grid)
+      CALL fft_register_1d_local_inplace_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
+      INT(number_of_ffts, C_INT), &
+                                           LOGICAL(transpose, C_BOOL), leading_dimension, C_LOC(grid))
 
    END SUBROUTINE fft_register_1d_local_inplace
 
@@ -496,22 +498,23 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
       INTEGER, INTENT(IN)                                :: number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose
-      COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(INOUT)      :: grid
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(INOUT), TARGET      :: grid
 
       INTERFACE
          SUBROUTINE fft_register_2d_local_inplace_c(direction, fft_size, number_of_ffts, transpose, grid) &
-            BIND(C, name="fft_register_2d_local_F")
-            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
+            BIND(C, name="fft_register_2d_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
             LOGICAL(C_BOOL), VALUE :: direction
             INTEGER(C_INT), DIMENSION(2) :: fft_size
             INTEGER(C_INT), VALUE :: number_of_ffts
             LOGICAL(C_BOOL), VALUE :: transpose
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(INOUT) :: grid
+            TYPE(C_PTR), VALUE :: grid
          END SUBROUTINE fft_register_2d_local_inplace_c
       END INTERFACE
 
-      CALL fft_register_2d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, &
-                                           LOGICAL(transpose, C_BOOL), grid)
+      CALL fft_register_2d_local_inplace_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
+      INT(number_of_ffts, C_INT), &
+                                           LOGICAL(transpose, C_BOOL), C_LOC(grid))
 
    END SUBROUTINE fft_register_2d_local_inplace
 
@@ -525,19 +528,19 @@ CONTAINS
    SUBROUTINE fft_register_3d_local_inplace(direction, fft_size, grid)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: grid
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: grid
 
       INTERFACE
          SUBROUTINE fft_register_3d_local_inplace_c(direction, fft_size, grid) &
-            BIND(C, name="fft_register_3d_local_F")
-            IMPORT :: C_INT, C_DOUBLE_COMPLEX, C_BOOL
+            BIND(C, name="fft_register_3d_local_inplace_F")
+            IMPORT :: C_INT, C_DOUBLE_COMPLEX, C_BOOL, C_PTR
             LOGICAL(C_BOOL), VALUE :: direction
-            INTEGER(C_INT), DIMENSION(3) :: fft_size
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(INOUT) :: grid
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            TYPE(C_PTR), VALUE :: grid
          END SUBROUTINE fft_register_3d_local_inplace_c
       END INTERFACE
 
-      CALL fft_register_3d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, grid)
+      CALL fft_register_3d_local_inplace_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), C_LOC(grid))
 
    END SUBROUTINE fft_register_3d_local_inplace
 
@@ -561,26 +564,27 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
       INTEGER, INTENT(IN)                                :: leading_dimension_in, leading_dimension_out
       COMPLEX(KIND=dp), DIMENSION(leading_dimension_in*MERGE(fft_size, number_of_ffts, transpose_in)), &
-         INTENT(INOUT)      :: grid_in
+         INTENT(INOUT), TARGET      :: grid_in
       COMPLEX(KIND=dp), DIMENSION(leading_dimension_out*MERGE(fft_size, number_of_ffts, transpose_out)), &
-         INTENT(OUT)        :: grid_out
+         INTENT(OUT), TARGET        :: grid_out
 
       INTERFACE
          SUBROUTINE fft_1d_local_c(direction, fft_size, number_of_ffts, transpose_in, transpose_out, &
                                    leading_dimension_in, leading_dimension_out, grid_in, grid_out) &
             BIND(C, name="fft_1d_local_F")
-            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
             LOGICAL(C_BOOL), VALUE :: direction
             INTEGER(C_INT), VALUE :: fft_size, number_of_ffts
             LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
             INTEGER(C_INT), VALUE :: leading_dimension_in, leading_dimension_out
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(INOUT) :: grid_in
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(OUT) :: grid_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
          END SUBROUTINE fft_1d_local_c
       END INTERFACE
 
-      CALL fft_1d_local_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose_in, C_BOOL), &
-                          LOGICAL(transpose_out, C_BOOL), leading_dimension_in, leading_dimension_out, grid_in, grid_out)
+      CALL fft_1d_local_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
+      INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                          LOGICAL(transpose_out, C_BOOL), leading_dimension_in, leading_dimension_out, &
+                          C_LOC(grid_in), C_LOC(grid_out))
 
    END SUBROUTINE fft_1d_local
 
@@ -600,24 +604,24 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
       INTEGER, INTENT(IN)                                :: number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose_in, transpose_out
-      COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(INOUT)      :: grid_in
-      COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(OUT)        :: grid_out
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(INOUT), TARGET      :: grid_in
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(OUT), TARGET        :: grid_out
 
       INTERFACE
          SUBROUTINE fft_2d_local_c(direction, fft_size, number_of_ffts, transpose_in, transpose_out, grid_in, grid_out) &
             BIND(C, name="fft_2d_local_F")
-            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
             LOGICAL(C_BOOL), VALUE :: direction
             INTEGER(C_INT), DIMENSION(2) :: fft_size
             INTEGER(C_INT), VALUE :: number_of_ffts
             LOGICAL(C_BOOL), VALUE :: transpose_in, transpose_out
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(INOUT) :: grid_in
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(OUT) :: grid_out
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
          END SUBROUTINE fft_2d_local_c
       END INTERFACE
 
-      CALL fft_2d_local_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose_in, C_BOOL), &
-                          LOGICAL(transpose_out, C_BOOL), grid_in, grid_out)
+      CALL fft_2d_local_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
+      INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                          LOGICAL(transpose_out, C_BOOL), C_LOC(grid_in), C_LOC(grid_out))
 
    END SUBROUTINE fft_2d_local
 
@@ -632,21 +636,20 @@ CONTAINS
    SUBROUTINE fft_3d_local(direction, fft_size, grid_in, grid_out)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: grid_in
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(OUT)        :: grid_out
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: grid_in
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(OUT), TARGET        :: grid_out
 
       INTERFACE
          SUBROUTINE fft_3d_local_c(direction, fft_size, grid_in, grid_out) &
             BIND(C, name="fft_3d_local_F")
-            IMPORT :: C_INT, C_DOUBLE_COMPLEX, C_BOOL
+            IMPORT :: C_INT, C_DOUBLE_COMPLEX, C_BOOL, C_PTR
             LOGICAL(C_BOOL), VALUE :: direction
-            INTEGER(C_INT), DIMENSION(3) :: fft_size
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(INOUT) :: grid_in
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(OUT) :: grid_out
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            TYPE(C_PTR), VALUE :: grid_in, grid_out
          END SUBROUTINE fft_3d_local_c
       END INTERFACE
 
-      CALL fft_3d_local_c(LOGICAL(direction, C_BOOL), fft_size, grid_in, grid_out)
+      CALL fft_3d_local_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), C_LOC(grid_in), C_LOC(grid_out))
 
    END SUBROUTINE fft_3d_local
 
@@ -665,22 +668,24 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: fft_size, number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose
       INTEGER, INTENT(IN)                                :: leading_dimension
-      COMPLEX(KIND=dp), DIMENSION(leading_dimension*MERGE(fft_size, number_of_ffts, transpose)), INTENT(INOUT)      :: grid
+      COMPLEX(KIND=dp), DIMENSION(leading_dimension*MERGE(fft_size, number_of_ffts, transpose)), &
+         INTENT(INOUT), TARGET      :: grid
 
       INTERFACE
          SUBROUTINE fft_1d_local_inplace_c(direction, fft_size, number_of_ffts, transpose, leading_dimension, grid) &
-            BIND(C, name="fft_1d_local_F")
-            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
+            BIND(C, name="fft_1d_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
             LOGICAL(C_BOOL), VALUE :: direction
             INTEGER(C_INT), VALUE :: fft_size, number_of_ffts
             LOGICAL(C_BOOL), VALUE :: transpose
             INTEGER(C_INT), VALUE :: leading_dimension
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(INOUT) :: grid
+            TYPE(C_PTR), VALUE :: grid
          END SUBROUTINE fft_1d_local_inplace_c
       END INTERFACE
 
-      CALL fft_1d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, &
-                                  LOGICAL(transpose, C_BOOL), leading_dimension, grid)
+      CALL fft_1d_local_inplace_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
+      INT(number_of_ffts, C_INT), &
+                                  LOGICAL(transpose, C_BOOL), leading_dimension, C_LOC(grid))
 
    END SUBROUTINE fft_1d_local_inplace
 
@@ -698,21 +703,22 @@ CONTAINS
       INTEGER, DIMENSION(2), INTENT(IN)                  :: fft_size
       INTEGER, INTENT(IN)                                :: number_of_ffts
       LOGICAL, INTENT(IN)                                :: transpose
-      COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(INOUT)      :: grid
+      COMPLEX(KIND=dp), DIMENSION(PRODUCT(fft_size)*number_of_ffts), INTENT(INOUT), TARGET      :: grid
 
       INTERFACE
          SUBROUTINE fft_2d_local_inplace_c(direction, fft_size, number_of_ffts, transpose, grid) &
-            BIND(C, name="fft_2d_local_F")
-            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX
+            BIND(C, name="fft_2d_local_inplace_F")
+            IMPORT :: C_INT, C_BOOL, C_DOUBLE_COMPLEX, C_PTR
             LOGICAL(C_BOOL), VALUE :: direction
             INTEGER(C_INT), DIMENSION(2) :: fft_size
             INTEGER(C_INT), VALUE :: number_of_ffts
             LOGICAL(C_BOOL), VALUE :: transpose
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(INOUT) :: grid
+            TYPE(C_PTR), VALUE :: grid
          END SUBROUTINE fft_2d_local_inplace_c
       END INTERFACE
 
-      CALL fft_2d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, number_of_ffts, LOGICAL(transpose, C_BOOL), grid)
+      CALL fft_2d_local_inplace_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
+      INT(number_of_ffts, C_INT), LOGICAL(transpose, C_BOOL), C_LOC(grid))
 
    END SUBROUTINE fft_2d_local_inplace
 
@@ -726,19 +732,19 @@ CONTAINS
    SUBROUTINE fft_3d_local_inplace(direction, fft_size, grid)
       LOGICAL, INTENT(IN)                                :: direction
       INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT)      :: grid
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: grid
 
       INTERFACE
          SUBROUTINE fft_3d_local_inplace_c(direction, fft_size, grid) &
-            BIND(C, name="fft_3d_local_F")
-            IMPORT :: C_INT, C_DOUBLE_COMPLEX, C_BOOL
+            BIND(C, name="fft_3d_local_inplace_F")
+            IMPORT :: C_INT, C_DOUBLE_COMPLEX, C_BOOL, C_PTR
             LOGICAL(C_BOOL), VALUE :: direction
-            INTEGER(C_INT), DIMENSION(3) :: fft_size
-            COMPLEX(C_DOUBLE_COMPLEX), DIMENSION(*), INTENT(INOUT) :: grid
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            TYPE(C_PTR), VALUE :: grid
          END SUBROUTINE fft_3d_local_inplace_c
       END INTERFACE
 
-      CALL fft_3d_local_inplace_c(LOGICAL(direction, C_BOOL), fft_size, grid)
+      CALL fft_3d_local_inplace_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), C_LOC(grid))
 
    END SUBROUTINE fft_3d_local_inplace
 
