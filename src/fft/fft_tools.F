@@ -670,6 +670,7 @@ CONTAINS
       IF (ALL(plan%n_3d > 0)) THEN
          CALL fft_3d_local(plan%fsign, plan%n_3d, zin, zout)
       END IF
+      zout(1:PRODUCT(plan%n_3d)) = zout(1:PRODUCT(plan%n_3d))*scale
 
    END SUBROUTINE fft_3d
 
@@ -690,6 +691,7 @@ CONTAINS
       IF (ALL(plan%n_3d > 0)) THEN
          CALL fft_3d_local_inplace(plan%fsign, plan%n_3d, zinout)
       END IF
+      zinout(1:PRODUCT(plan%n_3d)) = zinout(1:PRODUCT(plan%n_3d))*scale
 
    END SUBROUTINE fft_3d_inplace
 

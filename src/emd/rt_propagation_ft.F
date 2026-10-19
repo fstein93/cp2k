@@ -105,7 +105,7 @@ CONTAINS
       COMPLEX(kind=dp)                                   :: subtract_value
       COMPLEX(kind=dp), CONTIGUOUS, DIMENSION(:), &
          POINTER                                         :: ft_samples, samples_input
-      INTEGER                                            :: handle, i, i0, j, nsamples, nseries, stat
+      INTEGER                                            :: handle, i, i0, j, nsamples, nseries
       LOGICAL                                            :: subtract_initial
       REAL(kind=dp)                                      :: damping, delta_t, t0, t_total
 
@@ -199,27 +199,13 @@ CONTAINS
       ! Create the plan (this overwrites samples and ft_samples with planning data)
       ! Carry out the transform
       ! Scale by dt - to transform to an integral
-      CALL fft_1d_local(.FALSE., nsamples, nsamples, .FALSE., .FALSE., nsamples, nseries, samples_input, ft_samples)
+      CALL fft_1d_local(.FALSE., nsamples, nseries, .FALSE., .FALSE., nsamples, nsamples, samples_input, ft_samples)
       ft_samples(:) = ft_samples*delta_t
-      IF (stat /= 0) THEN
-         ! Failed fftw3 - go to backup
-         ! Uses value_series and result_series - no need to reassign data
-         ! TODO : OMP parallel for different series?
-         DO i = 1, nseries
-            IF (subtract_initial) THEN
-               subtract_value = value_series(i, 1)
-            END IF
-            CALL ft_simple(time_series(i0:SIZE(time_series)), &
-                           value_series(i, i0:SIZE(value_series, 2)), result_series(i, 1:nsamples), &
-                           damping, subtract_value)
-         END DO
-      ELSE
-         ! Successful FT requires shift
-         DO i = 1, nseries
-            CALL fft_shift(ft_samples((i - 1)*nsamples + 1:i*nsamples))
-            result_series(i, :) = ft_samples((i - 1)*nsamples + 1:i*nsamples)
-         END DO
-      END IF
+      ! Successful FT requires shift
+      DO i = 1, nseries
+         CALL fft_shift(ft_samples((i - 1)*nsamples + 1:i*nsamples))
+         result_series(i, :) = ft_samples((i - 1)*nsamples + 1:i*nsamples)
+      END DO
       IF (ANY(REAL(result_series, kind=dp) /= REAL(result_series, kind=dp)) .OR. &
           ANY(AIMAG(result_series) /= AIMAG(result_series)) .OR. &
           ANY(ABS(REAL(result_series, kind=dp)) >= HUGE(1.0_dp)) .OR. &

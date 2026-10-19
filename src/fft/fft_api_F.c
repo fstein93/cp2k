@@ -5,21 +5,13 @@
 /*  SPDX-License-Identifier: BSD-3-Clause                                     */
 /*----------------------------------------------------------------------------*/
 
+#include "fft_api_F.h"
 #include "fft_lib.h"
 #include "fft_timer.h"
 
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
-
-// Keep in accordance to fft_api.F
-const int FFT_LIBRARY_BACKEND_DEFAULT = 1;
-const int FFT_LIBRARY_BACKEND_FFTW = 2;
-const int FFT_LIBRARY_BACKEND_GPU = 3;
-const int FFT_LIBRARY_FFTW_MODE_ESTIMATE = 11;
-const int FFT_LIBRARY_FFTW_MODE_MEASURE = 12;
-const int FFT_LIBRARY_FFTW_MODE_PATIENT = 13;
-const int FFT_LIBRARY_FFTW_MODE_EXHAUSTIVE = 14;
 
 int fft_library_init_F(const int backend_F, const int fftw_plan,
                        const bool use_guru_interface, const char *wisdom_file) {
@@ -66,6 +58,38 @@ void fft_library_finalize_F(const char *wisdom_file) {
 
 void fft_print_timing_report_F(const double threshold) {
   fft_print_timing_report(threshold);
+}
+
+/*******************************************************************************
+ * \brief Allocate buffer of type double.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_allocate_double_F(const int length, double **buffer) {
+  fft_allocate_double(length, buffer);
+}
+
+/*******************************************************************************
+ * \brief Allocate buffer of type double complex.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_allocate_complex_F(const int length, double complex **buffer) {
+  fft_allocate_complex(length, buffer);
+}
+
+/*******************************************************************************
+ * \brief Allocate buffer of type double.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_free_double_F(double *buffer) {
+  fft_free_double(buffer);
+}
+
+/*******************************************************************************
+ * \brief Allocate buffer of type double complex.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_free_complex_F(double complex *buffer) {
+  fft_free_complex(buffer);
 }
 
 int fft_backend_in_use_F() { return fft_lib_backend_in_use(); }

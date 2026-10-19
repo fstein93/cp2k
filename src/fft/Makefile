@@ -26,7 +26,9 @@ ALL_OBJECTS := ../offload/offload_mempool.o \
         fft_timer.o \
         fft_lib_fftw.o \
         fft_lib.o \
-        fft_lib_test.o
+        fft_lib_test.o \
+        fft_api_F.o \
+        fft_api_F_test.o
 
 # Enable Cuda when nvcc compiler is present.
 NVCC := $(shell which nvcc)

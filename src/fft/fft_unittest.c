@@ -14,6 +14,7 @@
 #include "../offload/offload_library.h"
 #include "fft_lib.h"
 #include "fft_lib_test.h"
+#include "fft_api_F_test.h"
 #include "fft_timer.h"
 
 int run_unittests(const bool debug, const int backend, const int planning_mode,
@@ -82,6 +83,8 @@ int main(int argc, char *argv[]) {
 
   fft_finalize_lib(NULL);
   fft_finalize_timer();
+
+  errors += fft_test_api_local();
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
     if (errors == 0) {

@@ -788,6 +788,7 @@ CONTAINS
       scale = 1.0_dp
       IF (fsign) scale = 1.0_dp/REAL(n, KIND=dp)
       CALL fft_1d_local(fsign, n, m, .FALSE., .FALSE., n, n, line_in, line_out)
+      line_out = line_out*scale
       iline = 0
       SELECT CASE (direction)
       CASE (1)

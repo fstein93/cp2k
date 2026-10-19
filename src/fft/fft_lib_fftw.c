@@ -1354,7 +1354,7 @@ void fft_fftw_1d_local(const bool direction, const int fft_size,
                  transpose_out, leading_dimension_in, leading_dimension_out, 1,
                  in_place, key);
       plan_last_thread = lookup_plan_from_cache(key);
-      if (plan == NULL) {
+      if (plan_last_thread == NULL) {
         double complex *buffer =
             fftw_alloc_complex(get_buffer_size_from_key(key));
         plan_last_thread =
@@ -1457,7 +1457,7 @@ void fft_fftw_1d_r2c_local(const int fft_size, const int number_of_ffts,
                      transpose_out, leading_dimension_in, leading_dimension_out,
                      1, in_place, key);
       plan_last_thread = lookup_plan_from_cache(key);
-      if (plan == NULL) {
+      if (plan_last_thread == NULL) {
         double *buffer = fftw_alloc_real(2 * get_buffer_size_from_key(key));
         plan_last_thread = fft_fftw_create_1d_plan_r2c(
             key, buffer, in_place ? buffer : (double *)grid_out);
@@ -1559,7 +1559,7 @@ void fft_fftw_1d_c2r_local(const int fft_size, const int number_of_ffts,
                      transpose_out, leading_dimension_in, leading_dimension_out,
                      1, in_place, key);
       plan_last_thread = lookup_plan_from_cache(key);
-      if (plan == NULL) {
+      if (plan_last_thread == NULL) {
         double *buffer = fftw_alloc_real(2 * get_buffer_size_from_key(key));
         plan_last_thread = fft_fftw_create_1d_plan_r2c(
             key, buffer, in_place ? buffer : grid_out);

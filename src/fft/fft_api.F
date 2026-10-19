@@ -60,7 +60,7 @@ MODULE fft_api
    END INTERFACE fft_deallocate
 
    INTERFACE
-      SUBROUTINE fft_allocate_double_c(length, buffer) BIND(C, name="fft_allocate_double")
+      SUBROUTINE fft_allocate_double_c(length, buffer) BIND(C, name="fft_allocate_double_F")
          IMPORT :: C_PTR, C_INT
          INTEGER(C_INT), VALUE :: length
          TYPE(C_PTR) :: buffer
@@ -68,7 +68,7 @@ MODULE fft_api
    END INTERFACE
 
    INTERFACE
-      SUBROUTINE fft_allocate_complex_c(length, buffer) BIND(C, name="fft_allocate_complex")
+      SUBROUTINE fft_allocate_complex_c(length, buffer) BIND(C, name="fft_allocate_complex_F")
          IMPORT :: C_PTR, C_INT
          INTEGER(C_INT), VALUE :: length
          TYPE(C_PTR) :: buffer
@@ -76,14 +76,14 @@ MODULE fft_api
    END INTERFACE
 
    INTERFACE
-      SUBROUTINE fft_free_double_c(buffer) BIND(C, name="fft_free_double")
+      SUBROUTINE fft_free_double_c(buffer) BIND(C, name="fft_free_double_F")
          IMPORT :: C_PTR
          TYPE(C_PTR), VALUE :: buffer
       END SUBROUTINE fft_free_double_c
    END INTERFACE
 
    INTERFACE
-      SUBROUTINE fft_free_complex_c(buffer) BIND(C, name="fft_free_complex")
+      SUBROUTINE fft_free_complex_c(buffer) BIND(C, name="fft_free_complex_F")
          IMPORT :: C_PTR
          TYPE(C_PTR), VALUE :: buffer
       END SUBROUTINE fft_free_complex_c
@@ -129,6 +129,38 @@ CONTAINS
 
       status = INT(fft_library_init_c(backend, planning_mode, &
                                       LOGICAL(use_guru_interface, C_BOOL), C_LOC(wisdom_file_c)))
+
+      IF (status == 0) THEN
+      BLOCK
+         integer, parameter :: n = 4
+   integer :: status
+   complex(dp), POINTER, CONTIGUOUS :: input(:, :, :), output(:, :, :)
+
+   NULLIFY(input, output)
+
+   call fft_allocate(input, [n, n, n])
+   call fft_allocate(output, [n, n, n])
+
+   input = (0.0_dp, 0.0_dp)
+   input(1, 1, 1) = (1.0_dp, 0.0_dp)
+
+   call fft_3d_local_inplace(.true., [n, n, n], input)
+   if (maxval(abs(input - CMPLX(1.0_dp, 0.0_dp))) > 1.0e-12_dp) &
+      error stop "Forward FFT failed"
+
+   call fft_3d_local_inplace(.false., [n, n, n], input)
+   write(*,*) input
+   if (abs(input(1, 1, 1) - CMPLX(real(n**3, dp), 0.0_dp)) > 1.0e-12_dp .or. &
+       maxval(abs(input(2:n, 1, 1))) > 1.0e-12_dp .or. &
+       maxval(abs(input(1, 2:n, 1))) > 1.0e-12_dp .or. &
+       maxval(abs(input(1, 1, 2:n))) > 1.0e-12_dp) &
+      error stop "Backward FFT failed"
+
+   call fft_deallocate(input)
+   call fft_deallocate(output)
+   END BLOCK
+
+END IF
 
       DEALLOCATE (wisdom_file_c)
 
