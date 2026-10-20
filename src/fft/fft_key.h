@@ -97,6 +97,8 @@ get_key_1d_r2c(const bool direction, const int fft_size,
 static inline void get_key_2d(const bool direction, const int fft_size[2],
                               const int number_of_ffts, const bool transpose_in,
                               const bool transpose_out,
+                              const int leading_dimension_in,
+                              const int leading_dimension_out,
                               const int number_of_threads, const bool inplace,
                               int *key) {
   assert((!inplace || (transpose_in == transpose_out)) &&
@@ -107,12 +109,12 @@ static inline void get_key_2d(const bool direction, const int fft_size[2],
   key[3] = fft_size[0];
   key[4] = fft_size[1];
   key[5] = number_of_ffts;
-  key[6] = (transpose_in ? number_of_ffts : 1) * fft_size[1];
-  key[7] = transpose_in ? number_of_ffts : 1;
-  key[8] = transpose_in ? 1 : fft_size[0] * fft_size[1];
-  key[9] = (transpose_out ? number_of_ffts : 1) * fft_size[1];
-  key[10] = transpose_out ? number_of_ffts : 1;
-  key[11] = transpose_out ? 1 : fft_size[0] * fft_size[1];
+  key[6] = (transpose_in ? leading_dimension_in : 1) * fft_size[1];
+  key[7] = transpose_in ? leading_dimension_in : 1;
+  key[8] = transpose_in ? 1 : leading_dimension_in;
+  key[9] = (transpose_out ? leading_dimension_out : 1) * fft_size[1];
+  key[10] = transpose_out ? leading_dimension_out : 1;
+  key[11] = transpose_out ? 1 : leading_dimension_out;
 }
 
 /*******************************************************************************
@@ -123,6 +125,8 @@ static inline void get_key_2d_r2c(const bool direction, const int fft_size[2],
                                   const int number_of_ffts,
                                   const bool transpose_in,
                                   const bool transpose_out,
+                              const int leading_dimension_in,
+                              const int leading_dimension_out,
                                   const int number_of_threads,
                                   const bool inplace, int *key) {
   assert((!inplace || (transpose_in == transpose_out)) &&
@@ -134,26 +138,16 @@ static inline void get_key_2d_r2c(const bool direction, const int fft_size[2],
   key[3] = fft_size[0];
   key[4] = fft_size[1];
   key[5] = number_of_ffts;
-  key[6] = (transpose_in ? number_of_ffts : 1) *
+  key[6] = (transpose_in ? leading_dimension_in : 1) *
            (direction ? (!inplace ? fft_size[1] : 2 * (fft_size[1] / 2 + 1))
                       : fft_size[1] / 2 + 1);
-  key[7] = transpose_in ? number_of_ffts : 1;
-  key[8] = transpose_in
-               ? 1
-               : fft_size[0] *
-                     (direction
-                          ? (!inplace ? fft_size[1] : 2 * (fft_size[1] / 2 + 1))
-                          : fft_size[1] / 2 + 1);
-  key[9] = (transpose_out ? number_of_ffts : 1) *
+  key[7] = transpose_in ? leading_dimension_in : 1;
+  key[8] = transpose_in ? 1 : leading_dimension_in;
+  key[9] = (transpose_out ? leading_dimension_out : 1) *
            (!direction ? (!inplace ? fft_size[1] : 2 * (fft_size[1] / 2 + 1))
                        : fft_size[1] / 2 + 1);
-  key[10] = transpose_out ? number_of_ffts : 1;
-  key[11] =
-      transpose_out
-          ? 1
-          : fft_size[0] * (!direction ? (!inplace ? fft_size[1]
-                                                  : 2 * (fft_size[1] / 2 + 1))
-                                      : fft_size[1] / 2 + 1);
+  key[10] = transpose_out ? leading_dimension_out : 1;
+  key[11] = transpose_out ? 1 : leading_dimension_out;
 }
 
 /*******************************************************************************
