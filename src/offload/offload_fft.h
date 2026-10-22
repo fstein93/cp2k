@@ -218,10 +218,10 @@ static inline void offload_fftExecZ2Z(offload_fftHandle plan,
 static inline void offload_fftExecD2Z(offload_fftHandle plan,
                                       const double *idata, double *odata) {
 #if defined(__OFFLOAD_CUDA)
-  OFFLOAD_FFT_CHECK(cufftExecD2Z(plan, (cufftDoubleComplex *)idata,
+  OFFLOAD_FFT_CHECK(cufftExecD2Z(plan, (cufftDoubleReal *)idata,
                                  (cufftDoubleComplex *)odata));
 #elif defined(__OFFLOAD_HIP)
-  OFFLOAD_FFT_CHECK(hipfftExecD2Z(plan, (hipfftDoubleComplex *)idata,
+  OFFLOAD_FFT_CHECK(hipfftExecD2Z(plan, (hipfftDoubleReal *)idata,
                                   (hipfftDoubleComplex *)odata));
 #endif
 }
@@ -233,10 +233,10 @@ static inline void offload_fftExecZ2D(offload_fftHandle plan,
                                       const double *idata, double *odata) {
 #if defined(__OFFLOAD_CUDA)
   OFFLOAD_FFT_CHECK(cufftExecZ2D(plan, (cufftDoubleComplex *)idata,
-                                 (cufftDoubleComplex *)odata));
+                                 (cufftDoubleReal *)odata));
 #elif defined(__OFFLOAD_HIP)
   OFFLOAD_FFT_CHECK(hipfftExecZ2D(plan, (hipfftDoubleComplex *)idata,
-                                  (hipfftDoubleComplex *)odata));
+                                  (hipfftDoubleReal *)odata));
 #endif
 }
 
