@@ -1522,8 +1522,14 @@ set(CP2K_DBM_SRCS_C
     dbm/dbm_multiply_cpu.c
     dbm/dbm_shard.c)
 
-set(CP2K_FFT_SRCS_C fft/fft_api_F.c fft/fft_api_F_test.c fft/fft_lib.c fft/fft_lib_fftw.c
-                    fft/fft_lib_test.c fft/fft_timer.c fft/gpu/fft_gpu.c)
+set(CP2K_FFT_SRCS_C
+    fft/fft_api_F.c
+    fft/fft_api_F_test.c
+    fft/fft_lib.c
+    fft/fft_lib_fftw.c
+    fft/fft_lib_test.c
+    fft/fft_timer.c
+    fft/gpu/fft_gpu.c)
 
 set(CP2K_GRID_SRCS_C
     grid/common/grid_basis_set.c
@@ -1667,7 +1673,7 @@ if(CP2K_USE_CUDA
    OR CP2K_USE_HIP
    OR CP2K_USE_OPENCL)
   if(CP2K_ENABLE_FFT_GPU)
-    list(APPEND CP2K_SRCS_GPU "pw/gpu/pw_gpu_kernels.cu")
+    list(APPEND CP2K_SRCS_GPU "fft/gpu/fft_gpu_kernels.cu")
   endif()
 
   if(CP2K_ENABLE_DBM_GPU)

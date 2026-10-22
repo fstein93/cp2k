@@ -350,7 +350,7 @@ CONTAINS
                           citations=[Frigo2005], &
                           default_i_val=FFT_LIBRARY_FFTW_MODE_ESTIMATE, &
                           enum_i_vals=[FFT_LIBRARY_FFTW_MODE_ESTIMATE, FFT_LIBRARY_FFTW_MODE_MEASURE, &
-                          FFT_LIBRARY_FFTW_MODE_PATIENT, FFT_LIBRARY_FFTW_MODE_EXHAUSTIVE], &
+                                       FFT_LIBRARY_FFTW_MODE_PATIENT, FFT_LIBRARY_FFTW_MODE_EXHAUSTIVE], &
                           enum_c_vals=s2a("ESTIMATE", &
                                           "MEASURE", &
                                           "PATIENT", &

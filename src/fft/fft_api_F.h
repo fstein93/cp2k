@@ -59,8 +59,7 @@ void fft_register_1d_local_F(const bool dir, const int fft_size,
                              const bool transpose_out,
                              const int leading_dimension_in,
                              const int leading_dimension_out,
-                             double complex *grid_in,
-                             double complex *grid_out);
+                             double complex *grid_in, double complex *grid_out);
 
 void fft_register_2d_local_F(const bool dir, const int fft_size[2],
                              const int number_of_ffts, const bool transpose_in,
@@ -68,8 +67,7 @@ void fft_register_2d_local_F(const bool dir, const int fft_size[2],
                              double complex *grid_out);
 
 void fft_register_3d_local_F(const bool dir, const int fft_size[3],
-                             double complex *grid_in,
-                             double complex *grid_out);
+                             double complex *grid_in, double complex *grid_out);
 
 void fft_register_1d_local_inplace_F(const bool dir, const int fft_size,
                                      const int number_of_ffts,

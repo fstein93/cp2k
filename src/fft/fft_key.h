@@ -121,14 +121,12 @@ static inline void get_key_2d(const bool direction, const int fft_size[2],
  * \brief Get key from FFT input parameters (2D, R2C-case)
  * \author Frederick Stein
  ******************************************************************************/
-static inline void get_key_2d_r2c(const bool direction, const int fft_size[2],
-                                  const int number_of_ffts,
-                                  const bool transpose_in,
-                                  const bool transpose_out,
-                              const int leading_dimension_in,
-                              const int leading_dimension_out,
-                                  const int number_of_threads,
-                                  const bool inplace, int *key) {
+static inline void
+get_key_2d_r2c(const bool direction, const int fft_size[2],
+               const int number_of_ffts, const bool transpose_in,
+               const bool transpose_out, const int leading_dimension_in,
+               const int leading_dimension_out, const int number_of_threads,
+               const bool inplace, int *key) {
   assert((!inplace || (transpose_in == transpose_out)) &&
          "Inplace plans need the same strides for input and output arrays!");
   key[0] =

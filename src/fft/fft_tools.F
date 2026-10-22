@@ -33,9 +33,9 @@ MODULE fft_tools
                                               C_SIZE_T
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
    USE fft_api,                         ONLY: &
-        fft_1d_local, fft_2d_local, fft_3d_local, fft_3d_local_inplace, fft_allocate, fft_deallocate, &
-        fft_library_finalize, fft_library_init, fft_register_1d_local, fft_register_2d_local, fft_register_3d_local, &
-        fft_register_3d_local_inplace
+        fft_1d_local, fft_2d_local, fft_3d_local, fft_3d_local_inplace, fft_allocate, &
+        fft_deallocate, fft_library_finalize, fft_library_init, fft_register_1d_local, &
+        fft_register_2d_local, fft_register_3d_local, fft_register_3d_local_inplace
    USE kinds,                           ONLY: dp,&
                                               dp_size,&
                                               sp
@@ -572,7 +572,8 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       LOGICAL, INTENT(IN)                                :: fsign, trans_in, trans_out
       INTEGER, INTENT(IN)                                :: ldx_in, ldx_out, n, m
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zin, zout
 
       plan%fsign = fsign
       plan%trans_in = trans_in
@@ -610,8 +611,6 @@ CONTAINS
 !> \param fsign ...
 !> \param trans_in ...
 !> \param trans_out ...
-!> \param ldx_in ...
-!> \param ldx_out ...
 !> \param n ...
 !> \param m ...
 !> \param zin ...
@@ -621,7 +620,8 @@ CONTAINS
       TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
       LOGICAL, INTENT(IN)                                :: fsign, trans_in, trans_out
       INTEGER, INTENT(IN)                                :: n(2), m
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zin, zout
 
       plan%fsign = fsign
       plan%trans_in = trans_in
@@ -668,7 +668,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), DIMENSION(PRODUCT(n)), &
-         INTENT(INOUT), TARGET                                   :: zin, zout
+         INTENT(INOUT), TARGET                           :: zin, zout
 
       plan%fsign = fsign
       plan%fft_in_place = .FALSE.
@@ -692,7 +692,7 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(3), INTENT(IN)                  :: n
       COMPLEX(KIND=dp), DIMENSION(PRODUCT(n)), &
-         INTENT(INOUT), TARGET                                   :: zinout
+         INTENT(INOUT), TARGET                           :: zinout
 
       plan%fsign = fsign
       plan%fft_in_place = .TRUE.
@@ -713,7 +713,8 @@ CONTAINS
    SUBROUTINE fft_3d(plan, scale, zin, zout)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       REAL(KIND=dp), INTENT(IN)                          :: scale
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zin, zout
 
       CPASSERT(.NOT. plan%fft_in_place)
 
@@ -728,13 +729,13 @@ CONTAINS
 !> \brief ...
 !> \param plan ...
 !> \param scale ...
-!> \param zin ...
-!> \param zout ...
+!> \param zinout ...
 ! **************************************************************************************************
    SUBROUTINE fft_3d_inplace(plan, scale, zinout)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
       REAL(KIND=dp), INTENT(IN)                          :: scale
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: zinout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zinout
 
       CPASSERT(plan%fft_in_place)
 
@@ -765,7 +766,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fft_1d(plan, zin, zout, scale)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zin, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       IF (plan%n*plan%m > 0) THEN
@@ -785,7 +787,8 @@ CONTAINS
 ! **************************************************************************************************
    SUBROUTINE fft_2d(plan, zin, zout, scale)
       TYPE(fft_plan_type), INTENT(IN)                    :: plan
-      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET      :: zin, zout
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), &
+         TARGET                                          :: zin, zout
       REAL(KIND=dp), INTENT(IN)                          :: scale
 
       IF (plan%n_3d(1) > 0 .AND. plan%n_3d(2) > 0 .AND. plan%m > 0) THEN
@@ -812,13 +815,12 @@ CONTAINS
       LOGICAL, INTENT(IN)                                :: fsign
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: n
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
-         INTENT(INOUT), TARGET                                   :: zin
+         INTENT(INOUT), TARGET                           :: zin
       COMPLEX(KIND=dp), CONTIGUOUS, DIMENSION(:, :, :), &
          INTENT(INOUT), OPTIONAL, TARGET                 :: zout
       LOGICAL, INTENT(IN), OPTIONAL                      :: debug
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'fft3d_s'
-
 
       INTEGER                                            :: handle, ld(3), lo(3), output_unit
       LOGICAL                                            :: fft_in_place, test
@@ -3620,9 +3622,9 @@ CONTAINS
 
                !in place plans
                CALL fft_create_plan_3d_inplace(fft_scratch_new%fft_scratch%fft_plan(1), FWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr)
+                                               fft_scratch_new%fft_scratch%ziptr)
                CALL fft_create_plan_3d_inplace(fft_scratch_new%fft_scratch%fft_plan(2), BWFFT, n, &
-                                       fft_scratch_new%fft_scratch%ziptr)
+                                               fft_scratch_new%fft_scratch%ziptr)
                ! out of place plans
                CALL fft_create_plan_3d(fft_scratch_new%fft_scratch%fft_plan(3), FWFFT, n, &
                                        fft_scratch_new%fft_scratch%ziptr, fft_scratch_new%fft_scratch%zoptr)

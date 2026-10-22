@@ -119,8 +119,6 @@ CONTAINS
          END FUNCTION fft_library_init_c
       END INTERFACE
 
-      WRITE (*, *) "fft_library_init", backend, planning_mode
-
       ALLOCATE (wisdom_file_c(LEN_TRIM(wisdom_file) + 1))
       DO i = 1, LEN_TRIM(wisdom_file)
          wisdom_file_c(i) = wisdom_file(i:i)
@@ -129,38 +127,6 @@ CONTAINS
 
       status = INT(fft_library_init_c(backend, planning_mode, &
                                       LOGICAL(use_guru_interface, C_BOOL), C_LOC(wisdom_file_c)))
-
-      IF (status == 0) THEN
-      BLOCK
-         integer, parameter :: n = 4
-   integer :: status
-   complex(dp), POINTER, CONTIGUOUS :: input(:, :, :), output(:, :, :)
-
-   NULLIFY(input, output)
-
-   call fft_allocate(input, [n, n, n])
-   call fft_allocate(output, [n, n, n])
-
-   input = (0.0_dp, 0.0_dp)
-   input(1, 1, 1) = (1.0_dp, 0.0_dp)
-
-   call fft_3d_local_inplace(.true., [n, n, n], input)
-   if (maxval(abs(input - CMPLX(1.0_dp, 0.0_dp))) > 1.0e-12_dp) &
-      error stop "Forward FFT failed"
-
-   call fft_3d_local_inplace(.false., [n, n, n], input)
-   write(*,*) input
-   if (abs(input(1, 1, 1) - CMPLX(real(n**3, dp), 0.0_dp)) > 1.0e-12_dp .or. &
-       maxval(abs(input(2:n, 1, 1))) > 1.0e-12_dp .or. &
-       maxval(abs(input(1, 2:n, 1))) > 1.0e-12_dp .or. &
-       maxval(abs(input(1, 1, 2:n))) > 1.0e-12_dp) &
-      error stop "Backward FFT failed"
-
-   call fft_deallocate(input)
-   call fft_deallocate(output)
-   END BLOCK
-
-END IF
 
       DEALLOCATE (wisdom_file_c)
 
@@ -405,7 +371,7 @@ END IF
       END INTERFACE
 
       CALL fft_register_1d_local_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
-      INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                                   INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
                                    LOGICAL(transpose_out, C_BOOL), leading_dimension_in, leading_dimension_out, &
                                    C_LOC(grid_in), C_LOC(grid_out))
 
@@ -445,7 +411,7 @@ END IF
       END INTERFACE
 
       CALL fft_register_2d_local_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
-      INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                                   INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
                                    LOGICAL(transpose_out, C_BOOL), C_LOC(grid_in), C_LOC(grid_out))
 
    END SUBROUTINE fft_register_2d_local
@@ -475,7 +441,7 @@ END IF
       END INTERFACE
 
       CALL fft_register_3d_local_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
-      C_LOC(grid_in), C_LOC(grid_out))
+                                   C_LOC(grid_in), C_LOC(grid_out))
 
    END SUBROUTINE fft_register_3d_local
 
@@ -511,7 +477,7 @@ END IF
       END INTERFACE
 
       CALL fft_register_1d_local_inplace_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
-      INT(number_of_ffts, C_INT), &
+                                           INT(number_of_ffts, C_INT), &
                                            LOGICAL(transpose, C_BOOL), leading_dimension, C_LOC(grid))
 
    END SUBROUTINE fft_register_1d_local_inplace
@@ -545,7 +511,7 @@ END IF
       END INTERFACE
 
       CALL fft_register_2d_local_inplace_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
-      INT(number_of_ffts, C_INT), &
+                                           INT(number_of_ffts, C_INT), &
                                            LOGICAL(transpose, C_BOOL), C_LOC(grid))
 
    END SUBROUTINE fft_register_2d_local_inplace
@@ -614,7 +580,7 @@ END IF
       END INTERFACE
 
       CALL fft_1d_local_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
-      INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                          INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
                           LOGICAL(transpose_out, C_BOOL), leading_dimension_in, leading_dimension_out, &
                           C_LOC(grid_in), C_LOC(grid_out))
 
@@ -652,7 +618,7 @@ END IF
       END INTERFACE
 
       CALL fft_2d_local_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
-      INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
+                          INT(number_of_ffts, C_INT), LOGICAL(transpose_in, C_BOOL), &
                           LOGICAL(transpose_out, C_BOOL), C_LOC(grid_in), C_LOC(grid_out))
 
    END SUBROUTINE fft_2d_local
@@ -716,7 +682,7 @@ END IF
       END INTERFACE
 
       CALL fft_1d_local_inplace_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
-      INT(number_of_ffts, C_INT), &
+                                  INT(number_of_ffts, C_INT), &
                                   LOGICAL(transpose, C_BOOL), leading_dimension, C_LOC(grid))
 
    END SUBROUTINE fft_1d_local_inplace
@@ -750,7 +716,7 @@ END IF
       END INTERFACE
 
       CALL fft_2d_local_inplace_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), &
-      INT(number_of_ffts, C_INT), LOGICAL(transpose, C_BOOL), C_LOC(grid))
+                                  INT(number_of_ffts, C_INT), LOGICAL(transpose, C_BOOL), C_LOC(grid))
 
    END SUBROUTINE fft_2d_local_inplace
 

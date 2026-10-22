@@ -139,10 +139,7 @@ BSD_PATHS = (
     "src/offload/",
     "src/grid/",
     "src/dbm/",
-    "src/fft/*.c",
-    "src/fft/*.h",
-    "src/fft/*/",
-    "src/fft/fft_api.F",
+    "src/fft/",
 )
 MIT_PATHS = ("src/grpp/",)
 
