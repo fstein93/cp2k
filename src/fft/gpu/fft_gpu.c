@@ -332,13 +332,13 @@ static void fft_register_r2c_2d_gpu(const int direction, const int n[2],
       transpose_in
           ? m
           : n[0] * (direction == OFFLOAD_FFT_FORWARD
-                        ? (data_in == data_out ? 2 * (n[1] / 2 + 1) : n[1])
+                        ? (inplace ? 2 * (n[1] / 2 + 1) : n[1])
                         : n[1] / 2 + 1),
       transpose_in
           ? m
           : n[0] * (direction == OFFLOAD_FFT_FORWARD
                         ? n[1] / 2 + 1
-                        : (data_in == data_out ? 2 * (n[1] / 2 + 1) : n[1])),
+                        : (inplace ? 2 * (n[1] / 2 + 1) : n[1])),
       omp_get_max_threads(), inplace, key);
 
   if (lookup_plan_from_cache(key) == NULL) {
