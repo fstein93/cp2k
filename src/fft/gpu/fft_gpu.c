@@ -299,8 +299,8 @@ static void fft_register_2d_gpu(const int direction, const int n[2],
   fft_key_t key;
   get_key_2d(direction == OFFLOAD_FFT_FORWARD, n, m, transpose_in,
              transpose_out, transpose_in ? m : n[0] * n[1],
-             transpose_out ? m : n[0] * n[1], omp_get_max_threads(),
-             data_in == data_out, key);
+             transpose_out ? m : n[0] * n[1], omp_get_max_threads(), inplace,
+             key);
 
   if (lookup_plan_from_cache(key) == NULL) {
     int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
@@ -331,15 +331,15 @@ static void fft_register_r2c_2d_gpu(const int direction, const int n[2],
       direction == OFFLOAD_FFT_FORWARD, n, m, transpose_in, transpose_out,
       transpose_in
           ? m
-          : n[0] * (direction == OFFLOAD_FORWARD
+          : n[0] * (direction == OFFLOAD_FFT_FORWARD
                         ? (data_in == data_out ? 2 * (n[1] / 2 + 1) : n[1])
                         : n[1] / 2 + 1),
       transpose_in
           ? m
-          : n[0] * (direction == OFFLOAD_FORWARD
+          : n[0] * (direction == OFFLOAD_FFT_FORWARD
                         ? n[1] / 2 + 1
                         : (data_in == data_out ? 2 * (n[1] / 2 + 1) : n[1])),
-      omp_get_max_threads(), data_in == data_out, key);
+      omp_get_max_threads(), inplace, key);
 
   if (lookup_plan_from_cache(key) == NULL) {
     int rank, number_of_threads, number_of_ffts, istride, ostride, idist, odist;
@@ -525,12 +525,12 @@ static void fft_r2c_2d_gpu(const int direction, const int n[2], const int m,
       direction == OFFLOAD_FFT_FORWARD, n, m, transpose_in, transpose_out,
       transpose_in
           ? m
-          : n[0] * (direction == OFFLOAD_FORWARD
+          : n[0] * (direction == OFFLOAD_FFT_FORWARD
                         ? (data_in == data_out ? 2 * (n[1] / 2 + 1) : n[1])
                         : n[1] / 2 + 1),
       transpose_in
           ? m
-          : n[0] * (direction == OFFLOAD_FORWARD
+          : n[0] * (direction == OFFLOAD_FFT_FORWARD
                         ? n[1] / 2 + 1
                         : (data_in == data_out ? 2 * (n[1] / 2 + 1) : n[1])),
       omp_get_max_threads(), data_in == data_out, key);
