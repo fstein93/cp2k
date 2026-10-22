@@ -195,7 +195,6 @@ list(
   fde_methods.F
   fft/fft_api.F
   fft/fft_gpu.F
-  fft/fpga/fft_fpga.F
   fft/fft_tools.F
   fist_efield_methods.F
   fist_efield_types.F
