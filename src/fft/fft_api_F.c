@@ -79,76 +79,78 @@ bool fft_has_guru_interface_F() { return fft_lib_has_guru_interface(); }
 
 void fft_1d_fw_local_F(const int fft_size, const int number_of_ffts,
                        const bool transpose_rs, const bool transpose_gs,
+                       const int leading_dimension_in, const int leading_dimension_out, 
                        double complex *grid_in, double complex *grid_out) {
-  fft_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs, grid_in,
+  fft_1d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs, leading_dimension_in, leading_dimension_out, grid_in,
                   grid_out);
 }
 
 void fft_1d_bw_local_F(const int fft_size, const int number_of_ffts,
                        const bool transpose_rs, const bool transpose_gs,
+                       const int leading_dimension_in, const int leading_dimension_out, 
                        double complex *grid_in, double complex *grid_out) {
-  fft_1d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs, grid_in,
+  fft_1d_local(false, fft_size, number_of_ffts, transpose_rs, transpose_gs, leading_dimension_in, leading_dimension_out, grid_in,
                   grid_out);
 }
 
 void fft_2d_fw_local_F(const int fft_size[2], const int number_of_ffts,
                        const bool transpose_rs, const bool transpose_gs,
                        double complex *grid_in, double complex *grid_out) {
-  fft_2d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs, grid_in,
+  fft_2d_local(true, fft_size, number_of_ffts, transpose_rs, transpose_gs, grid_in,
                   grid_out);
 }
 
 void fft_2d_bw_local_F(const int fft_size[2], const int number_of_ffts,
                        const bool transpose_rs, const bool transpose_gs,
                        double complex *grid_in, double complex *grid_out) {
-  fft_2d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs, grid_in,
+  fft_2d_local(false, fft_size, number_of_ffts, transpose_rs, transpose_gs, grid_in,
                   grid_out);
 }
 
 void fft_3d_fw_local_F(const int fft_size[3], double complex *grid_in,
                        double complex *grid_out) {
-  fft_3d_fw_local(fft_size, grid_in, grid_out);
+  fft_3d_local(true, fft_size, grid_in, grid_out);
 }
 
 void fft_3d_bw_local_F(const int fft_size[3], double complex *grid_in,
                        double complex *grid_out) {
-  fft_3d_bw_local(fft_size, grid_in, grid_out);
+  fft_3d_local(false, fft_size, grid_in, grid_out);
 }
 
 void fft_1d_fw_local_inplace_F(const int fft_size, const int number_of_ffts,
-                               const bool transpose_rs, const bool transpose_gs,
+                               const bool transpose, const int leading_dimension,
                                double complex *grid) {
-  fft_1d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs, grid,
+  fft_1d_local(true, fft_size, number_of_ffts, transpose, transpose, leading_dimension, leading_dimension, grid,
                   grid);
 }
 
 void fft_1d_bw_local_inplace_F(const int fft_size, const int number_of_ffts,
-                               const bool transpose_rs, const bool transpose_gs,
+                               const bool transpose, const int leading_dimension,
                                double complex *grid) {
-  fft_1d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs, grid,
+  fft_1d_local(false, fft_size, number_of_ffts, transpose, transpose, leading_dimension, leading_dimension, grid,
                   grid);
 }
 
 void fft_2d_fw_local_inplace_F(const int fft_size[2], const int number_of_ffts,
-                               const bool transpose_rs, const bool transpose_gs,
+                               const bool transpose, const int leading_dimension,
                                double complex *grid) {
-  fft_2d_fw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs, grid,
+  fft_2d_local(true, fft_size, number_of_ffts, transpose, transpose, grid,
                   grid);
 }
 
 void fft_2d_bw_local_inplace_F(const int fft_size[2], const int number_of_ffts,
                                const bool transpose_rs, const bool transpose_gs,
                                double complex *grid) {
-  fft_2d_bw_local(fft_size, number_of_ffts, transpose_rs, transpose_gs, grid,
+  fft_2d_local(false, fft_size, number_of_ffts, transpose_rs, transpose_gs, grid,
                   grid);
 }
 
 void fft_3d_fw_local_inplace_F(const int fft_size[3], double complex *grid) {
-  fft_3d_fw_local(fft_size, grid, grid);
+  fft_3d_local(true, fft_size, grid, grid);
 }
 
 void fft_3d_bw_local_inplace_F(const int fft_size[3], double complex *grid) {
-  fft_3d_bw_local(fft_size, grid, grid);
+  fft_3d_local(false, fft_size, grid, grid);
 }
 
 /*******************************************************************************
