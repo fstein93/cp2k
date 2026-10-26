@@ -171,11 +171,6 @@ MODULE openpmd_api
       #:del m
          END TYPE openpmd_record_component_type
 
-      TYPE openpmd_mesh_record_component_type
-         PRIVATE
-         TYPE(C_PTR) :: c_ptr = C_NULL_PTR
-      END TYPE openpmd_mesh_record_component_type
-
       TYPE openpmd_record_type
          PRIVATE
          TYPE(C_PTR) :: c_ptr = C_NULL_PTR
