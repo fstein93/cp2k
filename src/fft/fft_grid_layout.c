@@ -933,7 +933,8 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
     }
     assert(negative_index == my_fft_grid->npts_gs_local);
   }
-
+  // Ensure that my_fft_grid->npts_gs_local is nonnegative to prevent compiler warnings
+  my_fft_grid->npts_gs_local = my_fft_grid->npts_gs_local >= 0 ? my_fft_grid->npts_gs_local : 0;
   my_fft_grid->local_index_to_ref_grid =
       calloc((size_t)my_fft_grid->npts_gs_local, sizeof(int));
   for (int index = 0; index < my_fft_grid->npts_gs_local; index++) {
