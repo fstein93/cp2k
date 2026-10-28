@@ -1065,7 +1065,7 @@ int fft_test_api_local() {
   int errors = 0;
 
   fft_library_init_F(FFT_LIBRARY_BACKEND_DEFAULT,
-                     FFT_LIBRARY_FFTW_MODE_ESTIMATE, true, NULL);
+                     FFT_LIBRARY_FFTW_MODE_ESTIMATE, false, true, NULL);
 
   clock_t begin = clock();
   errors += fft_test_F_1d_local_low(15, 13, true, true);

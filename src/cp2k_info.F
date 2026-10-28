@@ -111,6 +111,9 @@ CONTAINS
 #endif
 #if defined(__FFTW3)
       flags = TRIM(flags)//" fftw3"
+#if defined(__FFTW3_MPI)
+      flags = TRIM(flags)//" fftw3_mpi"
+#endif
 #endif
 #if defined(__LIBXC)
       flags = TRIM(flags)//" libxc"

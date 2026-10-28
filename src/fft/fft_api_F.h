@@ -20,7 +20,7 @@
 #define FFT_LIBRARY_FFTW_MODE_EXHAUSTIVE 14
 
 int fft_library_init_F(const int backend_F, const int fftw_plan,
-                       const bool use_guru_interface, const char *wisdom_file);
+                       const bool use_fft_mpi, const bool use_guru_interface, const char *wisdom_file);
 
 void fft_library_finalize_F(const char *wisdom_file);
 

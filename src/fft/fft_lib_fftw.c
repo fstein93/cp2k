@@ -20,19 +20,15 @@
 
 #if defined(__FFTW3)
 #include <fftw3.h>
+#if defined(__parallel) && defined(__FFTW3_MPI)
+#include <fftw3-mpi.h>
+#endif
 
 /*******************************************************************************
  * \brief Static variables for retaining objects that are expensive to create.
  * \author Ole Schuett, Frederick Stein
  ******************************************************************************/
 typedef struct {
-  // The key contains
-  // 0: rank (see below), R2C, direction
-  // 1: associated Fortran communicator handle (to store it as an integer)
-  // 2: Number of associated OpenMP threads
-  // 3, 4, 5: FFT sizes (or FFT sizes and number of FFTs)
-  // 6, 7, 8: input stride
-  // 0, 10, 11: output strides
   fft_key_t key;
   fftw_plan *plan;
 } cache_entry;
@@ -70,6 +66,8 @@ static void add_plan_to_cache(const fft_key_t key, fftw_plan *plan) {
   const int i = cache_oldest_entry;
   cache_oldest_entry = (cache_oldest_entry + 1) % FFTW_CACHE_SIZE;
   if (cache[i].plan != NULL) {
+    fprintf(stderr,
+            "Storage to cache FFTW plans is full. Delete an old plan...\n");
     fftw_destroy_plan(*cache[i].plan);
     free(cache[i].plan);
   }
@@ -78,6 +76,7 @@ static void add_plan_to_cache(const fft_key_t key, fftw_plan *plan) {
 }
 #endif
 
+static bool use_fftw_mpi = false;
 static bool has_guru_interface = false;
 
 #if defined(__FFTW3)
@@ -107,12 +106,45 @@ bool is_guru_interface_available() {
 }
 #endif
 
+#if defined(__parallel) && defined(__FFTW3_MPI)
+bool fft_fftw_test_mpi_backend() {
+  const int nthreads = omp_get_max_threads();
+  const cp_mpi_comm_t comm = cp_mpi_get_comm_world();
+  const int fft_size[3] = {2, 2, 2};
+  fftw_plan_with_nthreads(nthreads);
+  const int block_size_0 =
+      (fft_size[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  const int block_size_1 =
+      (fft_size[1] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  ptrdiff_t local_n0, local_0_start;
+  ptrdiff_t local_n1, local_1_start;
+  const ptrdiff_t n[3] = {fft_size[0], fft_size[1], fft_size[2]};
+  const int buffer_size = fftw_mpi_local_size_many_transposed(
+      3, n, 1, block_size_0, block_size_1, comm, &local_n0, &local_0_start,
+      &local_n1, &local_1_start);
+  double complex *buffer_1 = fftw_alloc_complex(buffer_size);
+  double complex *buffer_2 = fftw_alloc_complex(buffer_size);
+  fftw_plan plan = fftw_mpi_plan_many_dft(
+      3, n, 1, block_size_0, block_size_1, buffer_1, buffer_2, comm,
+      FFTW_FORWARD, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+  fftw_free(buffer_1);
+  fftw_free(buffer_2);
+  if (plan != NULL) {
+    fftw_destroy_plan(plan);
+    return true;
+  } else {
+    return false;
+  }
+}
+#endif
+
 /*******************************************************************************
  * \brief Initialize the FFT library (if not done externally).
  * \author Frederick Stein
  ******************************************************************************/
 int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
-                      const bool use_guru_interface, const char *wisdom_file) {
+                      const bool use_fft_mpi, const bool use_guru_interface,
+                      const char *wisdom_file) {
 #if defined(__FFTW3)
   assert(omp_get_num_threads() == 1);
   if (is_initialized) {
@@ -120,6 +152,10 @@ int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   }
   memset(cache, 0, sizeof(cache_entry) * FFTW_CACHE_SIZE);
   cache_oldest_entry = 0;
+
+  is_initialized = true;
+  // We need a threaded library!
+  fftw_init_threads();
 
   fftw_planning_mode = fftw_planning_flag;
   switch (fftw_planning_flag) {
@@ -139,16 +175,24 @@ int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
     assert(0 && "Unknown FFTW planning flag.");
   }
 
-  // We need a threaded library!
-  const int status = fftw_init_threads();
-  if (status == 0)
-    return 1;
-
   has_guru_interface = use_guru_interface;
   if (has_guru_interface) {
     has_guru_interface = is_guru_interface_available();
   }
 
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  use_fftw_mpi = use_fft_mpi;
+  if (use_fftw_mpi) {
+    fftw_mpi_init();
+    use_fftw_mpi = fft_fftw_test_mpi_backend();
+  }
+  if (is_print_rank)
+    fflush(stdout);
+  cp_mpi_barrier(cp_mpi_get_comm_world());
+#else
+  (void)use_fft_mpi;
+  use_fftw_mpi = false;
+#endif
   // Export wisdom after intializing the library to ensure correct threading
   // etc.
   if (wisdom_file != NULL) {
@@ -162,8 +206,8 @@ int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
   is_initialized = true;
   return 0;
 #else
-  assert(false && "The grid library was not compiled with FFTW support.");
   (void)fftw_planning_flag;
+  (void)use_fft_mpi;
   (void)use_guru_interface;
   (void)wisdom_file;
   return 0;
@@ -190,16 +234,31 @@ void fft_fftw_finalize_lib(const char *wisdom_file) {
   // threading etc.
   if (wisdom_file != NULL) {
     const int error = fftw_export_wisdom_to_filename(wisdom_file);
-    if (false && error != 0 && cp_mpi_comm_rank(cp_mpi_get_comm_world()))
+    if (error != 0 && cp_mpi_comm_rank(cp_mpi_get_comm_world()))
       fprintf(stderr,
               "Exporting wisdom failed! Maybe writing access is missing.");
   }
   is_initialized = false;
   fftw_planning_mode = -1;
-  fftw_cleanup_threads();
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  fftw_mpi_cleanup();
 #else
-  assert(false && "The grid library was not compiled with FFTW support.");
+  fftw_cleanup_threads();
+#endif
+#else
   (void)wisdom_file;
+#endif
+}
+
+/*******************************************************************************
+ * \brief Whether a distributed FFT implementation is available.
+ * \author Frederick Stein
+ ******************************************************************************/
+bool fft_fftw_lib_use_mpi() {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  return use_fftw_mpi;
+#else
+  return false;
 #endif
 }
 
@@ -567,6 +626,183 @@ fftw_plan *fft_fftw_create_guru_plan_r2c(const fft_key_t key, double *grid_in,
   assert(plan != NULL);
   return plan;
 }
+
+#if defined(__parallel) && defined(__FFTW3_MPI)
+/*******************************************************************************
+ * \brief Create plan of a distributed C2C 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+fftw_plan *
+fft_fftw_create_distributed_2d_plan(const fft_key_t key,
+                                    double complex *restrict grid_in,
+                                    double complex *restrict grid_out) {
+  assert(use_fftw_mpi);
+  bool direction;
+  int fft_size[3], number_of_ffts, number_of_threads, rank;
+  cp_mpi_comm_t comm;
+  fetch_data_from_key_mpi(key, &rank, fft_size, &number_of_ffts,
+                          &number_of_threads, &direction, &comm);
+  assert(rank == 2);
+  fftw_plan_with_nthreads(number_of_threads);
+  const int block_size_0 =
+      (fft_size[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  const int block_size_1 =
+      (fft_size[1] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  ptrdiff_t local_n0, local_0_start;
+  ptrdiff_t local_n1, local_1_start;
+  const ptrdiff_t n[2] = {fft_size[0], fft_size[1]};
+  const int buffer_size = fftw_mpi_local_size_many_transposed(
+      2, n, number_of_ffts, block_size_0, block_size_1, comm, &local_n0,
+      &local_0_start, &local_n1, &local_1_start);
+  (void)buffer_size;
+  fftw_plan *plan = malloc(sizeof(fftw_plan));
+  if (direction) {
+    *plan = fftw_mpi_plan_many_dft(
+        2, n, number_of_ffts, block_size_0, block_size_1, grid_in, grid_out,
+        comm, FFTW_FORWARD, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+  } else {
+    *plan = fftw_mpi_plan_many_dft(
+        2, n, number_of_ffts, block_size_1, block_size_0, grid_in, grid_out,
+        comm, FFTW_BACKWARD, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
+  }
+  assert(plan != NULL);
+  add_plan_to_cache(key, plan);
+  return plan;
+}
+/*******************************************************************************
+ * \brief Create plan of a distributed R2C/C2R 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const fft_key_t key,
+                                                   double *restrict grid_in,
+                                                   double *restrict grid_out) {
+  assert(use_fftw_mpi);
+  bool direction;
+  int fft_size[3], number_of_ffts, number_of_threads, rank;
+  cp_mpi_comm_t comm;
+  fetch_data_from_key_mpi(key, &rank, fft_size, &number_of_ffts,
+                          &number_of_threads, &direction, &comm);
+  assert(rank == 2);
+  fftw_plan_with_nthreads(number_of_threads);
+  const int block_size_0 =
+      (fft_size[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  const int block_size_1 = (fft_size[1] / 2 + 1 + cp_mpi_comm_size(comm) - 1) /
+                           cp_mpi_comm_size(comm);
+  ptrdiff_t local_n0, local_0_start;
+  ptrdiff_t local_n1, local_1_start;
+  const ptrdiff_t n[2] = {fft_size[0], fft_size[1]};
+  const ptrdiff_t howmany = number_of_ffts;
+  const int buffer_size = fftw_mpi_local_size_many_transposed(
+      2, (const ptrdiff_t[2]){fft_size[0], fft_size[1] / 2 + 1}, howmany,
+      block_size_0, block_size_1, comm, &local_n0, &local_0_start, &local_n1,
+      &local_1_start);
+  (void)buffer_size;
+  fftw_plan *plan = malloc(sizeof(fftw_plan));
+  if (direction) {
+    *plan = fftw_mpi_plan_many_dft_r2c(
+        2, n, howmany, block_size_0, block_size_1, grid_in,
+        (double complex *)grid_out, comm,
+        fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+  } else {
+    // We use the buffers the other way around to prevent
+    // out-of-bounds-accesses of the planner if the output array has only the
+    // minimum size
+    *plan = fftw_mpi_plan_many_dft_c2r(
+        2, n, howmany, block_size_1, block_size_0, (double complex *)grid_in,
+        grid_out, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
+  }
+  assert(plan != NULL);
+  add_plan_to_cache(key, plan);
+  return plan;
+}
+
+/*******************************************************************************
+ * \brief Create plan of a distributed C2C 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+fftw_plan *
+fft_fftw_create_distributed_3d_plan(const fft_key_t key,
+                                    double complex *restrict grid_in,
+                                    double complex *restrict grid_out) {
+  assert(use_fftw_mpi);
+  bool direction;
+  int fft_size[3], number_of_ffts, number_of_threads, rank;
+  cp_mpi_comm_t comm;
+  fetch_data_from_key_mpi(key, &rank, fft_size, &number_of_ffts,
+                          &number_of_threads, &direction, &comm);
+  assert(rank == 3);
+  assert(number_of_ffts == 1);
+  fftw_plan_with_nthreads(number_of_threads);
+  const int block_size_0 =
+      (fft_size[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  const int block_size_1 =
+      (fft_size[1] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  ptrdiff_t local_n0, local_0_start;
+  ptrdiff_t local_n1, local_1_start;
+  const ptrdiff_t n[3] = {fft_size[0], fft_size[1], fft_size[2]};
+  const int buffer_size = fftw_mpi_local_size_many_transposed(
+      3, n, 1, block_size_0, block_size_1, comm, &local_n0, &local_0_start,
+      &local_n1, &local_1_start);
+  (void)buffer_size;
+  fftw_plan *plan = malloc(sizeof(fftw_plan));
+  if (direction) {
+    *plan = fftw_mpi_plan_many_dft(
+        3, n, 1, block_size_0, block_size_1, grid_in, grid_out, comm,
+        FFTW_FORWARD, fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+  } else {
+    *plan = fftw_mpi_plan_many_dft(3, n, 1, block_size_1, block_size_0, grid_in,
+                                   grid_out, comm, FFTW_BACKWARD,
+                                   fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
+  }
+  assert(plan != NULL);
+  add_plan_to_cache(key, plan);
+  return plan;
+}
+
+/*******************************************************************************
+ * \brief Create plan of a distributed R2C/C2R 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+fftw_plan *fft_fftw_create_distributed_3d_plan_r2c(const fft_key_t key,
+                                                   double *restrict grid_in,
+                                                   double *restrict grid_out) {
+  assert(use_fftw_mpi);
+  bool direction;
+  int fft_size[3], number_of_ffts, number_of_threads, rank;
+  cp_mpi_comm_t comm;
+  fetch_data_from_key_mpi(key, &rank, fft_size, &number_of_ffts,
+                          &number_of_threads, &direction, &comm);
+  assert(rank == 3);
+  assert(number_of_ffts == 1);
+  fftw_plan_with_nthreads(number_of_threads);
+  const int block_size_0 =
+      (fft_size[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  const int block_size_1 =
+      (fft_size[1] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  ptrdiff_t local_n0, local_0_start;
+  ptrdiff_t local_n1, local_1_start;
+  const ptrdiff_t n[3] = {fft_size[0], fft_size[1], fft_size[2]};
+  const int buffer_size = fftw_mpi_local_size_many_transposed(
+      3, (const ptrdiff_t[3]){fft_size[0], fft_size[1], fft_size[2] / 2 + 1}, 1,
+      block_size_0, block_size_1, comm, &local_n0, &local_0_start, &local_n1,
+      &local_1_start);
+  (void)buffer_size;
+  fftw_plan *plan = malloc(sizeof(fftw_plan));
+  if (direction) {
+    *plan = fftw_mpi_plan_many_dft_r2c(
+        3, n, 1, block_size_0, block_size_1, grid_in,
+        (double complex *)grid_out, comm,
+        fftw_planning_mode + FFTW_MPI_TRANSPOSED_OUT);
+  } else {
+    *plan = fftw_mpi_plan_many_dft_c2r(
+        3, n, 1, block_size_1, block_size_0, (double complex *)grid_in,
+        grid_out, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
+  }
+  assert(plan != NULL);
+  add_plan_to_cache(key, plan);
+  return plan;
+}
+#endif
 #endif
 
 /*******************************************************************************
@@ -1442,6 +1678,304 @@ void fft_fftw_register_3d_c2r_local(const int fft_size[3],
   (void)grid_in;
   (void)grid_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a local C2C FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_register_guru(const bool direction, int rank, const fft_iodim *dims, int howmany_rank,
+                      const fft_iodim *howmany_dims,
+                      const int number_of_threads, double complex *grid_in,
+                      double complex *grid_out) {
+#if defined(__FFTW3)
+  assert(has_guru_interface);
+  assert(is_initialized);
+  for (int r = 0; r < rank; r++) {
+    if (dims[r].n == 0) return;
+  }
+  for (int r = 0; r < howmany_rank; r++) {
+    if (howmany_dims[r].n == 0) return;
+  }
+  fft_key_t key;
+  get_key_guru(
+      direction, rank, dims, howmany_rank, howmany_dims, number_of_threads, grid_in == grid_out, key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL)
+    plan = fft_fftw_create_guru_plan(key, grid_in, grid_out);
+#else
+  (void)direction;
+  (void)rank;
+  (void)dims;
+  (void)howmany_rank;
+  (void)howmany_dims;
+  (void)number_of_threads;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a local forward R2C FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_register_r2c_guru(int rank, const fft_iodim *dims, int howmany_rank,
+                          const fft_iodim *howmany_dims,
+                          const int number_of_threads, double *grid_in,
+                          double complex *grid_out) {
+#if defined(__FFTW3)
+  assert(has_guru_interface);
+  assert(is_initialized);
+  for (int r = 0; r < rank; r++) {
+    if (dims[r].n == 0) return;
+  }
+  for (int r = 0; r < howmany_rank; r++) {
+    if (howmany_dims[r].n == 0) return;
+  }
+  fft_key_t key;
+  get_key_guru_r2c(true, rank, dims, howmany_rank, howmany_dims, number_of_threads,
+      grid_in == (double *)grid_out, key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL)
+    plan = fft_fftw_create_guru_plan_r2c(key, grid_in, (double*)grid_out);
+#else
+  (void)rank;
+  (void)dims;
+  (void)howmany_rank;
+  (void)howmany_dims;
+  (void)number_of_threads;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a local backwards R2C FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_register_c2r_guru(int rank, const fft_iodim *dims, int howmany_rank,
+                          const fft_iodim *howmany_dims,
+                          const int number_of_threads, double complex *grid_in,
+                          double *grid_out) {
+#if defined(__FFTW3)
+  assert(has_guru_interface);
+  assert(is_initialized);
+  for (int r = 0; r < rank; r++) {
+    if (dims[r].n == 0) return;
+  }
+  for (int r = 0; r < howmany_rank; r++) {
+    if (howmany_dims[r].n == 0) return;
+  }
+  fft_key_t key;
+  get_key_guru_r2c(false, rank, dims, howmany_rank, howmany_dims, number_of_threads,
+      (double *)grid_in == grid_out, key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL)
+    plan = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in, grid_out);
+#else
+  (void)rank;
+  (void)dims;
+  (void)howmany_rank;
+  (void)howmany_dims;
+  (void)number_of_threads;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed C2C 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_register_2d_distributed(const bool direction,
+                                      const int npts_global[2],
+                                      const int number_of_ffts,
+                                      const cp_mpi_comm_t comm,
+                                      double complex *grid_in,
+                                      double complex *grid_out) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0)
+    return;
+  fft_key_t key;
+  get_key_2d_distributed(direction, npts_global, number_of_ffts, comm,
+                         omp_get_max_threads(), key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL)
+    plan = fft_fftw_create_distributed_2d_plan(key, grid_in, grid_out);
+  assert(plan != NULL);
+#else
+  (void)npts_global;
+  (void)number_of_ffts;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed forward R2C 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_register_2d_r2c_distributed(const int npts_global[2],
+                                          const int number_of_ffts,
+                                          const cp_mpi_comm_t comm,
+                                          double *grid_in,
+                                          double complex *grid_out) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0)
+    return;
+  fft_key_t key;
+  get_key_2d_r2c_distributed(true, npts_global, number_of_ffts, comm,
+                             omp_get_max_threads(), key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL)
+    plan = fft_fftw_create_distributed_2d_plan_r2c(key, grid_in,
+                                                   (double *)grid_out);
+  assert(plan != NULL);
+#else
+  (void)npts_global;
+  (void)number_of_ffts;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed backwards C2R 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_register_2d_c2r_distributed(const int npts_global[2],
+                                          const int number_of_ffts,
+                                          const cp_mpi_comm_t comm,
+                                          double complex *grid_in,
+                                          double *grid_out) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0)
+    return;
+  fft_key_t key;
+  get_key_2d_r2c_distributed(false, npts_global, number_of_ffts, comm,
+                             omp_get_max_threads(), key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL)
+    plan = fft_fftw_create_distributed_2d_plan_r2c(key, (double *)grid_in,
+                                                   grid_out);
+  assert(plan != NULL);
+#else
+  (void)npts_global;
+  (void)number_of_ffts;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed C2C 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_register_3d_distributed(const bool direction,
+                                      const int npts_global[3],
+                                      const cp_mpi_comm_t comm,
+                                      double complex *grid_in,
+                                      double complex *grid_out) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0)
+    return;
+  fft_key_t key;
+  get_key_3d_distributed(direction, npts_global, comm, omp_get_max_threads(),
+                         key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL)
+    plan = fft_fftw_create_distributed_3d_plan(key, grid_in, grid_out);
+  assert(plan != NULL);
+#else
+  (void)npts_global;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed forward R2C 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_register_3d_r2c_distributed(const int npts_global[3],
+                                          const cp_mpi_comm_t comm,
+                                          double *grid_in,
+                                          double complex *grid_out) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0)
+    return;
+  fft_key_t key;
+  get_key_3d_r2c_distributed(true, npts_global, comm, omp_get_max_threads(),
+                             key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL)
+    plan = fft_fftw_create_distributed_3d_plan_r2c(key, grid_in,
+                                                   (double *)grid_out);
+  assert(plan != NULL);
+#else
+  (void)npts_global;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed backwards C2R 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_register_3d_c2r_distributed(const int npts_global[3],
+                                          const cp_mpi_comm_t comm,
+                                          double complex *grid_in,
+                                          double *grid_out) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0)
+    return;
+  fft_key_t key;
+  get_key_3d_r2c_distributed(false, npts_global, comm, omp_get_max_threads(),
+                             key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL)
+    plan = fft_fftw_create_distributed_3d_plan_r2c(key, (double *)grid_in,
+                                                   grid_out);
+  assert(plan != NULL);
+#else
+  (void)npts_global;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 
@@ -2729,9 +3263,6 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], double complex *grid_in,
           key, (double *)buffer, in_place ? (double *)buffer : grid_out);
       fftw_free(buffer);
     }
-    assert(plan != NULL);
-    assert(grid_in != NULL);
-    assert(grid_out != NULL);
     fftw_execute_dft_c2r(*plan, grid_in, grid_out);
   }
 #else
@@ -2739,6 +3270,534 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], double complex *grid_in,
   (void)grid_in;
   (void)grid_out;
   assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a local C2C 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_guru(const bool direction, const int rank, const fft_iodim *dims, const int howmany_rank,
+                      const fft_iodim *howmany_dims,
+                      const int number_of_threads, double complex *grid_in,
+                      double complex *grid_out) {
+#if defined(__FFTW3)
+  assert(has_guru_interface);
+  assert(is_initialized);
+  for (int r = 0; r < rank; r++) {
+    if (dims[r].n == 0) return;
+  }
+  for (int r = 0; r < howmany_rank; r++) {
+    if (howmany_dims[r].n == 0) return;
+  }
+  fft_key_t key;
+  get_key_guru(
+      direction, rank, dims, howmany_rank, howmany_dims, number_of_threads, grid_in == grid_out, key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
+    plan = fft_fftw_create_guru_plan(key, buffer, grid_in == grid_out ? buffer : grid_out);
+    fftw_free(buffer);
+  }
+  fftw_execute_dft(*plan, grid_in, grid_out);
+#else
+  (void)direction;
+  (void)rank;
+  (void)dims;
+  (void)howmany_rank;
+  (void)howmany_dims;
+  (void)number_of_threads;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a local forward R2C 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
+                          const fft_iodim *howmany_dims,
+                          const int number_of_threads, double *grid_in,
+                          double complex *grid_out) {
+#if defined(__FFTW3)
+  assert(has_guru_interface);
+  assert(is_initialized);
+  for (int r = 0; r < rank; r++) {
+    if (dims[r].n == 0) return;
+  }
+  for (int r = 0; r < howmany_rank; r++) {
+    if (howmany_dims[r].n == 0) return;
+  }
+  fft_key_t key;
+  get_key_guru_r2c(true, rank, dims, howmany_rank, howmany_dims, number_of_threads,
+      grid_in == (double *)grid_out, key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    double *buffer = fftw_alloc_real(2*get_buffer_size_from_key(key));
+    plan = fft_fftw_create_guru_plan_r2c(key, buffer, grid_in == (double*)grid_out ? buffer : (double*)grid_out);
+    fftw_free(buffer);
+  }
+  fftw_execute_dft_r2c(*plan, grid_in, grid_out);
+#else
+  (void)rank;
+  (void)dims;
+  (void)howmany_rank;
+  (void)howmany_dims;
+  (void)number_of_threads;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a local backwards R2C 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
+                          const fft_iodim *howmany_dims,
+                          const int number_of_threads, double complex *grid_in,
+                          double *grid_out) {
+#if defined(__FFTW3)
+  assert(has_guru_interface);
+  assert(is_initialized);
+  for (int r = 0; r < rank; r++) {
+    if (dims[r].n == 0) return;
+  }
+  for (int r = 0; r < howmany_rank; r++) {
+    if (howmany_dims[r].n == 0) return;
+  }
+  fft_key_t key;
+  get_key_guru_r2c(false, rank, dims, howmany_rank, howmany_dims, number_of_threads,
+      (double *)grid_in == grid_out, key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
+    plan = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in == grid_out ? (double*)buffer : grid_out, (double*)buffer);
+    fftw_free(buffer);
+  }
+  fftw_execute_dft_c2r(*plan, grid_in, grid_out);
+#else
+  (void)rank;
+  (void)dims;
+  (void)howmany_rank;
+  (void)howmany_dims;
+  (void)number_of_threads;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Returns sizes and starts of distributed C2C 2D FFTs.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_fftw_2d_distributed_sizes(const int npts_global[2],
+                                  const int number_of_ffts,
+                                  const cp_mpi_comm_t comm, int *local_n0,
+                                  int *local_n0_start, int *local_n1,
+                                  int *local_n1_start) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] <= 0 || npts_global[1] <= 0 || number_of_ffts <= 0) {
+    *local_n0_start = 0;
+    *local_n1_start = 0;
+    *local_n0 = 0;
+    *local_n1 = 0;
+    return 0;
+  }
+  const ptrdiff_t n[2] = {npts_global[0], npts_global[1]};
+  const ptrdiff_t howmany = number_of_ffts;
+  const ptrdiff_t block_size_0 =
+      (npts_global[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  const ptrdiff_t block_size_1 =
+      (npts_global[1] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  ptrdiff_t my_local_n0, my_local_n0_start, my_local_n1, my_local_n1_start;
+  const ptrdiff_t buffer_size = fftw_mpi_local_size_many_transposed(
+      2, n, howmany, block_size_0, block_size_1, comm, &my_local_n0,
+      &my_local_n0_start, &my_local_n1, &my_local_n1_start);
+  *local_n0 = my_local_n0;
+  *local_n0_start = my_local_n0_start;
+  *local_n1 = my_local_n1;
+  *local_n1_start = my_local_n1_start;
+  return buffer_size;
+#else
+  (void)npts_global;
+  (void)number_of_ffts;
+  (void)comm;
+  (void)local_n0;
+  (void)local_n0_start;
+  (void)local_n1;
+  (void)local_n1_start;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+  return -1;
+#endif
+}
+
+/*******************************************************************************
+ * \brief Returns sizes and starts of distributed R2C/C2R 2D FFTs.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_fftw_2d_distributed_sizes_r2c(const int npts_global[2],
+                                      const int number_of_ffts,
+                                      const cp_mpi_comm_t comm, int *local_n0,
+                                      int *local_n0_start, int *local_n1,
+                                      int *local_n1_start) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] <= 0 || npts_global[1] <= 0 || number_of_ffts <= 0) {
+    *local_n0_start = 0;
+    *local_n1_start = 0;
+    *local_n0 = 0;
+    *local_n1 = 0;
+    return 0;
+  }
+  const ptrdiff_t n[2] = {npts_global[0], npts_global[1] / 2 + 1};
+  const ptrdiff_t howmany = number_of_ffts;
+  const ptrdiff_t block_size_0 =
+      (npts_global[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  const ptrdiff_t block_size_1 =
+      (npts_global[1] / 2 + 1 + cp_mpi_comm_size(comm) - 1) /
+      cp_mpi_comm_size(comm);
+  ptrdiff_t my_local_n0, my_local_n0_start, my_local_n1, my_local_n1_start;
+  const ptrdiff_t buffer_size = fftw_mpi_local_size_many_transposed(
+      2, n, howmany, block_size_0, block_size_1, comm, &my_local_n0,
+      &my_local_n0_start, &my_local_n1, &my_local_n1_start);
+  *local_n0 = my_local_n0;
+  *local_n0_start = my_local_n0_start;
+  *local_n1 = my_local_n1;
+  *local_n1_start = my_local_n1_start;
+  return buffer_size;
+#else
+  (void)npts_global;
+  (void)number_of_ffts;
+  (void)comm;
+  (void)local_n0;
+  (void)local_n0_start;
+  (void)local_n1;
+  (void)local_n1_start;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+  return -1;
+#endif
+}
+
+/*******************************************************************************
+ * \brief Returns sizes and starts of distributed C2C 3D FFTs.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_fftw_3d_distributed_sizes(const int npts_global[3],
+                                  const cp_mpi_comm_t comm, int *local_n0,
+                                  int *local_n0_start, int *local_n1,
+                                  int *local_n1_start) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] <= 0 || npts_global[1] <= 0 || npts_global[2] <= 0) {
+    *local_n0_start = 0;
+    *local_n1_start = 0;
+    *local_n0 = 0;
+    *local_n1 = 0;
+    return 0;
+  }
+  const ptrdiff_t n[3] = {npts_global[0], npts_global[1], npts_global[2]};
+  ptrdiff_t my_local_n0, my_local_n0_start;
+  ptrdiff_t my_local_n1, my_local_n1_start;
+  const ptrdiff_t block_size_0 =
+      (npts_global[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  const ptrdiff_t block_size_1 =
+      (npts_global[1] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  const ptrdiff_t my_buffer_size = fftw_mpi_local_size_many_transposed(
+      3, n, 1, block_size_0, block_size_1, comm, &my_local_n0,
+      &my_local_n0_start, &my_local_n1, &my_local_n1_start);
+  *local_n0 = my_local_n0;
+  *local_n0_start = my_local_n0_start;
+  *local_n1 = my_local_n1;
+  *local_n1_start = my_local_n1_start;
+  return my_buffer_size;
+#else
+  (void)npts_global;
+  (void)comm;
+  (void)local_n0;
+  (void)local_n0_start;
+  (void)local_n1;
+  (void)local_n1_start;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+  return -1;
+#endif
+}
+
+/*******************************************************************************
+ * \brief Returns sizes and starts of distributed R2C/C2R 3D FFTs.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_fftw_3d_distributed_sizes_r2c(const int npts_global[3],
+                                      const cp_mpi_comm_t comm, int *local_n0,
+                                      int *local_n0_start, int *local_n1,
+                                      int *local_n1_start) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] <= 0 || npts_global[1] <= 0 || npts_global[2] <= 0) {
+    *local_n0_start = 0;
+    *local_n1_start = 0;
+    *local_n0 = 0;
+    *local_n1 = 0;
+    return 0;
+  }
+  const ptrdiff_t n[3] = {npts_global[0], npts_global[1], npts_global[2]};
+  ptrdiff_t my_local_n0, my_local_n0_start;
+  ptrdiff_t my_local_n1, my_local_n1_start;
+  const ptrdiff_t block_size_0 =
+      (npts_global[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  const ptrdiff_t block_size_1 =
+      (npts_global[1] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
+  const ptrdiff_t my_buffer_size = fftw_mpi_local_size_many_transposed(
+      3, n, 1, block_size_0, block_size_1, comm, &my_local_n0,
+      &my_local_n0_start, &my_local_n1, &my_local_n1_start);
+  *local_n0 = my_local_n0;
+  *local_n0_start = my_local_n0_start;
+  *local_n1 = my_local_n1;
+  *local_n1_start = my_local_n1_start;
+  return my_buffer_size;
+#else
+  (void)npts_global;
+  (void)comm;
+  (void)local_n0;
+  (void)local_n0_start;
+  (void)local_n1;
+  (void)local_n1_start;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+  return -1;
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed forward C2C 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_2d_distributed(const bool direction, const int npts_global[2],
+                             const int number_of_ffts, const cp_mpi_comm_t comm,
+                             double complex *restrict grid_in,
+                             double complex *restrict grid_out) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0)
+    return;
+  fft_key_t key;
+  get_key_2d_distributed(direction, npts_global, number_of_ffts, comm,
+                         omp_get_max_threads(), key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    const int buffer_size = get_buffer_size_from_key_mpi(key);
+    double complex *buffer = fftw_alloc_complex(buffer_size);
+    plan = fft_fftw_create_distributed_2d_plan(key, buffer, grid_out);
+    fftw_free(buffer);
+  }
+  assert(plan != NULL);
+  fftw_mpi_execute_dft(*plan, grid_in, grid_out);
+#else
+  (void)direction;
+  (void)npts_global;
+  (void)number_of_ffts;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed forward R2C 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_2d_r2c_distributed(const int npts_global[2],
+                                 const int number_of_ffts,
+                                 const cp_mpi_comm_t comm,
+                                 double *restrict grid_in,
+                                 double complex *restrict grid_out) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0)
+    return;
+  fft_key_t key;
+  get_key_2d_r2c_distributed(true, npts_global, number_of_ffts, comm,
+                             omp_get_max_threads(), key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    const int buffer_size = get_buffer_size_from_key_mpi(key);
+    double *buffer = fftw_alloc_real(2 * buffer_size);
+    plan = fft_fftw_create_distributed_2d_plan_r2c(key, buffer,
+                                                   (double *)grid_out);
+    fftw_free(buffer);
+  }
+  assert(plan != NULL);
+  fftw_mpi_execute_dft_r2c(*plan, grid_in, grid_out);
+#else
+  (void)npts_global;
+  (void)number_of_ffts;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed backwards C2R 2D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_2d_c2r_distributed(const int npts_global[2],
+                                 const int number_of_ffts,
+                                 const cp_mpi_comm_t comm,
+                                 double complex *restrict grid_in,
+                                 double *restrict grid_out) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0)
+    return;
+  fft_key_t key;
+  get_key_2d_r2c_distributed(false, npts_global, number_of_ffts, comm,
+                             omp_get_max_threads(), key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    const int buffer_size = get_buffer_size_from_key_mpi(key);
+    double complex *buffer = fftw_alloc_complex(buffer_size);
+    plan = fft_fftw_create_distributed_2d_plan_r2c(key, (double *)buffer,
+                                                   grid_out);
+    fftw_free(buffer);
+  }
+  assert(plan != NULL);
+  fftw_mpi_execute_dft_c2r(*plan, grid_in, grid_out);
+#else
+  (void)npts_global;
+  (void)number_of_ffts;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed C2C 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_3d_distributed(const bool direction, const int npts_global[3],
+                             const cp_mpi_comm_t comm,
+                             double complex *restrict grid_in,
+                             double complex *restrict grid_out) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0)
+    return;
+  fft_key_t key;
+  get_key_3d_distributed(direction, npts_global, comm, omp_get_max_threads(),
+                         key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    const int buffer_size = get_buffer_size_from_key_mpi(key);
+    double complex *buffer = fftw_alloc_complex(buffer_size);
+    plan = fft_fftw_create_distributed_3d_plan(key, buffer, grid_out);
+    fftw_free(buffer);
+  }
+  assert(plan != NULL);
+  fftw_mpi_execute_dft(*plan, grid_in, grid_out);
+#else
+  (void)direction;
+  (void)npts_global;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed forward R2C 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_3d_r2c_distributed(const int npts_global[3],
+                                 const cp_mpi_comm_t comm,
+                                 double *restrict grid_in,
+                                 double complex *restrict grid_out) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0)
+    return;
+  fft_key_t key;
+  get_key_3d_r2c_distributed(true, npts_global, comm, omp_get_max_threads(),
+                             key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    const int buffer_size = get_buffer_size_from_key_mpi(key);
+    double *buffer = fftw_alloc_real(2 * buffer_size);
+    plan = fft_fftw_create_distributed_3d_plan_r2c(key, buffer,
+                                                   (double *)grid_out);
+    fftw_free(buffer);
+  }
+  assert(plan != NULL);
+  fftw_mpi_execute_dft_r2c(*plan, grid_in, grid_out);
+#else
+  (void)npts_global;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+#endif
+}
+
+/*******************************************************************************
+ * \brief Performs a distributed backwards C2R 3D FFT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_fftw_3d_c2r_distributed(const int npts_global[3],
+                                 const cp_mpi_comm_t comm,
+                                 double complex *restrict grid_in,
+                                 double *restrict grid_out) {
+#if defined(__parallel) && defined(__FFTW3_MPI)
+  assert(omp_get_num_threads() == 1);
+  assert(is_initialized);
+  assert(use_fftw_mpi);
+  if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0)
+    return;
+  fft_key_t key;
+  get_key_3d_r2c_distributed(false, npts_global, comm, omp_get_max_threads(),
+                             key);
+  fftw_plan *plan = lookup_plan_from_cache(key);
+  if (plan == NULL) {
+    const int buffer_size = get_buffer_size_from_key_mpi(key);
+    double complex *buffer = fftw_alloc_complex(buffer_size);
+    plan = fft_fftw_create_distributed_3d_plan_r2c(key, (double *)buffer,
+                                                   grid_out);
+    fftw_free(buffer);
+  }
+  assert(plan != NULL);
+  fftw_mpi_execute_dft_c2r(*plan, grid_in, grid_out);
+#else
+  (void)npts_global;
+  (void)comm;
+  (void)grid_in;
+  (void)grid_out;
+  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 

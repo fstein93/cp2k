@@ -99,9 +99,9 @@ CONTAINS
 !> \param wisdom_file ...
 !> \author Frederick Stein
 ! **************************************************************************************************
-   SUBROUTINE fft_library_init(backend, planning_mode, use_guru_interface, wisdom_file, status)
+   SUBROUTINE fft_library_init(backend, planning_mode, use_fft_mpi, use_guru_interface, wisdom_file, status)
       INTEGER, INTENT(IN)                                :: backend, planning_mode
-      LOGICAL, INTENT(IN)                                :: use_guru_interface
+      LOGICAL, INTENT(IN)                                :: use_fft_mpi, use_guru_interface
       CHARACTER(LEN=*), INTENT(IN)                       :: wisdom_file
       INTEGER, INTENT(OUT)                               :: status
 
@@ -109,11 +109,11 @@ CONTAINS
          DIMENSION(:), TARGET                            :: wisdom_file_c
       INTEGER                                            :: i
       INTERFACE
-         INTEGER FUNCTION fft_library_init_c(backend, planning_mode, use_guru_interface, &
+         INTEGER FUNCTION fft_library_init_c(backend, planning_mode, use_fft_mpi, use_guru_interface, &
                                              wisdom_file) BIND(C, name="fft_library_init_F")
             IMPORT :: C_INT, C_BOOL, C_PTR
             INTEGER(C_INT), VALUE :: backend, planning_mode
-            LOGICAL(C_BOOL), VALUE :: use_guru_interface
+            LOGICAL(C_BOOL), VALUE :: use_fft_mpi, use_guru_interface
             TYPE(C_PTR), VALUE :: wisdom_file
 
          END FUNCTION fft_library_init_c
@@ -126,7 +126,7 @@ CONTAINS
       wisdom_file_c(LEN_TRIM(wisdom_file) + 1) = C_NULL_CHAR
 
       status = INT(fft_library_init_c(backend, planning_mode, &
-                                      LOGICAL(use_guru_interface, C_BOOL), C_LOC(wisdom_file_c)))
+                                      LOGICAL(use_fft_mpi, C_BOOL), LOGICAL(use_guru_interface, C_BOOL), C_LOC(wisdom_file_c)))
 
       DEALLOCATE (wisdom_file_c)
 

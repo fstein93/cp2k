@@ -13,6 +13,18 @@
  ******************************************************************************/
 int fft_test_local();
 
+/*******************************************************************************
+ * \brief Function to test the distributed FFT backend (2-3D, 1D not used).
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_distributed();
+
+/*******************************************************************************
+ * \brief Function to test the local transposition operation.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_test_transpose();
+
 #endif /* FFT_LIB_TEST_H */
 
 // EOF

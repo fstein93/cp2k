@@ -1527,6 +1527,11 @@ set(CP2K_FFT_SRCS_C
     fft/fft_api_F.c
     fft/fft_api_F_test.c
     fft/fft_lib.c
+    fft/fft_driver.c
+    fft/fft_redistribution.c
+    fft/fft_grid_layout.c
+    fft/fft_redistribution_test.c
+    fft/fft_grid_test.c
     fft/fft_lib_fftw.c
     fft/fft_lib_test.c
     fft/fft_timer.c
@@ -1619,7 +1624,7 @@ set(CP2K_DBM_SRCS_GPU_C dbm/dbm_multiply_opencl.c dbm/dbm_multiply_gpu.c)
 set(CP2K_FFT_SRCS_GPU fft/gpu/fft_gpu_kernels.cu)
 
 set(CP2K_PROGS_C
-    grid/grid_miniapp.c;grid/grid_unittest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c;fft/fft_unittest.c;
+    grid/grid_miniapp.c;grid/grid_unittest.c;dbm/dbm_miniapp.c;start/libcp2k_unittest.c;fft/fft_unittest.c;fft/fft_perftest.c;
 )
 set(CP2K_PROGS_F
     aobasis/orbital_transformation_matrices_unittest.F
@@ -1791,6 +1796,7 @@ target_link_libraries(
     cp2k::FFTW3::fftw3
     $<$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>:cp2k::FFTW3::fftw3_threads>
     $<$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>:cp2k::FFTW3::fftw3_omp>
+    $<$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT}>:cp2k::FFTW3::fftw3_mpi>
     OpenMP::OpenMP_Fortran
     OpenMP::OpenMP_C
     OpenMP::OpenMP_CXX)
@@ -1925,6 +1931,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>>:cp2k::FFTW3::fftw3_threads>
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
+    $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT}>>:cp2k::FFTW3::fftw3_mpi>
     $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
     $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mclf>
     $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mcl>
@@ -2016,6 +2023,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_TREXIO}>:__TREXIO>
     $<$<BOOL:${CP2K_USE_GREENX}>:__GREENX>
     $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
+    $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT_}>>:__FFTW3_MPI>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:__LIBINT>
     $<$<BOOL:${CP2K_USE_LIBGINT}>:__LIBGINT>
     $<$<BOOL:${CP2K_USE_LIBFCI}>:__LIBFCI>
@@ -2268,7 +2276,7 @@ foreach(__app grid_miniapp grid_unittest)
   endif()
 endforeach()
 
-foreach(__app fft_unittest)
+foreach(__app fft_unittest fft_perftest)
   add_executable(
     ${__app}
     "fft/${__app}.c"
@@ -2282,6 +2290,7 @@ foreach(__app fft_unittest)
     PRIVATE
       $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
       $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
+      $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT_}>>:__FFTW3_MPI>
       $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
 
   if(CP2K_DISABLE_GRID_GPU)
@@ -2309,7 +2318,7 @@ endforeach()
 # list of all targets that share the same properties. simplify code as most
 # cmake function can work on list of targets
 
-foreach(__app grid_miniapp grid_unittest dbm_miniapp fft_unittest)
+foreach(__app grid_miniapp grid_unittest dbm_miniapp fft_unittest fft_perftest)
   set_target_properties(
     ${__app}
     PROPERTIES POSITION_INDEPENDENT_CODE ON
@@ -2345,8 +2354,13 @@ endforeach()
 # installation
 # ##############################################################################
 install(
-  TARGETS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest dbm_miniapp
+  TARGETS ${__CP2K_APPS}
+          cp2k-bin
+          grid_miniapp
+          grid_unittest
+          dbm_miniapp
           fft_unittest
+          fft_perftest
   RUNTIME DESTINATION "${CMAKE_INSTALL_BINDIR}"
   LIBRARY DESTINATION "${CMAKE_INSTALL_LIBDIR}"
   INCLUDES
