@@ -147,6 +147,7 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>>:cp2k::FFTW3::fftw3_threads>
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
+    $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT}>>:cp2k::FFTW3::fftw3_mpi>
     OpenMP::OpenMP_Fortran
     OpenMP::OpenMP_C
     OpenMP::OpenMP_CXX)
@@ -277,6 +278,10 @@ target_link_libraries(
             $<$<BOOL:${CP2K_USE_GAUXC}>:gauxc::gauxc>
             $<$<BOOL:${CP2K_USE_ELPA}>:cp2k::ELPA::elpa>
             $<$<BOOL:${CP2K_USE_PLUMED}>:cp2k::plumed::plumed>
+            $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
+            $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>>:cp2k::FFTW3::fftw3_threads>
+            $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
+            $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT}>>:cp2k::FFTW3::fftw3_mpi>
             $<$<BOOL:${CP2K_USE_SPLA}>:SPLA::spla>
             $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mclf>
             $<$<BOOL:${CP2K_USE_MIMIC}>:CP2K::MIMIC::mcl>
@@ -369,6 +374,7 @@ target_compile_definitions(
     $<$<BOOL:${CP2K_USE_TREXIO}>:__TREXIO>
     $<$<BOOL:${CP2K_USE_GREENX}>:__GREENX>
     $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
+    $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT}>>:__FFTW3_MPI>
     $<$<BOOL:${CP2K_USE_LIBINT2}>:__LIBINT>
     $<$<BOOL:${CP2K_USE_LIBGINT}>:__LIBGINT>
     $<$<BOOL:${CP2K_USE_LIBFCI}>:__LIBFCI>
@@ -625,7 +631,7 @@ foreach(__app grid_miniapp grid_unittest)
   endif()
 endforeach()
 
-foreach(__app fft_unittest)
+foreach(__app fft_unittest fft_perftest)
   add_executable(
     ${__app}
     "fft/${__app}.c"
@@ -639,6 +645,7 @@ foreach(__app fft_unittest)
     PRIVATE
       $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
       $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
+      $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT}>>:__FFTW3_MPI>
       $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
 
   if(NOT CP2K_ENABLE_FFT_GPU)
@@ -666,7 +673,7 @@ endforeach()
 # list of all targets that share the same properties. simplify code as most
 # cmake function can work on list of targets
 
-foreach(__app grid_miniapp grid_unittest dbm_miniapp fft_unittest)
+foreach(__app grid_miniapp grid_unittest dbm_miniapp fft_unittest fft_perftest)
   set_target_properties(
     ${__app}
     PROPERTIES POSITION_INDEPENDENT_CODE ON
@@ -703,7 +710,7 @@ endforeach()
 # ##############################################################################
 
 set(__CP2K_INSTALL_APPS ${__CP2K_APPS} cp2k-bin grid_miniapp grid_unittest
-                        dbm_miniapp fft_unittest)
+                        dbm_miniapp fft_unittest fft_perftest)
 if(NOT CP2K_INSTALL_UNITTESTS)
   list(FILTER __CP2K_INSTALL_APPS EXCLUDE REGEX "_unittest$")
 endif()

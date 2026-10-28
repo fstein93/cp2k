@@ -29,7 +29,7 @@
  * \author Frederick Stein
  ******************************************************************************/
 int fft_library_init_F(const int backend_F, const int fftw_plan,
-                       const bool use_guru_interface, const char *wisdom_file);
+                       const bool use_fft_mpi, const bool use_guru_interface, const char *wisdom_file);
 
 /*******************************************************************************
  * \brief Fortran interface for fft_library_finalize.

@@ -23,7 +23,8 @@
  * \author Frederick Stein
  ******************************************************************************/
 int fft_library_init_F(const int backend_F, const int fftw_plan,
-                       const bool use_guru_interface, const char *wisdom_file) {
+                       const bool use_fft_mpi, const bool use_guru_interface,
+                       const char *wisdom_file) {
   fft_lib backend;
   switch (backend_F) {
   case FFT_LIBRARY_BACKEND_DEFAULT:
@@ -55,7 +56,8 @@ int fft_library_init_F(const int backend_F, const int fftw_plan,
   default:
     return 1;
   }
-  return fft_init_lib(backend, plan_type, use_guru_interface, wisdom_file);
+  return fft_init_lib(backend, plan_type, use_fft_mpi, use_guru_interface,
+                      wisdom_file);
 }
 
 /*******************************************************************************

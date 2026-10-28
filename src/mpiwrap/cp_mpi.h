@@ -7,6 +7,7 @@
 #ifndef CP_MPI_H
 #define CP_MPI_H
 
+#include <complex.h>
 #include <stdbool.h>
 #include <stddef.h>
 #include <stdint.h>
@@ -102,6 +103,13 @@ void cp_mpi_cart_get(const cp_mpi_comm_t comm, int maxdims, int dims[],
  * \author Ole Schuett
  ******************************************************************************/
 int cp_mpi_cart_rank(const cp_mpi_comm_t comm, const int coords[]);
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Cart_coords.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_cart_coords(const cp_mpi_comm_t comm, const int rank, int ndims,
+                        int coords[]);
 
 /*******************************************************************************
  * \brief Wrapper around MPI_Cart_sub.
@@ -200,6 +208,23 @@ int cp_mpi_sendrecv_double(const double *sendbuf, const int sendcount,
                            const int dest, const int sendtag, double *recvbuf,
                            const int recvcount, const int source,
                            const int recvtag, const cp_mpi_comm_t comm);
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Allgather for datatype MPI_INT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_allgather_int(const int *sendbuf, const int sendcount, int *recvbuf,
+                          const int recvcount, const cp_mpi_comm_t comm);
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Alltoallv for datatype MPI_DOUBLE_COMPLEX.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_alltoallv_double_complex(const double complex *sendbuf,
+                                     const int *sendcounts, const int *sdispls,
+                                     double complex *recvbuf,
+                                     const int *recvcounts, const int *rdispls,
+                                     const cp_mpi_comm_t comm);
 
 /*******************************************************************************
  * \brief Wrapper around MPI_Alltoall for datatype MPI_INT.

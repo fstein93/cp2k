@@ -7,6 +7,7 @@
 #include "cp_mpi.h"
 
 #include <assert.h>
+#include <complex.h>
 #include <omp.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -283,6 +284,23 @@ void cp_mpi_cart_get(const cp_mpi_comm_t comm, int maxdims, int dims[],
     periods[i] = 1;
     coords[i] = 0;
   }
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Cart_coords.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_cart_coords(const cp_mpi_comm_t comm, const int rank, int ndims,
+                        int coords[]) {
+#if defined(__parallel)
+  CHECK(MPI_Cart_coords(comm, rank, ndims, coords));
+#else
+  (void)comm;
+  (void)rank;
+  (void)ndims;
+  for (int i = 0; i < ndims; i++)
+    coords[i] = 0;
 #endif
 }
 
@@ -622,6 +640,43 @@ int cp_mpi_sendrecv_double(const double *sendbuf, const int sendcount,
   (void)comm;
   fprintf(stderr, "Error: cp_mpi_sendrecv_double not available without MPI\n");
   abort();
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Allgather for datatype MPI_INT.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_allgather_int(const int *sendbuf, const int sendcount, int *recvbuf,
+                          const int recvcount, const cp_mpi_comm_t comm) {
+#if defined(__parallel)
+  CHECK(MPI_Allgather(sendbuf, sendcount, MPI_INT, recvbuf, recvcount, MPI_INT,
+                      comm));
+#else
+  (void)comm;
+  assert(sendcount == recvcount);
+  memcpy(recvbuf, sendbuf, sendcount * sizeof(int));
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around MPI_Alltoallv for datatype MPI_DOUBLE_COMPLEX.
+ * \author Frederick Stein
+ ******************************************************************************/
+void cp_mpi_alltoallv_double_complex(const double complex *sendbuf,
+                                     const int *sendcounts, const int *sdispls,
+                                     double complex *recvbuf,
+                                     const int *recvcounts, const int *rdispls,
+                                     const cp_mpi_comm_t comm) {
+#if defined(__parallel)
+  CHECK(MPI_Alltoallv((const void *)sendbuf, sendcounts, sdispls,
+                      MPI_DOUBLE_COMPLEX, recvbuf, recvcounts, rdispls,
+                      MPI_DOUBLE_COMPLEX, comm));
+#else
+  (void)comm; // mark used
+  assert(sendcounts[0] == recvcounts[0]);
+  assert(sdispls[0] == 0 && rdispls[0] == 0);
+  memcpy(recvbuf, sendbuf, sendcounts[0] * sizeof(double complex));
 #endif
 }
 

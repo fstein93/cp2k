@@ -13,13 +13,13 @@
 #include "fft_redistribution.h"
 #include "fft_utils.h"
 
+#include <assert.h>
 #include <complex.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <time.h>
-#include <assert.h>
 
 /*******************************************************************************
  * \brief Function to test the parallel FFT backend.
@@ -39,13 +39,13 @@ int fft_test_3d_cartesian(const int npts_global[3], const int test_every) {
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               false, -1.0, NULL, NULL);
 
-  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int (*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
   const int my_number_of_elements_rs = product3(my_sizes_rs);
 
-  int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
+  int (*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
   int my_sizes_gs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_gs[dir] = my_bounds_gs[dir][1];
@@ -209,13 +209,13 @@ int fft_test_3d_cartesian_cart(const int npts_global[3], const int test_every) {
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               false, -1.0, NULL, NULL);
 
-  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int (*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
   const int my_number_of_elements_rs = product3(my_sizes_rs);
 
-  int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
+  int (*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
   int my_sizes_gs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_gs[dir] = my_bounds_gs[dir][1];
@@ -255,25 +255,29 @@ int fft_test_3d_cartesian_cart(const int npts_global[3], const int test_every) {
         fft_3d_fw_with_layout_to_cart(rs_data, gs_data, fft_grid_layout);
 
 #pragma omp parallel for default(none)                                         \
-    shared(gs_data, my_bounds_gs, nx, ny, nz, npts_global,        \
-               scale) reduction(max : max_error)
+    shared(gs_data, my_bounds_gs, nx, ny, nz, npts_global, scale)              \
+    reduction(max : max_error)
         for (int mx = 0; mx < my_bounds_gs[0][1]; mx++) {
           for (int my = 0; my < my_bounds_gs[1][1]; my++) {
             for (int mz = 0; mz < my_bounds_gs[2][1]; mz++) {
-              const int index = (mx*my_bounds_gs[1][1]+my)*my_bounds_gs[2][1]+mz;
+              const int index =
+                  (mx * my_bounds_gs[1][1] + my) * my_bounds_gs[2][1] + mz;
               const double complex my_value = gs_data[index];
               const double complex ref_value =
                   scale * cexp(-2.0 * I * pi *
-                              (((double)(mx+my_bounds_gs[0][0])* nx / npts_global[0] +
-                                ((double)(my+my_bounds_gs[1][0])) * ny / npts_global[1] +
-                                ((double)(mz+my_bounds_gs[2][0])) * nz / npts_global[2])));
+                               (((double)(mx + my_bounds_gs[0][0]) * nx /
+                                     npts_global[0] +
+                                 ((double)(my + my_bounds_gs[1][0])) * ny /
+                                     npts_global[1] +
+                                 ((double)(mz + my_bounds_gs[2][0])) * nz /
+                                     npts_global[2])));
               double current_error = cabs(my_value - ref_value);
               if (current_error > 1e-12)
-                printf("ERROR FW %i %i %i/%i %i %i (%i): (%f %f) (%f %f)\n", mx, my,
-                      mz, nx, ny, nz, index, creal(my_value), cimag(my_value),
-                      creal(ref_value), cimag(ref_value));
+                printf("ERROR FW %i %i %i/%i %i %i (%i): (%f %f) (%f %f)\n", mx,
+                       my, mz, nx, ny, nz, index, creal(my_value),
+                       cimag(my_value), creal(ref_value), cimag(ref_value));
               max_error = fmax(max_error, current_error);
-            }    
+            }
           }
         }
       }
@@ -307,10 +311,16 @@ int fft_test_3d_cartesian_cart(const int npts_global[3], const int test_every) {
         for (int index_x = 0; index_x < my_bounds_gs[0][1]; index_x++) {
           for (int index_y = 0; index_y < my_bounds_gs[1][1]; index_y++) {
             for (int index_z = 0; index_z < my_bounds_gs[2][1]; index_z++) {
-              gs_data[(index_x*my_bounds_gs[1][1]+index_y)*my_bounds_gs[2][1]+index_z] = scale * cexp(-2.0 * I * pi *
-                                    (((double)(index_x+my_bounds_gs[0][0])) * nx / npts_global[0] +
-                                    ((double)(index_y+my_bounds_gs[1][0])) * ny / npts_global[1] +
-                                    ((double)(index_z+my_bounds_gs[2][0])) * nz / npts_global[2]));
+              gs_data[(index_x * my_bounds_gs[1][1] + index_y) *
+                          my_bounds_gs[2][1] +
+                      index_z] =
+                  scale * cexp(-2.0 * I * pi *
+                               (((double)(index_x + my_bounds_gs[0][0])) * nx /
+                                    npts_global[0] +
+                                ((double)(index_y + my_bounds_gs[1][0])) * ny /
+                                    npts_global[1] +
+                                ((double)(index_z + my_bounds_gs[2][0])) * nz /
+                                    npts_global[2]));
             }
           }
         }
@@ -331,9 +341,10 @@ int fft_test_3d_cartesian_cart(const int npts_global[3], const int test_every) {
               index_x == nx && index_y == ny && index_z == nz ? 1.0 : 0.0;
           double current_error = cabs(my_value - ref_value);
           if (current_error > 1e-12)
-            printf("ERROR BW %i %i %i/%i %i %i (%i): (%f %f) (%f %f)\n", index_x,
-                   index_y, index_z, nx, ny, nz, index, creal(my_value),
-                   cimag(my_value), creal(ref_value), cimag(ref_value));
+            printf("ERROR BW %i %i %i/%i %i %i (%i): (%f %f) (%f %f)\n",
+                   index_x, index_y, index_z, nx, ny, nz, index,
+                   creal(my_value), cimag(my_value), creal(ref_value),
+                   cimag(ref_value));
           max_error = fmax(max_error, current_error);
         }
       }
@@ -380,13 +391,13 @@ int fft_test_3d_r2c_cartesian(const int npts_global[3], const int test_every) {
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               false, -1.0, NULL, NULL);
 
-  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int (*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
   const int my_number_of_elements_rs = product3(my_sizes_rs);
 
-  int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
+  int (*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
   int my_sizes_gs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_gs[dir] = my_bounds_gs[dir][1];
@@ -553,16 +564,16 @@ int fft_test_3d_r2c_cartesian_halfspace(const int npts_global[3],
       {1.0, 0.0, 0.0}, {0.0, 1.0, 0.0}, {0.0, 0.0, 1.0}};
 
   fft_grid_layout *fft_grid_layout = NULL;
-  grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
-                              true, -1.0, NULL, NULL);
+  grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv, true,
+                              -1.0, NULL, NULL);
 
-  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int (*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
   const int my_number_of_elements_rs = product3(my_sizes_rs);
 
-  int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
+  int (*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
   int my_sizes_gs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_gs[dir] = my_bounds_gs[dir][1];
@@ -731,10 +742,10 @@ int fft_test_3d_ray(const int npts_global[3], const int npts_global_ref[3],
                               false, -1.0, NULL, NULL);
 
   fft_grid_layout *fft_grid_layout = NULL;
-  grid_create_fft_grid_layout_from_reference(&fft_grid_layout, npts_global, -1.0, NULL,
-                                             ref_grid_layout);
+  grid_create_fft_grid_layout_from_reference(&fft_grid_layout, npts_global,
+                                             -1.0, NULL, ref_grid_layout);
 
-  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int (*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
@@ -919,10 +930,10 @@ int fft_test_3d_r2c_ray(const int npts_global[3], const int npts_global_ref[3],
                               false, -1.0, NULL, NULL);
 
   fft_grid_layout *fft_grid_layout = NULL;
-  grid_create_fft_grid_layout_from_reference(&fft_grid_layout, npts_global, -1.0, NULL,
-                                             ref_grid_layout);
+  grid_create_fft_grid_layout_from_reference(&fft_grid_layout, npts_global,
+                                             -1.0, NULL, ref_grid_layout);
 
-  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int (*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
@@ -1107,10 +1118,10 @@ int fft_test_3d_r2c_ray_halfspace(const int npts_global[3],
                               true, -1.0, NULL, NULL);
 
   fft_grid_layout *fft_grid_layout = NULL;
-  grid_create_fft_grid_layout_from_reference(&fft_grid_layout, npts_global, -1.0, NULL,
-                                             ref_grid_layout);
+  grid_create_fft_grid_layout_from_reference(&fft_grid_layout, npts_global,
+                                             -1.0, NULL, ref_grid_layout);
 
-  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int (*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
