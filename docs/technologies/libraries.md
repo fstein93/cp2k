@@ -42,6 +42,9 @@ Since CP2K is OpenMP parallelized, CP2K enables the FFTW3 OpenMP interface by de
 `libfftw3_omp`. The alternative threads interface can be selected with
 `-DCP2K_ENABLE_FFTW3_THREADS_SUPPORT=ON`, which requires `libfftw3_threads`.
 
+If FFTW3 was compiled with MPI-support, CP2K can make use of it by enabling
+(`-DCP2K_ENABLE_FFTW3_MPI_SUPPORT=ON`); the FFTW-installation must therefore provide `libfftw3_mpi`.
+
 ## DBCSR (required, block-sparse matrix operations)
 
 DBCSR is a standalone library for block-sparse matrix operations. It is maintained at the

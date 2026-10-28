@@ -173,6 +173,9 @@ cmake_dependent_option(CP2K_USE_MIMIC "Enable MIMIC support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 cmake_dependent_option(CP2K_USE_OPENPMD "Enable OpenPMD I/O support"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
+cmake_dependent_option(
+  CP2K_ENABLE_FFTW3_MPI_SUPPORT "Enable FFTW3's MPI support"
+  ${CP2K_USE_EVERYTHING} "CP2K_USE_MPI" OFF)
 
 cmake_dependent_option(CP2K_USE_LIBXSMM "Enable LIBXSMM JIT-kernel for LIBXS"
                        ${CP2K_USE_EVERYTHING} "CP2K_USE_LIBXS" OFF)
@@ -788,6 +791,7 @@ endif()
 
 # CP2K_USE_FFTW3_ for native FFTW3, CP2K_USE_FFTW3_MKL_ for MKL
 set(CP2K_USE_FFTW3_ OFF)
+set(CP2K_ENABLE_FFTW3_MPI_SUPPORT_ OFF)
 if(NOT CP2K_BLAS_VENDOR MATCHES "MKL" OR CP2K_USE_FFTW3_WITH_MKL)
   find_package(Fftw REQUIRED)
   if(CP2K_ENABLE_FFTW3_THREADS_SUPPORT AND CP2K_ENABLE_FFTW3_OPENMP_SUPPORT)
@@ -809,6 +813,15 @@ if(NOT CP2K_BLAS_VENDOR MATCHES "MKL" OR CP2K_USE_FFTW3_WITH_MKL)
     )
   endif()
   set(CP2K_USE_FFTW3_ ON)
+  if(CP2K_ENABLE_FFTW3_MPI_SUPPORT)
+    if(NOT TARGET cp2k::FFTW3::fftw3_mpi)
+      message(
+        FATAL_ERROR
+          "FFTW3 was compiled without MPI support (--enable-mpi option in the FFTW3 build system)."
+      )
+    endif()
+    set(CP2K_ENABLE_FFTW3_MPI_SUPPORT_ ON)
+  endif()
 else()
   message("-- Using the MKL implementation of FFTW3.")
   foreach(DIR ${CP2K_BLAS_INCLUDE_DIRS})
@@ -1038,6 +1051,9 @@ message("  - LAPACK\n"
 
 message("  - FFTW3\n" "    - Include directories: ${CP2K_FFTW3_INCLUDE_DIRS}\n"
         "    - Libraries: ${CP2K_FFTW3_LINK_LIBRARIES}\n")
+if(CP2K_ENABLE_FFTW3_MPI_SUPPORT)
+  message("  - FFTW3-MPI\n")
+endif()
 
 if(CP2K_USE_MPI)
   message("  - MPI\n" "    - Include directories: ${MPI_INCLUDE_DIRS}\n"
@@ -1270,6 +1286,9 @@ message(
   "-          Dependencies not included in this build                 -\n"
   "-                                                                  -\n"
   "--------------------------------------------------------------------\n")
+if(NOT CP2K_ENABLE_FFTW3_MPI_SUPPORT)
+  message("  - FFTW3-MPI\n")
+endif()
 
 if(NOT CP2K_USE_MPI)
   message("  - MPI")
