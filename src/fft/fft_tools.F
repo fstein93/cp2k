@@ -208,7 +208,7 @@ CONTAINS
 
       CALL release_fft_scratch_pool()
 
-      CALL fft_library_init(fftlib, plan_style, use_guru, wisdom_file, status)
+      CALL fft_library_init(fftlib, plan_style, .TRUE., use_guru, wisdom_file, status)
 
       ! setup the FFT scratch pool, if one is associated, clear first
       CALL init_fft_scratch_pool()

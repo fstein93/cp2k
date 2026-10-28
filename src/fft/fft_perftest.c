@@ -30,9 +30,9 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
                               dh_inv, false, -1.0, NULL, NULL);
 
-  int(*my_bound_rs)[2] =
+  int (*my_bound_rs)[2] =
       grid_layout->proc2local_rs[cp_mpi_comm_rank(grid_layout->comm)];
-  int(*my_bound_gs)[2] =
+  int (*my_bound_gs)[2] =
       grid_layout->proc2local_gs[cp_mpi_comm_rank(grid_layout->comm)];
   double complex *grid_rs = NULL;
   fft_allocate_complex(
@@ -52,9 +52,9 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
   double end = omp_get_wtime();
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
-    printf(
-        "Preparation time for FW and BW C2C (cart) FFTs of size %i %i %i : %f\n",
-        fft_size[0], fft_size[1], fft_size[2], end - begin);
+    printf("Preparation time for FW and BW C2C (cart) FFTs of size %i %i %i : "
+           "%f\n",
+           fft_size[0], fft_size[1], fft_size[2], end - begin);
     fflush(stdout);
   }
 
@@ -105,11 +105,11 @@ static void run_test_r2c(const int fft_size[3], const int number_of_runs,
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
                               dh_inv, use_halfspace, -1.0, NULL, NULL);
 
-  int(*my_bound_rs)[2] =
+  int (*my_bound_rs)[2] =
       grid_layout->proc2local_rs[cp_mpi_comm_rank(grid_layout->comm)];
-  int(*my_bound_gs)[2] =
+  int (*my_bound_gs)[2] =
       grid_layout->proc2local_gs[cp_mpi_comm_rank(grid_layout->comm)];
-  
+
   double *grid_rs = NULL;
   fft_allocate_double(my_bound_rs[0][1] * my_bound_rs[1][1] * my_bound_rs[2][1],
                       &grid_rs);
@@ -180,10 +180,10 @@ static void run_test_ray_c2c(const int fft_size[3], const int number_of_runs) {
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
                               dh_inv, false, -1.0, NULL, NULL);
   fft_grid_layout *grid_layout_ray = NULL;
-  grid_create_fft_grid_layout_from_reference(&grid_layout_ray, fft_size, -1.0, NULL,
-                                             grid_layout);
+  grid_create_fft_grid_layout_from_reference(&grid_layout_ray, fft_size, -1.0,
+                                             NULL, grid_layout);
 
-  int(*my_bound_rs)[2] =
+  int (*my_bound_rs)[2] =
       grid_layout_ray->proc2local_rs[cp_mpi_comm_rank(grid_layout_ray->comm)];
   double complex *grid_rs = NULL;
   fft_allocate_complex(
@@ -202,9 +202,10 @@ static void run_test_ray_c2c(const int fft_size[3], const int number_of_runs) {
   double end = omp_get_wtime();
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
-    printf("Preparation time for FW and BW C2C (ray) FFTs (ray) of size %i %i %i "
-           ": %f\n",
-           fft_size[0], fft_size[1], fft_size[2], end - begin);
+    printf(
+        "Preparation time for FW and BW C2C (ray) FFTs (ray) of size %i %i %i "
+        ": %f\n",
+        fft_size[0], fft_size[1], fft_size[2], end - begin);
     fflush(stdout);
   }
 
@@ -257,10 +258,10 @@ static void run_test_ray_r2c(const int fft_size[3], const int number_of_runs,
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
                               dh_inv, use_halfspace, -1.0, NULL, NULL);
   fft_grid_layout *grid_layout_ray = NULL;
-  grid_create_fft_grid_layout_from_reference(&grid_layout_ray, fft_size, -1.0, NULL,
-                                             grid_layout);
+  grid_create_fft_grid_layout_from_reference(&grid_layout_ray, fft_size, -1.0,
+                                             NULL, grid_layout);
 
-  int(*my_bound_rs)[2] =
+  int (*my_bound_rs)[2] =
       grid_layout_ray->proc2local_rs[cp_mpi_comm_rank(grid_layout_ray->comm)];
   double *grid_rs = NULL;
   fft_allocate_double(my_bound_rs[0][1] * my_bound_rs[1][1] * my_bound_rs[2][1],
@@ -279,9 +280,10 @@ static void run_test_ray_r2c(const int fft_size[3], const int number_of_runs,
   double end = omp_get_wtime();
 
   if (cp_mpi_comm_rank(cp_mpi_get_comm_world()) == 0) {
-    printf("Preparation time for FW and BW %s FFTs (ray) of size %i %i %i : %f\n",
-           use_halfspace ? "R2C/C2R" : "C2C", fft_size[0], fft_size[1],
-           fft_size[2], end - begin);
+    printf(
+        "Preparation time for FW and BW %s FFTs (ray) of size %i %i %i : %f\n",
+        use_halfspace ? "R2C/C2R" : "C2C", fft_size[0], fft_size[1],
+        fft_size[2], end - begin);
     fflush(stdout);
   }
 
@@ -322,8 +324,8 @@ static void run_test_ray_r2c(const int fft_size[3], const int number_of_runs,
 }
 
 void run_perftests(const bool debug, const int backend, const int planning_mode,
-               const bool use_mpi, const bool use_guru,
-               const double threshold) {
+                   const bool use_mpi, const bool use_guru,
+                   const double threshold) {
   fft_init_timer(debug);
   fft_init_lib(backend, planning_mode, use_mpi, use_guru, NULL);
 

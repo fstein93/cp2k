@@ -114,10 +114,9 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
                                  const cp_mpi_comm_t comm,
                                  const int npts_global[3],
                                  const double dh_inv[3][3],
-                                 const bool use_halfspace,
-                                 const double cutoff,
+                                 const bool use_halfspace, const double cutoff,
                                  const int *pgrid_guess,
-    const int *external_local_bounds);
+                                 const int *external_local_bounds);
 
 /*******************************************************************************
  * \brief Print some information on a grid.
@@ -132,8 +131,7 @@ void grid_print_grid_layout_info(const fft_grid_layout *layout,
  *grid_create_fft_grid_layout \author Frederick Stein
  ******************************************************************************/
 void grid_create_fft_grid_layout_from_reference(
-    fft_grid_layout **fft_grid, const int npts_global[3],
-    const double cutoff, 
+    fft_grid_layout **fft_grid, const int npts_global[3], const double cutoff,
     const int *external_local_bounds, const fft_grid_layout *fft_grid_ref);
 
 /*******************************************************************************

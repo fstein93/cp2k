@@ -35,7 +35,7 @@ int fft_test_transpose_blocked(const int npts_global[3],
   grid_create_fft_grid_layout(&fft_grid_layout, comm, npts_global, dh_inv,
                               use_halfspace, -1.0, NULL, NULL);
 
-  int(*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
+  int (*my_bounds_rs)[2] = fft_grid_layout->proc2local_rs[my_process];
   int my_sizes_rs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_rs[dir] = my_bounds_rs[dir][1];
@@ -44,13 +44,13 @@ int fft_test_transpose_blocked(const int npts_global[3],
   const int my_number_of_elements_rs =
       fft_grid_layout->npts_global_gspace[0] * my_sizes_rs[1] * my_sizes_rs[2];
 
-  int(*my_bounds_ms)[2] = fft_grid_layout->proc2local_ms[my_process];
+  int (*my_bounds_ms)[2] = fft_grid_layout->proc2local_ms[my_process];
   int my_sizes_ms[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_ms[dir] = my_bounds_ms[dir][1];
   const int my_number_of_elements_ms = product3(my_sizes_ms);
 
-  int(*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
+  int (*my_bounds_gs)[2] = fft_grid_layout->proc2local_gs[my_process];
   int my_sizes_gs[3];
   for (int dir = 0; dir < 3; dir++)
     my_sizes_gs[dir] = my_bounds_gs[dir][1];
@@ -454,8 +454,8 @@ int fft_test_transpose_ray(const int npts_global[3],
 
   // Test ray transpositiond,
   fft_grid_layout *fft_grid_ray_layout = NULL;
-  grid_create_fft_grid_layout_from_reference(&fft_grid_ray_layout, npts_global, -1.0, NULL,
-                                             ref_grid_layout);
+  grid_create_fft_grid_layout_from_reference(&fft_grid_ray_layout, npts_global,
+                                             -1.0, NULL, ref_grid_layout);
 
   ensure_buffer_size(fft_grid_ray_layout->buffer_size);
   double complex *buffer_1 = get_buffer_1();
@@ -486,11 +486,12 @@ int fft_test_transpose_ray(const int npts_global[3],
   collect_z_and_distribute_xy_ray_pack_transposed(
       buffer_1, buffer_2, fft_grid_ray_layout->redistribution);
 
-  collect_z_and_distribute_xy_ray_comm(
-      buffer_2, buffer_1, fft_grid_ray_layout->redistribution, fft_grid_ray_layout->comm);
+  collect_z_and_distribute_xy_ray_comm(buffer_2, buffer_1,
+                                       fft_grid_ray_layout->redistribution,
+                                       fft_grid_ray_layout->comm);
 
-  collect_z_and_distribute_xy_ray_unpack(
-      buffer_1, buffer_2, fft_grid_ray_layout->redistribution);
+  collect_z_and_distribute_xy_ray_unpack(buffer_1, buffer_2,
+                                         fft_grid_ray_layout->redistribution);
 
   max_error = 0.0;
   int ray_index_offset = 0;
@@ -559,11 +560,12 @@ int fft_test_transpose_ray(const int npts_global[3],
     }
   }
 
-  collect_xy_and_distribute_z_ray_pack(
-      buffer_1, buffer_2, fft_grid_ray_layout->redistribution);
+  collect_xy_and_distribute_z_ray_pack(buffer_1, buffer_2,
+                                       fft_grid_ray_layout->redistribution);
 
-  collect_xy_and_distribute_z_ray_comm(
-      buffer_2, buffer_1, fft_grid_ray_layout->redistribution, fft_grid_ray_layout->comm);
+  collect_xy_and_distribute_z_ray_comm(buffer_2, buffer_1,
+                                       fft_grid_ray_layout->redistribution,
+                                       fft_grid_ray_layout->comm);
 
   collect_xy_and_distribute_z_ray_unpack_transposed(
       buffer_1, buffer_2, fft_grid_ray_layout->redistribution);
@@ -646,14 +648,15 @@ int fft_test_transpose_ray(const int npts_global[3],
     }
   }
 
-  collect_z_and_distribute_xy_ray_pack(
-      buffer_1, buffer_2, fft_grid_ray_layout->redistribution);
+  collect_z_and_distribute_xy_ray_pack(buffer_1, buffer_2,
+                                       fft_grid_ray_layout->redistribution);
 
-  collect_z_and_distribute_xy_ray_comm(
-      buffer_2, buffer_1, fft_grid_ray_layout->redistribution, fft_grid_ray_layout->comm);
+  collect_z_and_distribute_xy_ray_comm(buffer_2, buffer_1,
+                                       fft_grid_ray_layout->redistribution,
+                                       fft_grid_ray_layout->comm);
 
-  collect_z_and_distribute_xy_ray_unpack(
-      buffer_1, buffer_2, fft_grid_ray_layout->redistribution);
+  collect_z_and_distribute_xy_ray_unpack(buffer_1, buffer_2,
+                                         fft_grid_ray_layout->redistribution);
 
   max_error = 0.0;
   ray_index_offset = 0;
@@ -717,14 +720,15 @@ int fft_test_transpose_ray(const int npts_global[3],
     }
   }
 
-  collect_xy_and_distribute_z_ray_pack(
-      buffer_1, buffer_2, fft_grid_ray_layout->redistribution);
+  collect_xy_and_distribute_z_ray_pack(buffer_1, buffer_2,
+                                       fft_grid_ray_layout->redistribution);
 
-  collect_xy_and_distribute_z_ray_comm(
-      buffer_2, buffer_1, fft_grid_ray_layout->redistribution, fft_grid_ray_layout->comm);
+  collect_xy_and_distribute_z_ray_comm(buffer_2, buffer_1,
+                                       fft_grid_ray_layout->redistribution,
+                                       fft_grid_ray_layout->comm);
 
-  collect_xy_and_distribute_z_ray_unpack(
-      buffer_1, buffer_2, fft_grid_ray_layout->redistribution);
+  collect_xy_and_distribute_z_ray_unpack(buffer_1, buffer_2,
+                                         fft_grid_ray_layout->redistribution);
 
   max_error = 0.0;
 #pragma omp parallel for default(none)                                         \
