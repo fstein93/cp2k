@@ -40,7 +40,8 @@ MODULE pw_grids
                                               C_SIZE_T
    USE fft_api,                         ONLY: fft_create_grid,&
                                               fft_create_grid_from_reference,&
-                                              fft_free_grid
+                                              fft_free_grid,&
+                                              fft_grid_get_comm
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               int_size
@@ -48,8 +49,7 @@ MODULE pw_grids
    USE mathlib,                         ONLY: det_3x3,&
                                               inv_3x3
    USE message_passing,                 ONLY: mp_comm_self,&
-                                              mp_comm_type,&
-                                              mp_dims_create
+                                              mp_comm_type
    USE offload_api,                     ONLY: offload_activate_chosen_device,&
                                               offload_free_pinned_mem,&
                                               offload_malloc_pinned_mem
@@ -425,11 +425,13 @@ CONTAINS
       ELSE
          CALL fft_create_grid(pw_grid%fft_grid, pw_grid%npts, mp_comm, cell_h_inv, &
                               pw_grid%grid_span == HALFSPACE, pw_grid%cutoff, &
-                              external_local_bounds=bounds_local)
+                              pgrid_guess=rs_dims, external_local_bounds=bounds_local)
       END IF
 
-      CALL pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, mp_comm, bounds_local=bounds_local, &
-                                  blocked=blocked, ref_grid=ref_grid, rs_dims=rs_dims, iounit=iounit)
+      CALL fft_grid_get_comm(pw_grid%fft_grid, pw_grid%para%group)
+
+      CALL pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, bounds_local=bounds_local, &
+                                  blocked=blocked, ref_grid=ref_grid, iounit=iounit)
 
       CALL pw_grid_create_ghatmap(pw_grid)
 
@@ -519,11 +521,9 @@ CONTAINS
 !> \param cell_h_inv ...
 !> \param cell_deth ...
 !> \param pw_grid ...
-!> \param mp_comm ...
 !> \param bounds_local ...
 !> \param blocked ...
 !> \param ref_grid ...
-!> \param rs_dims ...
 !> \param iounit ...
 !> \par History
 !>      JGH (20-Dec-2000) : Adapted for parallel use
@@ -539,17 +539,15 @@ CONTAINS
 !> \note
 !>      this is the function that should be used in the future
 ! **************************************************************************************************
-   SUBROUTINE pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, mp_comm, bounds_local, &
-                                     blocked, ref_grid, rs_dims, iounit)
+   SUBROUTINE pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, bounds_local, &
+                                     blocked, ref_grid, iounit)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat, cell_h_inv
       REAL(KIND=dp), INTENT(IN)                          :: cell_deth
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
 
-      CLASS(mp_comm_type), INTENT(IN) :: mp_comm
       INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: bounds_local
       INTEGER, INTENT(in), OPTIONAL                      :: blocked
       TYPE(pw_grid_type), INTENT(in), OPTIONAL           :: ref_grid
-      INTEGER, DIMENSION(2), INTENT(in), OPTIONAL        :: rs_dims
       INTEGER, INTENT(in), OPTIONAL                      :: iounit
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup_internal'
@@ -582,7 +580,7 @@ CONTAINS
       ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
       ! these are not mapped indices !
       ALLOCATE (yz_mask(n(2), n(3)))
-      CALL pw_grid_count(cell_h_inv, pw_grid, mp_comm, ecut, yz_mask)
+      CALL pw_grid_count(cell_h_inv, pw_grid, pw_grid%para%group, ecut, yz_mask)
 
       ! Check if reference grid is compatible
       IF (PRESENT(ref_grid)) THEN
@@ -592,8 +590,7 @@ CONTAINS
       END IF
 
       ! Distribute grid
-      CALL pw_grid_distribute(pw_grid, mp_comm, yz_mask, bounds_local=bounds_local, ref_grid=ref_grid, blocked=blocked, &
-                              rs_dims=rs_dims)
+      CALL pw_grid_distribute(pw_grid, yz_mask, bounds_local=bounds_local, ref_grid=ref_grid, blocked=blocked)
 
       ! Allocate the grid fields
       CALL pw_grid_allocate(pw_grid, pw_grid%ngpts_cut_local, &
@@ -782,39 +779,34 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Distribute grids in real and Fourier Space to the processors in group
 !> \param pw_grid ...
-!> \param mp_comm ...
 !> \param yz_mask ...
 !> \param bounds_local ...
 !> \param ref_grid ...
 !> \param blocked ...
-!> \param rs_dims ...
 !> \par History
 !>      JGH (01-Mar-2001) optional reference grid
 !>      JGH (22-May-2002) bug fix for pre_tag and HALFSPACE grids
 !>      JGH (09-Sep-2003) reduce scaling for distribution
 !> \author JGH (22-12-2000)
 ! **************************************************************************************************
-   SUBROUTINE pw_grid_distribute(pw_grid, mp_comm, yz_mask, bounds_local, ref_grid, blocked, rs_dims)
+   SUBROUTINE pw_grid_distribute(pw_grid, yz_mask, bounds_local, ref_grid, blocked)
 
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
 
-      CLASS(mp_comm_type), INTENT(IN) :: mp_comm
       INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: yz_mask
       INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: bounds_local
       TYPE(pw_grid_type), INTENT(IN), OPTIONAL           :: ref_grid
       INTEGER, INTENT(IN), OPTIONAL                      :: blocked
-      INTEGER, DIMENSION(2), INTENT(in), OPTIONAL        :: rs_dims
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute'
 
       INTEGER                                            :: blocked_local, coor(2), gmax, handle, i, &
-                                                            i1, i2, ip, ipl, ipp, itmp, j, l, lby, &
+                                                            i1, i2, ip, ipl, ipp, j, l, lby, &
                                                             lbz, lo(2), m, n, np, ns, nx, ny, nz, &
                                                             rsd(2)
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: yz_index
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: axis_dist_all
-      INTEGER, DIMENSION(2)                              :: my_rs_dims
       INTEGER, DIMENSION(2, 3)                           :: axis_dist
       LOGICAL                                            :: blocking
 
@@ -826,11 +818,6 @@ CONTAINS
       lbz = pw_grid%bounds(1, 3)
 
       pw_grid%ngpts = PRODUCT(INT(pw_grid%npts, KIND=int_8))
-
-      my_rs_dims = 0
-      IF (PRESENT(rs_dims)) THEN
-         my_rs_dims = rs_dims
-      END IF
 
       IF (PRESENT(blocked)) THEN
          blocked_local = blocked
@@ -850,8 +837,6 @@ CONTAINS
          pw_grid%ngpts_cut_local = INT(pw_grid%ngpts_cut)
          CPASSERT(pw_grid%ngpts < HUGE(pw_grid%ngpts_local))
          pw_grid%ngpts_local = INT(pw_grid%ngpts)
-         my_rs_dims = 1
-         CALL pw_grid%para%group%create(mp_comm, 2, my_rs_dims)
 
          ALLOCATE (pw_grid%para%bo(2, 3, 0:0, 3))
          DO i = 1, 3
@@ -865,55 +850,7 @@ CONTAINS
          nx = pw_grid%npts(1)
          ny = pw_grid%npts(2)
          nz = pw_grid%npts(3)
-         np = mp_comm%num_pe
-
-         ! The user can specify 2 strictly positive indices => specific layout
-         !                      1 strictly positive index   => the other is fixed by the number of CPUs
-         !                      0 strictly positive indices => fully free distribution
-         ! if fully free or the user request can not be fulfilled, we optimize heuristically ourselves by:
-         !                      1) nx>np -> taking a plane distribution (/np,1/)
-         !                      2) nx<np -> taking the most square distribution
-         ! if blocking is free:
-         !                      1) blocked=.FALSE. for plane distributions
-         !                      2) blocked=.TRUE.  for non-plane distributions
-         IF (ANY(my_rs_dims <= 0)) THEN
-            IF (ALL(my_rs_dims <= 0)) THEN
-               my_rs_dims = [0, 0]
-            ELSE
-               IF (my_rs_dims(1) > 0) THEN
-                  my_rs_dims(2) = np/my_rs_dims(1)
-               ELSE
-                  my_rs_dims(1) = np/my_rs_dims(2)
-               END IF
-            END IF
-         END IF
-         ! reset if the distribution can not be fulfilled
-         IF (PRODUCT(my_rs_dims) /= np) my_rs_dims = [0, 0]
-         ! reset if the distribution can not be dealt with [1,np]
-         IF (ALL(my_rs_dims == [1, np])) my_rs_dims = [0, 0]
-
-         ! if [0,0] now, we can optimize it ourselves
-         IF (ALL(my_rs_dims == [0, 0])) THEN
-            ! only small grids have a chance to be 2d distributed
-            IF (nx < np) THEN
-               ! gives the most square looking distribution
-               CALL mp_dims_create(np, my_rs_dims)
-               ! we tend to like the first index being smaller than the second
-               IF (my_rs_dims(1) > my_rs_dims(2)) THEN
-                  itmp = my_rs_dims(1)
-                  my_rs_dims(1) = my_rs_dims(2)
-                  my_rs_dims(2) = itmp
-               END IF
-               ! but should avoid having the first index 1 in all cases
-               IF (my_rs_dims(1) == 1) THEN
-                  itmp = my_rs_dims(1)
-                  my_rs_dims(1) = my_rs_dims(2)
-                  my_rs_dims(2) = itmp
-               END IF
-            ELSE
-               my_rs_dims = [np, 1]
-            END IF
-         END IF
+         np = pw_grid%para%group%num_pe
 
          ! now fix the blocking if we have a choice
          SELECT CASE (blocked_local)
@@ -922,7 +859,7 @@ CONTAINS
          CASE (do_pw_grid_blocked_true)
             blocking = .TRUE.
          CASE (do_pw_grid_blocked_free)
-            IF (ALL(my_rs_dims == [np, 1])) THEN
+            IF (ALL(pw_grid%para%group%num_pe_cart == [np, 1])) THEN
                blocking = .FALSE.
             ELSE
                blocking = .TRUE.
@@ -930,9 +867,6 @@ CONTAINS
          CASE DEFAULT
             CPABORT("Unknown PW grid blocking")
          END SELECT
-
-         !..create group for real space distribution
-         CALL pw_grid%para%group%create(mp_comm, 2, my_rs_dims)
 
          IF (PRESENT(bounds_local)) THEN
             pw_grid%bounds_local = bounds_local
