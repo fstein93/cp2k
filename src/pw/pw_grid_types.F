@@ -12,6 +12,7 @@
 ! **************************************************************************************************
 MODULE pw_grid_types
 
+   USE fft_api,                         ONLY: fft_grid_type
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE message_passing,                 ONLY: mp_cart_type
@@ -51,6 +52,7 @@ MODULE pw_grid_types
    ! all you always wanted to know about grids, but were...
 ! **************************************************************************************************
    TYPE pw_grid_type
+      TYPE(fft_grid_type) :: fft_grid = fft_grid_type()
       INTEGER(int_8) :: ngpts = 0_int_8 ! # grid points
       INTEGER(int_8) :: ngpts_cut = 0_int_8 ! # grid points within cutoff
       INTEGER, DIMENSION(2, 3) :: bounds = 0 ! lower and upper bounds

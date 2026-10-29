@@ -38,6 +38,9 @@ MODULE pw_grids
                                               C_LOC,&
                                               C_PTR,&
                                               C_SIZE_T
+   USE fft_api,                         ONLY: fft_create_grid,&
+                                              fft_create_grid_from_reference,&
+                                              fft_free_grid
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               int_size
@@ -414,6 +417,15 @@ CONTAINS
                                spherical=my_spherical)
       ELSE
          CPABORT("BOUNDS, NPTS or CUTOFF have to be specified")
+      END IF
+
+      IF (PRESENT(ref_grid)) THEN
+         CALL fft_create_grid_from_reference(pw_grid%fft_grid, pw_grid%npts, pw_grid%cutoff, &
+                                             external_local_bounds=bounds_local, fft_grid_ref=ref_grid%fft_grid)
+      ELSE
+         CALL fft_create_grid(pw_grid%fft_grid, pw_grid%npts, mp_comm, cell_h_inv, &
+                              pw_grid%grid_span == HALFSPACE, pw_grid%cutoff, &
+                              external_local_bounds=bounds_local)
       END IF
 
       CALL pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, mp_comm, bounds_local=bounds_local, &
@@ -2271,6 +2283,8 @@ CONTAINS
             IF (ALLOCATED(pw_grid%para%pos_of_x)) THEN
                DEALLOCATE (pw_grid%para%pos_of_x)
             END IF
+
+            CALL fft_free_grid(pw_grid%fft_grid)
 
             IF (ASSOCIATED(pw_grid)) THEN
                DEALLOCATE (pw_grid)
