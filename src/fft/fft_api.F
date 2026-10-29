@@ -1058,9 +1058,10 @@ CONTAINS
          END SUBROUTINE fft_free_grid_c
       END INTERFACE
 
-      CALL fft_free_grid_c(fft_grid%fft_grid)
-
-      fft_grid%fft_grid = C_NULL_PTR
+      IF (C_ASSOCIATED(fft_grid%fft_grid)) THEN
+         CALL fft_free_grid_c(fft_grid%fft_grid)
+         fft_grid%fft_grid = C_NULL_PTR
+      END IF
 
    END SUBROUTINE fft_free_grid
 
