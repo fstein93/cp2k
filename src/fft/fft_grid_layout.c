@@ -152,6 +152,9 @@ void sort_g_vectors(fft_grid_layout *my_fft_grid) {
 }
 
 void grid_free_fft_grid_layout(fft_grid_layout *fft_grid) {
+  if (fft_grid == NULL) {
+    return;
+  }
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_free_grid_layout");
