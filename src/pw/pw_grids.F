@@ -41,7 +41,10 @@ MODULE pw_grids
    USE fft_api,                         ONLY: fft_create_grid,&
                                               fft_create_grid_from_reference,&
                                               fft_free_grid,&
-                                              fft_grid_get_comm
+                                              fft_grid_get_comm,&
+                                              fft_grid_get_proc2local_gs,&
+                                              fft_grid_get_proc2local_ms,&
+                                              fft_grid_get_proc2local_rs
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               int_size
@@ -800,14 +803,11 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute'
 
-      INTEGER                                            :: blocked_local, coor(2), gmax, handle, i, &
-                                                            i1, i2, ip, ipl, ipp, j, l, lby, &
-                                                            lbz, lo(2), m, n, np, ns, nx, ny, nz, &
-                                                            rsd(2)
+      INTEGER                                            :: blocked_local, gmax, handle, i, i1, i2, ip, &
+                                                            ipl, ipp, j, l, lby, lbz, lo(2), m, n, &
+                                                            np, ns, ny, nz
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: yz_index
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: axis_dist_all
-      INTEGER, DIMENSION(2, 3)                           :: axis_dist
       LOGICAL                                            :: blocking
 
 !------------------------------------------------------------------------------
@@ -827,6 +827,11 @@ CONTAINS
 
       pw_grid%para%blocked = .FALSE.
 
+      ALLOCATE (pw_grid%para%bo(2, 3, 0:pw_grid%para%group%num_pe - 1, 3))
+      CALL fft_grid_get_proc2local_rs(pw_grid%fft_grid, pw_grid%para%bo(:, :, :, 1))
+      CALL fft_grid_get_proc2local_ms(pw_grid%fft_grid, pw_grid%para%bo(:, :, :, 2))
+      CALL fft_grid_get_proc2local_gs(pw_grid%fft_grid, pw_grid%para%bo(:, :, :, 3))
+
       IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
 
          pw_grid%para%ray_distribution = .FALSE.
@@ -838,16 +843,9 @@ CONTAINS
          CPASSERT(pw_grid%ngpts < HUGE(pw_grid%ngpts_local))
          pw_grid%ngpts_local = INT(pw_grid%ngpts)
 
-         ALLOCATE (pw_grid%para%bo(2, 3, 0:0, 3))
-         DO i = 1, 3
-            pw_grid%para%bo(1, 1:3, 0, i) = 1
-            pw_grid%para%bo(2, 1:3, 0, i) = pw_grid%npts(1:3)
-         END DO
-
       ELSE
 
          !..find the real space distribution
-         nx = pw_grid%npts(1)
          ny = pw_grid%npts(2)
          nz = pw_grid%npts(3)
          np = pw_grid%para%group%num_pe
@@ -868,71 +866,13 @@ CONTAINS
             CPABORT("Unknown PW grid blocking")
          END SELECT
 
-         IF (PRESENT(bounds_local)) THEN
-            pw_grid%bounds_local = bounds_local
-         ELSE
-            lo = get_limit(nx, pw_grid%para%group%num_pe_cart(1), &
-                           pw_grid%para%group%mepos_cart(1))
-            pw_grid%bounds_local(:, 1) = lo + pw_grid%bounds(1, 1) - 1
-            lo = get_limit(ny, pw_grid%para%group%num_pe_cart(2), &
-                           pw_grid%para%group%mepos_cart(2))
-            pw_grid%bounds_local(:, 2) = lo + pw_grid%bounds(1, 2) - 1
-            pw_grid%bounds_local(:, 3) = pw_grid%bounds(:, 3)
-         END IF
+         !..take the real space distribution from the FFT grid layout
+         pw_grid%bounds_local(:, :) = pw_grid%para%bo(:, :, pw_grid%para%group%mepos, 1)
+         pw_grid%bounds_local(1, :) = pw_grid%bounds_local(1, :) + pw_grid%bounds(1, :) - 1
+         pw_grid%bounds_local(2, :) = pw_grid%bounds_local(2, :) + pw_grid%bounds(1, :) - 1
 
          pw_grid%npts_local(:) = pw_grid%bounds_local(2, :) &
                                  - pw_grid%bounds_local(1, :) + 1
-
-         !..the third distribution is needed for the second step in the FFT
-         ALLOCATE (pw_grid%para%bo(2, 3, 0:np - 1, 3))
-         rsd = pw_grid%para%group%num_pe_cart
-
-         IF (PRESENT(bounds_local)) THEN
-            ! axis_dist tells what portion of 1 .. nx , 1 .. ny , 1 .. nz are in the current process
-            DO i = 1, 3
-               axis_dist(:, i) = bounds_local(:, i) - pw_grid%bounds(1, i) + 1
-            END DO
-            ALLOCATE (axis_dist_all(2, 3, np))
-            CALL pw_grid%para%group%allgather(axis_dist, axis_dist_all)
-            DO ip = 0, np - 1
-               CALL pw_grid%para%group%coords(ip, coor)
-               ! distribution xyZ
-               pw_grid%para%bo(1:2, 1, ip, 1) = axis_dist_all(1:2, 1, ip + 1)
-               pw_grid%para%bo(1:2, 2, ip, 1) = axis_dist_all(1:2, 2, ip + 1)
-               pw_grid%para%bo(1, 3, ip, 1) = 1
-               pw_grid%para%bo(2, 3, ip, 1) = nz
-               ! distribution xYz
-               pw_grid%para%bo(1:2, 1, ip, 2) = axis_dist_all(1:2, 1, ip + 1)
-               pw_grid%para%bo(1, 2, ip, 2) = 1
-               pw_grid%para%bo(2, 2, ip, 2) = ny
-               pw_grid%para%bo(1:2, 3, ip, 2) = get_limit(nz, rsd(2), coor(2))
-               ! distribution Xyz
-               pw_grid%para%bo(1, 1, ip, 3) = 1
-               pw_grid%para%bo(2, 1, ip, 3) = nx
-               pw_grid%para%bo(1:2, 2, ip, 3) = get_limit(ny, rsd(1), coor(1))
-               pw_grid%para%bo(1:2, 3, ip, 3) = get_limit(nz, rsd(2), coor(2))
-            END DO
-            DEALLOCATE (axis_dist_all)
-         ELSE
-            DO ip = 0, np - 1
-               CALL pw_grid%para%group%coords(ip, coor)
-               ! distribution xyZ
-               pw_grid%para%bo(1:2, 1, ip, 1) = get_limit(nx, rsd(1), coor(1))
-               pw_grid%para%bo(1:2, 2, ip, 1) = get_limit(ny, rsd(2), coor(2))
-               pw_grid%para%bo(1, 3, ip, 1) = 1
-               pw_grid%para%bo(2, 3, ip, 1) = nz
-               ! distribution xYz
-               pw_grid%para%bo(1:2, 1, ip, 2) = get_limit(nx, rsd(1), coor(1))
-               pw_grid%para%bo(1, 2, ip, 2) = 1
-               pw_grid%para%bo(2, 2, ip, 2) = ny
-               pw_grid%para%bo(1:2, 3, ip, 2) = get_limit(nz, rsd(2), coor(2))
-               ! distribution Xyz
-               pw_grid%para%bo(1, 1, ip, 3) = 1
-               pw_grid%para%bo(2, 1, ip, 3) = nx
-               pw_grid%para%bo(1:2, 2, ip, 3) = get_limit(ny, rsd(1), coor(1))
-               pw_grid%para%bo(1:2, 3, ip, 3) = get_limit(nz, rsd(2), coor(2))
-            END DO
-         END IF
          !..find the g space distribution
          pw_grid%ngpts_cut_local = 0
 

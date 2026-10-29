@@ -126,6 +126,15 @@ void fft_grid_get_npts_global_F(const fft_grid_layout *fft_grid,
 
 void fft_grid_get_comm_F(const fft_grid_layout *fft_grid, int *comm_handle);
 
+void fft_grid_get_proc2local_rs_F(const fft_grid_layout *fft_grid,
+                                  int *proc2local_rs);
+
+void fft_grid_get_proc2local_ms_F(const fft_grid_layout *fft_grid,
+                                  int *proc2local_ms);
+
+void fft_grid_get_proc2local_gs_F(const fft_grid_layout *fft_grid,
+                                  int *proc2local_gs);
+
 void fft_free_grid_F(fft_grid_layout *fft_grid);
 
 #endif

@@ -262,6 +262,39 @@ void fft_grid_get_comm_F(const fft_grid_layout *fft_grid, int *comm_handle) {
 }
 
 /*******************************************************************************
+ * \brief Get the process-to-local-bounds mapping in real space.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_grid_get_proc2local_rs_F(const fft_grid_layout *fft_grid,
+                                  int *proc2local_rs) {
+  assert(fft_grid != NULL);
+  memcpy(proc2local_rs, fft_grid->proc2local_rs,
+         6 * cp_mpi_comm_size(fft_grid->comm) * sizeof(int));
+}
+
+/*******************************************************************************
+ * \brief Get the process-to-local-bounds mapping in mixed space.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_grid_get_proc2local_ms_F(const fft_grid_layout *fft_grid,
+                                  int *proc2local_ms) {
+  assert(fft_grid != NULL);
+  memcpy(proc2local_ms, fft_grid->proc2local_ms,
+         6 * cp_mpi_comm_size(fft_grid->comm) * sizeof(int));
+}
+
+/*******************************************************************************
+ * \brief Get the process-to-local-bounds mapping in reciprocal space.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_grid_get_proc2local_gs_F(const fft_grid_layout *fft_grid,
+                                  int *proc2local_gs) {
+  assert(fft_grid != NULL);
+  memcpy(proc2local_gs, fft_grid->proc2local_gs,
+         6 * cp_mpi_comm_size(fft_grid->comm) * sizeof(int));
+}
+
+/*******************************************************************************
  * \brief Free a FFT grid layout.
  * \author Frederick Stein
  ******************************************************************************/
