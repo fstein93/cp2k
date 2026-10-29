@@ -310,6 +310,7 @@ CONTAINS
 
       INTEGER                                            :: handle, my_icommensurate, &
                                                             my_ncommensurate
+      INTEGER, DIMENSION(2)                              :: my_rs_dims
       INTEGER, DIMENSION(3)                              :: n
       LOGICAL                                            :: my_fft_usage, my_odd, my_spherical
       REAL(KIND=dp)                                      :: cell_deth, my_cutoff
@@ -422,13 +423,16 @@ CONTAINS
          CPABORT("BOUNDS, NPTS or CUTOFF have to be specified")
       END IF
 
+      my_rs_dims = 0
+      IF (PRESENT(rs_dims)) my_rs_dims = rs_dims
+
       IF (PRESENT(ref_grid)) THEN
          CALL fft_create_grid_from_reference(pw_grid%fft_grid, pw_grid%npts, pw_grid%cutoff, &
                                              external_local_bounds=bounds_local, fft_grid_ref=ref_grid%fft_grid)
       ELSE
          CALL fft_create_grid(pw_grid%fft_grid, pw_grid%npts, mp_comm, cell_h_inv, &
                               pw_grid%grid_span == HALFSPACE, pw_grid%cutoff, &
-                              pgrid_guess=rs_dims, external_local_bounds=bounds_local)
+                              pgrid_guess=my_rs_dims, external_local_bounds=bounds_local)
       END IF
 
       CALL fft_grid_get_comm(pw_grid%fft_grid, pw_grid%para%group)
