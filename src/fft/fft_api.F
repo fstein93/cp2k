@@ -31,6 +31,8 @@ MODULE fft_api
    PUBLIC :: fft_register_1d_local_inplace, fft_register_2d_local_inplace, fft_register_3d_local_inplace
    PUBLIC :: fft_1d_local, fft_2d_local, fft_3d_local
    PUBLIC :: fft_1d_local_inplace, fft_2d_local_inplace, fft_3d_local_inplace
+   PUBLIC :: fft_grid_type, fft_create_grid, fft_create_grid_from_reference, fft_free_grid
+   PUBLIC :: fft_grid_get_npts_global
 
    ! Keep it synchronized with fft_api_F.c
    INTEGER, PARAMETER, PUBLIC :: FFT_LIBRARY_BACKEND_DEFAULT = 1
@@ -87,7 +89,12 @@ MODULE fft_api
          IMPORT :: C_PTR
          TYPE(C_PTR), VALUE :: buffer
       END SUBROUTINE fft_free_complex_c
-   END INTERFACE
+      END INTERFACE
+
+   TYPE fft_grid_type
+      PRIVATE
+      TYPE(C_PTR) :: fft_grid = C_NULL_PTR
+   END TYPE fft_grid_type
 
 CONTAINS
 
@@ -745,5 +752,167 @@ CONTAINS
       CALL fft_3d_local_inplace_c(LOGICAL(direction, C_BOOL), INT(fft_size, C_INT), C_LOC(grid))
 
    END SUBROUTINE fft_3d_local_inplace
+
+! **************************************************************************************************
+!> \brief Create a FFT grid layout anew
+!> \param fft_grid ...
+!> \param fft_size ...
+!> \param comm ...
+!> \param dh_inv ...
+!> \param use_halfspace ...
+!> \param cutoff ...
+!> \param pgrid_guess ...
+!> \param external_local_bounds ...
+! **************************************************************************************************
+   SUBROUTINE fft_create_grid(fft_grid, fft_size, comm, dh_inv, use_halfspace, cutoff, pgrid_guess, external_local_bounds)
+      TYPE(fft_grid_type), INTENT(INOUT)                 :: fft_grid
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
+      CLASS(mp_comm_type), INTENT(IN)                    :: comm
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: dh_inv
+      LOGICAL, INTENT(IN)                                :: use_halfspace
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff
+      INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: pgrid_guess
+      INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: external_local_bounds
+
+      INTEGER(C_INT), DIMENSION(2), TARGET               :: pgrid_guess_c
+      INTEGER(C_INT), DIMENSION(2, 3), TARGET            :: external_local_bounds_c
+      TYPE(C_PTR)                                        :: pgrid_guess_ptr, external_local_bounds_ptr
+
+      INTERFACE
+         SUBROUTINE fft_create_grid_c(layout, comm, fft_size, dh_inv, use_halfspace, cutoff, &
+                                      pgrid_guess, external_local_bounds) BIND(C, name="fft_create_grid_F")
+            IMPORT :: C_INT, C_DOUBLE, C_PTR, C_BOOL
+            TYPE(C_PTR), INTENT(INOUT) :: layout
+            INTEGER(C_INT), VALUE :: comm
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            REAL(C_DOUBLE), DIMENSION(3, 3), INTENT(IN) :: dh_inv
+            LOGICAL(C_BOOL), VALUE :: use_halfspace
+            REAL(C_DOUBLE), VALUE :: cutoff
+            TYPE(C_PTR), VALUE :: pgrid_guess
+            TYPE(C_PTR), VALUE :: external_local_bounds
+         END SUBROUTINE fft_create_grid_c
+      END INTERFACE
+
+      IF (C_ASSOCIATED(fft_grid%fft_grid)) &
+         CPABORT("The grid layout must be unassociated before creation")
+
+      pgrid_guess_ptr = C_NULL_PTR
+      IF (PRESENT(pgrid_guess)) THEN
+         pgrid_guess_c = INT(pgrid_guess, C_INT)
+         pgrid_guess_ptr = C_LOC(pgrid_guess_c)
+      END IF
+
+      external_local_bounds_ptr = C_NULL_PTR
+      IF (PRESENT(external_local_bounds)) THEN
+         external_local_bounds_c = INT(external_local_bounds, C_INT)
+         external_local_bounds_ptr = C_LOC(external_local_bounds_c)
+      END IF
+
+      CALL fft_create_grid_c(fft_grid%fft_grid, INT(comm%get_handle(), C_INT), INT(fft_size, C_INT), &
+                             REAL(dh_inv, C_DOUBLE), LOGICAL(use_halfspace, C_BOOL), REAL(cutoff, C_DOUBLE), &
+                             pgrid_guess_ptr, external_local_bounds_ptr)
+
+      IF (.NOT. C_ASSOCIATED(fft_grid%fft_grid)) &
+         CPABORT("Grid creation failed")
+
+   END SUBROUTINE fft_create_grid
+
+! **************************************************************************************************
+!> \brief Create a FFT grid layout from a reference grid layout
+!> \param fft_grid ...
+!> \param fft_size ...
+!> \param cutoff ...
+!> \param external_local_bounds ...
+!> \param fft_grid_ref ...
+! **************************************************************************************************
+   SUBROUTINE fft_create_grid_from_reference(fft_grid, fft_size, cutoff, external_local_bounds, fft_grid_ref)
+      TYPE(fft_grid_type), INTENT(INOUT)                 :: fft_grid
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff
+      INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: external_local_bounds
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid_ref
+
+      INTEGER(C_INT), DIMENSION(2, 3), TARGET            :: external_local_bounds_c
+      TYPE(C_PTR)                                        :: external_local_bounds_ptr
+
+      INTERFACE
+         SUBROUTINE fft_create_grid_from_reference_c(layout, fft_size, cutoff, external_local_bounds, layout_ref) &
+            BIND(C, name="fft_create_grid_from_reference_F")
+            IMPORT :: C_INT, C_PTR, C_DOUBLE
+            TYPE(C_PTR), INTENT(INOUT) :: layout
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            REAL(C_DOUBLE), VALUE :: cutoff
+            TYPE(C_PTR), VALUE :: external_local_bounds
+            TYPE(C_PTR), VALUE :: layout_ref
+         END SUBROUTINE fft_create_grid_from_reference_c
+      END INTERFACE
+
+      IF (C_ASSOCIATED(fft_grid%fft_grid)) &
+         CPABORT("The grid layout must be unassociated before creation")
+      IF (.NOT. C_ASSOCIATED(fft_grid_ref%fft_grid)) &
+         CPABORT("The reference grid layout must be associated")
+
+      external_local_bounds_ptr = C_NULL_PTR
+      IF (PRESENT(external_local_bounds)) THEN
+         external_local_bounds_c = INT(external_local_bounds, C_INT)
+         external_local_bounds_ptr = C_LOC(external_local_bounds_c)
+      END IF
+
+      CALL fft_create_grid_from_reference_c(fft_grid%fft_grid, INT(fft_size, C_INT), REAL(cutoff, C_DOUBLE), &
+                                            external_local_bounds_ptr, fft_grid_ref%fft_grid)
+
+      IF (.NOT. C_ASSOCIATED(fft_grid%fft_grid)) &
+         CPABORT("Grid creation failed")
+
+   END SUBROUTINE fft_create_grid_from_reference
+
+! **************************************************************************************************
+!> \brief Get the number of global points of a grid layout
+!> \param fft_grid ...
+!> \return ...
+! **************************************************************************************************
+   FUNCTION fft_grid_get_npts_global(fft_grid) RESULT(npts_global)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+      INTEGER, DIMENSION(3)                              :: npts_global
+
+      INTEGER(C_INT), DIMENSION(3)                       :: npts_global_c
+
+      INTERFACE
+         SUBROUTINE fft_grid_get_npts_global_c(layout, npts_global) &
+            BIND(C, name="fft_grid_get_npts_global_F")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE :: layout
+            INTEGER(C_INT), DIMENSION(*) :: npts_global
+         END SUBROUTINE fft_grid_get_npts_global_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+
+      CALL fft_grid_get_npts_global_c(fft_grid%fft_grid, npts_global_c)
+
+      npts_global = INT(npts_global_c)
+
+   END FUNCTION fft_grid_get_npts_global
+
+! **************************************************************************************************
+!> \brief Free a FFT grid layout
+!> \param fft_grid ...
+! **************************************************************************************************
+   SUBROUTINE fft_free_grid(fft_grid)
+      TYPE(fft_grid_type), INTENT(INOUT)                 :: fft_grid
+
+      INTERFACE
+         SUBROUTINE fft_free_grid_c(layout) &
+            BIND(C, name="fft_free_grid_F")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE :: layout
+         END SUBROUTINE fft_free_grid_c
+      END INTERFACE
+
+      CALL fft_free_grid_c(fft_grid%fft_grid)
+
+      fft_grid%fft_grid = C_NULL_PTR
+
+   END SUBROUTINE fft_free_grid
 
 END MODULE fft_api

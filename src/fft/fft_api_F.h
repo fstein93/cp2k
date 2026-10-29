@@ -7,6 +7,8 @@
 #ifndef FFT_API_F_H
 #define FFT_API_F_H
 
+#include "fft_grid_layout.h"
+
 #include <complex.h>
 #include <stdbool.h>
 
@@ -107,6 +109,22 @@ void fft_2d_local_inplace_F(const bool dir, const int fft_size[2],
 
 void fft_3d_local_inplace_F(const bool dir, const int fft_size[3],
                             double complex *grid);
+
+void fft_create_grid_F(fft_grid_layout **fft_grid, const int comm_F,
+                       const int npts_global[3], const double dh_inv[3][3],
+                       const bool use_halfspace, const double cutoff,
+                       const int *pgrid_guess,
+                       const int *external_local_bounds);
+
+void fft_create_grid_from_reference_F(
+    fft_grid_layout **fft_grid, const int npts_global[3],
+    const double cutoff, const int *external_local_bounds,
+    const fft_grid_layout *fft_grid_ref);
+
+void fft_grid_get_npts_global_F(const fft_grid_layout *fft_grid,
+                                int *npts_global);
+
+void fft_free_grid_F(fft_grid_layout *fft_grid);
 
 #endif
 // EOF
