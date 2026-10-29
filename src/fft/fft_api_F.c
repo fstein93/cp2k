@@ -253,6 +253,15 @@ void fft_grid_get_npts_global_F(const fft_grid_layout *fft_grid,
 }
 
 /*******************************************************************************
+ * \brief Get the cartesian communicator of the FFT grid.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_grid_get_comm_F(const fft_grid_layout *fft_grid, int *comm_handle) {
+  assert(fft_grid != NULL);
+  *comm_handle = cp_mpi_comm_c2f(fft_grid->comm);
+}
+
+/*******************************************************************************
  * \brief Free a FFT grid layout.
  * \author Frederick Stein
  ******************************************************************************/

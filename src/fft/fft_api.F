@@ -32,7 +32,7 @@ MODULE fft_api
    PUBLIC :: fft_1d_local, fft_2d_local, fft_3d_local
    PUBLIC :: fft_1d_local_inplace, fft_2d_local_inplace, fft_3d_local_inplace
    PUBLIC :: fft_grid_type, fft_create_grid, fft_create_grid_from_reference, fft_free_grid
-   PUBLIC :: fft_grid_get_npts_global
+   PUBLIC :: fft_grid_get_npts_global, fft_grid_get_comm
 
    ! Keep it synchronized with fft_api_F.c
    INTEGER, PARAMETER, PUBLIC :: FFT_LIBRARY_BACKEND_DEFAULT = 1
@@ -893,6 +893,36 @@ CONTAINS
       npts_global = INT(npts_global_c)
 
    END FUNCTION fft_grid_get_npts_global
+
+! **************************************************************************************************
+!> \brief Get the cartesian communicator of a grid layout
+!> \param fft_grid ...
+!> \param comm ...
+! **************************************************************************************************
+   SUBROUTINE fft_grid_get_comm(fft_grid, comm)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+      CLASS(mp_comm_type)                                :: comm
+
+      INTEGER(C_INT)                                     :: comm_handle
+      TYPE(mp_comm_type)                                 :: my_comm
+
+      INTERFACE
+         SUBROUTINE fft_grid_get_comm_c(layout, comm) &
+            BIND(C, name="fft_grid_get_comm_F")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE :: layout
+            INTEGER(C_INT), INTENT(OUT) :: comm
+         END SUBROUTINE fft_grid_get_comm_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+
+      CALL fft_grid_get_comm_c(fft_grid%fft_grid, comm_handle)
+
+      CALL my_comm%set_handle(INT(comm_handle), 2)
+      CALL comm%from_dup(my_comm)
+
+   END SUBROUTINE fft_grid_get_comm
 
 ! **************************************************************************************************
 !> \brief Free a FFT grid layout

@@ -124,6 +124,8 @@ void fft_create_grid_from_reference_F(
 void fft_grid_get_npts_global_F(const fft_grid_layout *fft_grid,
                                 int *npts_global);
 
+void fft_grid_get_comm_F(const fft_grid_layout *fft_grid, int *comm_handle);
+
 void fft_free_grid_F(fft_grid_layout *fft_grid);
 
 #endif
