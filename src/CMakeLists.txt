@@ -1793,10 +1793,10 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>
     $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_C>
     $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_CXX>
+    $<$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT}>:cp2k::FFTW3::fftw3_mpi>
     cp2k::FFTW3::fftw3
     $<$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>:cp2k::FFTW3::fftw3_threads>
     $<$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>:cp2k::FFTW3::fftw3_omp>
-    $<$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT}>:cp2k::FFTW3::fftw3_mpi>
     OpenMP::OpenMP_Fortran
     OpenMP::OpenMP_C
     OpenMP::OpenMP_CXX)

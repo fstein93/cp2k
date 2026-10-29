@@ -186,8 +186,6 @@ int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
     fftw_mpi_init();
     use_fftw_mpi = fft_fftw_test_mpi_backend();
   }
-  if (is_print_rank)
-    fflush(stdout);
   cp_mpi_barrier(cp_mpi_get_comm_world());
 #else
   (void)use_fft_mpi;
