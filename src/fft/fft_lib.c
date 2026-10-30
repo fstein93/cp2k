@@ -182,8 +182,12 @@ bool fft_lib_has_guru_interface() {
  ******************************************************************************/
 void ensure_buffer_size(const int size) {
   if (buffer_size < size) {
-    fft_free_complex(buffer_1);
-    fft_free_complex(buffer_2);
+    if (buffer_1 != NULL) {
+      fft_free_complex(buffer_1);
+    }
+    if (buffer_2 != NULL) {
+      fft_free_complex(buffer_2);
+    }
     buffer_1 = NULL;
     buffer_2 = NULL;
     fft_allocate_complex(size, &buffer_1);

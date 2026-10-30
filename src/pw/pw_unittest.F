@@ -8,6 +8,10 @@
 PROGRAM pw_unittest
    USE cp_log_handling,                 ONLY: cp_get_default_logger,&
                                               cp_logger_type
+   USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT,&
+                                              FFT_LIBRARY_FFTW_MODE_ESTIMATE
+   USE fft_tools,                       ONLY: finalize_fft,&
+                                              init_fft
    USE kinds,                           ONLY: dp
    USE libcp2k,                         ONLY: cp2k_finalize,&
                                               cp2k_init
@@ -39,12 +43,15 @@ PROGRAM pw_unittest
 
    IMPLICIT NONE
 
-   INTEGER                                            :: mode
+   INTEGER                                            :: mode, status
    REAL(dp)                                           :: max_error
    TYPE(cp_logger_type), POINTER                      :: logger
    TYPE(mp_para_env_type), POINTER                     :: para_env
 
    CALL cp2k_init()
+   CALL init_fft(FFT_LIBRARY_BACKEND_DEFAULT, alltoall=.FALSE., pool_limit=4, &
+                 wisdom_file="", plan_style=FFT_LIBRARY_FFTW_MODE_ESTIMATE, status=status)
+   IF (status /= 0) ERROR STOP "FFT library initialization failed"
    logger => cp_get_default_logger()
    para_env => logger%para_env
    CALL check_cube_values()
@@ -55,6 +62,7 @@ PROGRAM pw_unittest
    CALL check_pw_integral_and_poisson()
    CALL check_mt2d_kernel()
    PRINT '(A,ES16.7)', 'PW integral and MT2D kernel maximum scaled error: ', max_error
+   CALL finalize_fft(para_env, "")
    CALL cp2k_finalize()
 
 CONTAINS
