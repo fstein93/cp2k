@@ -31,7 +31,8 @@
  * \author Frederick Stein
  ******************************************************************************/
 int fft_library_init_F(const int backend_F, const int fftw_plan,
-                       const bool use_fft_mpi, const bool use_guru_interface, const char *wisdom_file);
+                       const bool use_fft_mpi, const bool use_guru_interface,
+                       const char *wisdom_file);
 
 /*******************************************************************************
  * \brief Fortran interface for fft_library_finalize.
@@ -653,10 +654,11 @@ void fft_create_grid_F(fft_grid_layout **fft_grid, const int comm_F,
                        const int *pgrid_guess,
                        const int *external_local_bounds);
 
-void fft_create_grid_from_reference_F(
-    fft_grid_layout **fft_grid, const int npts_global[3],
-    const double cutoff, const int *external_local_bounds,
-    const fft_grid_layout *fft_grid_ref);
+void fft_create_grid_from_reference_F(fft_grid_layout **fft_grid,
+                                      const int npts_global[3],
+                                      const double cutoff,
+                                      const int *external_local_bounds,
+                                      const fft_grid_layout *fft_grid_ref);
 
 void fft_grid_get_npts_global_F(const fft_grid_layout *fft_grid,
                                 int *npts_global);

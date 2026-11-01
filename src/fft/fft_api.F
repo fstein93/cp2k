@@ -100,7 +100,7 @@ MODULE fft_api
          IMPORT :: C_PTR
          TYPE(C_PTR), VALUE :: buffer
       END SUBROUTINE fft_free_complex_c
-      END INTERFACE
+   END INTERFACE
 
    TYPE fft_grid_type
       PRIVATE

@@ -882,9 +882,11 @@ void fft_create_grid_F(fft_grid_layout **fft_grid, const int comm_F,
  * \brief Create a FFT grid layout from a reference grid layout.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_create_grid_from_reference_F(
-    fft_grid_layout **fft_grid, const int npts_global[3], const double cutoff,
-    const int *external_local_bounds, const fft_grid_layout *fft_grid_ref) {
+void fft_create_grid_from_reference_F(fft_grid_layout **fft_grid,
+                                      const int npts_global[3],
+                                      const double cutoff,
+                                      const int *external_local_bounds,
+                                      const fft_grid_layout *fft_grid_ref) {
   assert(fft_grid_ref != NULL);
   int local_bounds[6];
   int *local_bounds_ptr = NULL;

@@ -1922,22 +1922,25 @@ void fft_fftw_register_3d_c2r_local(const int fft_size[3],
  * \brief Performs a local C2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_register_guru(const bool direction, int rank, const fft_iodim *dims, int howmany_rank,
-                      const fft_iodim *howmany_dims,
-                      const int number_of_threads, double complex *grid_in,
-                      double complex *grid_out) {
+void fft_fftw_register_guru(const bool direction, int rank,
+                            const fft_iodim *dims, int howmany_rank,
+                            const fft_iodim *howmany_dims,
+                            const int number_of_threads,
+                            double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
   assert(has_guru_interface);
   assert(is_initialized);
   for (int r = 0; r < rank; r++) {
-    if (dims[r].n == 0) return;
+    if (dims[r].n == 0)
+      return;
   }
   for (int r = 0; r < howmany_rank; r++) {
-    if (howmany_dims[r].n == 0) return;
+    if (howmany_dims[r].n == 0)
+      return;
   }
   fft_key_t key;
-  get_key_guru(
-      direction, rank, dims, howmany_rank, howmany_dims, number_of_threads, grid_in == grid_out, key);
+  get_key_guru(direction, rank, dims, howmany_rank, howmany_dims,
+               number_of_threads, grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
     plan = fft_fftw_create_guru_plan(key, grid_in, grid_out);
@@ -1958,25 +1961,27 @@ void fft_fftw_register_guru(const bool direction, int rank, const fft_iodim *dim
  * \brief Performs a local forward R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_register_r2c_guru(int rank, const fft_iodim *dims, int howmany_rank,
-                          const fft_iodim *howmany_dims,
-                          const int number_of_threads, double *grid_in,
-                          double complex *grid_out) {
+void fft_fftw_register_r2c_guru(int rank, const fft_iodim *dims,
+                                int howmany_rank, const fft_iodim *howmany_dims,
+                                const int number_of_threads, double *grid_in,
+                                double complex *grid_out) {
 #if defined(__FFTW3)
   assert(has_guru_interface);
   assert(is_initialized);
   for (int r = 0; r < rank; r++) {
-    if (dims[r].n == 0) return;
+    if (dims[r].n == 0)
+      return;
   }
   for (int r = 0; r < howmany_rank; r++) {
-    if (howmany_dims[r].n == 0) return;
+    if (howmany_dims[r].n == 0)
+      return;
   }
   fft_key_t key;
-  get_key_guru_r2c(true, rank, dims, howmany_rank, howmany_dims, number_of_threads,
-      grid_in == (double *)grid_out, key);
+  get_key_guru_r2c(true, rank, dims, howmany_rank, howmany_dims,
+                   number_of_threads, grid_in == (double *)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
-    plan = fft_fftw_create_guru_plan_r2c(key, grid_in, (double*)grid_out);
+    plan = fft_fftw_create_guru_plan_r2c(key, grid_in, (double *)grid_out);
 #else
   (void)rank;
   (void)dims;
@@ -1993,25 +1998,27 @@ void fft_fftw_register_r2c_guru(int rank, const fft_iodim *dims, int howmany_ran
  * \brief Performs a local backwards R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_register_c2r_guru(int rank, const fft_iodim *dims, int howmany_rank,
-                          const fft_iodim *howmany_dims,
-                          const int number_of_threads, double complex *grid_in,
-                          double *grid_out) {
+void fft_fftw_register_c2r_guru(int rank, const fft_iodim *dims,
+                                int howmany_rank, const fft_iodim *howmany_dims,
+                                const int number_of_threads,
+                                double complex *grid_in, double *grid_out) {
 #if defined(__FFTW3)
   assert(has_guru_interface);
   assert(is_initialized);
   for (int r = 0; r < rank; r++) {
-    if (dims[r].n == 0) return;
+    if (dims[r].n == 0)
+      return;
   }
   for (int r = 0; r < howmany_rank; r++) {
-    if (howmany_dims[r].n == 0) return;
+    if (howmany_dims[r].n == 0)
+      return;
   }
   fft_key_t key;
-  get_key_guru_r2c(false, rank, dims, howmany_rank, howmany_dims, number_of_threads,
-      (double *)grid_in == grid_out, key);
+  get_key_guru_r2c(false, rank, dims, howmany_rank, howmany_dims,
+                   number_of_threads, (double *)grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL)
-    plan = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in, grid_out);
+    plan = fft_fftw_create_guru_plan_r2c(key, (double *)grid_in, grid_out);
 #else
   (void)rank;
   (void)dims;
@@ -3521,26 +3528,29 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
  * \brief Performs a local C2C 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_guru(const bool direction, const int rank, const fft_iodim *dims, const int howmany_rank,
-                      const fft_iodim *howmany_dims,
-                      const int number_of_threads, double complex *grid_in,
-                      double complex *grid_out) {
+void fft_fftw_guru(const bool direction, const int rank, const fft_iodim *dims,
+                   const int howmany_rank, const fft_iodim *howmany_dims,
+                   const int number_of_threads, double complex *grid_in,
+                   double complex *grid_out) {
 #if defined(__FFTW3)
   assert(has_guru_interface);
   assert(is_initialized);
   for (int r = 0; r < rank; r++) {
-    if (dims[r].n == 0) return;
+    if (dims[r].n == 0)
+      return;
   }
   for (int r = 0; r < howmany_rank; r++) {
-    if (howmany_dims[r].n == 0) return;
+    if (howmany_dims[r].n == 0)
+      return;
   }
   fft_key_t key;
-  get_key_guru(
-      direction, rank, dims, howmany_rank, howmany_dims, number_of_threads, grid_in == grid_out, key);
+  get_key_guru(direction, rank, dims, howmany_rank, howmany_dims,
+               number_of_threads, grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
-    plan = fft_fftw_create_guru_plan(key, buffer, grid_in == grid_out ? buffer : grid_out);
+    plan = fft_fftw_create_guru_plan(key, buffer,
+                                     grid_in == grid_out ? buffer : grid_out);
     fftw_free(buffer);
   }
   fftw_execute_dft(*plan, grid_in, grid_out);
@@ -3562,25 +3572,29 @@ void fft_fftw_guru(const bool direction, const int rank, const fft_iodim *dims, 
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
-                          const fft_iodim *howmany_dims,
-                          const int number_of_threads, double *grid_in,
-                          double complex *grid_out) {
+                       const fft_iodim *howmany_dims,
+                       const int number_of_threads, double *grid_in,
+                       double complex *grid_out) {
 #if defined(__FFTW3)
   assert(has_guru_interface);
   assert(is_initialized);
   for (int r = 0; r < rank; r++) {
-    if (dims[r].n == 0) return;
+    if (dims[r].n == 0)
+      return;
   }
   for (int r = 0; r < howmany_rank; r++) {
-    if (howmany_dims[r].n == 0) return;
+    if (howmany_dims[r].n == 0)
+      return;
   }
   fft_key_t key;
-  get_key_guru_r2c(true, rank, dims, howmany_rank, howmany_dims, number_of_threads,
-      grid_in == (double *)grid_out, key);
+  get_key_guru_r2c(true, rank, dims, howmany_rank, howmany_dims,
+                   number_of_threads, grid_in == (double *)grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
-    double *buffer = fftw_alloc_real(2*get_buffer_size_from_key(key));
-    plan = fft_fftw_create_guru_plan_r2c(key, buffer, grid_in == (double*)grid_out ? buffer : (double*)grid_out);
+    double *buffer = fftw_alloc_real(2 * get_buffer_size_from_key(key));
+    plan = fft_fftw_create_guru_plan_r2c(
+        key, buffer,
+        grid_in == (double *)grid_out ? buffer : (double *)grid_out);
     fftw_free(buffer);
   }
   fftw_execute_dft_r2c(*plan, grid_in, grid_out);
@@ -3601,25 +3615,29 @@ void fft_fftw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
-                          const fft_iodim *howmany_dims,
-                          const int number_of_threads, double complex *grid_in,
-                          double *grid_out) {
+                       const fft_iodim *howmany_dims,
+                       const int number_of_threads, double complex *grid_in,
+                       double *grid_out) {
 #if defined(__FFTW3)
   assert(has_guru_interface);
   assert(is_initialized);
   for (int r = 0; r < rank; r++) {
-    if (dims[r].n == 0) return;
+    if (dims[r].n == 0)
+      return;
   }
   for (int r = 0; r < howmany_rank; r++) {
-    if (howmany_dims[r].n == 0) return;
+    if (howmany_dims[r].n == 0)
+      return;
   }
   fft_key_t key;
-  get_key_guru_r2c(false, rank, dims, howmany_rank, howmany_dims, number_of_threads,
-      (double *)grid_in == grid_out, key);
+  get_key_guru_r2c(false, rank, dims, howmany_rank, howmany_dims,
+                   number_of_threads, (double *)grid_in == grid_out, key);
   fftw_plan *plan = lookup_plan_from_cache(key);
   if (plan == NULL) {
     double complex *buffer = fftw_alloc_complex(get_buffer_size_from_key(key));
-    plan = fft_fftw_create_guru_plan_r2c(key, (double*)grid_in == grid_out ? (double*)buffer : grid_out, (double*)buffer);
+    plan = fft_fftw_create_guru_plan_r2c(
+        key, (double *)grid_in == grid_out ? (double *)buffer : grid_out,
+        (double *)buffer);
     fftw_free(buffer);
   }
   fftw_execute_dft_c2r(*plan, grid_in, grid_out);

@@ -203,28 +203,29 @@ void fft_fftw_register_3d_c2r_local(const int fft_size[3],
  * \brief Performs a local C2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_register_guru(const bool direction, int rank, const fft_iodim *dims, int howmany_rank,
-                      const fft_iodim *howmany_dims,
-                      const int number_of_threads, double complex *grid_in,
-                      double complex *grid_out);
+void fft_fftw_register_guru(const bool direction, int rank,
+                            const fft_iodim *dims, int howmany_rank,
+                            const fft_iodim *howmany_dims,
+                            const int number_of_threads,
+                            double complex *grid_in, double complex *grid_out);
 
 /*******************************************************************************
  * \brief Performs a local forward R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_register_r2c_guru(int rank, const fft_iodim *dims, int howmany_rank,
-                          const fft_iodim *howmany_dims,
-                          const int number_of_threads, double *grid_in,
-                          double complex *grid_out) ;
+void fft_fftw_register_r2c_guru(int rank, const fft_iodim *dims,
+                                int howmany_rank, const fft_iodim *howmany_dims,
+                                const int number_of_threads, double *grid_in,
+                                double complex *grid_out);
 
 /*******************************************************************************
  * \brief Performs a local backwards R2C FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_register_c2r_guru(int rank, const fft_iodim *dims, int howmany_rank,
-                          const fft_iodim *howmany_dims,
-                          const int number_of_threads, double complex *grid_in,
-                          double *grid_out);
+void fft_fftw_register_c2r_guru(int rank, const fft_iodim *dims,
+                                int howmany_rank, const fft_iodim *howmany_dims,
+                                const int number_of_threads,
+                                double complex *grid_in, double *grid_out);
 
 /*******************************************************************************
  * \brief Performs a distributed C2C 2D FFT.
@@ -396,28 +397,28 @@ void fft_fftw_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
  * \brief Performs a local C2C 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
-void fft_fftw_guru(const bool direction, const int rank, const fft_iodim *dims, const int howmany_rank,
-                      const fft_iodim *howmany_dims,
-                      const int number_of_threads, double complex *grid_in,
-                      double complex *grid_out);
+void fft_fftw_guru(const bool direction, const int rank, const fft_iodim *dims,
+                   const int howmany_rank, const fft_iodim *howmany_dims,
+                   const int number_of_threads, double complex *grid_in,
+                   double complex *grid_out);
 
 /*******************************************************************************
  * \brief Performs a local forward R2C 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
-                          const fft_iodim *howmany_dims,
-                          const int number_of_threads, double *grid_in,
-                          double complex *grid_out);
+                       const fft_iodim *howmany_dims,
+                       const int number_of_threads, double *grid_in,
+                       double complex *grid_out);
 
 /*******************************************************************************
  * \brief Performs a local backwards R2C 3D FFT.
  * \author Frederick Stein
  ******************************************************************************/
 void fft_fftw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
-                          const fft_iodim *howmany_dims,
-                          const int number_of_threads, double complex *grid_in,
-                          double *grid_out);
+                       const fft_iodim *howmany_dims,
+                       const int number_of_threads, double complex *grid_in,
+                       double *grid_out);
 
 /*******************************************************************************
  * \brief Returns sizes and starts of distributed C2C 2D FFTs.

@@ -551,7 +551,6 @@ CONTAINS
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat, cell_h_inv
       REAL(KIND=dp), INTENT(IN)                          :: cell_deth
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
-
       INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: bounds_local
       INTEGER, INTENT(in), OPTIONAL                      :: blocked
       TYPE(pw_grid_type), INTENT(in), OPTIONAL           :: ref_grid
@@ -799,7 +798,6 @@ CONTAINS
    SUBROUTINE pw_grid_distribute(pw_grid, yz_mask, bounds_local, ref_grid, blocked)
 
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
-
       INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: yz_mask
       INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: bounds_local
       TYPE(pw_grid_type), INTENT(IN), OPTIONAL           :: ref_grid
@@ -807,9 +805,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute'
 
-      INTEGER                                            :: blocked_local, gmax, handle, i, i1, i2, ip, &
-                                                            ipl, ipp, j, l, lby, lbz, lo(2), m, n, &
-                                                            np, ns, ny, nz
+      INTEGER                                            :: blocked_local, gmax, handle, i, i1, i2, &
+                                                            ip, ipl, ipp, j, l, lby, lbz, lo(2), &
+                                                            m, n, np, ns, ny, nz
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: yz_index
       LOGICAL                                            :: blocking
