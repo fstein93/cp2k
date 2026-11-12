@@ -164,8 +164,8 @@ void fft_register_3d_blocked(const int npts_global[3],
       }
     }
   } else {
-    fft_register_3d_local(true, npts_global, grid_buffer_1, grid_buffer_2);
-    fft_register_3d_local(false, npts_global, grid_buffer_1, grid_buffer_2);
+    fft_register_3d_local(true, npts_global, 1, false, false, grid_buffer_1, grid_buffer_2);
+    fft_register_3d_local(false, npts_global, 1, false, false, grid_buffer_1, grid_buffer_2);
   }
 }
 
@@ -524,8 +524,8 @@ void fft_register_3d_ray(const int npts_global[3], int (*proc2local_rs)[3][2],
                           false, npts_global[2], npts_global[2], grid_buffer_1,
                           grid_buffer_2);
   } else {
-    fft_register_3d_local(true, npts_global, grid_buffer_2, grid_buffer_1);
-    fft_register_3d_local(false, npts_global, grid_buffer_2, grid_buffer_1);
+    fft_register_3d_local(true, npts_global, 1, false, false, grid_buffer_2, grid_buffer_1);
+    fft_register_3d_local(false, npts_global, 1, false, false, grid_buffer_2, grid_buffer_1);
   }
 }
 
@@ -1071,7 +1071,7 @@ void fft_3d_fw_blocked(const double complex *restrict grid_rs, bool is_complex,
     }
 
     if (index_to_cart != NULL) {
-      fft_3d_local(true, npts_global, grid_buffer_1, grid_buffer_2);
+      fft_3d_local(true, npts_global, 1, false, false, grid_buffer_1, grid_buffer_2);
 
 #pragma omp parallel for default(none) shared(                                 \
         npts_gs_local, index_to_cart, grid_gs, grid_buffer_2, scaling_factor)
@@ -1079,7 +1079,7 @@ void fft_3d_fw_blocked(const double complex *restrict grid_rs, bool is_complex,
         grid_gs[index] = scaling_factor * grid_buffer_2[index_to_cart[index]];
       }
     } else {
-      fft_3d_local(true, npts_global, grid_buffer_1, grid_gs);
+      fft_3d_local(true, npts_global, 1, false, false, grid_buffer_1, grid_gs);
       zdscal_(&number_of_points_to_scale, &scaling_factor, grid_gs,
               &stride_size);
     }
@@ -1761,7 +1761,7 @@ void fft_3d_bw_blocked(const double complex *restrict grid_gs,
              product3(fft_sizes_gs) * sizeof(double complex));
     }
 
-    fft_3d_local(false, npts_global, grid_buffer_1,
+    fft_3d_local(false, npts_global, 1, false, false, grid_buffer_1,
                  is_complex ? grid_rs : grid_buffer_2);
 
     if (!is_complex) {
@@ -2346,7 +2346,7 @@ void fft_3d_fw_ray(const double complex *restrict grid_rs, bool is_complex,
         grid_buffer_2[i] = CMPLX(grid_rs_double[i], 0.0);
     }
 
-    fft_3d_local(true, npts_global, grid_buffer_2, grid_buffer_1);
+    fft_3d_local(true, npts_global, 1, false, false, grid_buffer_2, grid_buffer_1);
 #pragma omp parallel for default(none) shared(                                 \
         npts_gs_local, grid_gs, grid_buffer_1, scaling_factor, index_to_ray)
     for (int index = 0; index < npts_gs_local; index++) {
@@ -2955,9 +2955,9 @@ void fft_3d_bw_ray(const double complex *restrict grid_gs, int *index_to_ray,
     }
 
     if (is_complex) {
-      fft_3d_local(false, npts_global, grid_buffer_2, grid_rs);
+      fft_3d_local(false, npts_global, 1, false, false, grid_buffer_2, grid_rs);
     } else {
-      fft_3d_local(false, npts_global, grid_buffer_2, grid_buffer_1);
+      fft_3d_local(false, npts_global, 1, false, false, grid_buffer_2, grid_buffer_1);
 
       double *grid_rs_double = (double *)grid_rs;
 #pragma omp parallel for default(none)                                         \

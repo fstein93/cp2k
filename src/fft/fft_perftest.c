@@ -326,7 +326,6 @@ static void run_test_ray_r2c(const int fft_size[3], const int number_of_runs,
 void run_perftests(const bool debug, const int backend, const int planning_mode,
                    const bool use_mpi, const bool use_guru,
                    const double threshold) {
-  fft_init_timer(debug);
   fft_init_lib(backend, planning_mode, use_mpi, use_guru, NULL);
 
   // These are approximate grid sizes of the finest grid level for the
@@ -411,7 +410,7 @@ void run_perftests(const bool debug, const int backend, const int planning_mode,
   //     QS_low_scaling_GW
   //  run_test_ray_r2c((const int[3]){600, 180, 120}, 10, true);
 
-  fft_print_timing_report(threshold);
+  fft_print_timing_report(threshold, cp_mpi_get_comm_world());
   fft_finalize_timer();
   fft_finalize_lib(NULL);
 }

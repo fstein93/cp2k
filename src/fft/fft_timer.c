@@ -430,7 +430,7 @@ void fft_finalize_timer() {
  ******************************************************************************/
 int fft_start_timer(const char *routine_name) {
   offload_timeset(routine_name);
-  if (omp_get_thread_num() == 0) {
+  if (timers_initialized && omp_get_thread_num() == 0) {
     const int handle = get_routine_handle(routine_name);
     push_on_stack(handle);
     return handle;

@@ -30,7 +30,7 @@ PROGRAM fft_api_unittest
    END IF
 
    CALL fft_library_init(FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_FFTW_MODE_ESTIMATE, &
-                         .TRUE., "", status)
+                         .TRUE., .TRUE., "", status)
    IF (status /= 0) ERROR STOP "FFT library initialization failed"
 
    errors = 0
