@@ -62,7 +62,7 @@ PROGRAM pw_unittest
    CALL check_pw_integral_and_poisson()
    CALL check_mt2d_kernel()
    PRINT '(A,ES16.7)', 'PW integral and MT2D kernel maximum scaled error: ', max_error
-   CALL finalize_fft(para_env, "")
+   CALL finalize_fft("")
    CALL cp2k_finalize()
 
 CONTAINS
