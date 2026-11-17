@@ -124,6 +124,56 @@ static void add_plan_to_cache(const fft_key_t key, fftw_plan *plan) {
   cache[i].plan = plan;
   omp_unset_nest_lock(&cache_lock);
 }
+
+/*******************************************************************************
+ * \brief Removes a plan from the cache (destroying it) if it is present.
+ *        Used to keep distributed plan creation collective across ranks.
+ * \author Frederick Stein
+ ******************************************************************************/
+static void remove_plan_from_cache(const fft_key_t key) {
+  assert(is_initialized);
+  omp_set_nest_lock(&cache_lock);
+  cache_entry *cache = current_cache();
+  for (int i = 0; i < FFTW_CACHE_SIZE; i++) {
+    if (cache[i].plan != NULL &&
+        memcmp(key, cache[i].key, sizeof(fft_key_t)) == 0) {
+      fftw_destroy_plan(*cache[i].plan);
+      free(cache[i].plan);
+      cache[i].plan = NULL;
+      memset(cache[i].key, 0, sizeof(fft_key_t));
+      break;
+    }
+  }
+  omp_unset_nest_lock(&cache_lock);
+}
+
+#if defined(__parallel) && defined(__FFTW3_MPI)
+/*******************************************************************************
+ * \brief Looks up a distributed plan and makes the cache state consistent.
+ *        FFTW-MPI plan creation is collective, so all ranks must agree on
+ *        whether a plan has to be created. If only some ranks hold a cached
+ *        plan, those ranks drop (and destroy) it so that every rank rebuilds
+ *        the plan collectively.
+ * \return true if the caller has to (collectively) create the plan
+ * \author Frederick Stein
+ ******************************************************************************/
+static bool distributed_plan_reset_if_inconsistent(const fft_key_t key,
+                                                   fftw_plan **plan,
+                                                   const cp_mpi_comm_t comm) {
+  *plan = lookup_plan_from_cache(key);
+  int present = (*plan != NULL) ? 1 : 0;
+  int total = present;
+  cp_mpi_sum_int(&total, 1, comm);
+  if (total != cp_mpi_comm_size(comm)) {
+    if (*plan != NULL) {
+      remove_plan_from_cache(key);
+      *plan = NULL;
+    }
+    return true;
+  }
+  return false;
+}
+#endif
 #endif
 
 static bool use_fftw_mpi = false;
@@ -2305,8 +2355,8 @@ void fft_fftw_register_2d_distributed(const bool direction,
   fft_key_t key;
   get_key_2d_distributed(direction, npts_global, number_of_ffts, comm,
                          omp_get_max_threads(), key);
-  fftw_plan *plan = lookup_plan_from_cache(key);
-  if (plan == NULL)
+  fftw_plan *plan = NULL;
+  if (distributed_plan_reset_if_inconsistent(key, &plan, comm))
     plan = fft_fftw_create_distributed_2d_plan(key, grid_in, grid_out);
   assert(plan != NULL);
 #else
@@ -2337,8 +2387,8 @@ void fft_fftw_register_2d_r2c_distributed(const int npts_global[2],
   fft_key_t key;
   get_key_2d_r2c_distributed(true, npts_global, number_of_ffts, comm,
                              omp_get_max_threads(), key);
-  fftw_plan *plan = lookup_plan_from_cache(key);
-  if (plan == NULL)
+  fftw_plan *plan = NULL;
+  if (distributed_plan_reset_if_inconsistent(key, &plan, comm))
     plan = fft_fftw_create_distributed_2d_plan_r2c(key, grid_in,
                                                    (double *)grid_out);
   assert(plan != NULL);
@@ -2370,8 +2420,8 @@ void fft_fftw_register_2d_c2r_distributed(const int npts_global[2],
   fft_key_t key;
   get_key_2d_r2c_distributed(false, npts_global, number_of_ffts, comm,
                              omp_get_max_threads(), key);
-  fftw_plan *plan = lookup_plan_from_cache(key);
-  if (plan == NULL)
+  fftw_plan *plan = NULL;
+  if (distributed_plan_reset_if_inconsistent(key, &plan, comm))
     plan = fft_fftw_create_distributed_2d_plan_r2c(key, (double *)grid_in,
                                                    grid_out);
   assert(plan != NULL);
@@ -2403,8 +2453,8 @@ void fft_fftw_register_3d_distributed(const bool direction,
   fft_key_t key;
   get_key_3d_distributed(direction, npts_global, comm, omp_get_max_threads(),
                          key);
-  fftw_plan *plan = lookup_plan_from_cache(key);
-  if (plan == NULL)
+  fftw_plan *plan = NULL;
+  if (distributed_plan_reset_if_inconsistent(key, &plan, comm))
     plan = fft_fftw_create_distributed_3d_plan(key, grid_in, grid_out);
   assert(plan != NULL);
 #else
@@ -2433,8 +2483,8 @@ void fft_fftw_register_3d_r2c_distributed(const int npts_global[3],
   fft_key_t key;
   get_key_3d_r2c_distributed(true, npts_global, comm, omp_get_max_threads(),
                              key);
-  fftw_plan *plan = lookup_plan_from_cache(key);
-  if (plan == NULL)
+  fftw_plan *plan = NULL;
+  if (distributed_plan_reset_if_inconsistent(key, &plan, comm))
     plan = fft_fftw_create_distributed_3d_plan_r2c(key, grid_in,
                                                    (double *)grid_out);
   assert(plan != NULL);
@@ -2464,8 +2514,8 @@ void fft_fftw_register_3d_c2r_distributed(const int npts_global[3],
   fft_key_t key;
   get_key_3d_r2c_distributed(false, npts_global, comm, omp_get_max_threads(),
                              key);
-  fftw_plan *plan = lookup_plan_from_cache(key);
-  if (plan == NULL)
+  fftw_plan *plan = NULL;
+  if (distributed_plan_reset_if_inconsistent(key, &plan, comm))
     plan = fft_fftw_create_distributed_3d_plan_r2c(key, (double *)grid_in,
                                                    grid_out);
   assert(plan != NULL);
@@ -3608,8 +3658,8 @@ void fft_fftw_2d_distributed(const bool direction, const int npts_global[2],
   fft_key_t key;
   get_key_2d_distributed(direction, npts_global, number_of_ffts, comm,
                          omp_get_max_threads(), key);
-  fftw_plan *plan = lookup_plan_from_cache(key);
-  if (plan == NULL) {
+  fftw_plan *plan = NULL;
+  if (distributed_plan_reset_if_inconsistent(key, &plan, comm)) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
     double complex *buffer = fftw_alloc_complex(buffer_size);
     plan = fft_fftw_create_distributed_2d_plan(key, buffer, grid_out);
@@ -3646,8 +3696,8 @@ void fft_fftw_2d_r2c_distributed(const int npts_global[2],
   fft_key_t key;
   get_key_2d_r2c_distributed(true, npts_global, number_of_ffts, comm,
                              omp_get_max_threads(), key);
-  fftw_plan *plan = lookup_plan_from_cache(key);
-  if (plan == NULL) {
+  fftw_plan *plan = NULL;
+  if (distributed_plan_reset_if_inconsistent(key, &plan, comm)) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
     double *buffer = fftw_alloc_real(2 * buffer_size);
     plan = fft_fftw_create_distributed_2d_plan_r2c(key, buffer,
@@ -3684,8 +3734,8 @@ void fft_fftw_2d_c2r_distributed(const int npts_global[2],
   fft_key_t key;
   get_key_2d_r2c_distributed(false, npts_global, number_of_ffts, comm,
                              omp_get_max_threads(), key);
-  fftw_plan *plan = lookup_plan_from_cache(key);
-  if (plan == NULL) {
+  fftw_plan *plan = NULL;
+  if (distributed_plan_reset_if_inconsistent(key, &plan, comm)) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
     double complex *buffer = fftw_alloc_complex(buffer_size);
     plan = fft_fftw_create_distributed_2d_plan_r2c(key, (double *)buffer,
@@ -3721,8 +3771,8 @@ void fft_fftw_3d_distributed(const bool direction, const int npts_global[3],
   fft_key_t key;
   get_key_3d_distributed(direction, npts_global, comm, omp_get_max_threads(),
                          key);
-  fftw_plan *plan = lookup_plan_from_cache(key);
-  if (plan == NULL) {
+  fftw_plan *plan = NULL;
+  if (distributed_plan_reset_if_inconsistent(key, &plan, comm)) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
     double complex *buffer = fftw_alloc_complex(buffer_size);
     plan = fft_fftw_create_distributed_3d_plan(key, buffer, grid_out);
@@ -3757,8 +3807,8 @@ void fft_fftw_3d_r2c_distributed(const int npts_global[3],
   fft_key_t key;
   get_key_3d_r2c_distributed(true, npts_global, comm, omp_get_max_threads(),
                              key);
-  fftw_plan *plan = lookup_plan_from_cache(key);
-  if (plan == NULL) {
+  fftw_plan *plan = NULL;
+  if (distributed_plan_reset_if_inconsistent(key, &plan, comm)) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
     double *buffer = fftw_alloc_real(2 * buffer_size);
     plan = fft_fftw_create_distributed_3d_plan_r2c(key, buffer,
@@ -3793,8 +3843,8 @@ void fft_fftw_3d_c2r_distributed(const int npts_global[3],
   fft_key_t key;
   get_key_3d_r2c_distributed(false, npts_global, comm, omp_get_max_threads(),
                              key);
-  fftw_plan *plan = lookup_plan_from_cache(key);
-  if (plan == NULL) {
+  fftw_plan *plan = NULL;
+  if (distributed_plan_reset_if_inconsistent(key, &plan, comm)) {
     const int buffer_size = get_buffer_size_from_key_mpi(key);
     double complex *buffer = fftw_alloc_complex(buffer_size);
     plan = fft_fftw_create_distributed_3d_plan_r2c(key, (double *)buffer,
