@@ -157,7 +157,7 @@ void grid_free_fft_grid_layout(fft_grid_layout *fft_grid) {
   }
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_free_grid_layout");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "free_grid_layout");
   const int handle = fft_start_timer(routine_name);
   if (fft_grid != NULL) {
     assert((fft_grid->ref_counter) > 0);
@@ -600,7 +600,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
                                  const int *external_local_bounds) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_create_grid_layout");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "create_grid_layout");
   const int handle = fft_start_timer(routine_name);
   fft_grid_layout *my_fft_grid = NULL;
   if (*fft_grid != NULL) {
@@ -1110,7 +1110,7 @@ void grid_create_fft_grid_layout_from_reference(
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "fft_create_grid_layout_from_ref");
+           "create_grid_layout_from_ref");
   const int handle = fft_start_timer(routine_name);
   assert(fft_grid_ref != NULL &&
          "Grid creation from reference grid requires a valid reference grid!");

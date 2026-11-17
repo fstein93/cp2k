@@ -815,6 +815,7 @@ CONTAINS
 !------------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
+      MARK_USED(bounds_local)
 
       lby = pw_grid%bounds(1, 2)
       lbz = pw_grid%bounds(1, 3)

@@ -775,10 +775,10 @@ void fft_3d_fw_blocked(const double complex *restrict grid_rs, bool is_complex,
                        const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_b");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_fw_b");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_b_%i_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_fw_b_%i_%i_%i_%i",
            npts_global[0], npts_global[1], npts_global[2],
            cp_mpi_comm_size(comm));
   const int handle2 = fft_start_timer(routine_name);
@@ -1104,10 +1104,10 @@ void fft_3d_fw_r2c_blocked(
     cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_r2c_b");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_fw_r2c_b");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_r2c_b_%i_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_fw_r2c_b_%i_%i_%i_%i",
            npts_global[0], npts_global[1], npts_global[2],
            cp_mpi_comm_size(comm));
   const int handle2 = fft_start_timer(routine_name);
@@ -1482,10 +1482,10 @@ void fft_3d_bw_blocked(const double complex *restrict grid_gs,
                        const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_b");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_bw_b");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_b_%i_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_bw_b_%i_%i_%i_%i",
            npts_global[0], npts_global[1], npts_global[2],
            cp_mpi_comm_size(comm));
   const int handle2 = fft_start_timer(routine_name);
@@ -1791,10 +1791,10 @@ void fft_3d_bw_c2r_blocked(
     cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_c2r_b");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_bw_c2r_b");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_c2r_b_%i_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_bw_c2r_b_%i_%i_%i_%i",
            npts_global[0], npts_global[1], npts_global[2],
            cp_mpi_comm_size(comm));
   const int handle2 = fft_start_timer(routine_name);
@@ -2091,10 +2091,10 @@ void fft_3d_fw_ray(const double complex *restrict grid_rs, bool is_complex,
                    const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_r");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_fw_r");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_r_%i_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_fw_r_%i_%i_%i_%i",
            npts_global[0], npts_global[1], npts_global[2],
            cp_mpi_comm_size(comm));
   const int handle2 = fft_start_timer(routine_name);
@@ -2374,10 +2374,10 @@ void fft_3d_fw_r2c_ray(const double *restrict grid_rs,
                        const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_r2c_r");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_fw_r2c_r");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_fw_r2c_r_%i_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_fw_r2c_r_%i_%i_%i_%i",
            npts_global[0], npts_global[1], npts_global[2],
            cp_mpi_comm_size(comm));
   const int handle2 = fft_start_timer(routine_name);
@@ -2700,10 +2700,10 @@ void fft_3d_bw_ray(const double complex *restrict grid_gs, int *index_to_ray,
                    const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_r");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_bw_r");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_r_%i_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_bw_r_%i_%i_%i_%i",
            npts_global[0], npts_global[1], npts_global[2],
            cp_mpi_comm_size(comm));
   const int handle2 = fft_start_timer(routine_name);
@@ -2986,10 +2986,10 @@ void fft_3d_bw_c2r_ray(const double complex *restrict grid_gs,
                        const cp_mpi_comm_t sub_comm[2]) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_c2r_r");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_bw_c2r_r");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "fft_3d_bw_c2r_r_%i_%i_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_bw_c2r_r_%i_%i_%i_%i",
            npts_global[0], npts_global[1], npts_global[2],
            cp_mpi_comm_size(comm));
   const int handle2 = fft_start_timer(routine_name);
