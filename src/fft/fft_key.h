@@ -454,15 +454,11 @@ get_key_2d_distributed(const bool direction, const int fft_size[2],
   key[0] = 2 + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(comm);
   key[2] = number_of_threads;
+  for (int d = 3; d < KEY_SIZE; d++)
+    key[d] = 0;
   key[3] = fft_size[0];
   key[4] = fft_size[1];
   key[5] = number_of_ffts;
-  key[6] = fft_size[1] * number_of_ffts;
-  key[7] = number_of_ffts;
-  key[8] = 1;
-  key[9] = number_of_ffts;
-  key[10] = fft_size[0] * number_of_ffts;
-  key[11] = 1;
 }
 
 /*******************************************************************************
@@ -476,15 +472,11 @@ get_key_2d_r2c_distributed(const bool direction, const int fft_size[2],
   key[0] = 2 + FFT_KEY_R2C + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(comm);
   key[2] = number_of_threads;
+  for (int d = 3; d < KEY_SIZE; d++)
+    key[d] = 0;
   key[3] = fft_size[0];
   key[4] = fft_size[1];
   key[5] = number_of_ffts;
-  key[6] = fft_size[1] * number_of_ffts;
-  key[7] = number_of_ffts;
-  key[8] = 1;
-  key[9] = number_of_ffts;
-  key[10] = (fft_size[0] / 2 + 1) * number_of_ffts;
-  key[11] = 1;
 }
 
 /*******************************************************************************
@@ -499,15 +491,12 @@ static inline void get_key_3d_distributed(const bool direction,
   key[0] = 3 + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(comm);
   key[2] = number_of_threads;
+  for (int d = 3; d < KEY_SIZE; d++)
+    key[d] = 0;
   key[3] = fft_size[0];
   key[4] = fft_size[1];
   key[5] = fft_size[2];
-  key[6] = fft_size[1] * fft_size[2];
-  key[7] = fft_size[2];
-  key[8] = 1;
-  key[9] = fft_size[2];
-  key[10] = fft_size[0] * fft_size[2];
-  key[11] = 1;
+  key[6] = 1;
 }
 
 /*******************************************************************************
@@ -522,15 +511,12 @@ static inline void get_key_3d_r2c_distributed(const bool direction,
   key[0] = 3 + FFT_KEY_R2C + direction * FFT_KEY_FORWARD;
   key[1] = cp_mpi_comm_c2f(comm);
   key[2] = number_of_threads;
+  for (int d = 3; d < KEY_SIZE; d++)
+    key[d] = 0;
   key[3] = fft_size[0];
   key[4] = fft_size[1];
   key[5] = fft_size[2];
-  key[6] = fft_size[1] * 2 * (fft_size[2] / 2 + 1);
-  key[7] = 2 * (fft_size[2] / 2 + 1);
-  key[8] = 1;
-  key[9] = 2 * (fft_size[2] / 2 + 1);
-  key[10] = fft_size[0] * 2 * (fft_size[2] / 2 + 1);
-  key[11] = 1;
+  key[6] = 1;
 }
 
 /*******************************************************************************
@@ -540,7 +526,7 @@ static inline void get_key_3d_r2c_distributed(const bool direction,
 static inline int get_buffer_size_from_key_mpi(const fft_key_t key) {
   const int rank = key[0] % 4;
   const int *fft_size = key + 3;
-  const int number_of_ffts = rank == 3 ? 1 : key[5];
+  const int number_of_ffts = key[3 + rank];
   const bool is_r2c = (key[0] & FFT_KEY_R2C) == FFT_KEY_R2C;
   cp_mpi_comm_t comm = cp_mpi_comm_f2c(key[1]);
   if (number_of_ffts == 0 || fft_size[0] == 0 || fft_size[1] == 0 ||
@@ -573,7 +559,7 @@ static inline void fetch_data_from_key_mpi(const fft_key_t key, int *rank,
   for (int r = 0; r < *rank; r++) {
     fft_size[r] = key[3 + r];
   }
-  *number_of_ffts = *rank < 3 ? key[3 + *rank] : 1;
+  *number_of_ffts = key[3 + *rank];
   *number_of_threads = key[2];
   *comm = cp_mpi_comm_f2c(key[1]);
 }
