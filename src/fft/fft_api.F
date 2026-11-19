@@ -44,6 +44,7 @@ MODULE fft_api
    PUBLIC :: fft_grid_type, fft_create_grid, fft_create_grid_from_reference, fft_free_grid
    PUBLIC :: fft_grid_get_npts_global, fft_grid_get_comm
    PUBLIC :: fft_grid_get_proc2local_rs, fft_grid_get_proc2local_ms, fft_grid_get_proc2local_gs
+   PUBLIC :: fft_grid_get_rays_per_process
 
    ! Keep it synchronized with fft_api_F.c
    INTEGER, PARAMETER, PUBLIC :: FFT_LIBRARY_BACKEND_DEFAULT = 1
@@ -1706,6 +1707,38 @@ CONTAINS
       DEALLOCATE (proc2local_gs_c)
 
    END SUBROUTINE fft_grid_get_proc2local_gs
+
+! **************************************************************************************************
+!> \brief Fetch the number of yz rays per process from the FFT grid layout.
+!> \param fft_grid ...
+!> \param nyzray ...
+!> \return whether the layout provides a ray distribution
+! **************************************************************************************************
+   LOGICAL FUNCTION fft_grid_get_rays_per_process(fft_grid, nyzray) RESULT(available)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+      INTEGER, DIMENSION(0:), INTENT(OUT)                :: nyzray
+
+      INTEGER(C_INT)                                     :: status
+      INTEGER(C_INT), ALLOCATABLE, DIMENSION(:)          :: nyzray_c
+
+      INTERFACE
+         INTEGER(C_INT) FUNCTION fft_grid_get_rays_per_process_c(layout, rays) &
+            BIND(C, name="fft_grid_get_rays_per_process_F")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE :: layout
+            INTEGER(C_INT), DIMENSION(*), INTENT(OUT) :: rays
+         END FUNCTION fft_grid_get_rays_per_process_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+
+      ALLOCATE (nyzray_c(0:SIZE(nyzray) - 1))
+      status = fft_grid_get_rays_per_process_c(fft_grid%fft_grid, nyzray_c)
+      available = status /= 0
+      IF (available) nyzray = INT(nyzray_c)
+      DEALLOCATE (nyzray_c)
+
+   END FUNCTION fft_grid_get_rays_per_process
 
 ! **************************************************************************************************
 !> \brief Convert the C-side process distribution to one-based local bounds

@@ -963,6 +963,22 @@ void fft_grid_get_proc2local_gs_F(const fft_grid_layout *fft_grid,
 }
 
 /*******************************************************************************
+ * \brief Fetch the number of yz rays per process from the FFT grid layout.
+ * \param fft_grid FFT grid layout.
+ * \param rays Number of yz rays per process (output).
+ * \return whether the layout provides a ray distribution.
+ ******************************************************************************/
+int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid,
+                                    int *rays) {
+  assert(fft_grid != NULL);
+  if (fft_grid->rays_per_process == NULL)
+    return 0;
+  memcpy(rays, fft_grid->rays_per_process,
+         cp_mpi_comm_size(fft_grid->comm) * sizeof(int));
+  return 1;
+}
+
+/*******************************************************************************
  * \brief Free a FFT grid layout.
  * \author Frederick Stein
  ******************************************************************************/

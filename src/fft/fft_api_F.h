@@ -674,6 +674,9 @@ void fft_grid_get_proc2local_ms_F(const fft_grid_layout *fft_grid,
 void fft_grid_get_proc2local_gs_F(const fft_grid_layout *fft_grid,
                                   int *proc2local_gs);
 
+int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid,
+                                    int *rays);
+
 void fft_free_grid_F(fft_grid_layout *fft_grid);
 
 #endif

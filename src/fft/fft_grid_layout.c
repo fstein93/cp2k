@@ -925,7 +925,13 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
   my_fft_grid->xy_to_process = NULL;
   my_fft_grid->ray_to_xy = NULL;
   my_fft_grid->xy_to_ray = NULL;
-  my_fft_grid->rays_per_process = NULL;
+  // Even for blocked g-space distributions provide the number of yz rays per
+  // process (y length * z length), so the counts can always be fetched.
+  my_fft_grid->rays_per_process = calloc(number_of_processes, sizeof(int));
+  for (int process = 0; process < number_of_processes; process++)
+    my_fft_grid->rays_per_process[process] =
+        my_fft_grid->proc2local_gs[process][1][1] *
+        my_fft_grid->proc2local_gs[process][2][1];
   my_fft_grid->index_to_g = calloc(my_fft_grid->npts_gs_local, sizeof(int[3]));
   if (use_halfspace) {
     my_fft_grid->index_to_cart = NULL;
