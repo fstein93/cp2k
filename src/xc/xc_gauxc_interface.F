@@ -542,6 +542,8 @@ CONTAINS
       CHARACTER(len=*), INTENT(IN), OPTIONAL             :: int_exec_space
       TYPE(cp_gauxc_grid_type)                           :: res
 
+      MARK_USED(int_exec_space)
+
 #ifdef __GAUXC
       INTEGER(c_int)                                     :: grid_type_local, int_exec_space_local, &
                                                             int_exec_requested, &
