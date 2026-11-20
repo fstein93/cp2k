@@ -979,6 +979,23 @@ int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid,
 }
 
 /*******************************************************************************
+ * \brief Fetch the map from yz-ray indices to processes.
+ * \param fft_grid FFT grid layout.
+ * \param xy_to_process Process owning each yz ray (output).
+ * \return whether the layout provides a ray-distribution map.
+ ******************************************************************************/
+int fft_grid_get_xy_to_process_F(const fft_grid_layout *fft_grid,
+                                 int *xy_to_process) {
+  assert(fft_grid != NULL);
+  if (fft_grid->xy_to_process == NULL)
+    return 0;
+  memcpy(xy_to_process, fft_grid->xy_to_process,
+         fft_grid->npts_global_gspace[0] * fft_grid->npts_global_gspace[1] *
+             sizeof(int));
+  return 1;
+}
+
+/*******************************************************************************
  * \brief Free a FFT grid layout.
  * \author Frederick Stein
  ******************************************************************************/

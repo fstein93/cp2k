@@ -45,7 +45,8 @@ MODULE pw_grids
                                               fft_grid_get_proc2local_gs,&
                                               fft_grid_get_proc2local_ms,&
                                               fft_grid_get_proc2local_rs,&
-                                              fft_grid_get_rays_per_process
+                                              fft_grid_get_rays_per_process,&
+                                              fft_grid_get_xy_to_process
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               int_size
@@ -807,11 +808,12 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute'
 
       INTEGER                                            :: blocked_local, gmax, handle, i, i1, i2, &
-                                                            ip, ipl, ipp, j, l, lby, lbz, lo(2), &
-                                                            m, n, np, ns, ny, nz
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap, ray_count
+                                                             ip, ipl, ipp, ixx, j, jz, l, lby, lbz, &
+                                                             lo(2), m, n, np, ns, ny, nz, nz_ray
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap, ray_count, xy_to_process
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: yz_index
-      LOGICAL                                            :: blocking, nyzray_from_layout
+      LOGICAL                                            :: blocking, nyzray_from_layout, &
+                                                            ray_mapping_from_layout
 
 !------------------------------------------------------------------------------
 
@@ -902,6 +904,73 @@ CONTAINS
                CALL pre_tag(pw_grid, yz_mask, ref_grid)
             END IF
 
+            ! Try to use the ray distribution of the FFT grid layout directly.
+            ray_mapping_from_layout = .FALSE.
+            nz_ray = nz
+            IF (pw_grid%grid_span == HALFSPACE) nz_ray = nz/2 + 1
+            ALLOCATE (xy_to_process(0:nz_ray*ny - 1))
+            IF (fft_grid_get_xy_to_process(pw_grid%fft_grid, xy_to_process)) THEN
+               ! Validate that every ray with g vectors is covered by the layout
+               ray_mapping_from_layout = .TRUE.
+               DO i = 1, nz
+                  DO j = 1, ny
+                     IF (yz_mask(j, i) == 0) CYCLE
+                     IF (pw_grid%grid_span == HALFSPACE) THEN
+                        IF (i > nz_ray) THEN
+                           ray_mapping_from_layout = .FALSE.
+                           EXIT
+                        END IF
+                        ixx = nz_ray - i
+                     ELSE
+                        ixx = i + lbz - 1
+                        IF (ixx < 0) ixx = ixx + nz
+                     END IF
+                     jz = j + lby - 1
+                     IF (jz < 0) jz = jz + ny
+                     IF (ixx < 0 .OR. ixx >= nz_ray .OR. jz < 0 .OR. jz >= ny) THEN
+                        ray_mapping_from_layout = .FALSE.
+                        EXIT
+                     END IF
+                     IF (xy_to_process(ixx*ny + jz) < 0) THEN
+                        ray_mapping_from_layout = .FALSE.
+                        EXIT
+                     END IF
+                  END DO
+                  IF (.NOT. ray_mapping_from_layout) EXIT
+               END DO
+            END IF
+
+            IF (ray_mapping_from_layout) THEN
+               ! Assign each ray to the process given by the FFT grid layout
+               DO i = 1, nz
+                  IF (pw_grid%grid_span == HALFSPACE) THEN
+                     ixx = nz_ray - i
+                  ELSE
+                     ixx = i + lbz - 1
+                     IF (ixx < 0) ixx = ixx + nz
+                  END IF
+                  DO j = 1, ny
+                     gmax = yz_mask(j, i)
+                     IF (gmax == 0) CYCLE
+                     jz = j + lby - 1
+                     IF (jz < 0) jz = jz + ny
+                     ip = xy_to_process(ixx*ny + jz)
+                     yz_mask(j, i) = 0
+                     pw_grid%para%yzq(j, i) = ip
+                     IF (pw_grid%grid_span == HALFSPACE) THEN
+                        m = -j - 2*lby + 2
+                        n = -i - 2*lbz + 2
+                        IF (m >= 1 .AND. m <= ny .AND. n >= 1 .AND. n <= nz) THEN
+                           pw_grid%para%yzq(m, n) = ip
+                           yz_mask(m, n) = 0
+                        END IF
+                     END IF
+                     IF (ip == pw_grid%para%group%mepos) THEN
+                        pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local + gmax
+                     END IF
+                  END DO
+               END DO
+            ELSE
             ! Round Robin distribution
             ! Processors 0 .. NP-1, NP-1 .. 0  get the largest remaining batch
             ! of g vectors in turn
@@ -932,6 +1001,8 @@ CONTAINS
             END DO
 
             DEALLOCATE (yz_index)
+            END IF
+            DEALLOCATE (xy_to_process)
 
             ! Fetch the number of rays per process from the FFT grid layout.
             nyzray_from_layout = &
