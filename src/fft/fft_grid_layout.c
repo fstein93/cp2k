@@ -10,7 +10,7 @@
 #include "fft_lib.h"
 #include "fft_utils.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -73,8 +73,8 @@ void sort_shell(int (*shell)[3], const int shell_size) {
 }
 
 void sort_g_vectors(fft_grid_layout *my_fft_grid) {
-  assert(my_fft_grid != NULL);
-  assert(my_fft_grid->npts_gs_local >= 0);
+  cp_assert(my_fft_grid != NULL);
+  cp_assert(my_fft_grid->npts_gs_local >= 0);
 
   if (my_fft_grid->npts_gs_local == 0)
     return;
@@ -160,7 +160,7 @@ void grid_free_fft_grid_layout(fft_grid_layout *fft_grid) {
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "free_grid_layout");
   const int handle = fft_start_timer(routine_name);
   if (fft_grid != NULL) {
-    assert((fft_grid->ref_counter) > 0);
+    cp_assert((fft_grid->ref_counter) > 0);
     fft_grid->ref_counter--;
     if (fft_grid->ref_counter == 0) {
       cp_mpi_comm_free(&fft_grid->comm);
@@ -649,10 +649,10 @@ int grid_enable_ray_distribution(fft_grid_layout *g,
                                  const int *xy_to_process, const int nlocal,
                                  const int (*index_to_g)[3],
                                  const double *gsquared) {
-  assert(g != NULL);
-  assert(xy_to_process != NULL);
-  assert(index_to_g != NULL);
-  assert(gsquared != NULL);
+  cp_assert(g != NULL);
+  cp_assert(xy_to_process != NULL);
+  cp_assert(index_to_g != NULL);
+  cp_assert(gsquared != NULL);
   const int number_of_processes = cp_mpi_comm_size(g->comm);
   const int n0 = g->npts_global_gspace[0];
   const int n1 = g->npts_global[1];
@@ -684,7 +684,7 @@ int grid_enable_ray_distribution(fft_grid_layout *g,
   g->rays_per_process = calloc(number_of_processes, sizeof(int));
   for (size_t i = 0; i < map_size; i++) {
     const int p = g->xy_to_process[i];
-    assert(p >= 0 && p < number_of_processes);
+    cp_assert(p >= 0 && p < number_of_processes);
     g->rays_per_process[p]++;
   }
   int total_number_of_rays = 0;
@@ -765,8 +765,8 @@ int grid_enable_ray_distribution(fft_grid_layout *g,
         negative_index++;
       }
     }
-    assert(positive_index == g->number_of_positive_gs_points);
-    assert(negative_index == g->number_of_negative_gs_points);
+    cp_assert(positive_index == g->number_of_positive_gs_points);
+    cp_assert(negative_index == g->number_of_negative_gs_points);
   } else {
     for (int index = 0; index < g->npts_gs_local; index++) {
       int *index_g = g->index_to_g[index];
@@ -884,11 +884,11 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
             all_bounds[6 * process + 2 * dir + 1])
           all_bounds[6 * process + 2 * dir + 1] =
               all_bounds[6 * process + 2 * dir] - 1;
-        assert(all_bounds[6 * process + 2 * dir + 1] < npts_global[dir] &&
+        cp_assert(all_bounds[6 * process + 2 * dir + 1] < npts_global[dir] &&
                "Some externally provided bounds do not lay within the actual "
                "range");
       }
-      assert(all_bounds[6 * process] == 0 &&
+      cp_assert(all_bounds[6 * process] == 0 &&
              all_bounds[6 * process + 1] == npts_global[0] - 1 &&
              "The most outer index needs to be local!");
       total_number_of_elements += ((long int)all_bounds[6 * process + 1] -
@@ -898,7 +898,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
                                   ((long int)all_bounds[6 * process + 5] -
                                    all_bounds[6 * process + 4] + 1);
     }
-    assert(total_number_of_elements ==
+    cp_assert(total_number_of_elements ==
                (long int)npts_global[0] * npts_global[1] * npts_global[2] &&
            "In real-space, we must cover the whole 3D space");
     // Check whether the bounds of two processes either overlap or are different
@@ -907,7 +907,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
       for (int process2 = process1 + 1; process2 < number_of_processes;
            process2++) {
         for (int dir = 0; dir < 3; dir++) {
-          assert((all_bounds[6 * process1 + 2 * dir] >
+          cp_assert((all_bounds[6 * process1 + 2 * dir] >
                       all_bounds[6 * process2 + 2 * dir + 1] ||
                   all_bounds[6 * process1 + 2 * dir + 1] <
                       all_bounds[6 * process2 + 2 * dir] ||
@@ -920,7 +920,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
         }
         // Ensure bounds of different processes do not match or else the length
         // in at least one direction is zero
-        assert((memcmp(all_bounds + 6 * process1, all_bounds + 6 * process2,
+        cp_assert((memcmp(all_bounds + 6 * process1, all_bounds + 6 * process2,
                        6 * sizeof(int)) != 0 ||
                 all_bounds[6 * process1] > all_bounds[6 * process1 + 1] ||
                 all_bounds[6 * process1 + 2] > all_bounds[6 * process1 + 3] ||
@@ -937,7 +937,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
     while (current_first_position < npts_global[2]) {
       for (int process = 0; process < number_of_processes; process++) {
         if (current_first_position == all_bounds[6 * process + 4]) {
-          assert(size_of_first_dimension < number_of_processes);
+          cp_assert(size_of_first_dimension < number_of_processes);
           starts_first_dimension[size_of_first_dimension] =
               current_first_position;
           size_of_first_dimension++;
@@ -952,7 +952,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
     while (current_second_position < npts_global[1]) {
       for (int process = 0; process < number_of_processes; process++) {
         if (current_second_position == all_bounds[6 * process + 2]) {
-          assert(size_of_second_dimension < number_of_processes);
+          cp_assert(size_of_second_dimension < number_of_processes);
           starts_second_dimension[size_of_second_dimension] =
               current_second_position;
           size_of_second_dimension++;
@@ -960,7 +960,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
         }
       }
     }
-    assert(size_of_first_dimension * size_of_second_dimension ==
+    cp_assert(size_of_first_dimension * size_of_second_dimension ==
                number_of_processes &&
            "Incorrectly determined process grid! This should not happen!");
     my_fft_grid->proc_grid[0] = size_of_first_dimension;
@@ -977,7 +977,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
         break;
       }
     }
-    assert(proc_coord_1 >= 0 && "Lower bound in z-direction not found");
+    cp_assert(proc_coord_1 >= 0 && "Lower bound in z-direction not found");
     for (int proc_coord = 0; proc_coord < size_of_second_dimension;
          proc_coord++) {
       if (all_bounds[6 * my_process + 2] ==
@@ -986,14 +986,14 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
         break;
       }
     }
-    assert(proc_coord_2 >= 0 && "Lower bound in y-direction not found");
+    cp_assert(proc_coord_2 >= 0 && "Lower bound in y-direction not found");
     // Trivial mapping not successful, so we need a new communicator
     if (all_bounds[6 * my_process + 4] !=
             starts_first_dimension[proc_coord_1] ||
         all_bounds[6 * my_process + 2] !=
             starts_second_dimension[proc_coord_2]) {
       // We need to create a new communicator with the correct order without
-      assert(false && "Nontrivial mapping NYI");
+      cp_assert(false && "Nontrivial mapping NYI");
 
       my_fft_grid->comm =
           cp_mpi_cart_create(comm, 2, my_fft_grid->proc_grid, periodic, true);
@@ -1012,9 +1012,9 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
         cp_mpi_cart_sub(my_fft_grid->comm, (const int[2]){1, 0});
     my_fft_grid->sub_comm[1] =
         cp_mpi_cart_sub(my_fft_grid->comm, (const int[2]){0, 1});
-    assert(cp_mpi_comm_size(my_fft_grid->sub_comm[0]) ==
+    cp_assert(cp_mpi_comm_size(my_fft_grid->sub_comm[0]) ==
            my_fft_grid->proc_grid[0]);
-    assert(cp_mpi_comm_size(my_fft_grid->sub_comm[1]) ==
+    cp_assert(cp_mpi_comm_size(my_fft_grid->sub_comm[1]) ==
            my_fft_grid->proc_grid[1]);
 
     setup_proc2local(my_fft_grid, all_bounds);
@@ -1070,7 +1070,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
         my_fft_grid->proc_grid[1] = 1;
       }
     }
-    assert(my_fft_grid->proc_grid[0] && my_fft_grid->proc_grid[1] &&
+    cp_assert(my_fft_grid->proc_grid[0] && my_fft_grid->proc_grid[1] &&
            my_fft_grid->proc_grid[0] * my_fft_grid->proc_grid[1] ==
                number_of_processes);
 
@@ -1084,9 +1084,9 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
         cp_mpi_cart_sub(my_fft_grid->comm, (const int[2]){1, 0});
     my_fft_grid->sub_comm[1] =
         cp_mpi_cart_sub(my_fft_grid->comm, (const int[2]){0, 1});
-    assert(cp_mpi_comm_size(my_fft_grid->sub_comm[0]) ==
+    cp_assert(cp_mpi_comm_size(my_fft_grid->sub_comm[0]) ==
            my_fft_grid->proc_grid[0]);
-    assert(cp_mpi_comm_size(my_fft_grid->sub_comm[1]) ==
+    cp_assert(cp_mpi_comm_size(my_fft_grid->sub_comm[1]) ==
            my_fft_grid->proc_grid[1]);
 
     setup_proc2local(my_fft_grid, NULL);
@@ -1163,7 +1163,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
   for (int index = 0; index < number_of_positive_gs_points; index++) {
     my_fft_grid->index_to_g[index][0] =
         bounds_gs[0][0] + index / local_size_y / local_size_z;
-    assert(my_fft_grid->index_to_g[index][0] <
+    cp_assert(my_fft_grid->index_to_g[index][0] <
                my_fft_grid->npts_global_gspace[0] &&
            my_fft_grid->index_to_g[index][0] >= 0);
     my_fft_grid->index_to_g[index][1] =
@@ -1184,7 +1184,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
           (npts_global[2] - my_fft_grid->index_to_g[index][2]) % npts_global[2];
       negative_index++;
     }
-    assert(negative_index == my_fft_grid->npts_gs_local);
+    cp_assert(negative_index == my_fft_grid->npts_gs_local);
   }
   // Ensure that my_fft_grid->npts_gs_local is nonnegative to prevent compiler
   // warnings
@@ -1253,8 +1253,8 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
         }
       }
     }
-    assert(positive_index == my_fft_grid->number_of_positive_gs_points);
-    assert(negative_index == my_fft_grid->number_of_negative_gs_points);
+    cp_assert(positive_index == my_fft_grid->number_of_positive_gs_points);
+    cp_assert(negative_index == my_fft_grid->number_of_negative_gs_points);
   } else {
     if (fft_lib_use_mpi() && my_fft_grid->proc_grid[0] > 1 &&
         my_fft_grid->proc_grid[1] == 1) {
@@ -1375,7 +1375,7 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
         }
       }
     }
-    assert(index == nlocal);
+    cp_assert(index == nlocal);
     grid_enable_ray_distribution(my_fft_grid, xy_to_process, nlocal, index_to_g,
                                  gsquared);
     free(xy_to_process);
@@ -1397,15 +1397,15 @@ void grid_create_fft_grid_layout_from_reference(
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
            "create_grid_layout_from_ref");
   const int handle = fft_start_timer(routine_name);
-  assert(fft_grid_ref != NULL &&
+  cp_assert(fft_grid_ref != NULL &&
          "Grid creation from reference grid requires a valid reference grid!");
   // Current restriction of the code.
-  // assert(!fft_grid_ref->ray_distribution &&
+  // cp_assert(!fft_grid_ref->ray_distribution &&
   //"The reference grid has to have a blocked distribution!");
   // We will use the reference grid to collect the data from other grids. To
   // prevent loss of accuracy, we require the new grid to be coarser than or as
   // coarse as the reference grid.
-  assert(npts_global[0] <= fft_grid_ref->npts_global[0] &&
+  cp_assert(npts_global[0] <= fft_grid_ref->npts_global[0] &&
          npts_global[1] <= fft_grid_ref->npts_global[1] &&
          npts_global[2] <= fft_grid_ref->npts_global[2] &&
          "The new grid cannot have more grid points in any direction than the "
@@ -1474,9 +1474,9 @@ void grid_create_fft_grid_layout_from_reference(
       cp_mpi_cart_sub(my_fft_grid->comm, (const int[2]){1, 0});
   my_fft_grid->sub_comm[1] =
       cp_mpi_cart_sub(my_fft_grid->comm, (const int[2]){0, 1});
-  assert(cp_mpi_comm_size(my_fft_grid->sub_comm[0]) ==
+  cp_assert(cp_mpi_comm_size(my_fft_grid->sub_comm[0]) ==
          my_fft_grid->proc_grid[0]);
-  assert(cp_mpi_comm_size(my_fft_grid->sub_comm[1]) ==
+  cp_assert(cp_mpi_comm_size(my_fft_grid->sub_comm[1]) ==
          my_fft_grid->proc_grid[1]);
 
   setup_proc2local(my_fft_grid, external_local_bounds);
@@ -1524,7 +1524,7 @@ void grid_create_fft_grid_layout_from_reference(
             convert_shifted_index_to_c_index(index_y_shifted, npts_global[1]);
         const int xy_index =
             index_x_new * my_fft_grid->npts_global_gspace[1] + index_y_new;
-        assert(my_fft_grid->xy_to_process[xy_index] < 0);
+        cp_assert(my_fft_grid->xy_to_process[xy_index] < 0);
         my_fft_grid->xy_to_process[xy_index] = process;
         my_fft_grid->rays_per_process[process]++;
         total_number_of_rays++;
@@ -1549,7 +1549,7 @@ void grid_create_fft_grid_layout_from_reference(
       my_fft_grid->number_of_negative_gs_points += shifted_indices[0] < 0;
     }
   }
-  assert(my_fft_grid->npts_gs_local ==
+  cp_assert(my_fft_grid->npts_gs_local ==
          my_fft_grid->number_of_positive_gs_points +
              my_fft_grid->number_of_negative_gs_points);
   my_fft_grid->buffer_size =
@@ -1561,7 +1561,7 @@ void grid_create_fft_grid_layout_from_reference(
     ray_offsets[process] =
         ray_offsets[process - 1] + my_fft_grid->rays_per_process[process - 1];
   }
-  assert(ray_offsets[number_of_processes - 1] +
+  cp_assert(ray_offsets[number_of_processes - 1] +
              my_fft_grid->rays_per_process[number_of_processes - 1] ==
          total_number_of_rays);
 
@@ -1605,16 +1605,16 @@ void grid_create_fft_grid_layout_from_reference(
     }
   }
   for (int process = 0; process < number_of_processes; process++) {
-    assert(ray_index_per_process[process] ==
+    cp_assert(ray_index_per_process[process] ==
                my_fft_grid->rays_per_process[process] &&
            "The number of rays does not match the expected number of rays!");
     const int current_ray_offset = ray_offsets[process];
     for (int ray_index = 0; ray_index < my_fft_grid->rays_per_process[process];
          ray_index++) {
-      assert(my_fft_grid->ray_to_xy[current_ray_offset + ray_index][0] >= 0 &&
+      cp_assert(my_fft_grid->ray_to_xy[current_ray_offset + ray_index][0] >= 0 &&
              my_fft_grid->ray_to_xy[current_ray_offset + ray_index][1] >= 0 &&
              "The ray has to be assigned to a valid yz index!");
-      assert(my_fft_grid->ray_to_xy[current_ray_offset + ray_index][0] <
+      cp_assert(my_fft_grid->ray_to_xy[current_ray_offset + ray_index][0] <
                  my_fft_grid->npts_global_gspace[0] &&
              my_fft_grid->ray_to_xy[current_ray_offset + ray_index][1] <
                  my_fft_grid->npts_global_gspace[1] &&
@@ -1653,7 +1653,7 @@ void grid_create_fft_grid_layout_from_reference(
       own_index++;
     }
   }
-  assert(own_index == my_fft_grid->npts_gs_local);
+  cp_assert(own_index == my_fft_grid->npts_gs_local);
 
   if (my_fft_grid->use_halfspace) {
     my_fft_grid->index_to_ray = NULL;
@@ -1746,8 +1746,8 @@ void grid_create_fft_grid_layout_from_reference(
  * \author Frederick Stein
  ******************************************************************************/
 void grid_retain_fft_grid_layout(fft_grid_layout *fft_grid) {
-  assert(fft_grid != NULL);
-  assert(fft_grid->ref_counter > 0);
+  cp_assert(fft_grid != NULL);
+  cp_assert(fft_grid->ref_counter > 0);
   fft_grid->ref_counter++;
 }
 
@@ -1756,7 +1756,7 @@ void grid_retain_fft_grid_layout(fft_grid_layout *fft_grid) {
  * \author Frederick Stein
  ******************************************************************************/
 void fft_grid_set_hmat(fft_grid_layout *fft_grid, const double hmat[3][3]) {
-  assert(fft_grid != NULL);
+  cp_assert(fft_grid != NULL);
   for (int dir = 0; dir < 3; dir++) {
     for (int dir2 = 0; dir2 < 3; dir2++) {
       fft_grid->cell_info.dhmat[dir][dir2] =
@@ -1851,10 +1851,10 @@ void grid_print_grid_layout_info(const fft_grid_layout *layout,
 void fft_3d_fw_with_layout(const double complex *restrict grid_rs,
                            double complex *restrict grid_gs,
                            const fft_grid_layout *grid_layout) {
-  assert(grid_rs != NULL);
-  assert(grid_gs != NULL);
-  assert(grid_layout != NULL);
-  assert(grid_layout->ref_counter > 0);
+  cp_assert(grid_rs != NULL);
+  cp_assert(grid_gs != NULL);
+  cp_assert(grid_layout != NULL);
+  cp_assert(grid_layout->ref_counter > 0);
 
   ensure_buffer_size(grid_layout->buffer_size);
 
@@ -1884,10 +1884,10 @@ void fft_3d_fw_with_layout(const double complex *restrict grid_rs,
 void fft_3d_fw_with_layout_to_cart(const double complex *restrict grid_rs,
                                    double complex *restrict grid_gs,
                                    const fft_grid_layout *grid_layout) {
-  assert(grid_rs != NULL);
-  assert(grid_gs != NULL);
-  assert(grid_layout != NULL);
-  assert(grid_layout->ref_counter > 0);
+  cp_assert(grid_rs != NULL);
+  cp_assert(grid_gs != NULL);
+  cp_assert(grid_layout != NULL);
+  cp_assert(grid_layout->ref_counter > 0);
 
   ensure_buffer_size(grid_layout->buffer_size);
 
@@ -1907,10 +1907,10 @@ void fft_3d_fw_with_layout_to_cart(const double complex *restrict grid_rs,
 void fft_3d_fw_r2c_with_layout_to_cart(const double *restrict grid_rs,
                                        double complex *restrict grid_gs,
                                        const fft_grid_layout *grid_layout) {
-  assert(grid_rs != NULL);
-  assert(grid_gs != NULL);
-  assert(grid_layout != NULL);
-  assert(grid_layout->ref_counter > 0);
+  cp_assert(grid_rs != NULL);
+  cp_assert(grid_gs != NULL);
+  cp_assert(grid_layout != NULL);
+  cp_assert(grid_layout->ref_counter > 0);
 
   ensure_buffer_size(grid_layout->buffer_size);
 
@@ -1940,10 +1940,10 @@ void fft_3d_fw_r2c_with_layout_to_cart(const double *restrict grid_rs,
 void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs,
                                double complex *restrict grid_gs,
                                const fft_grid_layout *grid_layout) {
-  assert(grid_rs != NULL);
-  assert(grid_gs != NULL);
-  assert(grid_layout != NULL);
-  assert(grid_layout->ref_counter > 0);
+  cp_assert(grid_rs != NULL);
+  cp_assert(grid_gs != NULL);
+  cp_assert(grid_layout != NULL);
+  cp_assert(grid_layout->ref_counter > 0);
 
   ensure_buffer_size(grid_layout->buffer_size);
 
@@ -1989,7 +1989,7 @@ void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs,
                         grid_layout->sub_comm);
     }
   }
-  assert(grid_rs != NULL);
+  cp_assert(grid_rs != NULL);
 }
 
 /*******************************************************************************
@@ -2002,10 +2002,10 @@ void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs,
 void fft_3d_bw_with_layout(const double complex *restrict grid_gs,
                            double complex *restrict grid_rs,
                            const fft_grid_layout *grid_layout) {
-  assert(grid_gs != NULL);
-  assert(grid_rs != NULL);
-  assert(grid_layout != NULL);
-  assert(grid_layout->ref_counter > 0);
+  cp_assert(grid_gs != NULL);
+  cp_assert(grid_rs != NULL);
+  cp_assert(grid_layout != NULL);
+  cp_assert(grid_layout->ref_counter > 0);
 
   ensure_buffer_size(grid_layout->buffer_size);
 
@@ -2036,10 +2036,10 @@ void fft_3d_bw_with_layout(const double complex *restrict grid_gs,
 void fft_3d_bw_with_layout_from_cart(const double complex *restrict grid_gs,
                                      double complex *restrict grid_rs,
                                      const fft_grid_layout *grid_layout) {
-  assert(grid_gs != NULL);
-  assert(grid_rs != NULL);
-  assert(grid_layout != NULL);
-  assert(grid_layout->ref_counter > 0);
+  cp_assert(grid_gs != NULL);
+  cp_assert(grid_rs != NULL);
+  cp_assert(grid_layout != NULL);
+  cp_assert(grid_layout->ref_counter > 0);
 
   ensure_buffer_size(grid_layout->buffer_size);
 
@@ -2060,10 +2060,10 @@ void fft_3d_bw_with_layout_from_cart(const double complex *restrict grid_gs,
 void fft_3d_bw_c2r_with_layout(const double complex *restrict grid_gs,
                                double *restrict grid_rs,
                                const fft_grid_layout *grid_layout) {
-  assert(grid_gs != NULL);
-  assert(grid_rs != NULL);
-  assert(grid_layout != NULL);
-  assert(grid_layout->ref_counter > 0);
+  cp_assert(grid_gs != NULL);
+  cp_assert(grid_rs != NULL);
+  cp_assert(grid_layout != NULL);
+  cp_assert(grid_layout->ref_counter > 0);
 
   ensure_buffer_size(grid_layout->buffer_size);
 
@@ -2117,10 +2117,10 @@ void fft_3d_bw_c2r_with_layout(const double complex *restrict grid_gs,
 void fft_3d_bw_c2r_with_layout_from_cart(const double complex *restrict grid_gs,
                                          double *restrict grid_rs,
                                          const fft_grid_layout *grid_layout) {
-  assert(grid_gs != NULL);
-  assert(grid_rs != NULL);
-  assert(grid_layout != NULL);
-  assert(grid_layout->ref_counter > 0);
+  cp_assert(grid_gs != NULL);
+  cp_assert(grid_rs != NULL);
+  cp_assert(grid_layout != NULL);
+  cp_assert(grid_layout->ref_counter > 0);
 
   ensure_buffer_size(grid_layout->buffer_size);
 

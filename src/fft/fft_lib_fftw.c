@@ -131,7 +131,7 @@ static void add_plan_to_cache(const fft_key_t key, fftw_plan *plan) {
  * \author Frederick Stein
  ******************************************************************************/
 static void remove_plan_from_cache(const fft_key_t key) {
-  assert(is_initialized);
+  cp_assert(is_initialized);
   omp_set_nest_lock(&cache_lock);
   cache_entry *cache = current_cache();
   for (int i = 0; i < FFTW_CACHE_SIZE; i++) {
@@ -1456,13 +1456,13 @@ fftw_plan *
 fft_fftw_create_distributed_2d_plan(const fft_key_t key,
                                     double complex *restrict grid_in,
                                     double complex *restrict grid_out) {
-  assert(use_fftw_mpi);
+  cp_assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
   cp_mpi_comm_t comm;
   fetch_data_from_key_mpi(key, &rank, fft_size, &number_of_ffts,
                           &number_of_threads, &direction, &comm);
-  assert(rank == 2);
+  cp_assert(rank == 2);
   fftw_plan_with_nthreads(number_of_threads);
   const int block_size_0 =
       (fft_size[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
@@ -1485,7 +1485,7 @@ fft_fftw_create_distributed_2d_plan(const fft_key_t key,
         2, n, number_of_ffts, block_size_1, block_size_0, grid_in, grid_out,
         comm, FFTW_BACKWARD, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
   }
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
   add_plan_to_cache(key, plan);
   return plan;
 }
@@ -1496,13 +1496,13 @@ fft_fftw_create_distributed_2d_plan(const fft_key_t key,
 fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const fft_key_t key,
                                                    double *restrict grid_in,
                                                    double *restrict grid_out) {
-  assert(use_fftw_mpi);
+  cp_assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
   cp_mpi_comm_t comm;
   fetch_data_from_key_mpi(key, &rank, fft_size, &number_of_ffts,
                           &number_of_threads, &direction, &comm);
-  assert(rank == 2);
+  cp_assert(rank == 2);
   fftw_plan_with_nthreads(number_of_threads);
   const int block_size_0 =
       (fft_size[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
@@ -1531,7 +1531,7 @@ fftw_plan *fft_fftw_create_distributed_2d_plan_r2c(const fft_key_t key,
         2, n, howmany, block_size_1, block_size_0, (double complex *)grid_in,
         grid_out, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
   }
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
   add_plan_to_cache(key, plan);
   return plan;
 }
@@ -1544,14 +1544,14 @@ fftw_plan *
 fft_fftw_create_distributed_3d_plan(const fft_key_t key,
                                     double complex *restrict grid_in,
                                     double complex *restrict grid_out) {
-  assert(use_fftw_mpi);
+  cp_assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
   cp_mpi_comm_t comm;
   fetch_data_from_key_mpi(key, &rank, fft_size, &number_of_ffts,
                           &number_of_threads, &direction, &comm);
-  assert(rank == 3);
-  assert(number_of_ffts == 1);
+  cp_assert(rank == 3);
+  cp_assert(number_of_ffts == 1);
   fftw_plan_with_nthreads(number_of_threads);
   const int block_size_0 =
       (fft_size[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
@@ -1574,7 +1574,7 @@ fft_fftw_create_distributed_3d_plan(const fft_key_t key,
                                    grid_out, comm, FFTW_BACKWARD,
                                    fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
   }
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
   add_plan_to_cache(key, plan);
   return plan;
 }
@@ -1586,14 +1586,14 @@ fft_fftw_create_distributed_3d_plan(const fft_key_t key,
 fftw_plan *fft_fftw_create_distributed_3d_plan_r2c(const fft_key_t key,
                                                    double *restrict grid_in,
                                                    double *restrict grid_out) {
-  assert(use_fftw_mpi);
+  cp_assert(use_fftw_mpi);
   bool direction;
   int fft_size[3], number_of_ffts, number_of_threads, rank;
   cp_mpi_comm_t comm;
   fetch_data_from_key_mpi(key, &rank, fft_size, &number_of_ffts,
                           &number_of_threads, &direction, &comm);
-  assert(rank == 3);
-  assert(number_of_ffts == 1);
+  cp_assert(rank == 3);
+  cp_assert(number_of_ffts == 1);
   fftw_plan_with_nthreads(number_of_threads);
   const int block_size_0 =
       (fft_size[0] + cp_mpi_comm_size(comm) - 1) / cp_mpi_comm_size(comm);
@@ -1618,7 +1618,7 @@ fftw_plan *fft_fftw_create_distributed_3d_plan_r2c(const fft_key_t key,
         3, n, 1, block_size_1, block_size_0, (double complex *)grid_in,
         grid_out, comm, fftw_planning_mode + FFTW_MPI_TRANSPOSED_IN);
   }
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
   add_plan_to_cache(key, plan);
   return plan;
 }
@@ -2233,8 +2233,8 @@ void fft_fftw_register_guru(const bool direction, int rank,
                             const int number_of_threads,
                             double complex *grid_in, double complex *grid_out) {
 #if defined(__FFTW3)
-  assert(has_guru_interface);
-  assert(is_initialized);
+  cp_assert(has_guru_interface);
+  cp_assert(is_initialized);
   for (int r = 0; r < rank; r++) {
     if (dims[r].n == 0)
       return;
@@ -2258,7 +2258,7 @@ void fft_fftw_register_guru(const bool direction, int rank,
   (void)number_of_threads;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
 
@@ -2271,8 +2271,8 @@ void fft_fftw_register_r2c_guru(int rank, const fft_iodim *dims,
                                 const int number_of_threads, double *grid_in,
                                 double complex *grid_out) {
 #if defined(__FFTW3)
-  assert(has_guru_interface);
-  assert(is_initialized);
+  cp_assert(has_guru_interface);
+  cp_assert(is_initialized);
   for (int r = 0; r < rank; r++) {
     if (dims[r].n == 0)
       return;
@@ -2295,7 +2295,7 @@ void fft_fftw_register_r2c_guru(int rank, const fft_iodim *dims,
   (void)number_of_threads;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
 
@@ -2308,8 +2308,8 @@ void fft_fftw_register_c2r_guru(int rank, const fft_iodim *dims,
                                 const int number_of_threads,
                                 double complex *grid_in, double *grid_out) {
 #if defined(__FFTW3)
-  assert(has_guru_interface);
-  assert(is_initialized);
+  cp_assert(has_guru_interface);
+  cp_assert(is_initialized);
   for (int r = 0; r < rank; r++) {
     if (dims[r].n == 0)
       return;
@@ -2332,7 +2332,7 @@ void fft_fftw_register_c2r_guru(int rank, const fft_iodim *dims,
   (void)number_of_threads;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
 
@@ -2347,9 +2347,9 @@ void fft_fftw_register_2d_distributed(const bool direction,
                                       double complex *grid_in,
                                       double complex *grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0)
     return;
   fft_key_t key;
@@ -2358,14 +2358,14 @@ void fft_fftw_register_2d_distributed(const bool direction,
   fftw_plan *plan = NULL;
   if (distributed_plan_reset_if_inconsistent(key, &plan, comm))
     plan = fft_fftw_create_distributed_2d_plan(key, grid_in, grid_out);
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
 #else
   (void)npts_global;
   (void)number_of_ffts;
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
 
@@ -2379,9 +2379,9 @@ void fft_fftw_register_2d_r2c_distributed(const int npts_global[2],
                                           double *grid_in,
                                           double complex *grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0)
     return;
   fft_key_t key;
@@ -2391,14 +2391,14 @@ void fft_fftw_register_2d_r2c_distributed(const int npts_global[2],
   if (distributed_plan_reset_if_inconsistent(key, &plan, comm))
     plan = fft_fftw_create_distributed_2d_plan_r2c(key, grid_in,
                                                    (double *)grid_out);
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
 #else
   (void)npts_global;
   (void)number_of_ffts;
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
 
@@ -2412,9 +2412,9 @@ void fft_fftw_register_2d_c2r_distributed(const int npts_global[2],
                                           double complex *grid_in,
                                           double *grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0)
     return;
   fft_key_t key;
@@ -2424,14 +2424,14 @@ void fft_fftw_register_2d_c2r_distributed(const int npts_global[2],
   if (distributed_plan_reset_if_inconsistent(key, &plan, comm))
     plan = fft_fftw_create_distributed_2d_plan_r2c(key, (double *)grid_in,
                                                    grid_out);
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
 #else
   (void)npts_global;
   (void)number_of_ffts;
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
 
@@ -2445,9 +2445,9 @@ void fft_fftw_register_3d_distributed(const bool direction,
                                       double complex *grid_in,
                                       double complex *grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0)
     return;
   fft_key_t key;
@@ -2456,13 +2456,13 @@ void fft_fftw_register_3d_distributed(const bool direction,
   fftw_plan *plan = NULL;
   if (distributed_plan_reset_if_inconsistent(key, &plan, comm))
     plan = fft_fftw_create_distributed_3d_plan(key, grid_in, grid_out);
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
 #else
   (void)npts_global;
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 
@@ -2475,9 +2475,9 @@ void fft_fftw_register_3d_r2c_distributed(const int npts_global[3],
                                           double *grid_in,
                                           double complex *grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0)
     return;
   fft_key_t key;
@@ -2487,13 +2487,13 @@ void fft_fftw_register_3d_r2c_distributed(const int npts_global[3],
   if (distributed_plan_reset_if_inconsistent(key, &plan, comm))
     plan = fft_fftw_create_distributed_3d_plan_r2c(key, grid_in,
                                                    (double *)grid_out);
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
 #else
   (void)npts_global;
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 
@@ -2506,9 +2506,9 @@ void fft_fftw_register_3d_c2r_distributed(const int npts_global[3],
                                           double complex *grid_in,
                                           double *grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0)
     return;
   fft_key_t key;
@@ -2518,13 +2518,13 @@ void fft_fftw_register_3d_c2r_distributed(const int npts_global[3],
   if (distributed_plan_reset_if_inconsistent(key, &plan, comm))
     plan = fft_fftw_create_distributed_3d_plan_r2c(key, (double *)grid_in,
                                                    grid_out);
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
 #else
   (void)npts_global;
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 
@@ -3332,8 +3332,8 @@ void fft_fftw_guru(const bool direction, const int rank, const fft_iodim *dims,
                    const int number_of_threads, double complex *grid_in,
                    double complex *grid_out) {
 #if defined(__FFTW3)
-  assert(has_guru_interface);
-  assert(is_initialized);
+  cp_assert(has_guru_interface);
+  cp_assert(is_initialized);
   for (int r = 0; r < rank; r++) {
     if (dims[r].n == 0)
       return;
@@ -3362,7 +3362,7 @@ void fft_fftw_guru(const bool direction, const int rank, const fft_iodim *dims,
   (void)number_of_threads;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
 
@@ -3375,8 +3375,8 @@ void fft_fftw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
                        const int number_of_threads, double *grid_in,
                        double complex *grid_out) {
 #if defined(__FFTW3)
-  assert(has_guru_interface);
-  assert(is_initialized);
+  cp_assert(has_guru_interface);
+  cp_assert(is_initialized);
   for (int r = 0; r < rank; r++) {
     if (dims[r].n == 0)
       return;
@@ -3405,7 +3405,7 @@ void fft_fftw_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
   (void)number_of_threads;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
 
@@ -3418,8 +3418,8 @@ void fft_fftw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
                        const int number_of_threads, double complex *grid_in,
                        double *grid_out) {
 #if defined(__FFTW3)
-  assert(has_guru_interface);
-  assert(is_initialized);
+  cp_assert(has_guru_interface);
+  cp_assert(is_initialized);
   for (int r = 0; r < rank; r++) {
     if (dims[r].n == 0)
       return;
@@ -3448,7 +3448,7 @@ void fft_fftw_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
   (void)number_of_threads;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
 
@@ -3462,9 +3462,9 @@ int fft_fftw_2d_distributed_sizes(const int npts_global[2],
                                   int *local_n0_start, int *local_n1,
                                   int *local_n1_start) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] <= 0 || npts_global[1] <= 0 || number_of_ffts <= 0) {
     *local_n0_start = 0;
     *local_n1_start = 0;
@@ -3495,7 +3495,7 @@ int fft_fftw_2d_distributed_sizes(const int npts_global[2],
   (void)local_n0_start;
   (void)local_n1;
   (void)local_n1_start;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
   return -1;
 #endif
 }
@@ -3510,9 +3510,9 @@ int fft_fftw_2d_distributed_sizes_r2c(const int npts_global[2],
                                       int *local_n0_start, int *local_n1,
                                       int *local_n1_start) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] <= 0 || npts_global[1] <= 0 || number_of_ffts <= 0) {
     *local_n0_start = 0;
     *local_n1_start = 0;
@@ -3544,7 +3544,7 @@ int fft_fftw_2d_distributed_sizes_r2c(const int npts_global[2],
   (void)local_n0_start;
   (void)local_n1;
   (void)local_n1_start;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
   return -1;
 #endif
 }
@@ -3558,9 +3558,9 @@ int fft_fftw_3d_distributed_sizes(const int npts_global[3],
                                   int *local_n0_start, int *local_n1,
                                   int *local_n1_start) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] <= 0 || npts_global[1] <= 0 || npts_global[2] <= 0) {
     *local_n0_start = 0;
     *local_n1_start = 0;
@@ -3590,7 +3590,7 @@ int fft_fftw_3d_distributed_sizes(const int npts_global[3],
   (void)local_n0_start;
   (void)local_n1;
   (void)local_n1_start;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
   return -1;
 #endif
 }
@@ -3604,9 +3604,9 @@ int fft_fftw_3d_distributed_sizes_r2c(const int npts_global[3],
                                       int *local_n0_start, int *local_n1,
                                       int *local_n1_start) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] <= 0 || npts_global[1] <= 0 || npts_global[2] <= 0) {
     *local_n0_start = 0;
     *local_n1_start = 0;
@@ -3636,7 +3636,7 @@ int fft_fftw_3d_distributed_sizes_r2c(const int npts_global[3],
   (void)local_n0_start;
   (void)local_n1;
   (void)local_n1_start;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
   return -1;
 #endif
 }
@@ -3650,9 +3650,9 @@ void fft_fftw_2d_distributed(const bool direction, const int npts_global[2],
                              double complex *restrict grid_in,
                              double complex *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0)
     return;
   fft_key_t key;
@@ -3665,7 +3665,7 @@ void fft_fftw_2d_distributed(const bool direction, const int npts_global[2],
     plan = fft_fftw_create_distributed_2d_plan(key, buffer, grid_out);
     fftw_free(buffer);
   }
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
   fftw_mpi_execute_dft(*plan, grid_in, grid_out);
 #else
   (void)direction;
@@ -3674,7 +3674,7 @@ void fft_fftw_2d_distributed(const bool direction, const int npts_global[2],
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
 
@@ -3688,9 +3688,9 @@ void fft_fftw_2d_r2c_distributed(const int npts_global[2],
                                  double *restrict grid_in,
                                  double complex *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0)
     return;
   fft_key_t key;
@@ -3704,7 +3704,7 @@ void fft_fftw_2d_r2c_distributed(const int npts_global[2],
                                                    (double *)grid_out);
     fftw_free(buffer);
   }
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
   fftw_mpi_execute_dft_r2c(*plan, grid_in, grid_out);
 #else
   (void)npts_global;
@@ -3712,7 +3712,7 @@ void fft_fftw_2d_r2c_distributed(const int npts_global[2],
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
 
@@ -3726,9 +3726,9 @@ void fft_fftw_2d_c2r_distributed(const int npts_global[2],
                                  double complex *restrict grid_in,
                                  double *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || number_of_ffts == 0)
     return;
   fft_key_t key;
@@ -3742,7 +3742,7 @@ void fft_fftw_2d_c2r_distributed(const int npts_global[2],
                                                    grid_out);
     fftw_free(buffer);
   }
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
   fftw_mpi_execute_dft_c2r(*plan, grid_in, grid_out);
 #else
   (void)npts_global;
@@ -3750,7 +3750,7 @@ void fft_fftw_2d_c2r_distributed(const int npts_global[2],
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW support.");
 #endif
 }
 
@@ -3763,9 +3763,9 @@ void fft_fftw_3d_distributed(const bool direction, const int npts_global[3],
                              double complex *restrict grid_in,
                              double complex *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0)
     return;
   fft_key_t key;
@@ -3778,7 +3778,7 @@ void fft_fftw_3d_distributed(const bool direction, const int npts_global[3],
     plan = fft_fftw_create_distributed_3d_plan(key, buffer, grid_out);
     fftw_free(buffer);
   }
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
   fftw_mpi_execute_dft(*plan, grid_in, grid_out);
 #else
   (void)direction;
@@ -3786,7 +3786,7 @@ void fft_fftw_3d_distributed(const bool direction, const int npts_global[3],
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 
@@ -3799,9 +3799,9 @@ void fft_fftw_3d_r2c_distributed(const int npts_global[3],
                                  double *restrict grid_in,
                                  double complex *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0)
     return;
   fft_key_t key;
@@ -3815,14 +3815,14 @@ void fft_fftw_3d_r2c_distributed(const int npts_global[3],
                                                    (double *)grid_out);
     fftw_free(buffer);
   }
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
   fftw_mpi_execute_dft_r2c(*plan, grid_in, grid_out);
 #else
   (void)npts_global;
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 
@@ -3835,9 +3835,9 @@ void fft_fftw_3d_c2r_distributed(const int npts_global[3],
                                  double complex *restrict grid_in,
                                  double *restrict grid_out) {
 #if defined(__parallel) && defined(__FFTW3_MPI)
-  assert(omp_get_num_threads() == 1);
-  assert(is_initialized);
-  assert(use_fftw_mpi);
+  cp_assert(omp_get_num_threads() == 1);
+  cp_assert(is_initialized);
+  cp_assert(use_fftw_mpi);
   if (npts_global[0] == 0 || npts_global[1] == 0 || npts_global[2] == 0)
     return;
   fft_key_t key;
@@ -3851,14 +3851,14 @@ void fft_fftw_3d_c2r_distributed(const int npts_global[3],
                                                    grid_out);
     fftw_free(buffer);
   }
-  assert(plan != NULL);
+  cp_assert(plan != NULL);
   fftw_mpi_execute_dft_c2r(*plan, grid_in, grid_out);
 #else
   (void)npts_global;
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+  cp_assert(0 && "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 

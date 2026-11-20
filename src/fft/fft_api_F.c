@@ -896,7 +896,7 @@ void fft_create_grid_from_reference_F(fft_grid_layout **fft_grid,
                                       const int *external_local_bounds,
                                       const fft_grid_layout *fft_grid_ref,
                                       const bool use_ray_distribution) {
-  assert(fft_grid_ref != NULL);
+  cp_assert(fft_grid_ref != NULL);
   int local_bounds[6];
   int *local_bounds_ptr = NULL;
   if (external_local_bounds != NULL) {
@@ -919,7 +919,7 @@ void fft_create_grid_from_reference_F(fft_grid_layout **fft_grid,
  ******************************************************************************/
 void fft_grid_get_npts_global_F(const fft_grid_layout *fft_grid,
                                 int *npts_global) {
-  assert(fft_grid != NULL);
+  cp_assert(fft_grid != NULL);
   memcpy(npts_global, fft_grid->npts_global, 3 * sizeof(int));
 }
 
@@ -928,7 +928,7 @@ void fft_grid_get_npts_global_F(const fft_grid_layout *fft_grid,
  * \author Frederick Stein
  ******************************************************************************/
 void fft_grid_get_comm_F(const fft_grid_layout *fft_grid, int *comm_handle) {
-  assert(fft_grid != NULL);
+  cp_assert(fft_grid != NULL);
   *comm_handle = cp_mpi_comm_c2f(fft_grid->comm);
 }
 
@@ -938,7 +938,7 @@ void fft_grid_get_comm_F(const fft_grid_layout *fft_grid, int *comm_handle) {
  ******************************************************************************/
 void fft_grid_get_proc2local_rs_F(const fft_grid_layout *fft_grid,
                                   int *proc2local_rs) {
-  assert(fft_grid != NULL);
+  cp_assert(fft_grid != NULL);
   memcpy(proc2local_rs, fft_grid->proc2local_rs,
          6 * cp_mpi_comm_size(fft_grid->comm) * sizeof(int));
 }
@@ -949,7 +949,7 @@ void fft_grid_get_proc2local_rs_F(const fft_grid_layout *fft_grid,
  ******************************************************************************/
 void fft_grid_get_proc2local_ms_F(const fft_grid_layout *fft_grid,
                                   int *proc2local_ms) {
-  assert(fft_grid != NULL);
+  cp_assert(fft_grid != NULL);
   memcpy(proc2local_ms, fft_grid->proc2local_ms,
          6 * cp_mpi_comm_size(fft_grid->comm) * sizeof(int));
 }
@@ -960,7 +960,7 @@ void fft_grid_get_proc2local_ms_F(const fft_grid_layout *fft_grid,
  ******************************************************************************/
 void fft_grid_get_proc2local_gs_F(const fft_grid_layout *fft_grid,
                                   int *proc2local_gs) {
-  assert(fft_grid != NULL);
+  cp_assert(fft_grid != NULL);
   memcpy(proc2local_gs, fft_grid->proc2local_gs,
          6 * cp_mpi_comm_size(fft_grid->comm) * sizeof(int));
 }
@@ -989,7 +989,7 @@ void fft_choose_proc_grid_F(const int npts_global[3],
  ******************************************************************************/
 void fft_grid_get_proc_grid_F(const fft_grid_layout *fft_grid,
                               int proc_grid[2]) {
-  assert(fft_grid != NULL);
+  cp_assert(fft_grid != NULL);
   proc_grid[0] = fft_grid->proc_grid[0];
   proc_grid[1] = fft_grid->proc_grid[1];
 }
@@ -998,7 +998,7 @@ void fft_grid_get_proc_grid_F(const fft_grid_layout *fft_grid,
  * \brief Query the ray-distribution mode of a layout.
  ******************************************************************************/
 int fft_grid_is_ray_distributed_F(const fft_grid_layout *fft_grid) {
-  assert(fft_grid != NULL);
+  cp_assert(fft_grid != NULL);
   return fft_grid->ray_distribution ? 1 : 0;
 }
 
@@ -1011,14 +1011,14 @@ int fft_grid_enable_ray_distribution_F(fft_grid_layout *fft_grid,
                                        const int nlocal,
                                        const int *index_to_g,
                                        const double *gsquared) {
-  assert(fft_grid != NULL);
+  cp_assert(fft_grid != NULL);
   return grid_enable_ray_distribution(
       fft_grid, xy_to_process, nlocal, (const int(*)[3])index_to_g, gsquared);
 }
 
 int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid,
                                     int *rays) {
-  assert(fft_grid != NULL);
+  cp_assert(fft_grid != NULL);
   if (fft_grid->rays_per_process == NULL)
     return 0;
   memcpy(rays, fft_grid->rays_per_process,
@@ -1034,7 +1034,7 @@ int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid,
  ******************************************************************************/
 int fft_grid_get_xy_to_process_F(const fft_grid_layout *fft_grid,
                                  int *xy_to_process) {
-  assert(fft_grid != NULL);
+  cp_assert(fft_grid != NULL);
   if (fft_grid->xy_to_process == NULL)
     return 0;
   memcpy(xy_to_process, fft_grid->xy_to_process,

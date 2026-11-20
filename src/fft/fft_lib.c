@@ -176,7 +176,7 @@ bool fft_lib_use_mpi() {
   case FFT_LIB_GPU:
     return false;
   default:
-    assert(0 && "Unknown FFT library.");
+    cp_assert(0 && "Unknown FFT library.");
     return false;
   }
 }
@@ -577,7 +577,7 @@ void fft_register_guru(const bool dir, const int rank, const fft_iodim *dims,
                            number_of_threads, grid_in, grid_out);
     break;
   default:
-    assert(0 && "Unknown FFT library.");
+    cp_assert(0 && "Unknown FFT library.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -606,7 +606,7 @@ void fft_register_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
                                number_of_threads, grid_in, grid_out);
     break;
   default:
-    assert(0 && "Unknown FFT library.");
+    cp_assert(0 && "Unknown FFT library.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -635,7 +635,7 @@ void fft_register_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
                                number_of_threads, grid_in, grid_out);
     break;
   default:
-    assert(0 && "Unknown FFT library.");
+    cp_assert(0 && "Unknown FFT library.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -659,14 +659,14 @@ void fft_register_2d_distributed(const bool dir, const int npts_global[2],
            "register_2d_distr_%s_%i_%i_%i", dir ? "fw" : "bw",
            npts_global[0], npts_global[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
-  assert(fft_lib_use_mpi());
+  cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_2d_distributed(dir, npts_global, number_of_ffts, comm,
                                      grid_in, grid_out);
     break;
   default:
-    assert(0 && "Distributed 2D FFT not available.");
+    cp_assert(0 && "Distributed 2D FFT not available.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -691,14 +691,14 @@ void fft_register_2d_r2c_distributed(const int npts_global[2],
            "register_2d_r2c_distr_%i_%i_%i", npts_global[0], npts_global[1],
            number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
-  assert(fft_lib_use_mpi());
+  cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_2d_r2c_distributed(npts_global, number_of_ffts, comm,
                                          grid_in, grid_out);
     break;
   default:
-    assert(0 && "Distributed 2D FFT not available.");
+    cp_assert(0 && "Distributed 2D FFT not available.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -723,14 +723,14 @@ void fft_register_2d_c2r_distributed(const int npts_global[2],
            "register_2d_c2r_distr_%i_%i_%i", npts_global[0], npts_global[1],
            number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
-  assert(fft_lib_use_mpi());
+  cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_2d_c2r_distributed(npts_global, number_of_ffts, comm,
                                          grid_in, grid_out);
     break;
   default:
-    assert(0 && "Distributed 2D FFT not available.");
+    cp_assert(0 && "Distributed 2D FFT not available.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -753,13 +753,13 @@ void fft_register_3d_distributed(const bool dir, const int npts_global[3],
            "register_3d_distr_%s_%i_%i_%i", dir ? "fw" : "bw",
            npts_global[0], npts_global[1], npts_global[2]);
   const int handle2 = fft_start_timer(routine_name);
-  assert(fft_lib_use_mpi());
+  cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_3d_distributed(dir, npts_global, comm, grid_in, grid_out);
     break;
   default:
-    assert(0 && "Distributed 3D FFT not available.");
+    cp_assert(0 && "Distributed 3D FFT not available.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -783,13 +783,13 @@ void fft_register_3d_r2c_distributed(const int npts_global[3],
            "register_3d_r2c_distr_%i_%i_%i", npts_global[0], npts_global[1],
            npts_global[2]);
   const int handle2 = fft_start_timer(routine_name);
-  assert(fft_lib_use_mpi());
+  cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_3d_r2c_distributed(npts_global, comm, grid_in, grid_out);
     break;
   default:
-    assert(0 && "Distributed 3D FFT not available.");
+    cp_assert(0 && "Distributed 3D FFT not available.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -813,13 +813,13 @@ void fft_register_3d_c2r_distributed(const int npts_global[3],
            "register_3d_c2r_distr_%i_%i_%i", npts_global[0], npts_global[1],
            npts_global[2]);
   const int handle2 = fft_start_timer(routine_name);
-  assert(fft_lib_use_mpi());
+  cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_3d_c2r_distributed(npts_global, comm, grid_in, grid_out);
     break;
   default:
-    assert(0 && "Distributed 3D FFT not available.");
+    cp_assert(0 && "Distributed 3D FFT not available.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1110,7 +1110,7 @@ void fft_guru(const bool dir, int rank, const fft_iodim *dims, int howmany_rank,
                   number_of_threads, grid_in, grid_out);
     break;
   default:
-    assert(0 && "Unknown FFT library.");
+    cp_assert(0 && "Unknown FFT library.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1137,7 +1137,7 @@ void fft_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
                       grid_in, grid_out);
     break;
   default:
-    assert(0 && "Unknown FFT library.");
+    cp_assert(0 && "Unknown FFT library.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1164,7 +1164,7 @@ void fft_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
                       grid_in, grid_out);
     break;
   default:
-    assert(0 && "Unknown FFT library.");
+    cp_assert(0 && "Unknown FFT library.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1183,7 +1183,7 @@ int fft_2d_distributed_sizes(const int npts_global[2], const int number_of_ffts,
                                          local_n0, local_n0_start, local_n1,
                                          local_n1_start);
   } else {
-    assert(0 && "Unknown FFT library.");
+    cp_assert(0 && "Unknown FFT library.");
     return -1;
   }
 }
@@ -1202,7 +1202,7 @@ int fft_2d_distributed_sizes_r2c(const int npts_global[2],
                                              local_n0, local_n0_start, local_n1,
                                              local_n1_start);
   } else {
-    assert(0 && "Unknown FFT library.");
+    cp_assert(0 && "Unknown FFT library.");
     return -1;
   }
 }
@@ -1218,7 +1218,7 @@ int fft_3d_distributed_sizes(const int npts_global[3], const cp_mpi_comm_t comm,
     return fft_fftw_3d_distributed_sizes(
         npts_global, comm, local_n2, local_n2_start, local_n1, local_n1_start);
   } else {
-    assert(0 && "Unknown FFT library.");
+    cp_assert(0 && "Unknown FFT library.");
     return -1;
   }
 }
@@ -1235,7 +1235,7 @@ int fft_3d_distributed_sizes_r2c(const int npts_global[3],
     return fft_fftw_3d_distributed_sizes_r2c(
         npts_global, comm, local_n0, local_n0_start, local_n1, local_n1_start);
   } else {
-    assert(0 && "Unknown FFT library.");
+    cp_assert(0 && "Unknown FFT library.");
     return -1;
   }
 }
@@ -1257,14 +1257,14 @@ void fft_2d_distributed(const bool dir, const int npts_global[2],
            "2d_distributed_%s_%i_%i_%i", dir ? "fw" : "bw", npts_global[0],
            npts_global[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
-  assert(fft_lib_use_mpi());
+  cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_2d_distributed(dir, npts_global, number_of_ffts, comm, grid_in,
                             grid_out);
     break;
   default:
-    assert(0 && "Distributed 2D FFT not available.");
+    cp_assert(0 && "Distributed 2D FFT not available.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1286,14 +1286,14 @@ void fft_2d_r2c_distributed(const int npts_global[2], const int number_of_ffts,
            "2d_r2c_distributed_%i_%i_%i", npts_global[0], npts_global[1],
            number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
-  assert(fft_lib_use_mpi());
+  cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_2d_r2c_distributed(npts_global, number_of_ffts, comm, grid_in,
                                 grid_out);
     break;
   default:
-    assert(0 && "Distributed 2D FFT not available.");
+    cp_assert(0 && "Distributed 2D FFT not available.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1316,14 +1316,14 @@ void fft_2d_c2r_distributed(const int npts_global[2], const int number_of_ffts,
            "2d_c2r_distributed_%i_%i_%i", npts_global[0], npts_global[1],
            number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
-  assert(fft_lib_use_mpi());
+  cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_2d_c2r_distributed(npts_global, number_of_ffts, comm, grid_in,
                                 grid_out);
     break;
   default:
-    assert(0 && "Distributed 2D FFT not available.");
+    cp_assert(0 && "Distributed 2D FFT not available.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1346,13 +1346,13 @@ void fft_3d_distributed(const bool dir, const int npts_global[3],
            "3d_distributed_%s_%i_%i_%i", dir ? "fw" : "bw", npts_global[0],
            npts_global[1], npts_global[2]);
   const int handle2 = fft_start_timer(routine_name);
-  assert(fft_lib_use_mpi());
+  cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_3d_distributed(dir, npts_global, comm, grid_in, grid_out);
     break;
   default:
-    assert(0 && "Distributed 3D FFT not available.");
+    cp_assert(0 && "Distributed 3D FFT not available.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1373,13 +1373,13 @@ void fft_3d_r2c_distributed(const int npts_global[3], const cp_mpi_comm_t comm,
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_r2c_distr_%i_%i_%i",
            npts_global[0], npts_global[1], npts_global[2]);
   const int handle2 = fft_start_timer(routine_name);
-  assert(fft_lib_use_mpi());
+  cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_3d_r2c_distributed(npts_global, comm, grid_in, grid_out);
     break;
   default:
-    assert(0 && "Distributed 3D FFT not available.");
+    cp_assert(0 && "Distributed 3D FFT not available.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1400,13 +1400,13 @@ void fft_3d_c2r_distributed(const int npts_global[3], const cp_mpi_comm_t comm,
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_c2r_distr_%i_%i_%i",
            npts_global[0], npts_global[1], npts_global[2]);
   const int handle2 = fft_start_timer(routine_name);
-  assert(fft_lib_use_mpi());
+  cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_3d_c2r_distributed(npts_global, comm, grid_in, grid_out);
     break;
   default:
-    assert(0 && "Distributed 3D FFT not available.");
+    cp_assert(0 && "Distributed 3D FFT not available.");
   }
   fft_stop_timer(handle2);
   fft_stop_timer(handle);

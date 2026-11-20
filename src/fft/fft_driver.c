@@ -11,7 +11,7 @@
 #include "fft_timer.h"
 #include "fft_utils.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <math.h>
 #include <stddef.h>
 #include <stdio.h>
@@ -102,7 +102,7 @@ void fft_register_3d_blocked(const int npts_global[3],
                           npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
                           grid_buffer_1, grid_buffer_2);
   } else if (proc_grid[0] > 1) {
-    assert(fft_sizes_rs[1] == npts_global[1]);
+    cp_assert(fft_sizes_rs[1] == npts_global[1]);
     if (fft_lib_use_mpi()) {
       // 3D FFT (z_D,y,x) -> (y_D,z,x)
       fft_3d_distributed(
@@ -248,7 +248,7 @@ void fft_register_3d_r2c_blocked(const int npts_global[3],
                           npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
                           grid_buffer_1, grid_buffer_2);
   } else if (proc_grid[0] > 1) {
-    assert(fft_sizes_rs[1] == npts_global[1]);
+    cp_assert(fft_sizes_rs[1] == npts_global[1]);
     if (fft_lib_use_mpi()) {
       // Perform the distributed 3D FFT in one shot (z_d,y,x)->(y_D,z,x)
       // Returns transposed layout (z_d,y,x) -> (y_d,z,x)
@@ -911,7 +911,7 @@ void fft_3d_fw_blocked(const double complex *restrict grid_rs, bool is_complex,
               &stride_size);
     }
   } else if (proc_grid[0] > 1) {
-    assert(fft_sizes_rs[1] == npts_global[1]);
+    cp_assert(fft_sizes_rs[1] == npts_global[1]);
     if (fft_lib_use_mpi()) {
       // Perform the distributed 3D FFT in one shot
       // First, we need to change to the correct layout (x,y,z_d) -> (z_d,y,x)
@@ -1233,7 +1233,7 @@ void fft_3d_fw_r2c_blocked(
               &stride_size);
     }
   } else if (proc_grid[0] > 1) {
-    assert(fft_sizes_rs[1] == npts_global[1]);
+    cp_assert(fft_sizes_rs[1] == npts_global[1]);
     if (fft_lib_use_mpi()) {
 
       // We need to reorder the data because the data is padded for the
@@ -1358,7 +1358,7 @@ void fft_3d_fw_r2c_blocked(
                      grid_buffer_1, grid_buffer_2);
         grid_result = grid_buffer_2;
       } else {
-        assert(grid_rs != NULL);
+        cp_assert(grid_rs != NULL);
         memcpy((double *)grid_buffer_1, grid_rs,
                product3(fft_sizes_rs) * sizeof(double));
 

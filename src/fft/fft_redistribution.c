@@ -10,7 +10,7 @@
 #include "fft_timer.h"
 #include "fft_utils.h"
 
-#include <assert.h>
+#include "../base/cp_assert.h"
 #include <complex.h>
 #include <math.h>
 #include <stdio.h>
@@ -49,7 +49,7 @@ void prepare_redistribution(
     int (*proc2local_z_rs)[2], int *rays_per_process, int (*ray_to_xy)[2],
     const cp_mpi_comm_t comm, const cp_mpi_comm_t sub_comm[2]) {
 
-  assert(redistribution != NULL);
+  cp_assert(redistribution != NULL);
 
   cleanup_redistribution(redistribution);
 
@@ -89,9 +89,9 @@ void prepare_redistribution(
     send_offset += current_send_count;
     recv_offset += current_recv_count;
   }
-  assert(send_offset == npts_global_gspace[0] * redistribution->my_size_y_rs *
+  cp_assert(send_offset == npts_global_gspace[0] * redistribution->my_size_y_rs *
                             redistribution->my_size_z_rs);
-  assert(recv_offset == redistribution->my_size_x_gs * npts_global_gspace[1] *
+  cp_assert(recv_offset == redistribution->my_size_x_gs * npts_global_gspace[1] *
                             redistribution->my_size_z_rs);
 
   // yz redistribution non-transposed
@@ -117,9 +117,9 @@ void prepare_redistribution(
     redistribution->counts_yz_z[process] = current_recv_count;
     recv_offset += current_recv_count;
   }
-  assert(send_offset == redistribution->my_size_x_gs * npts_global_gspace[1] *
+  cp_assert(send_offset == redistribution->my_size_x_gs * npts_global_gspace[1] *
                             redistribution->my_size_z_rs);
-  assert(recv_offset == redistribution->my_size_x_gs *
+  cp_assert(recv_offset == redistribution->my_size_x_gs *
                             redistribution->my_size_y_gs *
                             npts_global_gspace[2]);
 
@@ -215,7 +215,7 @@ void prepare_redistribution(
         }
       }
     }
-    assert(ray_position == redistribution->rays_z);
+    cp_assert(ray_position == redistribution->rays_z);
 
     for (int process = 0; process < number_of_processes; process++) {
       // Determine the number of rays to send to the given process
@@ -252,7 +252,7 @@ void prepare_redistribution(
           ray_position++;
         }
       }
-      assert(ray_position * my_bounds[2][1] ==
+      cp_assert(ray_position * my_bounds[2][1] ==
              redistribution->counts_yz_ray_y[process]);
     }
   }
