@@ -807,12 +807,37 @@ void grid_prepare_ray_mapping(fft_grid_layout *g,
   free(g->rays_per_process);
   g->xy_to_process = malloc(map_size * sizeof(int));
   g->rays_per_process = calloc(number_of_processes, sizeof(int));
-  cp_assert(g->xy_to_process != NULL && g->rays_per_process != NULL);
+  unsigned char *has_data = calloc(map_size, sizeof(unsigned char));
+  cp_assert(g->xy_to_process != NULL && g->rays_per_process != NULL &&
+            has_data != NULL);
+
+  // Canonical round-robin ordering: C storage order (z, y), data rays only.
+  for (int c0 = 0; c0 < n0; c0++) {
+    const int s0 = convert_c_index_to_shifted_index(c0, g->npts_global[0]);
+    for (int c1 = 0; c1 < n1; c1++) {
+      const int s1 = convert_c_index_to_shifted_index(c1, g->npts_global[1]);
+      for (int c2 = 0; c2 < g->npts_global[2]; c2++) {
+        const int s2 = convert_c_index_to_shifted_index(c2, g->npts_global[2]);
+        if (g->use_halfspace && s0 == 0 &&
+            ((s1 == 0 && s2 > 0) || s1 > 0))
+          continue;
+        if (g->cutoff > 0.0) {
+          const double gsq = squared_length_of_g_vector(
+              (const int[3]){s0, s1, s2}, g->cell_info.dhmat);
+          if (0.5 * gsq > g->cutoff)
+            continue;
+        }
+        has_data[(size_t)c0 * n1 + c1] = 1;
+        break;
+      }
+    }
+  }
 
   const int ref_n0 = ref != NULL ? ref->npts_global_gspace[0] : 0;
   const int ref_n1 = ref != NULL ? ref->npts_global[1] : 0;
   for (int c0 = 0; c0 < n0; c0++) {
     for (int c1 = 0; c1 < n1; c1++) {
+      const size_t index = (size_t)c0 * n1 + c1;
       int process = -1;
       if (ref != NULL && ref->xy_to_process != NULL) {
         const int s0 = convert_c_index_to_shifted_index(c0, g->npts_global[0]);
@@ -827,13 +852,53 @@ void grid_prepare_ray_mapping(fft_grid_layout *g,
             process = ref->xy_to_process[(size_t)rc0 * ref_n1 + rc1];
         }
       }
-      if (process < 0)
-        process = (int)(((size_t)c0 * n1 + c1) % (size_t)number_of_processes);
-      cp_assert(process >= 0 && process < number_of_processes);
-      g->xy_to_process[(size_t)c0 * n1 + c1] = process;
-      g->rays_per_process[process]++;
+      g->xy_to_process[index] = process;
     }
   }
+
+  int rr_data = 0;
+  const int lb1 = -(n1 - 1) / 2;
+  const int ub1 = n1 / 2;
+  if (g->use_halfspace) {
+    // Fortran stores z = lbz..0; ray i maps to the positive mirror n0-i.
+    for (int i = 1; i <= n0; i++) {
+      const int c0 = n0 - i;
+      for (int sy = lb1; sy <= ub1; sy++) {
+        const int c1 = convert_shifted_index_to_c_index(sy, n1);
+        const size_t index = (size_t)c0 * n1 + c1;
+        if (!has_data[index] || g->xy_to_process[index] >= 0)
+          continue;
+        const int process = rr_data % number_of_processes;
+        rr_data++;
+        g->xy_to_process[index] = process;
+        g->rays_per_process[process]++;
+      }
+    }
+  } else {
+    const int lb0 = -(n0 - 1) / 2;
+    const int ub0 = n0 / 2;
+    for (int sz = lb0; sz <= ub0; sz++) {
+      const int c0 = convert_shifted_index_to_c_index(sz, g->npts_global[0]);
+      for (int sy = lb1; sy <= ub1; sy++) {
+        const int c1 = convert_shifted_index_to_c_index(sy, n1);
+        const size_t index = (size_t)c0 * n1 + c1;
+        if (!has_data[index] || g->xy_to_process[index] >= 0)
+          continue;
+        const int process = rr_data % number_of_processes;
+        rr_data++;
+        g->xy_to_process[index] = process;
+        g->rays_per_process[process]++;
+      }
+    }
+  }
+  int rr_empty = 0;
+  for (size_t index = 0; index < map_size; index++) {
+    if (g->xy_to_process[index] >= 0)
+      continue;
+    g->xy_to_process[index] = rr_empty % number_of_processes;
+    rr_empty++;
+  }
+  free(has_data);
 }
 
 int grid_finalize_distribution(fft_grid_layout *g, const bool use_ray,
