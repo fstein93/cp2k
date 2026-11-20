@@ -591,6 +591,203 @@ void fft_register_3d(const fft_grid_layout *grid_layout) {
   }
 }
 
+
+/*******************************************************************************
+ * \brief Choose the Cartesian process grid exactly as grid creation does.
+ ******************************************************************************/
+void fft_choose_proc_grid(const int number_of_processes,
+                          const int npts_global[3], const int *pgrid_guess,
+                          int proc_grid[2]) {
+  proc_grid[0] = -1;
+  proc_grid[1] = -1;
+  if (pgrid_guess)
+    memcpy(proc_grid, pgrid_guess, 2 * sizeof(int));
+  if (proc_grid[0]) {
+    if (proc_grid[1]) {
+      if (proc_grid[0] * proc_grid[1] != number_of_processes) {
+        proc_grid[0] = -1;
+        proc_grid[1] = -1;
+      }
+    } else if (number_of_processes % proc_grid[0] == 0) {
+      proc_grid[1] = number_of_processes / proc_grid[0];
+    } else {
+      proc_grid[0] = -1;
+      proc_grid[1] = -1;
+    }
+  } else if (proc_grid[1]) {
+    if (number_of_processes % proc_grid[1] == 0) {
+      proc_grid[0] = number_of_processes / proc_grid[1];
+    } else {
+      proc_grid[1] = -1;
+    }
+  }
+  if (proc_grid[0] <= 0 || proc_grid[1] <= 0 ||
+      proc_grid[0] * proc_grid[1] != number_of_processes) {
+    if (npts_global[2] < number_of_processes) {
+      proc_grid[0] = 0;
+      proc_grid[1] = 0;
+      cp_mpi_dims_create(number_of_processes, 2, proc_grid);
+      if ((npts_global[2] - npts_global[1]) *
+              (proc_grid[0] - proc_grid[1]) <
+          0) {
+        const int proc_grid_0 = proc_grid[0];
+        proc_grid[0] = proc_grid[1];
+        proc_grid[1] = proc_grid_0;
+      }
+    } else {
+      proc_grid[0] = number_of_processes;
+      proc_grid[1] = 1;
+    }
+  }
+}
+
+
+/*******************************************************************************
+ * \brief Convert a layout into the ray distribution using caller data.
+ ******************************************************************************/
+int grid_enable_ray_distribution(fft_grid_layout *g,
+                                 const int *xy_to_process, const int nlocal,
+                                 const int (*index_to_g)[3],
+                                 const double *gsquared) {
+  assert(g != NULL);
+  assert(xy_to_process != NULL);
+  assert(index_to_g != NULL);
+  assert(gsquared != NULL);
+  const int number_of_processes = cp_mpi_comm_size(g->comm);
+  const int n0 = g->npts_global_gspace[0];
+  const int n1 = g->npts_global[1];
+  const size_t map_size = (size_t)n0 * (size_t)n1;
+
+  free(g->index_to_g);
+  free(g->index_to_gsquared);
+  free(g->local_index_to_ref_grid);
+  free(g->index_to_cart);
+  free(g->index_to_cart_pos);
+  free(g->index_to_cart_neg);
+  free(g->index_to_ray);
+  free(g->index_to_ray_pos);
+  free(g->index_to_ray_neg);
+  free(g->xy_to_process);
+  free(g->ray_to_xy);
+  free(g->xy_to_ray);
+  free(g->rays_per_process);
+  if (g->redistribution != NULL) {
+    cleanup_redistribution(g->redistribution);
+    free(g->redistribution);
+    g->redistribution = NULL;
+  }
+
+  g->ray_distribution = true;
+  g->npts_gs_local = nlocal;
+  g->xy_to_process = malloc(map_size * sizeof(int));
+  memcpy(g->xy_to_process, xy_to_process, map_size * sizeof(int));
+  g->rays_per_process = calloc(number_of_processes, sizeof(int));
+  for (size_t i = 0; i < map_size; i++) {
+    const int p = g->xy_to_process[i];
+    assert(p >= 0 && p < number_of_processes);
+    g->rays_per_process[p]++;
+  }
+  int total_number_of_rays = 0;
+  int *ray_offsets = calloc(number_of_processes, sizeof(int));
+  int *ray_index_per_process = calloc(number_of_processes, sizeof(int));
+  for (int p = 0; p < number_of_processes; p++) {
+    ray_offsets[p] = total_number_of_rays;
+    total_number_of_rays += g->rays_per_process[p];
+  }
+  g->ray_to_xy = malloc((size_t)total_number_of_rays * sizeof(int[2]));
+  g->xy_to_ray = malloc(map_size * sizeof(int));
+  for (int c0 = 0; c0 < n0; c0++) {
+    for (int c1 = 0; c1 < n1; c1++) {
+      const int p = g->xy_to_process[(size_t)c0 * n1 + c1];
+      const int idx = ray_index_per_process[p]++;
+      g->ray_to_xy[ray_offsets[p] + idx][0] = c0;
+      g->ray_to_xy[ray_offsets[p] + idx][1] = c1;
+      g->xy_to_ray[(size_t)c0 * n1 + c1] = idx;
+    }
+  }
+  free(ray_offsets);
+  free(ray_index_per_process);
+
+  g->number_of_positive_gs_points = 0;
+  if (g->use_halfspace) {
+    for (int i = 0; i < nlocal; i++)
+      g->number_of_positive_gs_points += index_to_g[i][0] < n0;
+    g->number_of_negative_gs_points =
+        nlocal - g->number_of_positive_gs_points;
+  } else {
+    g->number_of_positive_gs_points = nlocal;
+    g->number_of_negative_gs_points = 0;
+  }
+  g->index_to_g = malloc((size_t)nlocal * sizeof(int[3]));
+  memcpy(g->index_to_g, index_to_g, (size_t)nlocal * sizeof(int[3]));
+  g->index_to_gsquared = malloc((size_t)nlocal * sizeof(double));
+  memcpy(g->index_to_gsquared, gsquared, (size_t)nlocal * sizeof(double));
+  g->local_index_to_ref_grid = malloc((size_t)nlocal * sizeof(int));
+  for (int i = 0; i < nlocal; i++)
+    g->local_index_to_ref_grid[i] = i;
+
+  g->index_to_cart = NULL;
+  g->index_to_cart_pos = NULL;
+  g->index_to_cart_neg = NULL;
+  g->index_to_ray = NULL;
+  g->index_to_ray_pos = NULL;
+  g->index_to_ray_neg = NULL;
+  if (g->use_halfspace) {
+    g->index_to_ray_pos =
+        calloc(g->number_of_positive_gs_points, sizeof(int[2]));
+    g->index_to_ray_neg =
+        calloc(g->number_of_negative_gs_points, sizeof(int[2]));
+  } else {
+    g->index_to_ray = calloc(nlocal, sizeof(int));
+  }
+
+  sort_g_vectors(g);
+  if (g->use_halfspace) {
+    int positive_index = 0;
+    int negative_index = 0;
+    for (int index = 0; index < g->npts_gs_local; index++) {
+      int *index_g = g->index_to_g[index];
+      if (index_g[0] < g->npts_global_gspace[0]) {
+        g->index_to_ray_pos[positive_index][0] = index;
+        g->index_to_ray_pos[positive_index][1] =
+            g->xy_to_ray[(size_t)index_g[0] * n1 + index_g[1]] *
+                g->npts_global[2] +
+            index_g[2];
+        positive_index++;
+      } else {
+        g->index_to_ray_neg[negative_index][0] = index;
+        g->index_to_ray_neg[negative_index][1] =
+            g->xy_to_ray[((size_t)(g->npts_global[0] - index_g[0])) * n1 +
+                         (g->npts_global[1] - index_g[1]) %
+                             g->npts_global[1]] *
+                g->npts_global[2] +
+            (g->npts_global[2] - index_g[2]) % g->npts_global[2];
+        negative_index++;
+      }
+    }
+    assert(positive_index == g->number_of_positive_gs_points);
+    assert(negative_index == g->number_of_negative_gs_points);
+  } else {
+    for (int index = 0; index < g->npts_gs_local; index++) {
+      int *index_g = g->index_to_g[index];
+      g->index_to_ray[index] =
+          g->xy_to_ray[(size_t)index_g[0] * n1 + index_g[1]] *
+              g->npts_global[2] +
+          index_g[2];
+    }
+  }
+
+  g->buffer_size = imax(g->buffer_size, nlocal);
+  g->redistribution = calloc(1, sizeof(fft_redistribution_t));
+  prepare_redistribution(
+      g->redistribution, g->npts_global_gspace, g->proc2local_ms,
+      g->proc2local_x_gs, g->proc2local_y_rs, g->proc2local_y_gs,
+      g->proc2local_z_rs, g->rays_per_process, g->ray_to_xy, g->comm,
+      g->sub_comm);
+  fft_register_3d(g);
+  return 0;
+}
+
 void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
                                  const cp_mpi_comm_t comm,
                                  const int npts_global[3],
@@ -617,8 +814,6 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
   my_fft_grid->ref_grid_id = current_grid_id;
   current_grid_id++;
   my_fft_grid->ref_counter = 1;
-  assert(!use_ray_distribution &&
-         "Primary ray distributions are not implemented yet");
   my_fft_grid->ray_distribution = use_ray_distribution;
 
   my_fft_grid->use_halfspace = use_halfspace;
@@ -933,8 +1128,8 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
   my_fft_grid->rays_per_process = calloc(number_of_processes, sizeof(int));
   for (int process = 0; process < number_of_processes; process++)
     my_fft_grid->rays_per_process[process] =
-        my_fft_grid->proc2local_gs[process][1][1] *
-        my_fft_grid->proc2local_gs[process][2][1];
+        my_fft_grid->proc2local_gs[process][0][1] *
+        my_fft_grid->proc2local_gs[process][1][1];
   my_fft_grid->index_to_g = calloc(my_fft_grid->npts_gs_local, sizeof(int[3]));
   if (use_halfspace) {
     my_fft_grid->index_to_cart = NULL;
@@ -1151,8 +1346,6 @@ void grid_create_fft_grid_layout_from_reference(
   current_grid_id++;
   my_fft_grid->ref_counter = 1;
 
-  assert(use_ray_distribution &&
-         "Blocked reference distributions are not implemented yet");
   my_fft_grid->ray_distribution = use_ray_distribution;
 
   if (npts_global[2] < number_of_processes) {

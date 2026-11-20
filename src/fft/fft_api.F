@@ -46,6 +46,10 @@ MODULE fft_api
    PUBLIC :: fft_grid_get_proc2local_rs, fft_grid_get_proc2local_ms, fft_grid_get_proc2local_gs
    PUBLIC :: fft_grid_get_rays_per_process
    PUBLIC :: fft_grid_get_xy_to_process
+   PUBLIC :: fft_choose_proc_grid
+   PUBLIC :: fft_grid_get_proc_grid
+   PUBLIC :: fft_grid_is_ray_distributed
+   PUBLIC :: fft_grid_enable_ray_distribution
 
    ! Keep it synchronized with fft_api_F.c
    INTEGER, PARAMETER, PUBLIC :: FFT_LIBRARY_BACKEND_DEFAULT = 1
@@ -1753,6 +1757,140 @@ CONTAINS
       DEALLOCATE (nyzray_c)
 
    END FUNCTION fft_grid_get_rays_per_process
+
+! **************************************************************************************************
+!> \brief Choose the Cartesian process grid used for a global grid.
+!> \param fft_size ...
+!> \param number_of_processes ...
+!> \param proc_grid ...
+!> \param pgrid_guess ...
+! **************************************************************************************************
+   SUBROUTINE fft_choose_proc_grid(fft_size, number_of_processes, proc_grid, pgrid_guess)
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
+      INTEGER, INTENT(IN)                                :: number_of_processes
+      INTEGER, DIMENSION(2), INTENT(OUT)                 :: proc_grid
+      INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: pgrid_guess
+
+      INTEGER(C_INT), DIMENSION(2), TARGET               :: pgrid_guess_c
+      INTEGER(C_INT), DIMENSION(2)                       :: proc_grid_c
+      TYPE(C_PTR)                                        :: pgrid_guess_ptr
+
+      INTERFACE
+         SUBROUTINE fft_choose_proc_grid_c(npts_global, nprocs, pgrid_guess, proc_grid) &
+            BIND(C, name="fft_choose_proc_grid_F")
+            IMPORT :: C_INT, C_PTR
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: npts_global
+            INTEGER(C_INT), VALUE :: nprocs
+            TYPE(C_PTR), VALUE :: pgrid_guess
+            INTEGER(C_INT), DIMENSION(2), INTENT(OUT) :: proc_grid
+         END SUBROUTINE fft_choose_proc_grid_c
+      END INTERFACE
+
+      pgrid_guess_ptr = C_NULL_PTR
+      IF (PRESENT(pgrid_guess)) THEN
+         pgrid_guess_c = INT(pgrid_guess, C_INT)
+         pgrid_guess_ptr = C_LOC(pgrid_guess_c)
+      END IF
+      CALL fft_choose_proc_grid_c(INT(fft_size, C_INT), INT(number_of_processes, C_INT), &
+                                  pgrid_guess_ptr, proc_grid_c)
+      proc_grid = INT(proc_grid_c)
+   END SUBROUTINE fft_choose_proc_grid
+
+! **************************************************************************************************
+!> \brief Fetch the process grid of a layout.
+! **************************************************************************************************
+   SUBROUTINE fft_grid_get_proc_grid(fft_grid, proc_grid)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+      INTEGER, DIMENSION(2), INTENT(OUT)                 :: proc_grid
+
+      INTEGER(C_INT), DIMENSION(2)                       :: proc_grid_c
+
+      INTERFACE
+         SUBROUTINE fft_grid_get_proc_grid_c(layout, pgrid) &
+            BIND(C, name="fft_grid_get_proc_grid_F")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE :: layout
+            INTEGER(C_INT), DIMENSION(2), INTENT(OUT) :: pgrid
+         END SUBROUTINE fft_grid_get_proc_grid_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      CALL fft_grid_get_proc_grid_c(fft_grid%fft_grid, proc_grid_c)
+      proc_grid = INT(proc_grid_c)
+   END SUBROUTINE fft_grid_get_proc_grid
+
+! **************************************************************************************************
+!> \brief Query whether a layout is ray-distributed.
+! **************************************************************************************************
+   LOGICAL FUNCTION fft_grid_is_ray_distributed(fft_grid)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+
+      INTEGER(C_INT)                                     :: status
+
+      INTERFACE
+         INTEGER(C_INT) FUNCTION fft_grid_is_ray_distributed_c(layout) &
+            BIND(C, name="fft_grid_is_ray_distributed_F")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE :: layout
+         END FUNCTION fft_grid_is_ray_distributed_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      status = fft_grid_is_ray_distributed_c(fft_grid%fft_grid)
+      fft_grid_is_ray_distributed = status /= 0
+   END FUNCTION fft_grid_is_ray_distributed
+
+! **************************************************************************************************
+!> \brief Rebuild a layout as a ray distribution using PW grid data.
+! **************************************************************************************************
+   SUBROUTINE fft_grid_enable_ray_distribution(fft_grid, xy_to_process, index_to_g, gsquared)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+      INTEGER, DIMENSION(0:), INTENT(IN), TARGET         :: xy_to_process
+      INTEGER, DIMENSION(:, :), INTENT(IN), TARGET       :: index_to_g
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), TARGET    :: gsquared
+
+      INTEGER                                            :: i, nlocal
+      INTEGER(C_INT)                                     :: status
+      INTEGER(C_INT), ALLOCATABLE, DIMENSION(:), TARGET  :: g_c, xy_c
+      REAL(C_DOUBLE), ALLOCATABLE, DIMENSION(:), TARGET  :: gsq_c
+
+      INTERFACE
+         INTEGER(C_INT) FUNCTION fft_grid_enable_ray_distribution_c(layout, xy, nlocal, g, gsq) &
+            BIND(C, name="fft_grid_enable_ray_distribution_F")
+            IMPORT :: C_PTR, C_INT, C_DOUBLE
+            TYPE(C_PTR), VALUE :: layout
+            INTEGER(C_INT), DIMENSION(*), INTENT(IN) :: xy
+            INTEGER(C_INT), VALUE :: nlocal
+            INTEGER(C_INT), DIMENSION(*), INTENT(IN) :: g
+            REAL(C_DOUBLE), DIMENSION(*), INTENT(IN) :: gsq
+         END FUNCTION fft_grid_enable_ray_distribution_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      CPASSERT(SIZE(index_to_g, 1) == 3)
+      nlocal = SIZE(index_to_g, 2)
+      CPASSERT(SIZE(gsquared) == nlocal)
+
+      ALLOCATE (xy_c(0:SIZE(xy_to_process) - 1))
+      DO i = 0, SIZE(xy_to_process) - 1
+         xy_c(i) = INT(xy_to_process(i))
+      END DO
+      ALLOCATE (g_c(0:3*nlocal - 1))
+      DO i = 1, nlocal
+         g_c(3*(i - 1)) = INT(index_to_g(1, i))
+         g_c(3*(i - 1) + 1) = INT(index_to_g(2, i))
+         g_c(3*(i - 1) + 2) = INT(index_to_g(3, i))
+      END DO
+      ALLOCATE (gsq_c(0:nlocal - 1))
+      DO i = 1, nlocal
+         gsq_c(i - 1) = REAL(gsquared(i), KIND=C_DOUBLE)
+      END DO
+
+      status = fft_grid_enable_ray_distribution_c(fft_grid%fft_grid, xy_c, INT(nlocal, KIND=C_INT), &
+                                                  g_c, gsq_c)
+      CPASSERT(status == 0)
+      DEALLOCATE (xy_c, g_c, gsq_c)
+   END SUBROUTINE fft_grid_enable_ray_distribution
 
 ! **************************************************************************************************
 !> \brief Fetch the map from yz-ray indices to processes.

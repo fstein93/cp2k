@@ -676,6 +676,19 @@ void fft_grid_get_proc2local_ms_F(const fft_grid_layout *fft_grid,
 void fft_grid_get_proc2local_gs_F(const fft_grid_layout *fft_grid,
                                   int *proc2local_gs);
 
+void fft_choose_proc_grid_F(const int npts_global[3],
+                            const int number_of_processes,
+                            const int *pgrid_guess, int proc_grid[2]);
+void fft_grid_get_proc_grid_F(const fft_grid_layout *fft_grid,
+                              int proc_grid[2]);
+int fft_grid_is_ray_distributed_F(const fft_grid_layout *fft_grid);
+
+int fft_grid_enable_ray_distribution_F(fft_grid_layout *fft_grid,
+                                       const int *xy_to_process,
+                                       const int nlocal,
+                                       const int *index_to_g,
+                                       const double *gsquared);
+
 int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid,
                                     int *rays);
 

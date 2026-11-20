@@ -971,6 +971,51 @@ void fft_grid_get_proc2local_gs_F(const fft_grid_layout *fft_grid,
  * \param rays Number of yz rays per process (output).
  * \return whether the layout provides a ray distribution.
  ******************************************************************************/
+
+/*******************************************************************************
+ * \brief Choose the process grid used for a given global grid.
+ ******************************************************************************/
+void fft_choose_proc_grid_F(const int npts_global[3],
+                            const int number_of_processes,
+                            const int *pgrid_guess, int proc_grid[2]) {
+  fft_choose_proc_grid(number_of_processes,
+                       (const int[3]){npts_global[2], npts_global[1],
+                                      npts_global[0]},
+                       pgrid_guess, proc_grid);
+}
+
+/*******************************************************************************
+ * \brief Fetch the process grid of a layout.
+ ******************************************************************************/
+void fft_grid_get_proc_grid_F(const fft_grid_layout *fft_grid,
+                              int proc_grid[2]) {
+  assert(fft_grid != NULL);
+  proc_grid[0] = fft_grid->proc_grid[0];
+  proc_grid[1] = fft_grid->proc_grid[1];
+}
+
+/*******************************************************************************
+ * \brief Query the ray-distribution mode of a layout.
+ ******************************************************************************/
+int fft_grid_is_ray_distributed_F(const fft_grid_layout *fft_grid) {
+  assert(fft_grid != NULL);
+  return fft_grid->ray_distribution ? 1 : 0;
+}
+
+
+/*******************************************************************************
+ * \brief Convert a layout to a ray distribution from caller data.
+ ******************************************************************************/
+int fft_grid_enable_ray_distribution_F(fft_grid_layout *fft_grid,
+                                       const int *xy_to_process,
+                                       const int nlocal,
+                                       const int *index_to_g,
+                                       const double *gsquared) {
+  assert(fft_grid != NULL);
+  return grid_enable_ray_distribution(
+      fft_grid, xy_to_process, nlocal, (const int(*)[3])index_to_g, gsquared);
+}
+
 int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid,
                                     int *rays) {
   assert(fft_grid != NULL);
