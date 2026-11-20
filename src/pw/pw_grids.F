@@ -49,6 +49,7 @@ MODULE pw_grids
                                               fft_choose_proc_grid,&
                                               fft_grid_get_proc_grid,&
                                               fft_grid_is_ray_distributed,&
+                                              fft_grid_prepare_ray_mapping,&
                                               fft_grid_finalize_distribution
    USE kinds,                           ONLY: dp,&
                                               int_8,&
@@ -956,11 +957,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute'
 
-      INTEGER                                            :: blocked_local, gmax, handle, i, i1, i2, &
-                                                             ip, ipl, ipp, ixx, j, jz, l, lby, lbz, &
-                                                             lo(2), m, n, np, ns, ny, nz, nz_ray
+      INTEGER                                            :: blocked_local, gmax, handle, i, ip, ipl, &
+                                                             ipp, ixx, j, jz, l, lby, lbz, m, n, np, ns, &
+                                                             ny, nz, nz_ray, rr_count
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap, ray_count, xy_to_process
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: yz_index
       LOGICAL                                            :: blocking, nyzray_from_layout, &
                                                             ray_distribution_now, &
                                                             ray_mapping_from_layout
@@ -1036,16 +1036,12 @@ CONTAINS
             END IF
 
             pw_grid%para%yzq = -1
-            IF (PRESENT(ref_grid)) THEN
-               ! tag all vectors from the reference grid
-               CALL pre_tag(pw_grid, yz_mask, ref_grid)
-            END IF
 
-            ! Try to use the ray distribution of the FFT grid layout directly.
-            ray_mapping_from_layout = .FALSE.
+            ! Use the ray mapping prepared by the FFT layout.
             nz_ray = nz
             IF (pw_grid%grid_span == HALFSPACE) nz_ray = nz/2 + 1
             ALLOCATE (xy_to_process(0:nz_ray*ny - 1))
+            ray_mapping_from_layout = .FALSE.
 
             IF (ray_mapping_from_layout) THEN
                ! Assign each ray to the process given by the FFT grid layout
@@ -1078,36 +1074,33 @@ CONTAINS
                   END DO
                END DO
             ELSE
-            ! Round Robin distribution
-            ! Processors 0 .. NP-1, NP-1 .. 0  get the largest remaining batch
-            ! of g vectors in turn
-
-            i1 = SIZE(yz_mask, 1)
-            i2 = SIZE(yz_mask, 2)
-            ALLOCATE (yz_index(2, i1*i2))
-            CALL order_mask(yz_mask, yz_index)
-            DO i = 1, i1*i2
-               lo(1) = yz_index(1, i)
-               lo(2) = yz_index(2, i)
-               IF (lo(1)*lo(2) == 0) CYCLE
-               gmax = yz_mask(lo(1), lo(2))
-               IF (gmax == 0) CYCLE
-               yz_mask(lo(1), lo(2)) = 0
-               ip = MOD(i - 1, 2*np)
-               IF (ip > np - 1) ip = 2*np - ip - 1
-               IF (ip == pw_grid%para%group%mepos) THEN
-                  pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local + gmax
-               END IF
-               pw_grid%para%yzq(lo(1), lo(2)) = ip
-               IF (pw_grid%grid_span == HALFSPACE) THEN
-                  m = -lo(1) - 2*lby + 2
-                  n = -lo(2) - 2*lbz + 2
-                  pw_grid%para%yzq(m, n) = ip
-                  yz_mask(m, n) = 0
-               END IF
+            IF (PRESENT(ref_grid)) THEN
+               ! Fallback: tag all vectors from the reference grid
+               CALL pre_tag(pw_grid, yz_mask, ref_grid)
+            END IF
+            ! Round-robin distribution in yz storage order.
+            rr_count = 0
+            DO i = 1, nz
+               DO j = 1, ny
+                  gmax = yz_mask(j, i)
+                  IF (gmax == 0) CYCLE
+                  yz_mask(j, i) = 0
+                  ip = MOD(rr_count, np)
+                  rr_count = rr_count + 1
+                  IF (ip == pw_grid%para%group%mepos) THEN
+                     pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local + gmax
+                  END IF
+                  pw_grid%para%yzq(j, i) = ip
+                  IF (pw_grid%grid_span == HALFSPACE) THEN
+                     m = -j - 2*lby + 2
+                     n = -i - 2*lbz + 2
+                     IF (m >= 1 .AND. m <= ny .AND. n >= 1 .AND. n <= nz) THEN
+                        pw_grid%para%yzq(m, n) = ip
+                        yz_mask(m, n) = 0
+                     END IF
+                  END IF
+               END DO
             END DO
-
-            DEALLOCATE (yz_index)
             END IF
             DEALLOCATE (xy_to_process)
 
@@ -1324,84 +1317,6 @@ CONTAINS
 
    END SUBROUTINE pre_tag
 
-! **************************************************************************************************
-!> \brief ...
-!> \param yz_mask ...
-!> \param yz_index ...
-! **************************************************************************************************
-   PURE SUBROUTINE order_mask(yz_mask, yz_index)
-
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: yz_mask
-      INTEGER, DIMENSION(:, :), INTENT(OUT)              :: yz_index
-
-      INTEGER                                            :: i1, i2, ic, icount, ii, im, jc, jj
-
-!NB load balance
-!------------------------------------------------------------------------------
-!NB spiral out from origin, so that even if overall grid is full and
-!NB block distributed, spherical cutoff still leads to good load
-!NB balance in cp_ddapc_apply_CD
-
-      i1 = SIZE(yz_mask, 1)
-      i2 = SIZE(yz_mask, 2)
-      yz_index = 0
-
-      icount = 1
-      ic = i1/2
-      jc = i2/2
-      ii = ic
-      jj = jc
-      IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
-         IF (yz_mask(ii, jj) /= 0) THEN
-            yz_index(1, icount) = ii
-            yz_index(2, icount) = jj
-            icount = icount + 1
-         END IF
-      END IF
-      DO im = 1, MAX(ic + 1, jc + 1)
-         ii = ic - im
-         DO jj = jc - im, jc + im
-            IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
-               IF (yz_mask(ii, jj) /= 0) THEN
-                  yz_index(1, icount) = ii
-                  yz_index(2, icount) = jj
-                  icount = icount + 1
-               END IF
-            END IF
-         END DO
-         ii = ic + im
-         DO jj = jc - im, jc + im
-            IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
-               IF (yz_mask(ii, jj) /= 0) THEN
-                  yz_index(1, icount) = ii
-                  yz_index(2, icount) = jj
-                  icount = icount + 1
-               END IF
-            END IF
-         END DO
-         jj = jc - im
-         DO ii = ic - im + 1, ic + im - 1
-            IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
-               IF (yz_mask(ii, jj) /= 0) THEN
-                  yz_index(1, icount) = ii
-                  yz_index(2, icount) = jj
-                  icount = icount + 1
-               END IF
-            END IF
-         END DO
-         jj = jc + im
-         DO ii = ic - im + 1, ic + im - 1
-            IF (ii > 0 .AND. ii <= i1 .AND. jj > 0 .AND. jj <= i2) THEN
-               IF (yz_mask(ii, jj) /= 0) THEN
-                  yz_index(1, icount) = ii
-                  yz_index(2, icount) = jj
-                  icount = icount + 1
-               END IF
-            END IF
-         END DO
-      END DO
-
-   END SUBROUTINE order_mask
 ! **************************************************************************************************
 !> \brief compute the length of g vectors
 !> \param h_inv ...

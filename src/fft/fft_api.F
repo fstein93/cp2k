@@ -49,6 +49,7 @@ MODULE fft_api
    PUBLIC :: fft_choose_proc_grid
    PUBLIC :: fft_grid_get_proc_grid
    PUBLIC :: fft_grid_is_ray_distributed
+   PUBLIC :: fft_grid_prepare_ray_mapping
    PUBLIC :: fft_grid_finalize_distribution
 
    ! Keep it synchronized with fft_api_F.c
@@ -1839,6 +1840,35 @@ CONTAINS
       status = fft_grid_is_ray_distributed_c(fft_grid%fft_grid)
       fft_grid_is_ray_distributed = status /= 0
    END FUNCTION fft_grid_is_ray_distributed
+
+! **************************************************************************************************
+!> \brief Prepare a provisional ray mapping in the FFT layout.
+!> \param fft_grid ...
+!> \param ref_grid Optional reference layout whose mapping is inherited.
+! **************************************************************************************************
+   SUBROUTINE fft_grid_prepare_ray_mapping(fft_grid, ref_grid)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+      TYPE(fft_grid_type), INTENT(IN), OPTIONAL          :: ref_grid
+
+      TYPE(C_PTR)                                        :: ref_ptr
+
+      INTERFACE
+         SUBROUTINE fft_grid_prepare_ray_mapping_c(layout, ref_layout) &
+            BIND(C, name="fft_grid_prepare_ray_mapping_F")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE :: layout
+            TYPE(C_PTR), VALUE :: ref_layout
+         END SUBROUTINE fft_grid_prepare_ray_mapping_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      ref_ptr = C_NULL_PTR
+      IF (PRESENT(ref_grid)) THEN
+         CPASSERT(C_ASSOCIATED(ref_grid%fft_grid))
+         ref_ptr = ref_grid%fft_grid
+      END IF
+      CALL fft_grid_prepare_ray_mapping_c(fft_grid%fft_grid, ref_ptr)
+   END SUBROUTINE fft_grid_prepare_ray_mapping
 
 ! **************************************************************************************************
 !> \brief Rebuild a layout as a ray distribution using PW grid data.

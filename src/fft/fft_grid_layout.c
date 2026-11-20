@@ -791,6 +791,51 @@ int grid_enable_ray_distribution(fft_grid_layout *g,
 /*******************************************************************************
  * \brief Finalize the distribution of a provisionally blocked layout.
  ******************************************************************************/
+/*******************************************************************************
+ * \brief Prepare a provisional ray-to-process map without building ray plans.
+ * The map is refined/committed later by grid_finalize_distribution.
+ ******************************************************************************/
+void grid_prepare_ray_mapping(fft_grid_layout *g,
+                              const fft_grid_layout *ref) {
+  cp_assert(g != NULL);
+  const int number_of_processes = cp_mpi_comm_size(g->comm);
+  const int n0 = g->npts_global_gspace[0];
+  const int n1 = g->npts_global[1];
+  const size_t map_size = (size_t)n0 * (size_t)n1;
+
+  free(g->xy_to_process);
+  free(g->rays_per_process);
+  g->xy_to_process = malloc(map_size * sizeof(int));
+  g->rays_per_process = calloc(number_of_processes, sizeof(int));
+  cp_assert(g->xy_to_process != NULL && g->rays_per_process != NULL);
+
+  const int ref_n0 = ref != NULL ? ref->npts_global_gspace[0] : 0;
+  const int ref_n1 = ref != NULL ? ref->npts_global[1] : 0;
+  for (int c0 = 0; c0 < n0; c0++) {
+    for (int c1 = 0; c1 < n1; c1++) {
+      int process = -1;
+      if (ref != NULL && ref->xy_to_process != NULL) {
+        const int s0 = convert_c_index_to_shifted_index(c0, g->npts_global[0]);
+        const int s1 = convert_c_index_to_shifted_index(c1, g->npts_global[1]);
+        if (is_on_grid(s0, ref->npts_global[0]) &&
+            is_on_grid(s1, ref->npts_global[1])) {
+          const int rc0 =
+              convert_shifted_index_to_c_index(s0, ref->npts_global[0]);
+          const int rc1 =
+              convert_shifted_index_to_c_index(s1, ref->npts_global[1]);
+          if (rc0 >= 0 && rc0 < ref_n0 && rc1 >= 0 && rc1 < ref_n1)
+            process = ref->xy_to_process[(size_t)rc0 * ref_n1 + rc1];
+        }
+      }
+      if (process < 0)
+        process = (int)(((size_t)c0 * n1 + c1) % (size_t)number_of_processes);
+      cp_assert(process >= 0 && process < number_of_processes);
+      g->xy_to_process[(size_t)c0 * n1 + c1] = process;
+      g->rays_per_process[process]++;
+    }
+  }
+}
+
 int grid_finalize_distribution(fft_grid_layout *g, const bool use_ray,
                                const int *xy_to_process, const int nlocal,
                                const int (*index_to_g)[3],

@@ -683,6 +683,9 @@ void fft_grid_get_proc_grid_F(const fft_grid_layout *fft_grid,
                               int proc_grid[2]);
 int fft_grid_is_ray_distributed_F(const fft_grid_layout *fft_grid);
 
+void fft_grid_prepare_ray_mapping_F(fft_grid_layout *fft_grid,
+                                      const fft_grid_layout *ref);
+
 int fft_grid_finalize_distribution_F(fft_grid_layout *fft_grid,
                                      const bool use_ray,
                                      const int *xy_to_process,

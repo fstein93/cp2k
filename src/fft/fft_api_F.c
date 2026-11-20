@@ -1006,6 +1006,12 @@ int fft_grid_is_ray_distributed_F(const fft_grid_layout *fft_grid) {
 /*******************************************************************************
  * \brief Convert a layout to a ray distribution from caller data.
  ******************************************************************************/
+void fft_grid_prepare_ray_mapping_F(fft_grid_layout *fft_grid,
+                                      const fft_grid_layout *ref) {
+  cp_assert(fft_grid != NULL);
+  grid_prepare_ray_mapping(fft_grid, ref);
+}
+
 int fft_grid_finalize_distribution_F(fft_grid_layout *fft_grid,
                                      const bool use_ray,
                                      const int *xy_to_process,
