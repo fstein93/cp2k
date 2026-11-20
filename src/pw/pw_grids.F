@@ -468,8 +468,9 @@ CONTAINS
       END IF
 
       CALL fft_grid_get_comm(pw_grid%fft_grid, pw_grid%para%group)
+      CALL pw_grid_update_distribution(pw_grid)
 
-      CALL pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, bounds_local=bounds_local, &
+      CALL pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, &
                                   blocked=blocked, ref_grid=ref_grid, iounit=iounit, &
                                   use_ray_distribution=use_ray)
 
@@ -516,6 +517,7 @@ CONTAINS
          DEALLOCATE (xy_ray, gidx_ray, gsq_ray)
       END IF
 
+      CALL pw_grid_check_distribution(pw_grid)
       CPASSERT(use_ray .EQV. fft_grid_is_ray_distributed(pw_grid%fft_grid))
       CPASSERT(use_ray .EQV. pw_grid%para%ray_distribution)
 
@@ -607,7 +609,6 @@ CONTAINS
 !> \param cell_h_inv ...
 !> \param cell_deth ...
 !> \param pw_grid ...
-!> \param bounds_local ...
 !> \param blocked ...
 !> \param ref_grid ...
 !> \param iounit ...
@@ -625,12 +626,11 @@ CONTAINS
 !> \note
 !>      this is the function that should be used in the future
 ! **************************************************************************************************
-   SUBROUTINE pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, bounds_local, &
+   SUBROUTINE pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, &
                                      blocked, ref_grid, iounit, use_ray_distribution)
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: cell_hmat, cell_h_inv
       REAL(KIND=dp), INTENT(IN)                          :: cell_deth
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
-      INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: bounds_local
       INTEGER, INTENT(in), OPTIONAL                      :: blocked
       TYPE(pw_grid_type), INTENT(in), OPTIONAL           :: ref_grid
       INTEGER, INTENT(in), OPTIONAL                      :: iounit
@@ -676,7 +676,7 @@ CONTAINS
       END IF
 
       ! Distribute grid
-      CALL pw_grid_distribute(pw_grid, yz_mask, bounds_local=bounds_local, ref_grid=ref_grid, blocked=blocked, &
+      CALL pw_grid_distribute(pw_grid, yz_mask, ref_grid=ref_grid, blocked=blocked, &
                               use_ray_distribution=use_ray_distribution)
 
       ! Allocate the grid fields
@@ -867,7 +867,6 @@ CONTAINS
 !> \brief Distribute grids in real and Fourier Space to the processors in group
 !> \param pw_grid ...
 !> \param yz_mask ...
-!> \param bounds_local ...
 !> \param ref_grid ...
 !> \param blocked ...
 !> \par History
@@ -900,11 +899,70 @@ CONTAINS
       END SELECT
    END FUNCTION blocked_local_for_ray
 
-   SUBROUTINE pw_grid_distribute(pw_grid, yz_mask, bounds_local, ref_grid, blocked, use_ray_distribution)
+! **************************************************************************************************
+!> \brief Fill the PW-grid distribution caches from the FFT layout.
+!> The FFT layout is the owner; these PW-grid arrays are read-only mirrors.
+! **************************************************************************************************
+   SUBROUTINE pw_grid_update_distribution(pw_grid)
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
+
+      IF (.NOT. ALLOCATED(pw_grid%para%bo)) THEN
+         ALLOCATE (pw_grid%para%bo(2, 3, 0:pw_grid%para%group%num_pe - 1, 3))
+      END IF
+      CALL fft_grid_get_proc2local_rs(pw_grid%fft_grid, pw_grid%para%bo(:, :, :, 1))
+      CALL fft_grid_get_proc2local_ms(pw_grid%fft_grid, pw_grid%para%bo(:, :, :, 2))
+      CALL fft_grid_get_proc2local_gs(pw_grid%fft_grid, pw_grid%para%bo(:, :, :, 3))
+
+      IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
+         pw_grid%bounds_local = pw_grid%bounds
+      ELSE
+         pw_grid%bounds_local(:, :) = pw_grid%para%bo(:, :, pw_grid%para%group%mepos, 1)
+         pw_grid%bounds_local(1, :) = pw_grid%bounds_local(1, :) + pw_grid%bounds(1, :) - 1
+         pw_grid%bounds_local(2, :) = pw_grid%bounds_local(2, :) + pw_grid%bounds(1, :) - 1
+      END IF
+      pw_grid%npts_local(:) = pw_grid%bounds_local(2, :) - pw_grid%bounds_local(1, :) + 1
+   END SUBROUTINE pw_grid_update_distribution
+
+! **************************************************************************************************
+!> \brief Verify that the PW-grid distribution caches still match the FFT layout.
+! **************************************************************************************************
+   SUBROUTINE pw_grid_check_distribution(pw_grid)
+      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
+
+      INTEGER                                            :: i
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)          :: reference
+      INTEGER, DIMENSION(2, 3)                          :: expected_bounds
+
+      CPASSERT(ALLOCATED(pw_grid%para%bo))
+      ALLOCATE (reference(2, 3, 0:pw_grid%para%group%num_pe - 1))
+      DO i = 1, 3
+         SELECT CASE (i)
+         CASE (1)
+            CALL fft_grid_get_proc2local_rs(pw_grid%fft_grid, reference)
+         CASE (2)
+            CALL fft_grid_get_proc2local_ms(pw_grid%fft_grid, reference)
+         CASE (3)
+            CALL fft_grid_get_proc2local_gs(pw_grid%fft_grid, reference)
+         END SELECT
+         CPASSERT(ALL(pw_grid%para%bo(:, :, :, i) == reference))
+      END DO
+      DEALLOCATE (reference)
+
+      IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
+         expected_bounds = pw_grid%bounds
+      ELSE
+         expected_bounds = pw_grid%para%bo(:, :, pw_grid%para%group%mepos, 1)
+         expected_bounds(1, :) = expected_bounds(1, :) + pw_grid%bounds(1, :) - 1
+         expected_bounds(2, :) = expected_bounds(2, :) + pw_grid%bounds(1, :) - 1
+      END IF
+      CPASSERT(ALL(pw_grid%bounds_local == expected_bounds))
+      CPASSERT(ALL(pw_grid%npts_local == expected_bounds(2, :) - expected_bounds(1, :) + 1))
+   END SUBROUTINE pw_grid_check_distribution
+
+   SUBROUTINE pw_grid_distribute(pw_grid, yz_mask, ref_grid, blocked, use_ray_distribution)
 
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
       INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: yz_mask
-      INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: bounds_local
       TYPE(pw_grid_type), INTENT(IN), OPTIONAL           :: ref_grid
       INTEGER, INTENT(IN), OPTIONAL                      :: blocked
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_ray_distribution
@@ -923,7 +981,6 @@ CONTAINS
 !------------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
-      MARK_USED(bounds_local)
 
       lby = pw_grid%bounds(1, 2)
       lbz = pw_grid%bounds(1, 3)
@@ -938,17 +995,10 @@ CONTAINS
 
       pw_grid%para%blocked = .FALSE.
 
-      ALLOCATE (pw_grid%para%bo(2, 3, 0:pw_grid%para%group%num_pe - 1, 3))
-      CALL fft_grid_get_proc2local_rs(pw_grid%fft_grid, pw_grid%para%bo(:, :, :, 1))
-      CALL fft_grid_get_proc2local_ms(pw_grid%fft_grid, pw_grid%para%bo(:, :, :, 2))
-      CALL fft_grid_get_proc2local_gs(pw_grid%fft_grid, pw_grid%para%bo(:, :, :, 3))
-
       IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
 
          pw_grid%para%ray_distribution = .FALSE.
 
-         pw_grid%bounds_local = pw_grid%bounds
-         pw_grid%npts_local = pw_grid%npts
          CPASSERT(pw_grid%ngpts_cut < HUGE(pw_grid%ngpts_cut_local))
          pw_grid%ngpts_cut_local = INT(pw_grid%ngpts_cut)
          CPASSERT(pw_grid%ngpts < HUGE(pw_grid%ngpts_local))
@@ -977,13 +1027,6 @@ CONTAINS
             CPABORT("Unknown PW grid blocking")
          END SELECT
 
-         !..take the real space distribution from the FFT grid layout
-         pw_grid%bounds_local(:, :) = pw_grid%para%bo(:, :, pw_grid%para%group%mepos, 1)
-         pw_grid%bounds_local(1, :) = pw_grid%bounds_local(1, :) + pw_grid%bounds(1, :) - 1
-         pw_grid%bounds_local(2, :) = pw_grid%bounds_local(2, :) + pw_grid%bounds(1, :) - 1
-
-         pw_grid%npts_local(:) = pw_grid%bounds_local(2, :) &
-                                 - pw_grid%bounds_local(1, :) + 1
          !..find the g space distribution
          pw_grid%ngpts_cut_local = 0
 
