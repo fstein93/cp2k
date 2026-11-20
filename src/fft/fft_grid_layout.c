@@ -1303,6 +1303,86 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
 
   fft_register_3d(my_fft_grid);
 
+  if (use_ray_distribution) {
+    const int n0 = my_fft_grid->npts_global_gspace[0];
+    const int n1 = my_fft_grid->npts_global[1];
+    const size_t map_size = (size_t)n0 * (size_t)n1;
+    int *xy_to_process = malloc(map_size * sizeof(int));
+    for (int c0 = 0; c0 < n0; c0++)
+      for (int c1 = 0; c1 < n1; c1++)
+        xy_to_process[(size_t)c0 * n1 + c1] =
+            (int)(((size_t)c0 * n1 + c1) % (size_t)number_of_processes);
+
+    int nlocal = 0;
+    for (int c0 = 0; c0 < n0; c0++) {
+      for (int c1 = 0; c1 < n1; c1++) {
+        if (xy_to_process[(size_t)c0 * n1 + c1] != my_process)
+          continue;
+        for (int c2 = 0; c2 < my_fft_grid->npts_global[2]; c2++) {
+          const int shifted[3] = {
+              convert_c_index_to_shifted_index(c0, my_fft_grid->npts_global[0]),
+              convert_c_index_to_shifted_index(c1, my_fft_grid->npts_global[1]),
+              convert_c_index_to_shifted_index(c2,
+                                               my_fft_grid->npts_global[2])};
+          if (my_fft_grid->use_halfspace && shifted[0] == 0 &&
+              ((shifted[1] == 0 && shifted[2] > 0) || shifted[1] > 0))
+            continue;
+          if (cutoff > 0.0) {
+            const double gsq = squared_length_of_g_vector(
+                (const int[3]){shifted[0], shifted[1], shifted[2]},
+                my_fft_grid->cell_info.dhmat);
+            if (0.5 * gsq > cutoff)
+              continue;
+          }
+          nlocal++;
+        }
+      }
+    }
+    int (*index_to_g)[3] = malloc((size_t)nlocal * sizeof(int[3]));
+    double *gsquared = malloc((size_t)nlocal * sizeof(double));
+    int index = 0;
+    for (int c0 = 0; c0 < n0; c0++) {
+      for (int c1 = 0; c1 < n1; c1++) {
+        if (xy_to_process[(size_t)c0 * n1 + c1] != my_process)
+          continue;
+        for (int c2 = 0; c2 < my_fft_grid->npts_global[2]; c2++) {
+          const int shifted[3] = {
+              convert_c_index_to_shifted_index(c0, my_fft_grid->npts_global[0]),
+              convert_c_index_to_shifted_index(c1, my_fft_grid->npts_global[1]),
+              convert_c_index_to_shifted_index(c2,
+                                               my_fft_grid->npts_global[2])};
+          if (my_fft_grid->use_halfspace && shifted[0] == 0 &&
+              ((shifted[1] == 0 && shifted[2] > 0) || shifted[1] > 0))
+            continue;
+          double gsq = 0.0;
+          if (cutoff > 0.0) {
+            gsq = squared_length_of_g_vector(
+                (const int[3]){shifted[0], shifted[1], shifted[2]},
+                my_fft_grid->cell_info.dhmat);
+            if (0.5 * gsq > cutoff)
+              continue;
+          }
+          index_to_g[index][0] = c0;
+          index_to_g[index][1] = c1;
+          index_to_g[index][2] = c2;
+          gsquared[index] =
+              cutoff > 0.0
+                  ? gsq
+                  : squared_length_of_g_vector(
+                        (const int[3]){shifted[0], shifted[1], shifted[2]},
+                        my_fft_grid->cell_info.dhmat);
+          index++;
+        }
+      }
+    }
+    assert(index == nlocal);
+    grid_enable_ray_distribution(my_fft_grid, xy_to_process, nlocal, index_to_g,
+                                 gsquared);
+    free(xy_to_process);
+    free(index_to_g);
+    free(gsquared);
+  }
+
   *fft_grid = my_fft_grid;
 
   fft_stop_timer(handle);

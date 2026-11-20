@@ -458,13 +458,13 @@ CONTAINS
             CALL fft_create_grid(pw_grid%fft_grid, pw_grid%npts, mp_comm, cell_h_inv, &
                                  pw_grid%grid_span == HALFSPACE, pw_grid%cutoff, &
                                  pgrid_guess=pgrid, external_local_bounds=bounds_local, &
-                                 use_ray_distribution=.FALSE.)
+                                 use_ray_distribution=use_ray)
          END IF
       ELSE
          CALL fft_create_grid(pw_grid%fft_grid, pw_grid%npts, mp_comm, cell_h_inv, &
                               pw_grid%grid_span == HALFSPACE, pw_grid%cutoff, &
                               pgrid_guess=pgrid, external_local_bounds=bounds_local, &
-                              use_ray_distribution=.FALSE.)
+                              use_ray_distribution=use_ray)
       END IF
 
       CALL fft_grid_get_comm(pw_grid%fft_grid, pw_grid%para%group)
