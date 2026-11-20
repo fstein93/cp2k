@@ -116,7 +116,8 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
                                  const double dh_inv[3][3],
                                  const bool use_halfspace, const double cutoff,
                                  const int *pgrid_guess,
-                                 const int *external_local_bounds);
+                                 const int *external_local_bounds,
+                                 const bool use_ray_distribution);
 
 /*******************************************************************************
  * \brief Print some information on a grid.
@@ -132,7 +133,8 @@ void grid_print_grid_layout_info(const fft_grid_layout *layout,
  ******************************************************************************/
 void grid_create_fft_grid_layout_from_reference(
     fft_grid_layout **fft_grid, const int npts_global[3], const double cutoff,
-    const int *external_local_bounds, const fft_grid_layout *fft_grid_ref);
+    const int *external_local_bounds, const fft_grid_layout *fft_grid_ref,
+    const bool use_ray_distribution);
 
 /*******************************************************************************
  * \brief Retains a grid layout.

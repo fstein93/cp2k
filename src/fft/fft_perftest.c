@@ -28,7 +28,7 @@ static void run_test_c2c(const int fft_size[3], const int number_of_runs) {
   double begin = omp_get_wtime();
   fft_grid_layout *grid_layout = NULL;
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
-                              dh_inv, false, -1.0, NULL, NULL);
+                              dh_inv, false, -1.0, NULL, NULL, false);
 
   int (*my_bound_rs)[2] =
       grid_layout->proc2local_rs[cp_mpi_comm_rank(grid_layout->comm)];
@@ -103,7 +103,7 @@ static void run_test_r2c(const int fft_size[3], const int number_of_runs,
   double begin = omp_get_wtime();
   fft_grid_layout *grid_layout = NULL;
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
-                              dh_inv, use_halfspace, -1.0, NULL, NULL);
+                              dh_inv, use_halfspace, -1.0, NULL, NULL, false);
 
   int (*my_bound_rs)[2] =
       grid_layout->proc2local_rs[cp_mpi_comm_rank(grid_layout->comm)];
@@ -178,10 +178,10 @@ static void run_test_ray_c2c(const int fft_size[3], const int number_of_runs) {
   double begin = omp_get_wtime();
   fft_grid_layout *grid_layout = NULL;
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
-                              dh_inv, false, -1.0, NULL, NULL);
+                              dh_inv, false, -1.0, NULL, NULL, false);
   fft_grid_layout *grid_layout_ray = NULL;
   grid_create_fft_grid_layout_from_reference(&grid_layout_ray, fft_size, -1.0,
-                                             NULL, grid_layout);
+                                             NULL, grid_layout, true);
 
   int (*my_bound_rs)[2] =
       grid_layout_ray->proc2local_rs[cp_mpi_comm_rank(grid_layout_ray->comm)];
@@ -256,10 +256,10 @@ static void run_test_ray_r2c(const int fft_size[3], const int number_of_runs,
   double begin = omp_get_wtime();
   fft_grid_layout *grid_layout = NULL;
   grid_create_fft_grid_layout(&grid_layout, cp_mpi_get_comm_world(), fft_size,
-                              dh_inv, use_halfspace, -1.0, NULL, NULL);
+                              dh_inv, use_halfspace, -1.0, NULL, NULL, false);
   fft_grid_layout *grid_layout_ray = NULL;
   grid_create_fft_grid_layout_from_reference(&grid_layout_ray, fft_size, -1.0,
-                                             NULL, grid_layout);
+                                             NULL, grid_layout, true);
 
   int (*my_bound_rs)[2] =
       grid_layout_ray->proc2local_rs[cp_mpi_comm_rank(grid_layout_ray->comm)];

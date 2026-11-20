@@ -863,7 +863,8 @@ void fft_create_grid_F(fft_grid_layout **fft_grid, const int comm_F,
                        const int npts_global[3], const double dh_inv[3][3],
                        const bool use_halfspace, const double cutoff,
                        const int *pgrid_guess,
-                       const int *external_local_bounds) {
+                       const int *external_local_bounds,
+                       const bool use_ray_distribution) {
   int local_bounds[6];
   int *local_bounds_ptr = NULL;
   if (external_local_bounds != NULL) {
@@ -881,7 +882,8 @@ void fft_create_grid_F(fft_grid_layout **fft_grid, const int comm_F,
       (const double[3][3]){{dh_inv[2][2], dh_inv[2][1], dh_inv[2][0]},
                            {dh_inv[1][2], dh_inv[1][1], dh_inv[1][0]},
                            {dh_inv[0][2], dh_inv[0][1], dh_inv[0][0]}},
-      use_halfspace, cutoff, pgrid_guess, local_bounds_ptr);
+      use_halfspace, cutoff, pgrid_guess, local_bounds_ptr,
+      use_ray_distribution);
 }
 
 /*******************************************************************************
@@ -892,7 +894,8 @@ void fft_create_grid_from_reference_F(fft_grid_layout **fft_grid,
                                       const int npts_global[3],
                                       const double cutoff,
                                       const int *external_local_bounds,
-                                      const fft_grid_layout *fft_grid_ref) {
+                                      const fft_grid_layout *fft_grid_ref,
+                                      const bool use_ray_distribution) {
   assert(fft_grid_ref != NULL);
   int local_bounds[6];
   int *local_bounds_ptr = NULL;
@@ -907,7 +910,7 @@ void fft_create_grid_from_reference_F(fft_grid_layout **fft_grid,
   }
   grid_create_fft_grid_layout_from_reference(
       fft_grid, (const int[3]){npts_global[2], npts_global[1], npts_global[0]},
-      cutoff, local_bounds_ptr, fft_grid_ref);
+      cutoff, local_bounds_ptr, fft_grid_ref, use_ray_distribution);
 }
 
 /*******************************************************************************

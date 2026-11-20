@@ -597,7 +597,8 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
                                  const double hmat[3][3],
                                  const bool use_halfspace, const double cutoff,
                                  const int *pgrid_guess,
-                                 const int *external_local_bounds) {
+                                 const int *external_local_bounds,
+                                 const bool use_ray_distribution) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "create_grid_layout");
@@ -616,7 +617,9 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
   my_fft_grid->ref_grid_id = current_grid_id;
   current_grid_id++;
   my_fft_grid->ref_counter = 1;
-  my_fft_grid->ray_distribution = false;
+  assert(!use_ray_distribution &&
+         "Primary ray distributions are not implemented yet");
+  my_fft_grid->ray_distribution = use_ray_distribution;
 
   my_fft_grid->use_halfspace = use_halfspace;
   memcpy(my_fft_grid->npts_global, npts_global, 3 * sizeof(int));
@@ -1112,7 +1115,8 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
 
 void grid_create_fft_grid_layout_from_reference(
     fft_grid_layout **fft_grid, const int npts_global[3], const double cutoff,
-    const int *external_local_bounds, const fft_grid_layout *fft_grid_ref) {
+    const int *external_local_bounds, const fft_grid_layout *fft_grid_ref,
+    const bool use_ray_distribution) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -1147,7 +1151,9 @@ void grid_create_fft_grid_layout_from_reference(
   current_grid_id++;
   my_fft_grid->ref_counter = 1;
 
-  my_fft_grid->ray_distribution = true;
+  assert(use_ray_distribution &&
+         "Blocked reference distributions are not implemented yet");
+  my_fft_grid->ray_distribution = use_ray_distribution;
 
   if (npts_global[2] < number_of_processes) {
     // We only distribute in two directions if necessary to reduce communication
