@@ -49,7 +49,7 @@ MODULE fft_api
    PUBLIC :: fft_choose_proc_grid
    PUBLIC :: fft_grid_get_proc_grid
    PUBLIC :: fft_grid_is_ray_distributed
-   PUBLIC :: fft_grid_enable_ray_distribution
+   PUBLIC :: fft_grid_finalize_distribution
 
    ! Keep it synchronized with fft_api_F.c
    INTEGER, PARAMETER, PUBLIC :: FFT_LIBRARY_BACKEND_DEFAULT = 1
@@ -1843,8 +1843,9 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Rebuild a layout as a ray distribution using PW grid data.
 ! **************************************************************************************************
-   SUBROUTINE fft_grid_enable_ray_distribution(fft_grid, xy_to_process, index_to_g, gsquared)
+   SUBROUTINE fft_grid_finalize_distribution(fft_grid, use_ray, xy_to_process, index_to_g, gsquared)
       TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+      LOGICAL, INTENT(IN)                                :: use_ray
       INTEGER, DIMENSION(0:), INTENT(IN), TARGET         :: xy_to_process
       INTEGER, DIMENSION(:, :), INTENT(IN), TARGET       :: index_to_g
       REAL(KIND=dp), DIMENSION(:), INTENT(IN), TARGET    :: gsquared
@@ -1855,15 +1856,16 @@ CONTAINS
       REAL(C_DOUBLE), ALLOCATABLE, DIMENSION(:), TARGET  :: gsq_c
 
       INTERFACE
-         INTEGER(C_INT) FUNCTION fft_grid_enable_ray_distribution_c(layout, xy, nlocal, g, gsq) &
-            BIND(C, name="fft_grid_enable_ray_distribution_F")
-            IMPORT :: C_PTR, C_INT, C_DOUBLE
+         INTEGER(C_INT) FUNCTION fft_grid_finalize_distribution_c(layout, use_ray, xy, nlocal, g, gsq) &
+            BIND(C, name="fft_grid_finalize_distribution_F")
+            IMPORT :: C_PTR, C_INT, C_DOUBLE, C_BOOL
             TYPE(C_PTR), VALUE :: layout
+            LOGICAL(C_BOOL), VALUE :: use_ray
             INTEGER(C_INT), DIMENSION(*), INTENT(IN) :: xy
             INTEGER(C_INT), VALUE :: nlocal
             INTEGER(C_INT), DIMENSION(*), INTENT(IN) :: g
             REAL(C_DOUBLE), DIMENSION(*), INTENT(IN) :: gsq
-         END FUNCTION fft_grid_enable_ray_distribution_c
+         END FUNCTION fft_grid_finalize_distribution_c
       END INTERFACE
 
       CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
@@ -1886,11 +1888,11 @@ CONTAINS
          gsq_c(i - 1) = REAL(gsquared(i), KIND=C_DOUBLE)
       END DO
 
-      status = fft_grid_enable_ray_distribution_c(fft_grid%fft_grid, xy_c, INT(nlocal, KIND=C_INT), &
-                                                  g_c, gsq_c)
+      status = fft_grid_finalize_distribution_c(fft_grid%fft_grid, LOGICAL(use_ray, C_BOOL), &
+                                                xy_c, INT(nlocal, KIND=C_INT), g_c, gsq_c)
       CPASSERT(status == 0)
       DEALLOCATE (xy_c, g_c, gsq_c)
-   END SUBROUTINE fft_grid_enable_ray_distribution
+   END SUBROUTINE fft_grid_finalize_distribution
 
 ! **************************************************************************************************
 !> \brief Fetch the map from yz-ray indices to processes.

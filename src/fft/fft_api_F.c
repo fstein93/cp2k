@@ -1006,6 +1006,18 @@ int fft_grid_is_ray_distributed_F(const fft_grid_layout *fft_grid) {
 /*******************************************************************************
  * \brief Convert a layout to a ray distribution from caller data.
  ******************************************************************************/
+int fft_grid_finalize_distribution_F(fft_grid_layout *fft_grid,
+                                     const bool use_ray,
+                                     const int *xy_to_process,
+                                     const int nlocal,
+                                     const int *index_to_g,
+                                     const double *gsquared) {
+  cp_assert(fft_grid != NULL);
+  return grid_finalize_distribution(
+      fft_grid, use_ray, xy_to_process, nlocal,
+      (const int(*)[3])index_to_g, gsquared);
+}
+
 int fft_grid_enable_ray_distribution_F(fft_grid_layout *fft_grid,
                                        const int *xy_to_process,
                                        const int nlocal,

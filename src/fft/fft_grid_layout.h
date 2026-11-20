@@ -110,6 +110,11 @@ void grid_free_fft_grid_layout(fft_grid_layout *fft_grid);
  * \note If a grid layout was created using use_halfspace, only real-valued
  *grids in real-space can be created from this layout \author Frederick Stein
  ******************************************************************************/
+int grid_finalize_distribution(fft_grid_layout *g, const bool use_ray,
+                               const int *xy_to_process, const int nlocal,
+                               const int (*index_to_g)[3],
+                               const double *gsquared);
+
 int grid_enable_ray_distribution(fft_grid_layout *g,
                                  const int *xy_to_process, const int nlocal,
                                  const int (*index_to_g)[3],

@@ -39,7 +39,6 @@ MODULE pw_grids
                                               C_PTR,&
                                               C_SIZE_T
    USE fft_api,                         ONLY: fft_create_grid,&
-                                              fft_create_grid_from_reference,&
                                               fft_free_grid,&
                                               fft_grid_get_comm,&
                                               fft_grid_get_proc2local_gs,&
@@ -50,7 +49,7 @@ MODULE pw_grids
                                               fft_choose_proc_grid,&
                                               fft_grid_get_proc_grid,&
                                               fft_grid_is_ray_distributed,&
-                                              fft_grid_enable_ray_distribution
+                                              fft_grid_finalize_distribution
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               int_size
@@ -448,24 +447,12 @@ CONTAINS
       use_ray = pw_grid%spherical .OR. pw_grid%grid_span == HALFSPACE .OR. .NOT. blocking_now
       IF (pw_grid%para%mode /= PW_MODE_DISTRIBUTED) use_ray = .FALSE.
 
-      IF (PRESENT(ref_grid)) THEN
-         IF (use_ray .AND. ALL(pw_grid%npts <= ref_grid%npts)) THEN
-            CALL fft_create_grid_from_reference(pw_grid%fft_grid, pw_grid%npts, pw_grid%cutoff, &
-                                                external_local_bounds=bounds_local, &
-                                                fft_grid_ref=ref_grid%fft_grid, &
-                                                use_ray_distribution=.TRUE.)
-         ELSE
-            CALL fft_create_grid(pw_grid%fft_grid, pw_grid%npts, mp_comm, cell_h_inv, &
-                                 pw_grid%grid_span == HALFSPACE, pw_grid%cutoff, &
-                                 pgrid_guess=pgrid, external_local_bounds=bounds_local, &
-                                 use_ray_distribution=use_ray)
-         END IF
-      ELSE
-         CALL fft_create_grid(pw_grid%fft_grid, pw_grid%npts, mp_comm, cell_h_inv, &
-                              pw_grid%grid_span == HALFSPACE, pw_grid%cutoff, &
-                              pgrid_guess=pgrid, external_local_bounds=bounds_local, &
-                              use_ray_distribution=use_ray)
-      END IF
+      ! Create a provisional blocked layout. The ray distribution is finalized
+      ! once after the PW grid has determined its own g-space partition.
+      CALL fft_create_grid(pw_grid%fft_grid, pw_grid%npts, mp_comm, cell_h_inv, &
+                           pw_grid%grid_span == HALFSPACE, pw_grid%cutoff, &
+                           pgrid_guess=pgrid, external_local_bounds=bounds_local, &
+                           use_ray_distribution=.FALSE.)
 
       CALL fft_grid_get_comm(pw_grid%fft_grid, pw_grid%para%group)
       CALL pw_grid_update_distribution(pw_grid)
@@ -513,7 +500,7 @@ CONTAINS
             gidx_ray(3, ig) = c2
             gsq_ray(ig) = pw_grid%gsq(ig)
          END DO
-         CALL fft_grid_enable_ray_distribution(pw_grid%fft_grid, xy_ray, gidx_ray, gsq_ray)
+         CALL fft_grid_finalize_distribution(pw_grid%fft_grid, .TRUE., xy_ray, gidx_ray, gsq_ray)
          DEALLOCATE (xy_ray, gidx_ray, gsq_ray)
       END IF
 

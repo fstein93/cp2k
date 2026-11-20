@@ -788,6 +788,24 @@ int grid_enable_ray_distribution(fft_grid_layout *g,
   return 0;
 }
 
+/*******************************************************************************
+ * \brief Finalize the distribution of a provisionally blocked layout.
+ ******************************************************************************/
+int grid_finalize_distribution(fft_grid_layout *g, const bool use_ray,
+                               const int *xy_to_process, const int nlocal,
+                               const int (*index_to_g)[3],
+                               const double *gsquared) {
+  if (!use_ray) {
+    cp_assert(!g->ray_distribution &&
+              "Blocked finalization requires a blocked layout");
+    return 0;
+  }
+  cp_assert(!g->ray_distribution &&
+            "The layout must be blocked before ray finalization");
+  return grid_enable_ray_distribution(g, xy_to_process, nlocal, index_to_g,
+                                      gsquared);
+}
+
 void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
                                  const cp_mpi_comm_t comm,
                                  const int npts_global[3],
