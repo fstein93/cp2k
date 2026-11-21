@@ -50,7 +50,6 @@ MODULE pw_grids
                                               fft_grid_get_proc_grid,&
                                               fft_grid_is_ray_distributed,&
                                               fft_grid_prepare_ray_mapping,&
-                                              fft_grid_set_yz_mapping,&
                                               fft_grid_finalize_ray_distribution
    USE kinds,                           ONLY: dp,&
                                               int_8,&
@@ -320,8 +319,7 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: my_rs_dims
       INTEGER, DIMENSION(3)                              :: n
       INTEGER, DIMENSION(2)                              :: pgrid
-      INTEGER                                            :: c0, c1, c2, i_ray, ig, ip_ray, ir, nlocal_ray
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: yz_map
+      INTEGER                                            :: c0, c1, c2, ig, nlocal_ray
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: gidx_ray
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: gsq_ray
       LOGICAL                                            :: blocking_now, my_fft_usage, my_odd, &
@@ -485,17 +483,6 @@ CONTAINS
             gsq_ray(ig) = pw_grid%gsq(ig)
          END DO
          CALL fft_grid_finalize_ray_distribution(pw_grid%fft_grid, gidx_ray, gsq_ray)
-         ALLOCATE (yz_map(0:pw_grid%npts(3)*pw_grid%npts(2) - 1))
-         yz_map = -1
-         DO ip_ray = 0, pw_grid%para%group%num_pe - 1
-            DO ir = 1, pw_grid%para%nyzray(ip_ray)
-               i_ray = (pw_grid%para%yzp(2, ir, ip_ray) - 1)*pw_grid%npts(2) + &
-                       pw_grid%para%yzp(1, ir, ip_ray) - 1
-               yz_map(i_ray) = ip_ray
-            END DO
-         END DO
-         CALL fft_grid_set_yz_mapping(pw_grid%fft_grid, yz_map)
-         DEALLOCATE (yz_map)
          DEALLOCATE (gidx_ray, gsq_ray)
       END IF
 

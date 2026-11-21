@@ -650,6 +650,28 @@ void fft_choose_proc_grid(const int number_of_processes,
 /*******************************************************************************
  * \brief Convert a layout into the ray distribution using caller data.
  ******************************************************************************/
+static void build_yz_to_process(fft_grid_layout *g) {
+  const int nz = g->npts_global[0];
+  const int ny = g->npts_global[1];
+  const size_t size = (size_t)nz * (size_t)ny;
+  free(g->yz_to_process);
+  g->yz_to_process = malloc(size * sizeof(int));
+  cp_assert(g->yz_to_process != NULL);
+  for (size_t i = 0; i < size; i++)
+    g->yz_to_process[i] = -1;
+
+  int offset = 0;
+  for (int p = 0; p < cp_mpi_comm_size(g->comm); p++) {
+    for (int r = 0; r < g->rays_per_process[p]; r++) {
+      const int c0 = g->ray_to_xy[offset + r][0];
+      const int c1 = g->ray_to_xy[offset + r][1];
+      const int z = g->use_halfspace && c0 != 0 ? nz - c0 : c0;
+      g->yz_to_process[(size_t)z * ny + c1] = p;
+    }
+    offset += g->rays_per_process[p];
+  }
+}
+
 int grid_enable_ray_distribution(fft_grid_layout *g,
                                  const int *xy_to_process, const int nlocal,
                                  const int (*index_to_g)[3],
@@ -790,6 +812,7 @@ int grid_enable_ray_distribution(fft_grid_layout *g,
       g->proc2local_z_rs, g->rays_per_process, g->ray_to_xy, g->comm,
       g->sub_comm);
   fft_register_3d(g);
+  build_yz_to_process(g);
   return 0;
 }
 
