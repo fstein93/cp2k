@@ -54,6 +54,8 @@ typedef struct {
   int (*ray_to_xy)[2];
   int *xy_to_ray;
   int *xy_to_process;
+  // Owner map indexed in the Fortran yzq convention: (z-1)*ny + (y-1).
+  int *yz_to_process;
   int *rays_per_process;
   int my_number_of_rays;
   // maps of index in g-space to g-space vectors
@@ -113,10 +115,12 @@ void grid_free_fft_grid_layout(fft_grid_layout *fft_grid);
 void grid_prepare_ray_mapping(fft_grid_layout *g,
                               const fft_grid_layout *ref);
 
-int grid_finalize_distribution(fft_grid_layout *g, const bool use_ray,
-                               const int *xy_to_process, const int nlocal,
-                               const int (*index_to_g)[3],
-                               const double *gsquared);
+int grid_finalize_ray_distribution(fft_grid_layout *g, const int nlocal,
+                                    const int (*index_to_g)[3],
+                                    const double *gsquared);
+
+void grid_set_yz_mapping(fft_grid_layout *g, const int *yz_to_process);
+
 
 int grid_enable_ray_distribution(fft_grid_layout *g,
                                  const int *xy_to_process, const int nlocal,

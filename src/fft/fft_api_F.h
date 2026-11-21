@@ -655,12 +655,6 @@ void fft_create_grid_F(fft_grid_layout **fft_grid, const int comm_F,
                        const int *external_local_bounds,
                        const bool use_ray_distribution);
 
-void fft_create_grid_from_distribution_F(
-    fft_grid_layout **fft_grid, const int comm_F, const int npts_global[3],
-    const double dh_inv[3][3], const bool use_halfspace, const double cutoff,
-    const int *pgrid_guess, const int *external_local_bounds,
-    const int *xy_to_process, const int nlocal, const int *index_to_g,
-    const double *gsquared);
 
 void fft_create_grid_from_reference_F(fft_grid_layout **fft_grid,
                                       const int npts_global[3],
@@ -693,12 +687,14 @@ int fft_grid_is_ray_distributed_F(const fft_grid_layout *fft_grid);
 void fft_grid_prepare_ray_mapping_F(fft_grid_layout *fft_grid,
                                       const fft_grid_layout *ref);
 
-int fft_grid_finalize_distribution_F(fft_grid_layout *fft_grid,
-                                     const bool use_ray,
-                                     const int *xy_to_process,
-                                     const int nlocal,
-                                     const int *index_to_g,
-                                     const double *gsquared);
+int fft_grid_finalize_ray_distribution_F(fft_grid_layout *fft_grid,
+                                           const int nlocal,
+                                           const int *index_to_g,
+                                           const double *gsquared);
+
+void fft_grid_set_yz_mapping_F(fft_grid_layout *fft_grid,
+                                 const int *yz_to_process);
+
 
 int fft_grid_enable_ray_distribution_F(fft_grid_layout *fft_grid,
                                        const int *xy_to_process,

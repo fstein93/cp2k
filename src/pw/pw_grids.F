@@ -50,7 +50,8 @@ MODULE pw_grids
                                               fft_grid_get_proc_grid,&
                                               fft_grid_is_ray_distributed,&
                                               fft_grid_prepare_ray_mapping,&
-                                              fft_create_grid_from_distribution
+                                              fft_grid_set_yz_mapping,&
+                                              fft_grid_finalize_ray_distribution
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               int_size
@@ -319,9 +320,8 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: my_rs_dims
       INTEGER, DIMENSION(3)                              :: n
       INTEGER, DIMENSION(2)                              :: pgrid
-      INTEGER                                            :: c0, c1, c2, i_ray, ig, ip_ray, ir, n0_ray, &
-                                                            nlocal_ray, shift
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: xy_ray
+      INTEGER                                            :: c0, c1, c2, i_ray, ig, ip_ray, ir, nlocal_ray
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: yz_map
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: gidx_ray
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: gsq_ray
       LOGICAL                                            :: blocking_now, my_fft_usage, my_odd, &
@@ -456,6 +456,13 @@ CONTAINS
                            use_ray_distribution=.FALSE.)
 
       CALL fft_grid_get_comm(pw_grid%fft_grid, pw_grid%para%group)
+      IF (use_ray) THEN
+         IF (PRESENT(ref_grid)) THEN
+            CALL fft_grid_prepare_ray_mapping(pw_grid%fft_grid, ref_grid%fft_grid)
+         ELSE
+            CALL fft_grid_prepare_ray_mapping(pw_grid%fft_grid)
+         END IF
+      END IF
       CALL pw_grid_update_distribution(pw_grid)
 
       CALL pw_grid_setup_internal(cell_hmat, cell_h_inv, cell_deth, pw_grid, &
@@ -463,30 +470,6 @@ CONTAINS
                                   use_ray_distribution=use_ray)
 
       IF (use_ray) THEN
-         n0_ray = pw_grid%npts(3)
-         IF (pw_grid%grid_span == HALFSPACE) n0_ray = n0_ray/2 + 1
-         ALLOCATE (xy_ray(0:n0_ray*pw_grid%npts(2) - 1))
-         xy_ray = -1
-         DO ip_ray = 0, pw_grid%para%group%num_pe - 1
-            DO ir = 1, pw_grid%para%nyzray(ip_ray)
-               c1 = pw_grid%para%yzp(1, ir, ip_ray) + pw_grid%bounds(1, 2) - 1
-               IF (c1 < 0) c1 = c1 + pw_grid%npts(2)
-               shift = pw_grid%para%yzp(2, ir, ip_ray) + pw_grid%bounds(1, 3) - 1
-               IF (pw_grid%grid_span == HALFSPACE) THEN
-                  c0 = ABS(shift)
-               ELSE
-                  c0 = shift
-                  IF (c0 < 0) c0 = c0 + pw_grid%npts(3)
-               END IF
-               xy_ray(c0*pw_grid%npts(2) + c1) = ip_ray
-            END DO
-         END DO
-         DO c0 = 0, n0_ray - 1
-            DO c1 = 0, pw_grid%npts(2) - 1
-               i_ray = c0*pw_grid%npts(2) + c1
-               IF (xy_ray(i_ray) < 0) xy_ray(i_ray) = MOD(i_ray, pw_grid%para%group%num_pe)
-            END DO
-         END DO
          nlocal_ray = pw_grid%ngpts_cut_local
          ALLOCATE (gidx_ray(3, nlocal_ray), gsq_ray(nlocal_ray))
          DO ig = 1, nlocal_ray
@@ -501,18 +484,19 @@ CONTAINS
             gidx_ray(3, ig) = c2
             gsq_ray(ig) = pw_grid%gsq(ig)
          END DO
-         ! Replace the provisional layout by one created from the finalized
-         ! PW distribution. From here on the layout is fully determined by
-         ! fft_create_grid.
-         CALL pw_grid%para%group%free()
-         CALL fft_free_grid(pw_grid%fft_grid)
-         CALL fft_create_grid_from_distribution(pw_grid%fft_grid, pw_grid%npts, mp_comm, cell_h_inv, &
-                                                pw_grid%grid_span == HALFSPACE, pw_grid%cutoff, &
-                                                xy_ray, gidx_ray, gsq_ray, pgrid_guess=pgrid, &
-                                                external_local_bounds=bounds_local)
-         CALL fft_grid_get_comm(pw_grid%fft_grid, pw_grid%para%group)
-         CALL pw_grid_update_distribution(pw_grid)
-         DEALLOCATE (xy_ray, gidx_ray, gsq_ray)
+         CALL fft_grid_finalize_ray_distribution(pw_grid%fft_grid, gidx_ray, gsq_ray)
+         ALLOCATE (yz_map(0:pw_grid%npts(3)*pw_grid%npts(2) - 1))
+         yz_map = -1
+         DO ip_ray = 0, pw_grid%para%group%num_pe - 1
+            DO ir = 1, pw_grid%para%nyzray(ip_ray)
+               i_ray = (pw_grid%para%yzp(2, ir, ip_ray) - 1)*pw_grid%npts(2) + &
+                       pw_grid%para%yzp(1, ir, ip_ray) - 1
+               yz_map(i_ray) = ip_ray
+            END DO
+         END DO
+         CALL fft_grid_set_yz_mapping(pw_grid%fft_grid, yz_map)
+         DEALLOCATE (yz_map)
+         DEALLOCATE (gidx_ray, gsq_ray)
       END IF
 
       CALL pw_grid_check_distribution(pw_grid)
@@ -674,7 +658,7 @@ CONTAINS
       END IF
 
       ! Distribute grid
-      CALL pw_grid_distribute(pw_grid, yz_mask, ref_grid=ref_grid, blocked=blocked, &
+      CALL pw_grid_distribute(pw_grid, yz_mask, blocked=blocked, &
                               use_ray_distribution=use_ray_distribution)
 
       ! Allocate the grid fields
@@ -865,11 +849,9 @@ CONTAINS
 !> \brief Distribute grids in real and Fourier Space to the processors in group
 !> \param pw_grid ...
 !> \param yz_mask ...
-!> \param ref_grid ...
 !> \param blocked ...
 !> \par History
 !>      JGH (01-Mar-2001) optional reference grid
-!>      JGH (22-May-2002) bug fix for pre_tag and HALFSPACE grids
 !>      JGH (09-Sep-2003) reduce scaling for distribution
 !> \author JGH (22-12-2000)
 ! **************************************************************************************************
@@ -957,11 +939,10 @@ CONTAINS
       CPASSERT(ALL(pw_grid%npts_local == expected_bounds(2, :) - expected_bounds(1, :) + 1))
    END SUBROUTINE pw_grid_check_distribution
 
-   SUBROUTINE pw_grid_distribute(pw_grid, yz_mask, ref_grid, blocked, use_ray_distribution)
+   SUBROUTINE pw_grid_distribute(pw_grid, yz_mask, blocked, use_ray_distribution)
 
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
       INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: yz_mask
-      TYPE(pw_grid_type), INTENT(IN), OPTIONAL           :: ref_grid
       INTEGER, INTENT(IN), OPTIONAL                      :: blocked
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_ray_distribution
 
@@ -969,11 +950,10 @@ CONTAINS
 
       INTEGER                                            :: blocked_local, gmax, handle, i, ip, ipl, &
                                                              ipp, ixx, j, jz, l, lby, lbz, m, n, np, ns, &
-                                                             ny, nz, nz_ray, rr_count
+                                                             ny, nz, nz_ray
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap, ray_count, xy_to_process
       LOGICAL                                            :: blocking, nyzray_from_layout, &
-                                                            ray_distribution_now, &
-                                                            ray_mapping_from_layout
+                                                            ray_distribution_now
 
 !------------------------------------------------------------------------------
 
@@ -1051,9 +1031,7 @@ CONTAINS
             nz_ray = nz
             IF (pw_grid%grid_span == HALFSPACE) nz_ray = nz/2 + 1
             ALLOCATE (xy_to_process(0:nz_ray*ny - 1))
-            ray_mapping_from_layout = .FALSE.
-
-            IF (ray_mapping_from_layout) THEN
+            CPASSERT(fft_grid_get_xy_to_process(pw_grid%fft_grid, xy_to_process))
                ! Assign each ray to the process given by the FFT grid layout
                DO i = 1, nz
                   IF (pw_grid%grid_span == HALFSPACE) THEN
@@ -1083,35 +1061,6 @@ CONTAINS
                      END IF
                   END DO
                END DO
-            ELSE
-            IF (PRESENT(ref_grid)) THEN
-               ! Fallback: tag all vectors from the reference grid
-               CALL pre_tag(pw_grid, yz_mask, ref_grid)
-            END IF
-            ! Round-robin distribution in yz storage order.
-            rr_count = 0
-            DO i = 1, nz
-               DO j = 1, ny
-                  gmax = yz_mask(j, i)
-                  IF (gmax == 0) CYCLE
-                  yz_mask(j, i) = 0
-                  ip = MOD(rr_count, np)
-                  rr_count = rr_count + 1
-                  IF (ip == pw_grid%para%group%mepos) THEN
-                     pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local + gmax
-                  END IF
-                  pw_grid%para%yzq(j, i) = ip
-                  IF (pw_grid%grid_span == HALFSPACE) THEN
-                     m = -j - 2*lby + 2
-                     n = -i - 2*lbz + 2
-                     IF (m >= 1 .AND. m <= ny .AND. n >= 1 .AND. n <= nz) THEN
-                        pw_grid%para%yzq(m, n) = ip
-                        yz_mask(m, n) = 0
-                     END IF
-                  END IF
-               END DO
-            END DO
-            END IF
             DEALLOCATE (xy_to_process)
 
             ! Fetch the number of rays per process from the FFT grid layout.
@@ -1260,72 +1209,6 @@ CONTAINS
 
    END SUBROUTINE pw_grid_distribute
 
-! **************************************************************************************************
-!> \brief ...
-!> \param pw_grid ...
-!> \param yz_mask ...
-!> \param ref_grid ...
-!> \par History
-!>      - Fix mapping bug for pw_grid eqv to ref_grid (21.11.2019, MK)
-! **************************************************************************************************
-   SUBROUTINE pre_tag(pw_grid, yz_mask, ref_grid)
-
-      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
-      INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: yz_mask
-      TYPE(pw_grid_type), INTENT(IN)                     :: ref_grid
-
-      INTEGER                                            :: gmax, ig, ip, lby, lbz, my, mz, ny, nz, &
-                                                            uby, ubz, y, yp, z, zp
-
-      ny = ref_grid%npts(2)
-      nz = ref_grid%npts(3)
-      lby = pw_grid%bounds(1, 2)
-      lbz = pw_grid%bounds(1, 3)
-      uby = pw_grid%bounds(2, 2)
-      ubz = pw_grid%bounds(2, 3)
-      my = SIZE(yz_mask, 1)
-      mz = SIZE(yz_mask, 2)
-
-      ! loop over all processors and all g vectors yz lines on this processor
-      DO ip = 0, ref_grid%para%group%num_pe - 1
-         DO ig = 1, ref_grid%para%nyzray(ip)
-            ! go from mapped coordinates to original coordinates
-            ! 1, 2, ..., n-1, n -> 0, 1, ..., (n/2)-1, -(n/2), -(n/2)+1, ..., -2, -1
-            y = ref_grid%para%yzp(1, ig, ip) - 1
-            IF (y >= ny/2) y = y - ny
-            z = ref_grid%para%yzp(2, ig, ip) - 1
-            IF (z >= nz/2) z = z - nz
-            ! check if this is inside the realm of the new grid
-            IF (y < lby .OR. y > uby .OR. z < lbz .OR. z > ubz) CYCLE
-            ! go to shifted coordinates
-            y = y - lby + 1
-            z = z - lbz + 1
-            ! this tag is outside the cutoff range of the new grid
-            IF (pw_grid%grid_span == HALFSPACE) THEN
-               yp = -y - 2*lby + 2
-               zp = -z - 2*lbz + 2
-               ! if the reference grid is larger than the mirror point may be
-               ! outside the new grid even if the original point is inside
-               IF (yp < 1 .OR. yp > my .OR. zp < 1 .OR. zp > mz) CYCLE
-               gmax = MAX(yz_mask(y, z), yz_mask(yp, zp))
-               IF (gmax == 0) CYCLE
-               yz_mask(y, z) = 0
-               yz_mask(yp, zp) = 0
-               pw_grid%para%yzq(y, z) = ip
-               pw_grid%para%yzq(yp, zp) = ip
-            ELSE
-               gmax = yz_mask(y, z)
-               IF (gmax == 0) CYCLE
-               yz_mask(y, z) = 0
-               pw_grid%para%yzq(y, z) = ip
-            END IF
-            IF (ip == pw_grid%para%group%mepos) THEN
-               pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local + gmax
-            END IF
-         END DO
-      END DO
-
-   END SUBROUTINE pre_tag
 
 ! **************************************************************************************************
 !> \brief compute the length of g vectors
@@ -1906,6 +1789,16 @@ CONTAINS
                      pw_grid%gidx(ig) = ih
                      EXIT
                   END DO
+                  IF (pw_grid%gidx(ig) == 0) THEN
+                     DO ih = 1, SIZE(ref_grid%gsq)
+                        IF (ABS(gig - ref_grid%gsq(ih))/gigr > 1.e-12_dp) CYCLE
+                        IF (pw_grid%g_hat(1, ig) /= ref_grid%g_hat(1, ih)) CYCLE
+                        IF (pw_grid%g_hat(2, ig) /= ref_grid%g_hat(2, ih)) CYCLE
+                        IF (pw_grid%g_hat(3, ig) /= ref_grid%g_hat(3, ih)) CYCLE
+                        pw_grid%gidx(ig) = ih
+                        EXIT
+                     END DO
+                  END IF
                   IF (pw_grid%gidx(ig) == 0) THEN
                      WRITE (*, "(A,2I10)") " G-Shell ", is + 1, ip + 1
                      WRITE (*, "(A,I10,3I6,F20.10)") &
