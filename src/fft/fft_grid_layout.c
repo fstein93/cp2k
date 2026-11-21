@@ -939,6 +939,71 @@ void grid_prepare_ray_mapping(fft_grid_layout *g,
   free(has_data);
 }
 
+int grid_generate_g_space(fft_grid_layout *g) {
+  cp_assert(g != NULL && g->xy_to_process != NULL);
+  const int n0 = g->npts_global_gspace[0];
+  const int n1 = g->npts_global[1];
+  const int n2 = g->npts_global[2];
+  const int me = cp_mpi_comm_rank(g->comm);
+  const size_t map_size = (size_t)n0 * n1;
+
+  int capacity = 1024;
+  int nlocal = 0;
+  int (*index_to_g)[3] = malloc((size_t)capacity * sizeof(int[3]));
+  double *gsquared = malloc((size_t)capacity * sizeof(double));
+  cp_assert(index_to_g != NULL && gsquared != NULL);
+
+  for (int c0 = 0; c0 < n0; c0++) {
+    for (int c1 = 0; c1 < n1; c1++) {
+      if (g->xy_to_process[(size_t)c0 * n1 + c1] != me)
+        continue;
+      const int s0 = g->use_halfspace
+                         ? (c0 == 0 ? 0 : -c0)
+                         : convert_c_index_to_shifted_index(
+                               c0, g->npts_global[0]);
+      const int s1 = convert_c_index_to_shifted_index(c1, n1);
+      for (int c2 = 0; c2 < n2; c2++) {
+        const int s2 = convert_c_index_to_shifted_index(c2, n2);
+        if (g->use_halfspace && s0 == 0 &&
+            ((s1 == 0 && s2 > 0) || s1 > 0))
+          continue;
+        double gsq = 0.0;
+        if (g->cutoff > 0.0) {
+          gsq = squared_length_of_g_vector(
+              (const int[3]){s0, s1, s2}, g->cell_info.dhmat);
+          if (0.5 * gsq > g->cutoff)
+            continue;
+        } else {
+          gsq = squared_length_of_g_vector(
+              (const int[3]){s0, s1, s2}, g->cell_info.dhmat);
+        }
+        if (nlocal == capacity) {
+          capacity *= 2;
+          index_to_g = realloc(index_to_g, (size_t)capacity * sizeof(int[3]));
+          gsquared = realloc(gsquared, (size_t)capacity * sizeof(double));
+          cp_assert(index_to_g != NULL && gsquared != NULL);
+        }
+        index_to_g[nlocal][0] = c0;
+        index_to_g[nlocal][1] = c1;
+        index_to_g[nlocal][2] = c2;
+        gsquared[nlocal] = gsq;
+        nlocal++;
+      }
+    }
+  }
+
+  int *mapping = malloc(map_size * sizeof(int));
+  cp_assert(mapping != NULL);
+  memcpy(mapping, g->xy_to_process, map_size * sizeof(int));
+  const int status = grid_enable_ray_distribution(g, mapping, nlocal,
+                                                  (const int(*)[3])index_to_g,
+                                                  gsquared);
+  free(mapping);
+  free(index_to_g);
+  free(gsquared);
+  return status;
+}
+
 int grid_finalize_ray_distribution(fft_grid_layout *g, const int nlocal,
                                     const int (*index_to_g)[3],
                                     const double *gsquared) {

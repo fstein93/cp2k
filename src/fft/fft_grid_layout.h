@@ -115,6 +115,8 @@ void grid_free_fft_grid_layout(fft_grid_layout *fft_grid);
 void grid_prepare_ray_mapping(fft_grid_layout *g,
                               const fft_grid_layout *ref);
 
+int grid_generate_g_space(fft_grid_layout *g);
+
 int grid_finalize_ray_distribution(fft_grid_layout *g, const int nlocal,
                                     const int (*index_to_g)[3],
                                     const double *gsquared);

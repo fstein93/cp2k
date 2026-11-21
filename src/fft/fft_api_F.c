@@ -1031,6 +1031,11 @@ int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid,
  * \param xy_to_process Process owning each yz ray (output).
  * \return whether the layout provides a ray-distribution map.
  ******************************************************************************/
+int fft_grid_generate_g_space_F(fft_grid_layout *fft_grid) {
+  cp_assert(fft_grid != NULL);
+  return grid_generate_g_space(fft_grid);
+}
+
 void fft_grid_prepare_ray_mapping_F(fft_grid_layout *fft_grid,
                                       const fft_grid_layout *ref) {
   cp_assert(fft_grid != NULL);
