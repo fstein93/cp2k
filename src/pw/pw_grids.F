@@ -50,7 +50,7 @@ MODULE pw_grids
                                               fft_grid_get_proc_grid,&
                                               fft_grid_is_ray_distributed,&
                                               fft_grid_prepare_ray_mapping,&
-                                              fft_grid_finalize_distribution
+                                              fft_create_grid_from_distribution
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               int_size
@@ -501,7 +501,17 @@ CONTAINS
             gidx_ray(3, ig) = c2
             gsq_ray(ig) = pw_grid%gsq(ig)
          END DO
-         CALL fft_grid_finalize_distribution(pw_grid%fft_grid, .TRUE., xy_ray, gidx_ray, gsq_ray)
+         ! Replace the provisional layout by one created from the finalized
+         ! PW distribution. From here on the layout is fully determined by
+         ! fft_create_grid.
+         CALL pw_grid%para%group%free()
+         CALL fft_free_grid(pw_grid%fft_grid)
+         CALL fft_create_grid_from_distribution(pw_grid%fft_grid, pw_grid%npts, mp_comm, cell_h_inv, &
+                                                pw_grid%grid_span == HALFSPACE, pw_grid%cutoff, &
+                                                xy_ray, gidx_ray, gsq_ray, pgrid_guess=pgrid, &
+                                                external_local_bounds=bounds_local)
+         CALL fft_grid_get_comm(pw_grid%fft_grid, pw_grid%para%group)
+         CALL pw_grid_update_distribution(pw_grid)
          DEALLOCATE (xy_ray, gidx_ray, gsq_ray)
       END IF
 

@@ -655,6 +655,13 @@ void fft_create_grid_F(fft_grid_layout **fft_grid, const int comm_F,
                        const int *external_local_bounds,
                        const bool use_ray_distribution);
 
+void fft_create_grid_from_distribution_F(
+    fft_grid_layout **fft_grid, const int comm_F, const int npts_global[3],
+    const double dh_inv[3][3], const bool use_halfspace, const double cutoff,
+    const int *pgrid_guess, const int *external_local_bounds,
+    const int *xy_to_process, const int nlocal, const int *index_to_g,
+    const double *gsquared);
+
 void fft_create_grid_from_reference_F(fft_grid_layout **fft_grid,
                                       const int npts_global[3],
                                       const double cutoff,

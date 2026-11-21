@@ -41,7 +41,8 @@ MODULE fft_api
    PUBLIC :: fft_1d_c2r_local, fft_2d_c2r_local, fft_3d_c2r_local
    PUBLIC :: fft_1d_r2c_local_inplace, fft_2d_r2c_local_inplace, fft_3d_r2c_local_inplace
    PUBLIC :: fft_1d_c2r_local_inplace, fft_2d_c2r_local_inplace, fft_3d_c2r_local_inplace
-   PUBLIC :: fft_grid_type, fft_create_grid, fft_create_grid_from_reference, fft_free_grid
+   PUBLIC :: fft_grid_type, fft_create_grid, fft_create_grid_from_reference
+   PUBLIC :: fft_create_grid_from_distribution, fft_free_grid
    PUBLIC :: fft_grid_get_npts_global, fft_grid_get_comm
    PUBLIC :: fft_grid_get_proc2local_rs, fft_grid_get_proc2local_ms, fft_grid_get_proc2local_gs
    PUBLIC :: fft_grid_get_rays_per_process
@@ -1535,6 +1536,88 @@ CONTAINS
 !> \param external_local_bounds ...
 !> \param fft_grid_ref ...
 ! **************************************************************************************************
+   SUBROUTINE fft_create_grid_from_distribution(fft_grid, fft_size, comm, dh_inv, use_halfspace, cutoff, &
+                                                xy_to_process, index_to_g, gsquared, pgrid_guess, &
+                                                external_local_bounds)
+      TYPE(fft_grid_type), INTENT(INOUT)                 :: fft_grid
+      INTEGER, DIMENSION(3), INTENT(IN)                  :: fft_size
+      CLASS(mp_comm_type), INTENT(IN)                    :: comm
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: dh_inv
+      LOGICAL, INTENT(IN)                                :: use_halfspace
+      REAL(KIND=dp), INTENT(IN)                          :: cutoff
+      INTEGER, DIMENSION(0:), INTENT(IN), TARGET         :: xy_to_process
+      INTEGER, DIMENSION(:, :), INTENT(IN), TARGET       :: index_to_g
+      REAL(KIND=dp), DIMENSION(:), INTENT(IN), TARGET    :: gsquared
+      INTEGER, DIMENSION(2), INTENT(IN), OPTIONAL        :: pgrid_guess
+      INTEGER, DIMENSION(2, 3), INTENT(IN), OPTIONAL     :: external_local_bounds
+
+      INTEGER                                            :: i, nlocal
+      INTEGER(C_INT), DIMENSION(2), TARGET               :: pgrid_guess_c
+      INTEGER(C_INT), DIMENSION(2, 3), TARGET            :: external_local_bounds_c
+      INTEGER(C_INT), ALLOCATABLE, DIMENSION(:), TARGET  :: g_c, xy_c
+      REAL(C_DOUBLE), ALLOCATABLE, DIMENSION(:), TARGET  :: gsq_c
+      TYPE(C_PTR)                                        :: pgrid_guess_ptr, external_local_bounds_ptr
+
+      INTERFACE
+         SUBROUTINE fft_create_grid_from_distribution_c(layout, comm, fft_size, dh_inv, use_halfspace, cutoff, &
+                                                        pgrid_guess, external_local_bounds, xy, nlocal, g, gsq) &
+            BIND(C, name="fft_create_grid_from_distribution_F")
+            IMPORT :: C_INT, C_DOUBLE, C_PTR, C_BOOL
+            TYPE(C_PTR), INTENT(INOUT) :: layout
+            INTEGER(C_INT), VALUE :: comm
+            INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size
+            REAL(C_DOUBLE), DIMENSION(3, 3), INTENT(IN) :: dh_inv
+            LOGICAL(C_BOOL), VALUE :: use_halfspace
+            REAL(C_DOUBLE), VALUE :: cutoff
+            TYPE(C_PTR), VALUE :: pgrid_guess
+            TYPE(C_PTR), VALUE :: external_local_bounds
+            INTEGER(C_INT), DIMENSION(*), INTENT(IN) :: xy
+            INTEGER(C_INT), VALUE :: nlocal
+            INTEGER(C_INT), DIMENSION(*), INTENT(IN) :: g
+            REAL(C_DOUBLE), DIMENSION(*), INTENT(IN) :: gsq
+         END SUBROUTINE fft_create_grid_from_distribution_c
+      END INTERFACE
+
+      CPASSERT(.NOT. C_ASSOCIATED(fft_grid%fft_grid))
+      CPASSERT(SIZE(index_to_g, 1) == 3)
+      nlocal = SIZE(index_to_g, 2)
+      CPASSERT(SIZE(gsquared) == nlocal)
+
+      pgrid_guess_ptr = C_NULL_PTR
+      IF (PRESENT(pgrid_guess)) THEN
+         pgrid_guess_c = INT(pgrid_guess, C_INT)
+         pgrid_guess_ptr = C_LOC(pgrid_guess_c)
+      END IF
+      external_local_bounds_ptr = C_NULL_PTR
+      IF (PRESENT(external_local_bounds)) THEN
+         external_local_bounds_c = INT(external_local_bounds, C_INT)
+         external_local_bounds_ptr = C_LOC(external_local_bounds_c)
+      END IF
+
+      ALLOCATE (xy_c(0:SIZE(xy_to_process) - 1))
+      DO i = 0, SIZE(xy_to_process) - 1
+         xy_c(i) = INT(xy_to_process(i))
+      END DO
+      ALLOCATE (g_c(0:3*nlocal - 1))
+      DO i = 1, nlocal
+         g_c(3*(i - 1)) = INT(index_to_g(1, i))
+         g_c(3*(i - 1) + 1) = INT(index_to_g(2, i))
+         g_c(3*(i - 1) + 2) = INT(index_to_g(3, i))
+      END DO
+      ALLOCATE (gsq_c(0:nlocal - 1))
+      DO i = 1, nlocal
+         gsq_c(i - 1) = REAL(gsquared(i), KIND=C_DOUBLE)
+      END DO
+
+      CALL fft_create_grid_from_distribution_c(fft_grid%fft_grid, INT(comm%get_handle(), C_INT), &
+                                               INT(fft_size, C_INT), REAL(dh_inv, C_DOUBLE), &
+                                               LOGICAL(use_halfspace, C_BOOL), REAL(cutoff, C_DOUBLE), &
+                                               pgrid_guess_ptr, external_local_bounds_ptr, xy_c, &
+                                               INT(nlocal, KIND=C_INT), g_c, gsq_c)
+      DEALLOCATE (xy_c, g_c, gsq_c)
+      IF (.NOT. C_ASSOCIATED(fft_grid%fft_grid)) CPABORT("Grid creation failed")
+   END SUBROUTINE fft_create_grid_from_distribution
+
    SUBROUTINE fft_create_grid_from_reference(fft_grid, fft_size, cutoff, external_local_bounds, fft_grid_ref, &
                                              use_ray_distribution)
       TYPE(fft_grid_type), INTENT(INOUT)                 :: fft_grid

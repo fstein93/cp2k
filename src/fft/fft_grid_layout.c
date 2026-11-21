@@ -843,7 +843,7 @@ void grid_prepare_ray_mapping(fft_grid_layout *g,
     for (int c1 = 0; c1 < n1; c1++) {
       const size_t index = (size_t)c0 * n1 + c1;
       int process = -1;
-      if (ref != NULL && ref->xy_to_process != NULL) {
+      if (ref != NULL) {
         const int s0 = convert_c_index_to_shifted_index(c0, g->npts_global[0]);
         const int s1 = convert_c_index_to_shifted_index(c1, g->npts_global[1]);
         if (is_on_grid(s0, ref->npts_global[0]) &&
@@ -852,8 +852,23 @@ void grid_prepare_ray_mapping(fft_grid_layout *g,
               convert_shifted_index_to_c_index(s0, ref->npts_global[0]);
           const int rc1 =
               convert_shifted_index_to_c_index(s1, ref->npts_global[1]);
-          if (rc0 >= 0 && rc0 < ref_n0 && rc1 >= 0 && rc1 < ref_n1)
-            process = ref->xy_to_process[(size_t)rc0 * ref_n1 + rc1];
+          if (rc0 >= 0 && rc0 < ref_n0 && rc1 >= 0 && rc1 < ref_n1) {
+            if (ref->xy_to_process != NULL) {
+              process = ref->xy_to_process[(size_t)rc0 * ref_n1 + rc1];
+            } else if (ref->proc2local_gs != NULL) {
+              for (int p = 0; p < number_of_processes; p++) {
+                if (rc0 >= ref->proc2local_gs[p][0][0] &&
+                    rc0 < ref->proc2local_gs[p][0][0] +
+                              ref->proc2local_gs[p][0][1] &&
+                    rc1 >= ref->proc2local_gs[p][1][0] &&
+                    rc1 < ref->proc2local_gs[p][1][0] +
+                              ref->proc2local_gs[p][1][1]) {
+                  process = p;
+                  break;
+                }
+              }
+            }
+          }
         }
       }
       g->xy_to_process[index] = process;
