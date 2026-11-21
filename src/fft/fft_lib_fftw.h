@@ -35,6 +35,8 @@ typedef enum {
  * \brief Initialize the FFT library (if not done externally).
  * \author Frederick Stein, Ole Schuett
  ******************************************************************************/
+void fft_fftw_free_distributed_plans(const cp_mpi_comm_t comm);
+
 int fft_fftw_init_lib(const fftw_plan_type fftw_planning_flag,
                       const bool use_fft_mpi, const bool use_guru_interface,
                       const char *wisdom_file);

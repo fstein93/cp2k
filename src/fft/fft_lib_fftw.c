@@ -173,6 +173,30 @@ static bool distributed_plan_reset_if_inconsistent(const fft_key_t key,
   }
   return false;
 }
+/*******************************************************************************
+ * \brief Drop all cached plans that belong to a communicator being freed.
+ * MPI may reuse communicator handles; keeping stale plans would let a later
+ * grid with the same handle value execute a plan bound to the old context.
+ ******************************************************************************/
+void fft_fftw_free_distributed_plans(const cp_mpi_comm_t comm) {
+  if (!is_initialized || caches == NULL)
+    return;
+  const int comm_f = cp_mpi_comm_c2f(comm);
+  omp_set_nest_lock(&cache_lock);
+  for (int t = 0; t < number_of_caches; t++) {
+    cache_entry *cache = &caches[t * FFTW_CACHE_SIZE];
+    for (int i = 0; i < FFTW_CACHE_SIZE; i++) {
+      if (cache[i].plan != NULL && cache[i].key[1] == comm_f) {
+        fftw_destroy_plan(*cache[i].plan);
+        free(cache[i].plan);
+        cache[i].plan = NULL;
+        memset(cache[i].key, 0, sizeof(fft_key_t));
+      }
+    }
+  }
+  omp_unset_nest_lock(&cache_lock);
+}
+
 #endif
 #endif
 

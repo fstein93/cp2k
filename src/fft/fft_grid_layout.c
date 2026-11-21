@@ -8,6 +8,7 @@
 #include "fft_grid_layout.h"
 #include "fft_driver.h"
 #include "fft_lib.h"
+#include "fft_lib_fftw.h"
 #include "fft_utils.h"
 
 #include "../base/cp_assert.h"
@@ -163,6 +164,9 @@ void grid_free_fft_grid_layout(fft_grid_layout *fft_grid) {
     cp_assert((fft_grid->ref_counter) > 0);
     fft_grid->ref_counter--;
     if (fft_grid->ref_counter == 0) {
+      fft_fftw_free_distributed_plans(fft_grid->comm);
+      fft_fftw_free_distributed_plans(fft_grid->sub_comm[0]);
+      fft_fftw_free_distributed_plans(fft_grid->sub_comm[1]);
       cp_mpi_comm_free(&fft_grid->comm);
       cp_mpi_comm_free(&fft_grid->sub_comm[0]);
       cp_mpi_comm_free(&fft_grid->sub_comm[1]);
