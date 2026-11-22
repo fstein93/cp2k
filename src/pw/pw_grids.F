@@ -514,7 +514,8 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_ghatmap'
 
-      INTEGER                                            :: gpt, handle, l, m, mn, n
+      INTEGER                                            :: gpt, handle, i, is, j, l, m, mn, n
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: yzq_local
 
       CALL timeset(routineN, handle)
 
@@ -526,7 +527,7 @@ CONTAINS
       ASSOCIATE (g_hat => pw_grid%g_hat, g_hatmap => pw_grid%g_hatmap, pmapl => pw_grid%mapl%pos, &
                  pmapm => pw_grid%mapm%pos, pmapn => pw_grid%mapn%pos, nmapl => pw_grid%mapl%neg, &
                  nmapm => pw_grid%mapm%neg, nmapn => pw_grid%mapn%neg, ngpts => SIZE(pw_grid%gsq), &
-                 npts => pw_grid%npts, yzq => pw_grid%para%yzq)
+                 npts => pw_grid%npts)
          ! initialize map array to minus one, to guarantee memory
          ! range checking errors (just to be sure)
          g_hatmap(:, :) = -1
@@ -551,13 +552,36 @@ CONTAINS
                END DO
             END IF
          ELSE
+            ALLOCATE (yzq_local(npts(2), npts(3)))
+            yzq_local = 0
+            DO gpt = 1, ngpts
+               m = pmapm(g_hat(2, gpt)) + 1
+               n = pmapn(g_hat(3, gpt)) + 1
+               yzq_local(m, n) = 1
+            END DO
+            IF (pw_grid%grid_span == HALFSPACE) THEN
+               DO gpt = 1, ngpts
+                  m = nmapm(g_hat(2, gpt)) + 1
+                  n = nmapn(g_hat(3, gpt)) + 1
+                  yzq_local(m, n) = 1
+               END DO
+            END IF
+            is = 0
+            DO i = 1, npts(3)
+               DO j = 1, npts(2)
+                  IF (yzq_local(j, i) > 0) THEN
+                     is = is + 1
+                     yzq_local(j, i) = is
+                  END IF
+               END DO
+            END DO
             DO gpt = 1, ngpts
                l = pmapl(g_hat(1, gpt))
                m = pmapm(g_hat(2, gpt)) + 1
                n = pmapn(g_hat(3, gpt)) + 1
                !ATTENTION: C-mapping [start-index=0] !!!!
                !ATTENTION: potential integer overflow !!!!
-               mn = yzq(m, n) - 1
+               mn = yzq_local(m, n) - 1
                g_hatmap(gpt, 1) = l + npts(1)*mn
             END DO
             IF (pw_grid%grid_span == HALFSPACE) THEN
@@ -567,10 +591,11 @@ CONTAINS
                   n = nmapn(g_hat(3, gpt)) + 1
                   !ATTENTION: C-mapping [start-index=0] !!!!
                   !ATTENTION: potential integer overflow !!!!
-                  mn = yzq(m, n) - 1
+                  mn = yzq_local(m, n) - 1
                   g_hatmap(gpt, 2) = l + npts(1)*mn
                END DO
             END IF
+            DEALLOCATE (yzq_local)
          END IF
       END ASSOCIATE
 
@@ -664,8 +689,6 @@ CONTAINS
 
       ! Sort g vector wrt length (only local for each processor)
       CALL pw_grid_sort(pw_grid, ref_grid)
-
-      CALL pw_grid_remap(pw_grid, yz_mask)
 
       DEALLOCATE (yz_mask)
 
@@ -884,7 +907,6 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cidx
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: used
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgsq
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cyzp
       CHARACTER(len=64)                                  :: env_value
 
       CALL get_environment_variable("CP2K_VALIDATE_C_GSPACE", value=env_value, status=stat)
@@ -944,24 +966,9 @@ CONTAINS
       END DO
       IF (.NOT. ALL(used(1:pw_grid%ngpts_cut_local))) &
          CPABORT("C-generated g-space does not match pw_grid_assign")
-      CALL fft_grid_get_yzp(pw_grid%fft_grid, cyzp)
-      CPASSERT(SIZE(cyzp, 2) == SIZE(pw_grid%para%yzp, 2))
-      CPASSERT(SIZE(cyzp, 3) == SIZE(pw_grid%para%yzp, 3))
-      IF (.NOT. ALL(cyzp == pw_grid%para%yzp)) THEN
-         DO i = 0, SIZE(cyzp, 3) - 1
-            DO j = 1, SIZE(cyzp, 2)
-               IF (cyzp(1, j, i) /= pw_grid%para%yzp(1, j, i) .OR. &
-                   cyzp(2, j, i) /= pw_grid%para%yzp(2, j, i)) THEN
-                  WRITE (*, '(A,2I8,A,2I6,A,2I6)') 'DBGYZP first diff', i, j, ' C', &
-                     cyzp(1:2, j, i), ' F', pw_grid%para%yzp(1:2, j, i)
-                  CPABORT("C yzp mismatch")
-               END IF
-            END DO
-         END DO
-      END IF
       IF (pw_grid%para%group%mepos == 0) &
          WRITE (*, '(A,I8)') ' C g-space validation passed for local g-vectors: ', n
-      DEALLOCATE (cidx, cgsq, used, cyzp)
+      DEALLOCATE (cidx, cgsq, used)
    END SUBROUTINE pw_grid_validate_c_gspace
 
 ! **************************************************************************************************
@@ -1346,8 +1353,8 @@ CONTAINS
 !>        lower extreme plane falls outside the grid, while the ray
 !>        distribution and the negation maps both require the stored
 !>        half-space to be closed under negation (the z = 0 plane cut in
-!>        pw_grid_count and the tally check in pw_grid_remap serve the same
-!>        contract). Symmetric (odd) windows are never affected.
+!>        pw_grid_count serves the same contract). Symmetric (odd) windows
+!>        are never affected.
 !> \param grid_span ...
 !> \param m ray frequency in direction 2
 !> \param n ray frequency in direction 3
@@ -2045,69 +2052,6 @@ CONTAINS
       DEALLOCATE (slen)
 
    END SUBROUTINE redist
-
-! **************************************************************************************************
-!> \brief Reorder yzq and yzp arrays for parallel FFT according to FFT mapping
-!> \param pw_grid ...
-!> \param yz ...
-!> \par History
-!>      none
-!> \author JGH (17-Jan-2001)
-! **************************************************************************************************
-   SUBROUTINE pw_grid_remap(pw_grid, yz)
-
-      ! Argument
-      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
-      INTEGER, DIMENSION(:, :), INTENT(OUT)              :: yz
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_remap'
-
-      INTEGER                                            :: gpt, handle, i, ip, is, j, m, n
-
-      IF (pw_grid%para%mode == PW_MODE_LOCAL) RETURN
-
-      CALL timeset(routineN, handle)
-
-      ASSOCIATE (ny => pw_grid%npts(2), nz => pw_grid%npts(3), posm => pw_grid%mapm%pos, posn => pw_grid%mapn%pos, &
-                 negm => pw_grid%mapm%neg, negn => pw_grid%mapn%neg)
-
-         yz = 0
-         pw_grid%para%yzp = 0
-         pw_grid%para%yzq = 0
-
-         DO gpt = 1, SIZE(pw_grid%gsq)
-            m = posm(pw_grid%g_hat(2, gpt)) + 1
-            n = posn(pw_grid%g_hat(3, gpt)) + 1
-            yz(m, n) = yz(m, n) + 1
-         END DO
-         IF (pw_grid%grid_span == HALFSPACE) THEN
-            DO gpt = 1, SIZE(pw_grid%gsq)
-               m = negm(pw_grid%g_hat(2, gpt)) + 1
-               n = negn(pw_grid%g_hat(3, gpt)) + 1
-               yz(m, n) = yz(m, n) + 1
-            END DO
-         END IF
-
-         ip = pw_grid%para%group%mepos
-         is = 0
-         DO i = 1, nz
-            DO j = 1, ny
-               IF (yz(j, i) > 0) THEN
-                  is = is + 1
-                  pw_grid%para%yzp(1, is, ip) = j
-                  pw_grid%para%yzp(2, is, ip) = i
-                  pw_grid%para%yzq(j, i) = is
-               END IF
-            END DO
-         END DO
-      END ASSOCIATE
-
-      CPASSERT(is == pw_grid%para%nyzray(ip))
-      CALL pw_grid%para%group%sum(pw_grid%para%yzp)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_grid_remap
 
 ! **************************************************************************************************
 !> \brief Recalculate the g-vectors after a change of the box
