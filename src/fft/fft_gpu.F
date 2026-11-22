@@ -29,13 +29,14 @@ MODULE fft_gpu
                                               C_INT,&
                                               C_LOC,&
                                               C_PTR
+   USE fft_api,                         ONLY: fft_grid_get_yzp
    USE fft_tools,                       ONLY: &
         cube_transpose_1, cube_transpose_2, fft_scratch_sizes, fft_scratch_type, get_fft_scratch, &
         release_fft_scratch, x_to_yz, xz_to_yz, yz_to_x, yz_to_xz
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: z_zero
    USE message_passing,                 ONLY: mp_cart_type
-   USE pw_grid_types,                   ONLY: FULLSPACE
+   USE pw_grid_types,                   ONLY: FULLSPACE, pw_grid_type
    USE pw_types,                        ONLY: pw_c1d_gs_type,&
                                               pw_r3d_rs_type
 #include "../base/base_uses.f90"
@@ -53,6 +54,19 @@ MODULE fft_gpu
    LOGICAL, PARAMETER, PRIVATE :: debug_this_module = .FALSE.
 
 CONTAINS
+   SUBROUTINE get_c_ray_mapping(pw_grid, yzp, nyzray)
+      TYPE(pw_grid_type), INTENT(IN)                        :: pw_grid
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), INTENT(OUT) :: yzp
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)       :: nyzray
+
+      INTEGER                                            :: ip
+
+      CALL fft_grid_get_yzp(pw_grid%fft_grid, yzp)
+      ALLOCATE (nyzray(0:SIZE(yzp, 3) - 1))
+      DO ip = 0, SIZE(nyzray) - 1
+         nyzray(ip) = COUNT(yzp(1, :, ip) > 0)
+      END DO
+   END SUBROUTINE get_c_ray_mapping
 
 ! **************************************************************************************************
 !> \brief perform an fft followed by a gather on the gpu
@@ -188,7 +202,9 @@ CONTAINS
                                                             mz2, n1, n2, ngpts, nmax, numtask, rp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
-      INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cyzp
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nyzray
+      INTEGER, DIMENSION(:), POINTER                     :: n, nloc
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       REAL(KIND=dp)                                      :: scale
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
@@ -208,7 +224,7 @@ CONTAINS
       !..transform
       IF (pw1%pw_grid%para%ray_distribution) THEN
          rs_group = pw1%pw_grid%para%group
-         nyzray => pw1%pw_grid%para%nyzray
+         CALL get_c_ray_mapping(pw1%pw_grid, cyzp, nyzray)
          bo => pw1%pw_grid%para%bo
 
          g_pos = rs_group%mepos
@@ -288,7 +304,7 @@ CONTAINS
             CALL fft_gpu_1d_local(rbuf, pbuf, +1, n(2), mx2*mz2)
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL xz_to_yz(pbuf, rs_group, r_dim, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL xz_to_yz(pbuf, rs_group, r_dim, g_pos, p2p, cyzp, nyzray, &
                           bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
@@ -313,7 +329,7 @@ CONTAINS
             CALL fft_gpu_cff(pw1, tbuf)
 
             ! Exchange data ( transpose of matrix ) and sort
-            CALL yz_to_x(tbuf, rs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL yz_to_x(tbuf, rs_group, g_pos, p2p, cyzp, nyzray, &
                          bo(:, :, :, 2), sbuf, fft_scratch)
 
             ! FFT along x
@@ -351,7 +367,9 @@ CONTAINS
                                                             mz2, n1, n2, ngpts, nmax, numtask, rp
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: p2p
       INTEGER, DIMENSION(2)                              :: r_dim, r_pos
-      INTEGER, DIMENSION(:), POINTER                     :: n, nloc, nyzray
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cyzp
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nyzray
+      INTEGER, DIMENSION(:), POINTER                     :: n, nloc
       INTEGER, DIMENSION(:, :, :, :), POINTER            :: bo
       REAL(KIND=dp)                                      :: scale
       TYPE(fft_scratch_sizes)                            :: fft_scratch_size
@@ -371,7 +389,7 @@ CONTAINS
       !..transform
       IF (pw1%pw_grid%para%ray_distribution) THEN
          rs_group = pw1%pw_grid%para%group
-         nyzray => pw1%pw_grid%para%nyzray
+         CALL get_c_ray_mapping(pw1%pw_grid, cyzp, nyzray)
          bo => pw1%pw_grid%para%bo
 
          g_pos = rs_group%mepos
@@ -443,7 +461,7 @@ CONTAINS
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) qbuf = z_zero
-            CALL yz_to_xz(pbuf, rs_group, r_dim, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL yz_to_xz(pbuf, rs_group, r_dim, g_pos, p2p, cyzp, nyzray, &
                           bo(:, :, :, 2), qbuf, fft_scratch)
 
             ! FFT along y
@@ -480,7 +498,7 @@ CONTAINS
 
             ! Exchange data ( transpose of matrix ) and sort
             IF (pw1%pw_grid%grid_span /= FULLSPACE) tbuf = z_zero
-            CALL x_to_yz(sbuf, rs_group, g_pos, p2p, pw1%pw_grid%para%yzp, nyzray, &
+            CALL x_to_yz(sbuf, rs_group, g_pos, p2p, cyzp, nyzray, &
                          bo(:, :, :, 2), tbuf, fft_scratch)
 
             ! FFT along y and z
