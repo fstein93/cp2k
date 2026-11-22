@@ -26,6 +26,7 @@ MODULE pw_methods
    #:include "pw_types.fypp"
    USE cp_log_handling, ONLY: cp_logger_get_default_io_unit, &
                               cp_to_string
+   USE fft_api, ONLY: fft_grid_get_yzp
    USE fft_tools, ONLY: BWFFT, &
                         FWFFT, &
                         fft3d
@@ -223,6 +224,20 @@ MODULE pw_methods
    END INTERFACE
 
 CONTAINS
+   SUBROUTINE get_c_ray_mapping(pw_grid, yzp, nyzray)
+      TYPE(pw_grid_type), INTENT(IN)                        :: pw_grid
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), INTENT(OUT) :: yzp
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)       :: nyzray
+
+      INTEGER                                            :: ip
+
+      CALL fft_grid_get_yzp(pw_grid%fft_grid, yzp)
+      ALLOCATE (nyzray(0:pw_grid%para%group%num_pe - 1))
+      DO ip = 0, SIZE(nyzray) - 1
+         nyzray(ip) = COUNT(yzp(1, :, ip) > 0)
+      END DO
+   END SUBROUTINE get_c_ray_mapping
+
    #:for kind, type in pw_list
       #:for space in pw_spaces
 ! **************************************************************************************************
@@ -1156,8 +1171,9 @@ CONTAINS
 
                                  COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER         :: grays
                                  COMPLEX(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER      :: c_in, c_out
-                                 INTEGER                                            ::  handle, handle2, my_pos, nrays, &
-                                                                                       out_unit
+                                 INTEGER                                            ::  handle, handle2, out_unit
+                                 INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cyzp
+                                 INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cnyzray
                                  #:if (space=="rs" and kind=="r3d" and kind2=="c1d") or (space=="gs" and kind=="c1d" and kind2=="r3d")
                                     INTEGER, DIMENSION(3)                              :: nloc
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
@@ -1298,9 +1314,10 @@ CONTAINS
                                        #:endif
                                     END IF
 
-                                    my_pos = pw1%pw_grid%para%group%mepos
-                                    nrays = pw1%pw_grid%para%nyzray(my_pos)
                                     grays => pw1%pw_grid%grays
+                                    IF (pw1%pw_grid%para%ray_distribution) THEN
+                                       CALL get_c_ray_mapping(pw1%pw_grid, cyzp, cnyzray)
+                                    END IF
 
                                     #:if space=="rs"
                                        #:if kind=="c3d" and kind2=="c1d"
@@ -1310,7 +1327,7 @@ CONTAINS
                                           !..transform
                                           IF (pw1%pw_grid%para%ray_distribution) THEN
                                              CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
+                                                        cyzp, cnyzray, &
                                                         pw1%pw_grid%para%bo, debug=test)
                                           ELSE
                                              CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -1336,7 +1353,7 @@ CONTAINS
                                              !..transform
                                              IF (pw1%pw_grid%para%ray_distribution) THEN
                                                 CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                           pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
+                                                           cyzp, cnyzray, &
                                                            pw1%pw_grid%para%bo, debug=test)
                                              ELSE
                                                 CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -1363,7 +1380,7 @@ CONTAINS
                                           !..transform
                                           IF (pw1%pw_grid%para%ray_distribution) THEN
                                              CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
+                                                        cyzp, cnyzray, &
                                                         pw1%pw_grid%para%bo, debug=test)
                                           ELSE
                                              CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
@@ -1388,7 +1405,7 @@ CONTAINS
                                              !..transform
                                              IF (pw1%pw_grid%para%ray_distribution) THEN
                                                 CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                           pw1%pw_grid%para%yzp, pw1%pw_grid%para%nyzray, &
+                                                           cyzp, cnyzray, &
                                                            pw1%pw_grid%para%bo, debug=test)
                                              ELSE
                                                 CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
