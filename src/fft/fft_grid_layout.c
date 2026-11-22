@@ -80,7 +80,8 @@ void sort_g_vectors(fft_grid_layout *my_fft_grid) {
   if (my_fft_grid->npts_gs_local == 0)
     return;
 
-  int *local_index2g_squared = calloc(my_fft_grid->npts_gs_local, sizeof(int));
+  double *local_index2g_squared =
+      calloc(my_fft_grid->npts_gs_local, sizeof(double));
 #pragma omp parallel for default(none)                                         \
     shared(my_fft_grid, local_index2g_squared)
   for (int index = 0; index < my_fft_grid->npts_gs_local; index++) {
@@ -111,18 +112,24 @@ void sort_g_vectors(fft_grid_layout *my_fft_grid) {
   {
     int (*index_to_g_sorted)[3] =
         calloc(my_fft_grid->npts_gs_local, sizeof(int[3]));
+    double *gsquared_sorted =
+        calloc(my_fft_grid->npts_gs_local, sizeof(double));
 #pragma omp parallel for default(none)                                         \
-    shared(my_fft_grid, index_to_g_sorted, g_square_index_pair,                \
-               local_index2g_squared)
+    shared(my_fft_grid, index_to_g_sorted, gsquared_sorted,                    \
+               g_square_index_pair)
     for (int index = 0; index < my_fft_grid->npts_gs_local; index++) {
       memcpy(index_to_g_sorted[index],
              my_fft_grid->index_to_g[g_square_index_pair[index].index],
              3 * sizeof(int));
-      local_index2g_squared[index] = g_square_index_pair[index].value;
+      gsquared_sorted[index] = g_square_index_pair[index].value;
     }
     memcpy(my_fft_grid->index_to_g, &index_to_g_sorted[0][0],
            my_fft_grid->npts_gs_local * sizeof(int[3]));
+    if (my_fft_grid->index_to_gsquared != NULL)
+      memcpy(my_fft_grid->index_to_gsquared, gsquared_sorted,
+             my_fft_grid->npts_gs_local * sizeof(double));
     free(index_to_g_sorted);
+    free(gsquared_sorted);
   }
 
   // Sort the vectors with the same length according to the x-, then y-, then
@@ -672,10 +679,10 @@ static void build_yz_to_process(fft_grid_layout *g) {
   }
 }
 
-int grid_enable_ray_distribution(fft_grid_layout *g,
-                                 const int *xy_to_process, const int nlocal,
-                                 const int (*index_to_g)[3],
-                                 const double *gsquared) {
+static int grid_enable_ray_distribution_internal(
+    fft_grid_layout *g, const int *xy_to_process, const int nlocal,
+    const int (*index_to_g)[3], const double *gsquared,
+    const bool register_plans) {
   cp_assert(g != NULL);
   cp_assert(xy_to_process != NULL);
   cp_assert(index_to_g != NULL);
@@ -811,9 +818,18 @@ int grid_enable_ray_distribution(fft_grid_layout *g,
       g->proc2local_x_gs, g->proc2local_y_rs, g->proc2local_y_gs,
       g->proc2local_z_rs, g->rays_per_process, g->ray_to_xy, g->comm,
       g->sub_comm);
-  fft_register_3d(g);
+  if (register_plans)
+    fft_register_3d(g);
   build_yz_to_process(g);
   return 0;
+}
+
+int grid_enable_ray_distribution(fft_grid_layout *g,
+                                 const int *xy_to_process, const int nlocal,
+                                 const int (*index_to_g)[3],
+                                 const double *gsquared) {
+  return grid_enable_ray_distribution_internal(
+      g, xy_to_process, nlocal, index_to_g, gsquared, true);
 }
 
 /*******************************************************************************
@@ -848,7 +864,7 @@ void grid_prepare_ray_mapping(fft_grid_layout *g,
         if (g->use_halfspace && s0 == 0 &&
             ((s1 == 0 && s2 > 0) || s1 > 0))
           continue;
-        if (g->cutoff > 0.0) {
+        if (g->spherical && g->cutoff > 0.0) {
           const double gsq = squared_length_of_g_vector(
               (const int[3]){s0, s1, s2}, g->cell_info.dhmat);
           if (0.5 * gsq > g->cutoff)
@@ -939,6 +955,23 @@ void grid_prepare_ray_mapping(fft_grid_layout *g,
   free(has_data);
 }
 
+int grid_get_npts_gs_local(const fft_grid_layout *g) {
+  cp_assert(g != NULL);
+  return g->npts_gs_local;
+}
+
+void grid_get_index_to_g(const fft_grid_layout *g, int *index_to_g) {
+  cp_assert(g != NULL && index_to_g != NULL);
+  memcpy(index_to_g, g->index_to_g,
+         (size_t)g->npts_gs_local * sizeof(int[3]));
+}
+
+void grid_get_gsquared(const fft_grid_layout *g, double *gsquared) {
+  cp_assert(g != NULL && gsquared != NULL);
+  memcpy(gsquared, g->index_to_gsquared,
+         (size_t)g->npts_gs_local * sizeof(double));
+}
+
 int grid_generate_g_space(fft_grid_layout *g) {
   cp_assert(g != NULL && g->xy_to_process != NULL);
   const int n0 = g->npts_global_gspace[0];
@@ -968,7 +1001,7 @@ int grid_generate_g_space(fft_grid_layout *g) {
             ((s1 == 0 && s2 > 0) || s1 > 0))
           continue;
         double gsq = 0.0;
-        if (g->cutoff > 0.0) {
+        if (g->spherical && g->cutoff > 0.0) {
           gsq = squared_length_of_g_vector(
               (const int[3]){s0, s1, s2}, g->cell_info.dhmat);
           if (0.5 * gsq > g->cutoff)
@@ -995,9 +1028,8 @@ int grid_generate_g_space(fft_grid_layout *g) {
   int *mapping = malloc(map_size * sizeof(int));
   cp_assert(mapping != NULL);
   memcpy(mapping, g->xy_to_process, map_size * sizeof(int));
-  const int status = grid_enable_ray_distribution(g, mapping, nlocal,
-                                                  (const int(*)[3])index_to_g,
-                                                  gsquared);
+  const int status = grid_enable_ray_distribution_internal(
+      g, mapping, nlocal, (const int(*)[3])index_to_g, gsquared, false);
   free(mapping);
   free(index_to_g);
   free(gsquared);
@@ -1017,6 +1049,11 @@ int grid_finalize_ray_distribution(fft_grid_layout *g, const int nlocal,
       g, mapping, nlocal, index_to_g, gsquared);
   free(mapping);
   return status;
+}
+
+void grid_set_spherical(fft_grid_layout *g, const bool spherical) {
+  cp_assert(g != NULL);
+  g->spherical = spherical;
 }
 
 void grid_set_yz_mapping(fft_grid_layout *g, const int *yz_to_process) {
@@ -1083,18 +1120,10 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
                                   hmat[0][2] * hmat[1][1] * hmat[2][0] -
                                   hmat[0][1] * hmat[1][0] * hmat[2][2] -
                                   hmat[0][0] * hmat[1][2] * hmat[2][1];
-  for (int dir = 0; dir < 3; dir++) {
-    for (int dir2 = 0; dir2 < 3; dir2++) {
-      my_fft_grid->cell_info.dhmat[dir][dir2] =
-          hmat[dir][dir2] / ((double)npts_global[dir]);
-      my_fft_grid->cell_info.dhmat[dir][dir2] =
-          (hmat[(dir + 1) % 3][(dir2 + 2) % 3] *
-               hmat[(dir + 2) % 3][(dir2 + 1) % 3] -
-           hmat[(dir + 1) % 3][(dir2 + 1) % 3] *
-               hmat[(dir + 2) % 3][(dir2 + 2) % 3]) /
-          my_fft_grid->cell_info.volume / ((double)npts_global[dir2]);
-    }
-  }
+  // The Fortran interface passes the inverse cell matrix (dh_inv).
+  for (int dir = 0; dir < 3; dir++)
+    for (int dir2 = 0; dir2 < 3; dir2++)
+      my_fft_grid->cell_info.dhmat[dir][dir2] = hmat[dir][dir2];
   for (int dir = 0; dir < 3; dir++) {
     my_fft_grid->cell_info.dr[dir] =
         sqrt(my_fft_grid->cell_info.dhmat[dir][0] *

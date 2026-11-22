@@ -49,8 +49,13 @@ MODULE pw_grids
                                               fft_choose_proc_grid,&
                                               fft_grid_get_proc_grid,&
                                               fft_grid_is_ray_distributed,&
+                                              fft_grid_set_spherical,&
                                               fft_grid_prepare_ray_mapping,&
-                                              fft_grid_generate_g_space
+                                              fft_grid_generate_g_space,&
+                                              fft_grid_get_npts_gs_local,&
+                                              fft_grid_get_index_to_g,&
+                                              fft_grid_get_gsquared,&
+                                              fft_grid_finalize_ray_distribution
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               int_size
@@ -319,6 +324,9 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: my_rs_dims
       INTEGER, DIMENSION(3)                              :: n
       INTEGER, DIMENSION(2)                              :: pgrid
+      INTEGER                                            :: c0, c1, c2, ig, nlocal_ray
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: gidx_ray
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: gsq_ray
       LOGICAL                                            :: blocking_now, my_fft_usage, my_odd, &
                                                             my_spherical, use_ray
       REAL(KIND=dp)                                      :: cell_deth, my_cutoff
@@ -451,13 +459,13 @@ CONTAINS
                            use_ray_distribution=.FALSE.)
 
       CALL fft_grid_get_comm(pw_grid%fft_grid, pw_grid%para%group)
+      CALL fft_grid_set_spherical(pw_grid%fft_grid, pw_grid%spherical)
       IF (use_ray) THEN
          IF (PRESENT(ref_grid)) THEN
             CALL fft_grid_prepare_ray_mapping(pw_grid%fft_grid, ref_grid%fft_grid)
          ELSE
             CALL fft_grid_prepare_ray_mapping(pw_grid%fft_grid)
          END IF
-         CALL fft_grid_generate_g_space(pw_grid%fft_grid)
       END IF
       CALL pw_grid_update_distribution(pw_grid)
 
@@ -465,6 +473,25 @@ CONTAINS
                                   blocked=blocked, ref_grid=ref_grid, iounit=iounit, &
                                   use_ray_distribution=use_ray)
 
+      IF (use_ray) THEN
+         CALL pw_grid_validate_c_gspace(pw_grid)
+         nlocal_ray = pw_grid%ngpts_cut_local
+         ALLOCATE (gidx_ray(3, nlocal_ray), gsq_ray(nlocal_ray))
+         DO ig = 1, nlocal_ray
+            c2 = pw_grid%g_hat(1, ig)
+            c1 = pw_grid%g_hat(2, ig)
+            c0 = pw_grid%g_hat(3, ig)
+            IF (c0 < 0) c0 = c0 + pw_grid%npts(3)
+            IF (c1 < 0) c1 = c1 + pw_grid%npts(2)
+            IF (c2 < 0) c2 = c2 + pw_grid%npts(1)
+            gidx_ray(1, ig) = c0
+            gidx_ray(2, ig) = c1
+            gidx_ray(3, ig) = c2
+            gsq_ray(ig) = pw_grid%gsq(ig)
+         END DO
+         CALL fft_grid_finalize_ray_distribution(pw_grid%fft_grid, gidx_ray, gsq_ray)
+         DEALLOCATE (gidx_ray, gsq_ray)
+      END IF
       CALL pw_grid_check_distribution(pw_grid)
       CPASSERT(use_ray .EQV. fft_grid_is_ray_distributed(pw_grid%fft_grid))
       CPASSERT(use_ray .EQV. pw_grid%para%ray_distribution)
@@ -844,6 +871,81 @@ CONTAINS
          CPABORT("Unknown PW grid blocking")
       END SELECT
    END FUNCTION blocked_local_for_ray
+
+! **************************************************************************************************
+!> \brief Optional validation of C-generated g-space data against pw_grid_assign.
+! **************************************************************************************************
+   SUBROUTINE pw_grid_validate_c_gspace(pw_grid)
+      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
+
+      INTEGER                                            :: i, j, k, l, n, ncx, ncy, ncz, stat
+      LOGICAL                                            :: found
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cidx
+      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: used
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgsq
+      CHARACTER(len=64)                                  :: env_value
+
+      CALL get_environment_variable("CP2K_VALIDATE_C_GSPACE", value=env_value, status=stat)
+      IF (stat /= 0 .OR. LEN_TRIM(env_value) == 0) RETURN
+      IF (TRIM(env_value) == "0") RETURN
+
+      CALL fft_grid_generate_g_space(pw_grid%fft_grid)
+      n = fft_grid_get_npts_gs_local(pw_grid%fft_grid)
+      IF (n /= pw_grid%ngpts_cut_local) THEN
+         WRITE (*, '(A,2I10,A,3I5,A,F12.4,A,I2)') 'C/PW nlocal mismatch', n, &
+            pw_grid%ngpts_cut_local, ' npts', pw_grid%npts, ' cut', pw_grid%cutoff, &
+            ' span', pw_grid%grid_span
+         CPABORT("C-generated g-space size mismatch")
+      END IF
+      ALLOCATE (cidx(3, n), cgsq(n), used(pw_grid%ngpts_cut_local))
+      CALL fft_grid_get_index_to_g(pw_grid%fft_grid, cidx)
+      CALL fft_grid_get_gsquared(pw_grid%fft_grid, cgsq)
+      used = .FALSE.
+      ncx = pw_grid%npts(1); ncy = pw_grid%npts(2); ncz = pw_grid%npts(3)
+      DO i = 1, n
+         ! Convert to the stored Fortran convention.
+         IF (pw_grid%grid_span == HALFSPACE) THEN
+            j = MERGE(0, -cidx(1, i), cidx(1, i) == 0)
+         ELSE
+            j = cidx(1, i)
+            IF (MOD(ncz, 2) == 0 .AND. j == ncz/2) THEN
+               j = -ncz/2
+            ELSE IF (j > ncz/2) THEN
+               j = j - ncz
+            END IF
+         END IF
+         k = cidx(2, i)
+         IF (MOD(ncy, 2) == 0 .AND. k == ncy/2) THEN
+            k = -ncy/2
+         ELSE IF (k > ncy/2) THEN
+            k = k - ncy
+         END IF
+         ncx = cidx(3, i)
+         IF (MOD(pw_grid%npts(1), 2) == 0 .AND. ncx == pw_grid%npts(1)/2) THEN
+            ncx = -pw_grid%npts(1)/2
+         ELSE IF (ncx > pw_grid%npts(1)/2) THEN
+            ncx = ncx - pw_grid%npts(1)
+         END IF
+         found = .FALSE.
+         DO l = 1, pw_grid%ngpts_cut_local
+            IF (used(l)) CYCLE
+            IF (ABS(cgsq(i) - pw_grid%gsq(l)) > 1.e-12_dp*MAX(1._dp, cgsq(i))) CYCLE
+            IF (ncx /= pw_grid%g_hat(1, l)) CYCLE
+            IF (k /= pw_grid%g_hat(2, l)) CYCLE
+            IF (j /= pw_grid%g_hat(3, l)) CYCLE
+            used(l) = .TRUE.
+            found = .TRUE.
+            EXIT
+         END DO
+         IF (.NOT. found) &
+            CPABORT("C-generated g-space does not match pw_grid_assign")
+      END DO
+      IF (.NOT. ALL(used(1:pw_grid%ngpts_cut_local))) &
+         CPABORT("C-generated g-space does not match pw_grid_assign")
+      IF (pw_grid%para%group%mepos == 0) &
+         WRITE (*, '(A,I8)') ' C g-space validation passed for local g-vectors: ', n
+      DEALLOCATE (cidx, cgsq, used)
+   END SUBROUTINE pw_grid_validate_c_gspace
 
 ! **************************************************************************************************
 !> \brief Fill the PW-grid distribution caches from the FFT layout.

@@ -46,6 +46,8 @@ typedef struct {
   // Whether to use only one half of g-space
   // If used, then complex-valued real-space grids are not possible anymore
   bool use_halfspace;
+  // Whether the PW grid uses a spherical cutoff
+  bool spherical;
   int npts_global_gspace[3];
   double cutoff;
   // Number of local points in g-space (relevant with ray-distribution)
@@ -116,12 +118,16 @@ void grid_prepare_ray_mapping(fft_grid_layout *g,
                               const fft_grid_layout *ref);
 
 int grid_generate_g_space(fft_grid_layout *g);
+int grid_get_npts_gs_local(const fft_grid_layout *g);
+void grid_get_index_to_g(const fft_grid_layout *g, int *index_to_g);
+void grid_get_gsquared(const fft_grid_layout *g, double *gsquared);
 
 int grid_finalize_ray_distribution(fft_grid_layout *g, const int nlocal,
                                     const int (*index_to_g)[3],
                                     const double *gsquared);
 
 void grid_set_yz_mapping(fft_grid_layout *g, const int *yz_to_process);
+void grid_set_spherical(fft_grid_layout *g, const bool spherical);
 
 
 int grid_enable_ray_distribution(fft_grid_layout *g,

@@ -1031,6 +1031,20 @@ int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid,
  * \param xy_to_process Process owning each yz ray (output).
  * \return whether the layout provides a ray-distribution map.
  ******************************************************************************/
+int fft_grid_get_npts_gs_local_F(const fft_grid_layout *fft_grid) {
+  return grid_get_npts_gs_local(fft_grid);
+}
+
+void fft_grid_get_index_to_g_F(const fft_grid_layout *fft_grid,
+                                int *index_to_g) {
+  grid_get_index_to_g(fft_grid, index_to_g);
+}
+
+void fft_grid_get_gsquared_F(const fft_grid_layout *fft_grid,
+                              double *gsquared) {
+  grid_get_gsquared(fft_grid, gsquared);
+}
+
 int fft_grid_generate_g_space_F(fft_grid_layout *fft_grid) {
   cp_assert(fft_grid != NULL);
   return grid_generate_g_space(fft_grid);
@@ -1049,6 +1063,12 @@ int fft_grid_finalize_ray_distribution_F(fft_grid_layout *fft_grid,
   cp_assert(fft_grid != NULL);
   return grid_finalize_ray_distribution(
       fft_grid, nlocal, (const int(*)[3])index_to_g, gsquared);
+}
+
+void fft_grid_set_spherical_F(fft_grid_layout *fft_grid,
+                               const bool spherical) {
+  cp_assert(fft_grid != NULL);
+  grid_set_spherical(fft_grid, spherical);
 }
 
 void fft_grid_set_yz_mapping_F(fft_grid_layout *fft_grid,

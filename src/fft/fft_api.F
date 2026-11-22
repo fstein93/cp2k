@@ -52,7 +52,11 @@ MODULE fft_api
    PUBLIC :: fft_grid_is_ray_distributed
    PUBLIC :: fft_grid_prepare_ray_mapping
    PUBLIC :: fft_grid_generate_g_space
+   PUBLIC :: fft_grid_get_npts_gs_local
+   PUBLIC :: fft_grid_get_index_to_g
+   PUBLIC :: fft_grid_get_gsquared
    PUBLIC :: fft_grid_set_yz_mapping
+   PUBLIC :: fft_grid_set_spherical
    PUBLIC :: fft_grid_finalize_ray_distribution
 
    ! Keep it synchronized with fft_api_F.c
@@ -1845,6 +1849,84 @@ CONTAINS
    END FUNCTION fft_grid_is_ray_distributed
 
 ! **************************************************************************************************
+!> \brief Number of local g vectors in the C layout.
+! **************************************************************************************************
+   INTEGER FUNCTION fft_grid_get_npts_gs_local(fft_grid)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+
+      INTERFACE
+         INTEGER(C_INT) FUNCTION fft_grid_get_npts_gs_local_c(layout) &
+            BIND(C, name="fft_grid_get_npts_gs_local_F")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE :: layout
+         END FUNCTION fft_grid_get_npts_gs_local_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      fft_grid_get_npts_gs_local = INT(fft_grid_get_npts_gs_local_c(fft_grid%fft_grid))
+   END FUNCTION fft_grid_get_npts_gs_local
+
+! **************************************************************************************************
+!> \brief Fetch the local g-vector indices from the C layout.
+! **************************************************************************************************
+   SUBROUTINE fft_grid_get_index_to_g(fft_grid, index_to_g)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: index_to_g
+
+      INTEGER                                            :: i
+      INTEGER(C_INT), ALLOCATABLE, DIMENSION(:), TARGET  :: idx_c
+
+      INTERFACE
+         SUBROUTINE fft_grid_get_index_to_g_c(layout, idx) &
+            BIND(C, name="fft_grid_get_index_to_g_F")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE :: layout
+            INTEGER(C_INT), DIMENSION(*), INTENT(OUT) :: idx
+         END SUBROUTINE fft_grid_get_index_to_g_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      ALLOCATE (index_to_g(3, fft_grid_get_npts_gs_local(fft_grid)))
+      ALLOCATE (idx_c(0:3*SIZE(index_to_g, 2) - 1))
+      CALL fft_grid_get_index_to_g_c(fft_grid%fft_grid, idx_c)
+      DO i = 1, SIZE(index_to_g, 2)
+         index_to_g(1, i) = INT(idx_c(3*(i - 1)))
+         index_to_g(2, i) = INT(idx_c(3*(i - 1) + 1))
+         index_to_g(3, i) = INT(idx_c(3*(i - 1) + 2))
+      END DO
+      DEALLOCATE (idx_c)
+   END SUBROUTINE fft_grid_get_index_to_g
+
+! **************************************************************************************************
+!> \brief Fetch the local squared g-vector lengths from the C layout.
+! **************************************************************************************************
+   SUBROUTINE fft_grid_get_gsquared(fft_grid, gsquared)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:), INTENT(OUT) :: gsquared
+
+      INTEGER                                            :: i
+      REAL(C_DOUBLE), ALLOCATABLE, DIMENSION(:), TARGET  :: gsq_c
+
+      INTERFACE
+         SUBROUTINE fft_grid_get_gsquared_c(layout, gsq) &
+            BIND(C, name="fft_grid_get_gsquared_F")
+            IMPORT :: C_PTR, C_DOUBLE
+            TYPE(C_PTR), VALUE :: layout
+            REAL(C_DOUBLE), DIMENSION(*), INTENT(OUT) :: gsq
+         END SUBROUTINE fft_grid_get_gsquared_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      ALLOCATE (gsquared(fft_grid_get_npts_gs_local(fft_grid)))
+      ALLOCATE (gsq_c(0:SIZE(gsquared) - 1))
+      CALL fft_grid_get_gsquared_c(fft_grid%fft_grid, gsq_c)
+      DO i = 1, SIZE(gsquared)
+         gsquared(i) = REAL(gsq_c(i - 1), KIND=dp)
+      END DO
+      DEALLOCATE (gsq_c)
+   END SUBROUTINE fft_grid_get_gsquared
+
+! **************************************************************************************************
 !> \brief Generate the local g-space data from the prepared C ray mapping.
 ! **************************************************************************************************
    SUBROUTINE fft_grid_generate_g_space(fft_grid)
@@ -1937,6 +2019,26 @@ CONTAINS
       CPASSERT(status == 0)
       DEALLOCATE (g_c, gsq_c)
    END SUBROUTINE fft_grid_finalize_ray_distribution
+
+! **************************************************************************************************
+!> \brief Tell the layout whether the PW grid uses a spherical cutoff.
+! **************************************************************************************************
+   SUBROUTINE fft_grid_set_spherical(fft_grid, spherical)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+      LOGICAL, INTENT(IN)                                :: spherical
+
+      INTERFACE
+         SUBROUTINE fft_grid_set_spherical_c(layout, spherical) &
+            BIND(C, name="fft_grid_set_spherical_F")
+            IMPORT :: C_PTR, C_BOOL
+            TYPE(C_PTR), VALUE :: layout
+            LOGICAL(C_BOOL), VALUE :: spherical
+         END SUBROUTINE fft_grid_set_spherical_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      CALL fft_grid_set_spherical_c(fft_grid%fft_grid, LOGICAL(spherical, C_BOOL))
+   END SUBROUTINE fft_grid_set_spherical
 
 ! **************************************************************************************************
 !> \brief Store a yz-ray owner map in the FFT layout.
