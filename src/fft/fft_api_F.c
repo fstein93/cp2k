@@ -1031,6 +1031,14 @@ int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid,
  * \param xy_to_process Process owning each yz ray (output).
  * \return whether the layout provides a ray-distribution map.
  ******************************************************************************/
+int fft_grid_get_yzp_max_F(const fft_grid_layout *fft_grid) {
+  return grid_get_yzp_max(fft_grid);
+}
+
+void fft_grid_get_yzp_F(const fft_grid_layout *fft_grid, int *yzp) {
+  grid_get_yzp(fft_grid, yzp);
+}
+
 int fft_grid_get_npts_gs_local_F(const fft_grid_layout *fft_grid) {
   return grid_get_npts_gs_local(fft_grid);
 }

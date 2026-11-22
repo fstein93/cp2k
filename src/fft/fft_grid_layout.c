@@ -188,6 +188,7 @@ void grid_free_fft_grid_layout(fft_grid_layout *fft_grid) {
       free(fft_grid->proc2local_y_gs);
       free(fft_grid->xy_to_process);
       free(fft_grid->yz_to_process);
+      free(fft_grid->yzp);
       free(fft_grid->ray_to_xy);
       free(fft_grid->xy_to_ray);
       free(fft_grid->rays_per_process);
@@ -679,6 +680,61 @@ static void build_yz_to_process(fft_grid_layout *g) {
   }
 }
 
+static void build_final_yzp(fft_grid_layout *g) {
+  const int nz = g->npts_global[0];
+  const int ny = g->npts_global[1];
+  const int nz_ray = g->npts_global_gspace[0];
+  const int nproc = cp_mpi_comm_size(g->comm);
+  const int me = cp_mpi_comm_rank(g->comm);
+  int *yz = calloc((size_t)nz * ny, sizeof(int));
+  cp_assert(yz != NULL);
+
+  for (int idx = 0; idx < g->npts_gs_local; idx++) {
+    const int c0 = g->index_to_g[idx][0];
+    const int c1 = g->index_to_g[idx][1];
+    int i, j;
+    if (g->use_halfspace) {
+      const int c0p = c0 < g->npts_global_gspace[0] ? c0 : nz - c0;
+      i = nz_ray - c0p;
+    } else {
+      i = c0 >= nz / 2 ? c0 - nz / 2 + 1 : c0 + nz / 2 + 1;
+    }
+    j = c1 >= ny / 2 ? c1 - ny / 2 + 1 : c1 + ny / 2 + 1;
+    if (i >= 1 && i <= nz && j >= 1 && j <= ny)
+      yz[(size_t)(i - 1) * ny + j - 1]++;
+    if (g->use_halfspace) {
+      const int i2 = nz - i + 2;
+      const int j2 = ny - j + 2;
+      if (i2 >= 1 && i2 <= nz && j2 >= 1 && j2 <= ny)
+        yz[(size_t)(i2 - 1) * ny + j2 - 1]++;
+    }
+  }
+
+  int local_nray = 0;
+  for (size_t k = 0; k < (size_t)nz * ny; k++)
+    local_nray += yz[k] > 0;
+  int max_nray = local_nray;
+  cp_mpi_max_int(&max_nray, 1, g->comm);
+
+  int *local_yzp = calloc((size_t)2 * max_nray * nproc, sizeof(int));
+  cp_assert(local_yzp != NULL);
+  int is = 0;
+  for (int i = 1; i <= nz; i++) {
+    for (int j = 1; j <= ny; j++) {
+      if (yz[(size_t)(i - 1) * ny + j - 1] == 0)
+        continue;
+      is++;
+      local_yzp[(size_t)2 * (me * max_nray + (is - 1))] = j;
+      local_yzp[(size_t)2 * (me * max_nray + (is - 1)) + 1] = i;
+    }
+  }
+  cp_mpi_sum_int(local_yzp, 2 * max_nray * nproc, g->comm);
+  free(yz);
+  free(g->yzp);
+  g->yzp = local_yzp;
+  g->yzp_max = max_nray;
+}
+
 static int grid_enable_ray_distribution_internal(
     fft_grid_layout *g, const int *xy_to_process, const int nlocal,
     const int (*index_to_g)[3], const double *gsquared,
@@ -821,6 +877,7 @@ static int grid_enable_ray_distribution_internal(
   if (register_plans)
     fft_register_3d(g);
   build_yz_to_process(g);
+  build_final_yzp(g);
   return 0;
 }
 
@@ -953,6 +1010,18 @@ void grid_prepare_ray_mapping(fft_grid_layout *g,
     rr_empty++;
   }
   free(has_data);
+}
+
+int grid_get_yzp_max(const fft_grid_layout *g) {
+  cp_assert(g != NULL);
+  return g->yzp_max;
+}
+
+void grid_get_yzp(const fft_grid_layout *g, int *yzp) {
+  cp_assert(g != NULL && yzp != NULL);
+  const int nproc = cp_mpi_comm_size(g->comm);
+  memcpy(yzp, g->yzp,
+         (size_t)2 * g->yzp_max * nproc * sizeof(int));
 }
 
 int grid_get_npts_gs_local(const fft_grid_layout *g) {

@@ -58,6 +58,10 @@ typedef struct {
   int *xy_to_process;
   // Owner map indexed in the Fortran yzq convention: (z-1)*ny + (y-1).
   int *yz_to_process;
+  // Final data-ray mapping in Fortran pw_grid yzp convention:
+  // yzp[2 * (p * yzp_max + r) + d]
+  int *yzp;
+  int yzp_max;
   int *rays_per_process;
   int my_number_of_rays;
   // maps of index in g-space to g-space vectors
@@ -118,6 +122,8 @@ void grid_prepare_ray_mapping(fft_grid_layout *g,
                               const fft_grid_layout *ref);
 
 int grid_generate_g_space(fft_grid_layout *g);
+int grid_get_yzp_max(const fft_grid_layout *g);
+void grid_get_yzp(const fft_grid_layout *g, int *yzp);
 int grid_get_npts_gs_local(const fft_grid_layout *g);
 void grid_get_index_to_g(const fft_grid_layout *g, int *index_to_g);
 void grid_get_gsquared(const fft_grid_layout *g, double *gsquared);
