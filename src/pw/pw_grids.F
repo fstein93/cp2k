@@ -55,6 +55,7 @@ MODULE pw_grids
                                               fft_grid_get_npts_gs_local,&
                                               fft_grid_get_index_to_g,&
                                               fft_grid_get_gsquared,&
+                                              fft_grid_get_yzp,&
                                               fft_grid_finalize_ray_distribution
    USE kinds,                           ONLY: dp,&
                                               int_8,&
@@ -883,6 +884,7 @@ CONTAINS
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cidx
       LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: used
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgsq
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cyzp
       CHARACTER(len=64)                                  :: env_value
 
       CALL get_environment_variable("CP2K_VALIDATE_C_GSPACE", value=env_value, status=stat)
@@ -942,9 +944,24 @@ CONTAINS
       END DO
       IF (.NOT. ALL(used(1:pw_grid%ngpts_cut_local))) &
          CPABORT("C-generated g-space does not match pw_grid_assign")
+      CALL fft_grid_get_yzp(pw_grid%fft_grid, cyzp)
+      CPASSERT(SIZE(cyzp, 2) == SIZE(pw_grid%para%yzp, 2))
+      CPASSERT(SIZE(cyzp, 3) == SIZE(pw_grid%para%yzp, 3))
+      IF (.NOT. ALL(cyzp == pw_grid%para%yzp)) THEN
+         DO i = 0, SIZE(cyzp, 3) - 1
+            DO j = 1, SIZE(cyzp, 2)
+               IF (cyzp(1, j, i) /= pw_grid%para%yzp(1, j, i) .OR. &
+                   cyzp(2, j, i) /= pw_grid%para%yzp(2, j, i)) THEN
+                  WRITE (*, '(A,2I8,A,2I6,A,2I6)') 'DBGYZP first diff', i, j, ' C', &
+                     cyzp(1:2, j, i), ' F', pw_grid%para%yzp(1:2, j, i)
+                  CPABORT("C yzp mismatch")
+               END IF
+            END DO
+         END DO
+      END IF
       IF (pw_grid%para%group%mepos == 0) &
          WRITE (*, '(A,I8)') ' C g-space validation passed for local g-vectors: ', n
-      DEALLOCATE (cidx, cgsq, used)
+      DEALLOCATE (cidx, cgsq, used, cyzp)
    END SUBROUTINE pw_grid_validate_c_gspace
 
 ! **************************************************************************************************

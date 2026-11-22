@@ -683,30 +683,21 @@ static void build_yz_to_process(fft_grid_layout *g) {
 static void build_final_yzp(fft_grid_layout *g) {
   const int nz = g->npts_global[0];
   const int ny = g->npts_global[1];
-  const int nz_ray = g->npts_global_gspace[0];
   const int nproc = cp_mpi_comm_size(g->comm);
   const int me = cp_mpi_comm_rank(g->comm);
   int *yz = calloc((size_t)nz * ny, sizeof(int));
   cp_assert(yz != NULL);
 
   for (int idx = 0; idx < g->npts_gs_local; idx++) {
-    const int c0 = g->index_to_g[idx][0];
-    const int c1 = g->index_to_g[idx][1];
-    int i, j;
+    const int c0 = g->index_to_g[idx][0]; // C z index (pos convention)
+    const int c1 = g->index_to_g[idx][1]; // C y index (pos convention)
+    yz[(size_t)c0 * ny + c1]++;
     if (g->use_halfspace) {
-      const int c0p = c0 < g->npts_global_gspace[0] ? c0 : nz - c0;
-      i = nz_ray - c0p;
-    } else {
-      i = c0 >= nz / 2 ? c0 - nz / 2 + 1 : c0 + nz / 2 + 1;
-    }
-    j = c1 >= ny / 2 ? c1 - ny / 2 + 1 : c1 + ny / 2 + 1;
-    if (i >= 1 && i <= nz && j >= 1 && j <= ny)
-      yz[(size_t)(i - 1) * ny + j - 1]++;
-    if (g->use_halfspace) {
-      const int i2 = nz - i + 2;
-      const int j2 = ny - j + 2;
-      if (i2 >= 1 && i2 <= nz && j2 >= 1 && j2 <= ny)
-        yz[(size_t)(i2 - 1) * ny + j2 - 1]++;
+      const int s0 = c0 > nz / 2 ? c0 - nz : c0;
+      const int s1 = c1 > ny / 2 ? c1 - ny : c1;
+      const int n0 = s0 <= 0 ? -s0 : nz - s0;
+      const int n1 = s1 <= 0 ? -s1 : ny - s1;
+      yz[(size_t)n0 * ny + n1]++;
     }
   }
 

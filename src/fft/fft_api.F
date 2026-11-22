@@ -52,6 +52,8 @@ MODULE fft_api
    PUBLIC :: fft_grid_is_ray_distributed
    PUBLIC :: fft_grid_prepare_ray_mapping
    PUBLIC :: fft_grid_generate_g_space
+   PUBLIC :: fft_grid_get_yzp_max
+   PUBLIC :: fft_grid_get_yzp
    PUBLIC :: fft_grid_get_npts_gs_local
    PUBLIC :: fft_grid_get_index_to_g
    PUBLIC :: fft_grid_get_gsquared
@@ -1847,6 +1849,61 @@ CONTAINS
       status = fft_grid_is_ray_distributed_c(fft_grid%fft_grid)
       fft_grid_is_ray_distributed = status /= 0
    END FUNCTION fft_grid_is_ray_distributed
+
+! **************************************************************************************************
+!> \brief Maximum number of rays per process in the finalized C layout.
+! **************************************************************************************************
+   INTEGER FUNCTION fft_grid_get_yzp_max(fft_grid)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+
+      INTERFACE
+         INTEGER(C_INT) FUNCTION fft_grid_get_yzp_max_c(layout) &
+            BIND(C, name="fft_grid_get_yzp_max_F")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE :: layout
+         END FUNCTION fft_grid_get_yzp_max_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      fft_grid_get_yzp_max = INT(fft_grid_get_yzp_max_c(fft_grid%fft_grid))
+   END FUNCTION fft_grid_get_yzp_max
+
+! **************************************************************************************************
+!> \brief Fetch the finalized yz-ray mapping in the pw_grid yzp convention.
+! **************************************************************************************************
+   SUBROUTINE fft_grid_get_yzp(fft_grid, yzp)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), INTENT(OUT) :: yzp
+
+      INTEGER                                            :: i, j, k, nproc
+      INTEGER(C_INT), ALLOCATABLE, DIMENSION(:), TARGET  :: yzp_c
+      TYPE(mp_comm_type)                                 :: comm
+
+      INTERFACE
+         SUBROUTINE fft_grid_get_yzp_c(layout, yz) &
+            BIND(C, name="fft_grid_get_yzp_F")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE :: layout
+            INTEGER(C_INT), DIMENSION(*), INTENT(OUT) :: yz
+         END SUBROUTINE fft_grid_get_yzp_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      CALL fft_grid_get_comm(fft_grid, comm)
+      nproc = comm%num_pe
+      CALL comm%free()
+      ALLOCATE (yzp(2, fft_grid_get_yzp_max(fft_grid), 0:nproc - 1))
+      ALLOCATE (yzp_c(0:2*SIZE(yzp) - 1))
+      CALL fft_grid_get_yzp_c(fft_grid%fft_grid, yzp_c)
+      k = 0
+      DO i = 0, nproc - 1
+         DO j = 1, SIZE(yzp, 2)
+            yzp(1, j, i) = INT(yzp_c(k)); k = k + 1
+            yzp(2, j, i) = INT(yzp_c(k)); k = k + 1
+         END DO
+      END DO
+      DEALLOCATE (yzp_c)
+   END SUBROUTINE fft_grid_get_yzp
 
 ! **************************************************************************************************
 !> \brief Number of local g vectors in the C layout.
