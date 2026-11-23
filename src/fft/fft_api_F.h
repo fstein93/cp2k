@@ -690,6 +690,8 @@ void fft_grid_get_yzp_F(const fft_grid_layout *fft_grid, int *yzp);
 int fft_grid_get_npts_gs_local_F(const fft_grid_layout *fft_grid);
 void fft_grid_get_index_to_g_F(const fft_grid_layout *fft_grid,
                                 int *index_to_g);
+void fft_grid_get_index_to_fft_F(const fft_grid_layout *fft_grid,
+                                  const int *g_hat, int *index_to_fft);
 void fft_grid_get_gsquared_F(const fft_grid_layout *fft_grid,
                               double *gsquared);
 

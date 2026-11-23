@@ -126,6 +126,8 @@ int grid_get_yzp_max(const fft_grid_layout *g);
 void grid_get_yzp(const fft_grid_layout *g, int *yzp);
 int grid_get_npts_gs_local(const fft_grid_layout *g);
 void grid_get_index_to_g(const fft_grid_layout *g, int *index_to_g);
+void grid_get_index_to_fft(const fft_grid_layout *g, const int *g_hat,
+                           int *index_to_fft);
 void grid_get_gsquared(const fft_grid_layout *g, double *gsquared);
 
 int grid_finalize_ray_distribution(fft_grid_layout *g, const int nlocal,

@@ -56,6 +56,7 @@ MODULE fft_api
    PUBLIC :: fft_grid_get_yzp
    PUBLIC :: fft_grid_get_npts_gs_local
    PUBLIC :: fft_grid_get_index_to_g
+   PUBLIC :: fft_grid_get_index_to_fft
    PUBLIC :: fft_grid_get_gsquared
    PUBLIC :: fft_grid_set_yz_mapping
    PUBLIC :: fft_grid_set_spherical
@@ -1953,6 +1954,46 @@ CONTAINS
       END DO
       DEALLOCATE (idx_c)
    END SUBROUTINE fft_grid_get_index_to_g
+
+! **************************************************************************************************
+!> \brief Fetch the FFT-space index map for local g vectors.
+! **************************************************************************************************
+   SUBROUTINE fft_grid_get_index_to_fft(fft_grid, g_hat, index_to_fft)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+      INTEGER, DIMENSION(:, :), INTENT(IN), TARGET       :: g_hat
+      INTEGER, ALLOCATABLE, DIMENSION(:, :), INTENT(OUT) :: index_to_fft
+
+      INTEGER                                            :: i, nlocal
+      INTEGER(C_INT), ALLOCATABLE, DIMENSION(:), TARGET  :: g_c, idx_c
+
+      INTERFACE
+         SUBROUTINE fft_grid_get_index_to_fft_c(layout, g_hat, idx) &
+            BIND(C, name="fft_grid_get_index_to_fft_F")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE :: layout
+            INTEGER(C_INT), DIMENSION(*), INTENT(IN) :: g_hat
+            INTEGER(C_INT), DIMENSION(*), INTENT(OUT) :: idx
+         END SUBROUTINE fft_grid_get_index_to_fft_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      nlocal = fft_grid_get_npts_gs_local(fft_grid)
+      CPASSERT(SIZE(g_hat, 1) == 3)
+      CPASSERT(SIZE(g_hat, 2) == nlocal)
+      ALLOCATE (index_to_fft(2, nlocal))
+      ALLOCATE (g_c(0:3*nlocal - 1), idx_c(0:2*nlocal - 1))
+      DO i = 1, nlocal
+         g_c(3*(i - 1)) = INT(g_hat(1, i))
+         g_c(3*(i - 1) + 1) = INT(g_hat(2, i))
+         g_c(3*(i - 1) + 2) = INT(g_hat(3, i))
+      END DO
+      CALL fft_grid_get_index_to_fft_c(fft_grid%fft_grid, g_c, idx_c)
+      DO i = 1, nlocal
+         index_to_fft(1, i) = INT(idx_c(2*(i - 1)))
+         index_to_fft(2, i) = INT(idx_c(2*(i - 1) + 1))
+      END DO
+      DEALLOCATE (g_c, idx_c)
+   END SUBROUTINE fft_grid_get_index_to_fft
 
 ! **************************************************************************************************
 !> \brief Fetch the local squared g-vector lengths from the C layout.

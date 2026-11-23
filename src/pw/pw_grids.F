@@ -54,6 +54,7 @@ MODULE pw_grids
                                               fft_grid_generate_g_space,&
                                               fft_grid_get_npts_gs_local,&
                                               fft_grid_get_index_to_g,&
+                                              fft_grid_get_index_to_fft,&
                                               fft_grid_get_gsquared,&
                                               fft_grid_get_yzp,&
                                               fft_grid_finalize_ray_distribution
@@ -514,90 +515,49 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_create_ghatmap'
 
-      INTEGER                                            :: gpt, handle, i, is, j, l, m, mn, n
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: yzq_local
+      INTEGER                                            :: gpt, handle, l, m, n, nmaps
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: index_to_fft
 
       CALL timeset(routineN, handle)
 
-      ! some checks
       CPASSERT(pw_grid%ref_count > 0)
+      nmaps = SIZE(pw_grid%g_hatmap, 2)
 
-      ! mapping of map_x( g_hat(i,j)) to g_hatmap
-      ! the second index is for switching from gather(1) to scatter(2)
-      ASSOCIATE (g_hat => pw_grid%g_hat, g_hatmap => pw_grid%g_hatmap, pmapl => pw_grid%mapl%pos, &
-                 pmapm => pw_grid%mapm%pos, pmapn => pw_grid%mapn%pos, nmapl => pw_grid%mapl%neg, &
-                 nmapm => pw_grid%mapm%neg, nmapn => pw_grid%mapn%neg, ngpts => SIZE(pw_grid%gsq), &
-                 npts => pw_grid%npts)
-         ! initialize map array to minus one, to guarantee memory
-         ! range checking errors (just to be sure)
-         g_hatmap(:, :) = -1
-         IF (pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
-            CPASSERT(PRODUCT(INT(npts, KIND=int_8)) <= INT(HUGE(0), KIND=int_8))
-            DO gpt = 1, ngpts
-               l = pmapl(g_hat(1, gpt))
-               m = pmapm(g_hat(2, gpt))
-               n = pmapn(g_hat(3, gpt))
-               !ATTENTION: C-mapping [start-index=0] !!!!
-               !ATTENTION: potential integer overflow !!!!
-               g_hatmap(gpt, 1) = l + npts(1)*(m + npts(2)*n)
-            END DO
-            IF (pw_grid%grid_span == HALFSPACE) THEN
-               DO gpt = 1, ngpts
-                  l = nmapl(g_hat(1, gpt))
-                  m = nmapm(g_hat(2, gpt))
-                  n = nmapn(g_hat(3, gpt))
-                  !ATTENTION: C-mapping [start-index=0] !!!!
-                  !ATTENTION: potential integer overflow !!!!
-                  g_hatmap(gpt, 2) = l + npts(1)*(m + npts(2)*n)
-               END DO
+      IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
+         DO gpt = 1, SIZE(pw_grid%g_hat, 2)
+            l = pw_grid%g_hat(1, gpt)
+            m = pw_grid%g_hat(2, gpt)
+            n = pw_grid%g_hat(3, gpt)
+            IF (l < 0) THEN
+               l = l + pw_grid%npts(1)
             END IF
-         ELSE
-            ALLOCATE (yzq_local(npts(2), npts(3)))
-            yzq_local = 0
-            DO gpt = 1, ngpts
-               m = pmapm(g_hat(2, gpt)) + 1
-               n = pmapn(g_hat(3, gpt)) + 1
-               yzq_local(m, n) = 1
-            END DO
-            IF (pw_grid%grid_span == HALFSPACE) THEN
-               DO gpt = 1, ngpts
-                  m = nmapm(g_hat(2, gpt)) + 1
-                  n = nmapn(g_hat(3, gpt)) + 1
-                  yzq_local(m, n) = 1
-               END DO
+            IF (m < 0) THEN
+               m = m + pw_grid%npts(2)
             END IF
-            is = 0
-            DO i = 1, npts(3)
-               DO j = 1, npts(2)
-                  IF (yzq_local(j, i) > 0) THEN
-                     is = is + 1
-                     yzq_local(j, i) = is
-                  END IF
-               END DO
-            END DO
-            DO gpt = 1, ngpts
-               l = pmapl(g_hat(1, gpt))
-               m = pmapm(g_hat(2, gpt)) + 1
-               n = pmapn(g_hat(3, gpt)) + 1
-               !ATTENTION: C-mapping [start-index=0] !!!!
-               !ATTENTION: potential integer overflow !!!!
-               mn = yzq_local(m, n) - 1
-               g_hatmap(gpt, 1) = l + npts(1)*mn
-            END DO
-            IF (pw_grid%grid_span == HALFSPACE) THEN
-               DO gpt = 1, ngpts
-                  l = nmapl(g_hat(1, gpt))
-                  m = nmapm(g_hat(2, gpt)) + 1
-                  n = nmapn(g_hat(3, gpt)) + 1
-                  !ATTENTION: C-mapping [start-index=0] !!!!
-                  !ATTENTION: potential integer overflow !!!!
-                  mn = yzq_local(m, n) - 1
-                  g_hatmap(gpt, 2) = l + npts(1)*mn
-               END DO
+            IF (n < 0) THEN
+               n = n + pw_grid%npts(3)
             END IF
-            DEALLOCATE (yzq_local)
-         END IF
-      END ASSOCIATE
+            pw_grid%g_hatmap(gpt, 1) = l + pw_grid%npts(1)*(m + pw_grid%npts(2)*n)
+            IF (nmaps > 1) THEN
+               l = pw_grid%g_hat(1, gpt)
+               m = pw_grid%g_hat(2, gpt)
+               n = pw_grid%g_hat(3, gpt)
+               l = MERGE(-l, pw_grid%npts(1) - l, l <= 0)
+               m = MERGE(-m, pw_grid%npts(2) - m, m <= 0)
+               n = MERGE(-n, pw_grid%npts(3) - n, n <= 0)
+               pw_grid%g_hatmap(gpt, 2) = l + pw_grid%npts(1)*(m + pw_grid%npts(2)*n)
+            END IF
+         END DO
+      ELSE
+         CALL fft_grid_get_index_to_fft(pw_grid%fft_grid, pw_grid%g_hat, index_to_fft)
+         CPASSERT(SIZE(index_to_fft, 1) == 2)
+         CPASSERT(SIZE(index_to_fft, 2) == SIZE(pw_grid%g_hatmap, 1))
+         DO gpt = 1, SIZE(index_to_fft, 2)
+            pw_grid%g_hatmap(gpt, 1) = index_to_fft(1, gpt)
+            IF (nmaps > 1) pw_grid%g_hatmap(gpt, 2) = index_to_fft(2, gpt)
+         END DO
+         DEALLOCATE (index_to_fft)
+      END IF
 
       CALL timestop(handle)
 

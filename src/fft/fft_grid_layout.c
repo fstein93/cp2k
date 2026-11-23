@@ -1048,6 +1048,55 @@ void grid_get_index_to_g(const fft_grid_layout *g, int *index_to_g) {
   memcpy(index_to_g, g->index_to_g,
          (size_t)g->npts_gs_local * sizeof(int[3]));
 }
+void grid_get_index_to_fft(const fft_grid_layout *g, const int *g_hat,
+                           int *index_to_fft) {
+  cp_assert(g != NULL && g_hat != NULL && index_to_fft != NULL);
+  const int nx = g->npts_global[2];
+  const int ny = g->npts_global[1];
+  const int nz = g->npts_global[0];
+  const int nlocal = g->npts_gs_local;
+  int *yzq = calloc((size_t)nz * ny, sizeof(int));
+  cp_assert(yzq != NULL);
+
+  for (int i = 0; i < nlocal; i++) {
+    const int m = g_hat[3 * i + 1];
+    const int n = g_hat[3 * i + 2];
+    const int mp = m < 0 ? m + ny : m;
+    const int np = n < 0 ? n + nz : n;
+    yzq[(size_t)np * ny + mp] = 1;
+    if (g->use_halfspace) {
+      const int mn = m <= 0 ? -m : ny - m;
+      const int nn = n <= 0 ? -n : nz - n;
+      yzq[(size_t)nn * ny + mn] = 1;
+    }
+  }
+
+  int is = 0;
+  for (int n = 0; n < nz; n++)
+    for (int m = 0; m < ny; m++)
+      if (yzq[(size_t)n * ny + m] > 0)
+        yzq[(size_t)n * ny + m] = is++;
+
+  for (int i = 0; i < nlocal; i++) {
+    int l = g_hat[3 * i];
+    int m = g_hat[3 * i + 1];
+    int n = g_hat[3 * i + 2];
+    const int lp = l < 0 ? l + nx : l;
+    const int mp = m < 0 ? m + ny : m;
+    const int np = n < 0 ? n + nz : n;
+    index_to_fft[2 * i] = lp + nx * yzq[(size_t)np * ny + mp];
+    index_to_fft[2 * i + 1] = -1;
+    if (g->use_halfspace) {
+      const int ln = l <= 0 ? -l : nx - l;
+      const int mn = m <= 0 ? -m : ny - m;
+      const int nn = n <= 0 ? -n : nz - n;
+      index_to_fft[2 * i + 1] = ln + nx * yzq[(size_t)nn * ny + mn];
+    }
+  }
+
+  free(yzq);
+}
+
 
 void grid_get_gsquared(const fft_grid_layout *g, double *gsquared) {
   cp_assert(g != NULL && gsquared != NULL);
