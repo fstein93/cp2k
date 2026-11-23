@@ -76,7 +76,6 @@ MODULE pw_grids
                                               HALFSPACE,&
                                               PW_MODE_DISTRIBUTED,&
                                               PW_MODE_LOCAL,&
-                                              map_pn,&
                                               pw_grid_type
    USE util,                            ONLY: get_limit,&
                                               sort
@@ -107,7 +106,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Initialize a PW grid with bounds only (used by some routines)
 !> \param pw_grid ...
-!> \param bounds ...
 !> \par History
 !>      JGH (21-Feb-2003) : initialize pw_grid%reference
 !> \author JGH (7-Feb-2001) & fawzi
@@ -635,8 +633,7 @@ CONTAINS
                               use_ray_distribution=use_ray_distribution)
 
       ! Allocate the grid fields
-      CALL pw_grid_allocate(pw_grid, pw_grid%ngpts_cut_local, &
-                            pw_grid%bounds)
+      CALL pw_grid_allocate(pw_grid, pw_grid%ngpts_cut_local)
 
       ! Fill in the grid structure
       CALL pw_grid_assign(cell_h_inv, pw_grid, ecut)
@@ -1266,16 +1263,63 @@ CONTAINS
 
    END SUBROUTINE pw_grid_count
 
+
 ! **************************************************************************************************
-!> \brief Setup maps from 1d to 3d space
-!> \param h_inv ...
+!> \brief Allocate all (Pointer) Arrays in pw_grid
 !> \param pw_grid ...
-!> \param cutoff ...
+!> \param ng ...
+!> \param bounds ...
 !> \par History
-!>      JGH (29-12-2000) : Adapted for parallel use
+!>      JGH (20-12-2000) : Added status variable
+!>                         Bounds of arrays now from calling routine, this
+!>                         makes it independent from parallel setup
 !> \author apsi
 !>      Christopher Mundy
 ! **************************************************************************************************
+   SUBROUTINE pw_grid_allocate(pw_grid, ng)
+
+      ! Argument
+      TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
+      INTEGER, INTENT(IN)                      :: ng
+
+      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_allocate'
+
+      INTEGER                                    :: nmaps
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+      INTEGER(KIND=C_SIZE_T)                     :: length
+      TYPE(C_PTR)                                :: cptr_g_hatmap
+      INTEGER                                    :: stat
+#endif
+
+      INTEGER                                  :: handle
+
+      CALL timeset(routineN, handle)
+
+      ALLOCATE (pw_grid%g(3, ng))
+      ALLOCATE (pw_grid%gsq(ng))
+      ALLOCATE (pw_grid%g_hat(3, ng))
+
+      nmaps = 1
+      IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+      CALL offload_activate_chosen_device()
+
+      length = INT(int_size*MAX(ng, 1)*MAX(nmaps, 1), KIND=C_SIZE_T)
+      stat = offload_malloc_pinned_mem(cptr_g_hatmap, length)
+      CPASSERT(stat == 0)
+      CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, [MAX(ng, 1), MAX(nmaps, 1)])
+#else
+      ALLOCATE (pw_grid%g_hatmap(MAX(ng, 1), MAX(nmaps, 1)))
+#endif
+
+      IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
+         ALLOCATE (pw_grid%grays(pw_grid%npts(1), pw_grid_my_nyzray(pw_grid)))
+      END IF
+
+      CALL timestop(handle)
+
+   END SUBROUTINE pw_grid_allocate
+
    SUBROUTINE pw_grid_assign(h_inv, pw_grid, cutoff)
 
       REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv
@@ -1379,148 +1423,9 @@ CONTAINS
          END IF
       END DO
 
-      CALL pw_grid_set_maps(pw_grid%grid_span, pw_grid%g_hat, &
-                            pw_grid%mapl, pw_grid%mapm, pw_grid%mapn, pw_grid%npts)
-
       CALL timestop(handle)
 
    END SUBROUTINE pw_grid_assign
-
-! **************************************************************************************************
-!> \brief Setup maps from 1d to 3d space
-!> \param grid_span ...
-!> \param g_hat ...
-!> \param mapl ...
-!> \param mapm ...
-!> \param mapn ...
-!> \param npts ...
-!> \par History
-!>      JGH (21-12-2000) : Size of g_hat locally determined
-!> \author apsi
-!>      Christopher Mundy
-!> \note
-!>      Maps are to full 3D space (not distributed)
-! **************************************************************************************************
-   SUBROUTINE pw_grid_set_maps(grid_span, g_hat, mapl, mapm, mapn, npts)
-
-      INTEGER, INTENT(IN)                                :: grid_span
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: g_hat
-      TYPE(map_pn), INTENT(INOUT)                        :: mapl, mapm, mapn
-      INTEGER, DIMENSION(:), INTENT(IN)                  :: npts
-
-      INTEGER                                            :: gpt, l, m, n, ng
-
-      ng = SIZE(g_hat, 2)
-
-      DO gpt = 1, ng
-         l = g_hat(1, gpt)
-         m = g_hat(2, gpt)
-         n = g_hat(3, gpt)
-         IF (l < 0) THEN
-            mapl%pos(l) = l + npts(1)
-         ELSE
-            mapl%pos(l) = l
-         END IF
-         IF (m < 0) THEN
-            mapm%pos(m) = m + npts(2)
-         ELSE
-            mapm%pos(m) = m
-         END IF
-         IF (n < 0) THEN
-            mapn%pos(n) = n + npts(3)
-         ELSE
-            mapn%pos(n) = n
-         END IF
-
-         ! Generating the maps to the full 3-d space
-
-         IF (grid_span == HALFSPACE) THEN
-
-            IF (l <= 0) THEN
-               mapl%neg(l) = -l
-            ELSE
-               mapl%neg(l) = npts(1) - l
-            END IF
-            IF (m <= 0) THEN
-               mapm%neg(m) = -m
-            ELSE
-               mapm%neg(m) = npts(2) - m
-            END IF
-            IF (n <= 0) THEN
-               mapn%neg(n) = -n
-            ELSE
-               mapn%neg(n) = npts(3) - n
-            END IF
-
-         END IF
-
-      END DO
-
-   END SUBROUTINE pw_grid_set_maps
-
-! **************************************************************************************************
-!> \brief Allocate all (Pointer) Arrays in pw_grid
-!> \param pw_grid ...
-!> \param ng ...
-!> \param bounds ...
-!> \par History
-!>      JGH (20-12-2000) : Added status variable
-!>                         Bounds of arrays now from calling routine, this
-!>                         makes it independent from parallel setup
-!> \author apsi
-!>      Christopher Mundy
-! **************************************************************************************************
-   SUBROUTINE pw_grid_allocate(pw_grid, ng, bounds)
-
-      ! Argument
-      TYPE(pw_grid_type), INTENT(INOUT)        :: pw_grid
-      INTEGER, INTENT(IN)                      :: ng
-      INTEGER, DIMENSION(:, :), INTENT(IN)     :: bounds
-
-      CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_allocate'
-
-      INTEGER                                    :: nmaps
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
-      INTEGER(KIND=C_SIZE_T)                     :: length
-      TYPE(C_PTR)                                :: cptr_g_hatmap
-      INTEGER                                    :: stat
-#endif
-
-      INTEGER                                  :: handle
-
-      CALL timeset(routineN, handle)
-
-      ALLOCATE (pw_grid%g(3, ng))
-      ALLOCATE (pw_grid%gsq(ng))
-      ALLOCATE (pw_grid%g_hat(3, ng))
-
-      nmaps = 1
-      IF (pw_grid%grid_span == HALFSPACE) nmaps = 2
-#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
-      CALL offload_activate_chosen_device()
-
-      length = INT(int_size*MAX(ng, 1)*MAX(nmaps, 1), KIND=C_SIZE_T)
-      stat = offload_malloc_pinned_mem(cptr_g_hatmap, length)
-      CPASSERT(stat == 0)
-      CALL c_f_pointer(cptr_g_hatmap, pw_grid%g_hatmap, [MAX(ng, 1), MAX(nmaps, 1)])
-#else
-      ALLOCATE (pw_grid%g_hatmap(MAX(ng, 1), MAX(nmaps, 1)))
-#endif
-
-      IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-         ALLOCATE (pw_grid%grays(pw_grid%npts(1), pw_grid_my_nyzray(pw_grid)))
-      END IF
-
-      ALLOCATE (pw_grid%mapl%pos(bounds(1, 1):bounds(2, 1)))
-      ALLOCATE (pw_grid%mapl%neg(bounds(1, 1):bounds(2, 1)))
-      ALLOCATE (pw_grid%mapm%pos(bounds(1, 2):bounds(2, 2)))
-      ALLOCATE (pw_grid%mapm%neg(bounds(1, 2):bounds(2, 2)))
-      ALLOCATE (pw_grid%mapn%pos(bounds(1, 3):bounds(2, 3)))
-      ALLOCATE (pw_grid%mapn%neg(bounds(1, 3):bounds(2, 3)))
-
-      CALL timestop(handle)
-
-   END SUBROUTINE pw_grid_allocate
 
 ! **************************************************************************************************
 !> \brief Sort g-vectors according to length
@@ -1926,24 +1831,6 @@ CONTAINS
             END IF
             IF (ASSOCIATED(pw_grid%grays)) THEN
                DEALLOCATE (pw_grid%grays)
-            END IF
-            IF (ALLOCATED(pw_grid%mapl%pos)) THEN
-               DEALLOCATE (pw_grid%mapl%pos)
-            END IF
-            IF (ALLOCATED(pw_grid%mapm%pos)) THEN
-               DEALLOCATE (pw_grid%mapm%pos)
-            END IF
-            IF (ALLOCATED(pw_grid%mapn%pos)) THEN
-               DEALLOCATE (pw_grid%mapn%pos)
-            END IF
-            IF (ALLOCATED(pw_grid%mapl%neg)) THEN
-               DEALLOCATE (pw_grid%mapl%neg)
-            END IF
-            IF (ALLOCATED(pw_grid%mapm%neg)) THEN
-               DEALLOCATE (pw_grid%mapm%neg)
-            END IF
-            IF (ALLOCATED(pw_grid%mapn%neg)) THEN
-               DEALLOCATE (pw_grid%mapn%neg)
             END IF
             IF (ALLOCATED(pw_grid%para%bo)) THEN
                DEALLOCATE (pw_grid%para%bo)

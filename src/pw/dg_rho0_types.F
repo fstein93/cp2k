@@ -12,7 +12,7 @@
 MODULE dg_rho0_types
 
    USE kinds,                           ONLY: dp
-   USE pw_grid_types,                   ONLY: pw_grid_type
+   USE pw_grid_types,                   ONLY: pw_grid_map_neg, pw_grid_map_pos, pw_grid_type
    USE pw_methods,                      ONLY: pw_zero
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_none,&
@@ -226,12 +226,12 @@ CONTAINS
       DO gpt = 1, pw_grid%ngpts_cut_local
          ASSOCIATE (ghat => pw_grid%g_hat(:, gpt))
 
-            lp = pw_grid%mapl%pos(ghat(1))
-            ln = pw_grid%mapl%neg(ghat(1))
-            mp = pw_grid%mapm%pos(ghat(2))
-            mn = pw_grid%mapm%neg(ghat(2))
-            np = pw_grid%mapn%pos(ghat(3))
-            nn = pw_grid%mapn%neg(ghat(3))
+            lp = pw_grid_map_pos(ghat(1), pw_grid%npts(1))
+            ln = pw_grid_map_neg(ghat(1), pw_grid%npts(1))
+            mp = pw_grid_map_pos(ghat(2), pw_grid%npts(2))
+            mn = pw_grid_map_neg(ghat(2), pw_grid%npts(2))
+            np = pw_grid_map_pos(ghat(3), pw_grid%npts(3))
+            nn = pw_grid_map_neg(ghat(3), pw_grid%npts(3))
 
             e_gsq = EXP(-const*pw_grid%gsq(gpt))/pw_grid%vol
 

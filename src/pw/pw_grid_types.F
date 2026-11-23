@@ -21,17 +21,11 @@ MODULE pw_grid_types
    IMPLICIT NONE
 
    PRIVATE
-   PUBLIC :: pw_grid_type, map_pn
+   PUBLIC :: pw_grid_type, pw_grid_map_pos, pw_grid_map_neg
 
    ! (only for reciprocal grid:) fill in half or full space
    INTEGER, PARAMETER, PUBLIC :: HALFSPACE = 211, FULLSPACE = 212
    INTEGER, PARAMETER, PUBLIC :: PW_MODE_LOCAL = 0, PW_MODE_DISTRIBUTED = 1
-
-   ! maps to positive and negative g-vectors
-! **************************************************************************************************
-   TYPE map_pn
-      INTEGER, DIMENSION(:), ALLOCATABLE :: pos, neg
-   END TYPE map_pn
 
 ! info on parallelisation
    ! contains only significant information if mode == PW_MODE_DISTRIBUTED
@@ -67,7 +61,6 @@ MODULE pw_grid_types
       LOGICAL :: orthorhombic = .TRUE. ! cell symmetry
       REAL(KIND=dp) :: dvol = 0.0_dp, vol = 0.0_dp ! volume element, volume
       REAL(KIND=dp) :: cutoff = 0.0_dp ! cutoff in a.u.
-      TYPE(map_pn) :: mapl = map_pn(), mapm = map_pn(), mapn = map_pn() ! mapping 1D => 3D
       TYPE(pw_para_type) :: para = pw_para_type() ! information on parallelisation
       REAL(KIND=dp), DIMENSION(:, :), POINTER, CONTIGUOUS :: g => NULL() ! grid point vectors
       REAL(KIND=dp), DIMENSION(:), POINTER, CONTIGUOUS :: gsq => NULL() ! squared vector lengths
@@ -83,6 +76,23 @@ MODULE pw_grid_types
       LOGICAL :: spherical = .FALSE. ! spherical cutoff?
       COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER :: grays => NULL() ! used by parallel 3D FFT routine
    END TYPE pw_grid_type
+
+CONTAINS
+   PURE INTEGER FUNCTION pw_grid_map_pos(index, npts) RESULT(mapped)
+
+      INTEGER, INTENT(IN)                                :: index, npts
+
+      mapped = MERGE(index + npts, index, index < 0)
+
+   END FUNCTION pw_grid_map_pos
+
+   PURE INTEGER FUNCTION pw_grid_map_neg(index, npts) RESULT(mapped)
+
+      INTEGER, INTENT(IN)                                :: index, npts
+
+      mapped = MERGE(-index, npts - index, index <= 0)
+
+   END FUNCTION pw_grid_map_neg
 
 END MODULE pw_grid_types
 

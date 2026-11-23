@@ -48,7 +48,7 @@ MODULE ewalds_multipole
    USE parallel_rng_types, ONLY: UNIFORM, &
                                  rng_stream_type
    USE particle_types, ONLY: particle_type
-   USE pw_grid_types, ONLY: pw_grid_type
+   USE pw_grid_types, ONLY: pw_grid_map_neg, pw_grid_map_pos, pw_grid_type
    USE pw_pool_types, ONLY: pw_pool_type
    USE structure_factor_types, ONLY: structure_factor_type
    USE structure_factors, ONLY: structure_factor_allocate, &
@@ -757,9 +757,9 @@ CONTAINS
 
       ! Looping over the positive g-vectors
       DO gpt = 1, pw_grid%ngpts_cut_local
-         lp = pw_grid%mapl%pos(pw_grid%g_hat(1, gpt))
-         mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
-         np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
+         lp = pw_grid_map_pos(pw_grid%g_hat(1, gpt), pw_grid%npts(1))
+         mp = pw_grid_map_pos(pw_grid%g_hat(2, gpt), pw_grid%npts(2))
+         np = pw_grid_map_pos(pw_grid%g_hat(3, gpt), pw_grid%npts(3))
 
          lp = lp + bds(1, 1)
          mp = mp + bds(1, 2)
@@ -796,9 +796,9 @@ CONTAINS
       ! Looping over the positive g-vectors
       DO gpt = 1, pw_grid%ngpts_cut_local
          ! computing the potential energy
-         lp = pw_grid%mapl%pos(pw_grid%g_hat(1, gpt))
-         mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
-         np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
+         lp = pw_grid_map_pos(pw_grid%g_hat(1, gpt), pw_grid%npts(1))
+         mp = pw_grid_map_pos(pw_grid%g_hat(2, gpt), pw_grid%npts(2))
+         np = pw_grid_map_pos(pw_grid%g_hat(3, gpt), pw_grid%npts(3))
 
          lp = lp + bds(1, 1)
          mp = mp + bds(1, 2)

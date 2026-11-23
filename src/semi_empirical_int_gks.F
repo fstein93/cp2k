@@ -26,7 +26,7 @@ MODULE semi_empirical_int_gks
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi
    USE multipole_types,                 ONLY: do_multipole_none
-   USE pw_grid_types,                   ONLY: pw_grid_type
+   USE pw_grid_types,                   ONLY: pw_grid_map_neg, pw_grid_map_pos, pw_grid_type
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE semi_empirical_int_arrays,       ONLY: indexb,&
                                               rij_threshold
@@ -674,9 +674,9 @@ CONTAINS
       d4f = 0.0_dp
 
       DO gpt = 1, pw_grid%ngpts_cut_local
-         lp = pw_grid%mapl%pos(pw_grid%g_hat(1, gpt))
-         mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
-         np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
+         lp = pw_grid_map_pos(pw_grid%g_hat(1, gpt), pw_grid%npts(1))
+         mp = pw_grid_map_pos(pw_grid%g_hat(2, gpt), pw_grid%npts(2))
+         np = pw_grid_map_pos(pw_grid%g_hat(3, gpt), pw_grid%npts(3))
 
          lp = lp + bds(1, 1)
          mp = mp + bds(1, 2)
@@ -914,9 +914,9 @@ CONTAINS
       d5f = 0.0_dp
 
       DO gpt = 1, pw_grid%ngpts_cut_local
-         lp = pw_grid%mapl%pos(pw_grid%g_hat(1, gpt))
-         mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
-         np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
+         lp = pw_grid_map_pos(pw_grid%g_hat(1, gpt), pw_grid%npts(1))
+         mp = pw_grid_map_pos(pw_grid%g_hat(2, gpt), pw_grid%npts(2))
+         np = pw_grid_map_pos(pw_grid%g_hat(3, gpt), pw_grid%npts(3))
 
          lp = lp + bds(1, 1)
          mp = mp + bds(1, 2)
@@ -1176,9 +1176,9 @@ CONTAINS
       d4f = 0.0_dp
 
       DO gpt = 1, pw_grid%ngpts_cut_local
-         lp = pw_grid%mapl%pos(pw_grid%g_hat(1, gpt))
-         mp = pw_grid%mapm%pos(pw_grid%g_hat(2, gpt))
-         np = pw_grid%mapn%pos(pw_grid%g_hat(3, gpt))
+         lp = pw_grid_map_pos(pw_grid%g_hat(1, gpt), pw_grid%npts(1))
+         mp = pw_grid_map_pos(pw_grid%g_hat(2, gpt), pw_grid%npts(2))
+         np = pw_grid_map_pos(pw_grid%g_hat(3, gpt), pw_grid%npts(3))
 
          lp = lp + bds(1, 1)
          mp = mp + bds(1, 2)
