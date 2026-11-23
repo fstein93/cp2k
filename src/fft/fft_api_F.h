@@ -704,11 +704,6 @@ void fft_grid_get_local_index_to_ref_grid_F(fft_grid_layout *fft_grid,
 void fft_grid_prepare_ray_mapping_F(fft_grid_layout *fft_grid,
                                       const fft_grid_layout *ref);
 
-int fft_grid_finalize_ray_distribution_F(fft_grid_layout *fft_grid,
-                                           const int nlocal,
-                                           const int *index_to_g,
-                                           const double *gsquared);
-
 void fft_grid_set_spherical_F(fft_grid_layout *fft_grid, const bool spherical);
 
 void fft_grid_set_yz_mapping_F(fft_grid_layout *fft_grid,

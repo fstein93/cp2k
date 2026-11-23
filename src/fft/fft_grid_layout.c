@@ -1364,21 +1364,6 @@ int grid_generate_g_space(fft_grid_layout *g) {
   return status;
 }
 
-int grid_finalize_ray_distribution(fft_grid_layout *g, const int nlocal,
-                                    const int (*index_to_g)[3],
-                                    const double *gsquared) {
-  cp_assert(g != NULL && g->xy_to_process != NULL);
-  const size_t map_size =
-      (size_t)g->npts_global_gspace[0] * (size_t)g->npts_global[1];
-  int *mapping = malloc(map_size * sizeof(int));
-  cp_assert(mapping != NULL);
-  memcpy(mapping, g->xy_to_process, map_size * sizeof(int));
-  const int status = grid_enable_ray_distribution(
-      g, mapping, nlocal, index_to_g, gsquared);
-  free(mapping);
-  return status;
-}
-
 void grid_set_spherical(fft_grid_layout *g, const bool spherical) {
   cp_assert(g != NULL);
   g->spherical = spherical;

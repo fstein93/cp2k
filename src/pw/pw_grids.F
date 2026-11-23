@@ -78,8 +78,6 @@ MODULE pw_grids
                                               PW_MODE_DISTRIBUTED,&
                                               PW_MODE_LOCAL,&
                                               pw_grid_type
-   USE util,                            ONLY: get_limit,&
-                                              sort
 #include "../base/base_uses.f90"
 
    IMPLICIT NONE
@@ -471,7 +469,6 @@ CONTAINS
                                   blocked=blocked, ref_grid=ref_grid, iounit=iounit, &
                                   use_ray_distribution=use_ray)
 
-      IF (use_ray) CALL pw_grid_validate_c_gspace(pw_grid)
       CALL pw_grid_check_distribution(pw_grid)
       CPASSERT(use_ray .EQV. fft_grid_is_ray_distributed(pw_grid%fft_grid))
       CPASSERT(use_ray .EQV. pw_grid%para%ray_distribution)
@@ -857,80 +854,6 @@ CONTAINS
       END SELECT
    END FUNCTION blocked_local_for_ray
 
-! **************************************************************************************************
-!> \brief Optional validation of C-generated g-space data against pw_grid_assign.
-! **************************************************************************************************
-   SUBROUTINE pw_grid_validate_c_gspace(pw_grid)
-      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
-
-      INTEGER                                            :: i, j, k, l, n, ncx, ncy, ncz, stat
-      LOGICAL                                            :: found
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cidx
-      LOGICAL, ALLOCATABLE, DIMENSION(:)                 :: used
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgsq
-      CHARACTER(len=64)                                  :: env_value
-
-      CALL get_environment_variable("CP2K_VALIDATE_C_GSPACE", value=env_value, status=stat)
-      IF (stat /= 0 .OR. LEN_TRIM(env_value) == 0) RETURN
-      IF (TRIM(env_value) == "0") RETURN
-
-      CALL fft_grid_generate_g_space(pw_grid%fft_grid)
-      n = fft_grid_get_npts_gs_local(pw_grid%fft_grid)
-      IF (n /= pw_grid%ngpts_cut_local) THEN
-         WRITE (*, '(A,2I10,A,3I5,A,F12.4,A,I2)') 'C/PW nlocal mismatch', n, &
-            pw_grid%ngpts_cut_local, ' npts', pw_grid%npts, ' cut', pw_grid%cutoff, &
-            ' span', pw_grid%grid_span
-         CPABORT("C-generated g-space size mismatch")
-      END IF
-      ALLOCATE (cidx(3, n), cgsq(n), used(pw_grid%ngpts_cut_local))
-      CALL fft_grid_get_index_to_g(pw_grid%fft_grid, cidx)
-      CALL fft_grid_get_gsquared(pw_grid%fft_grid, cgsq)
-      used = .FALSE.
-      ncx = pw_grid%npts(1); ncy = pw_grid%npts(2); ncz = pw_grid%npts(3)
-      DO i = 1, n
-         ! Convert to the stored Fortran convention.
-         IF (pw_grid%grid_span == HALFSPACE) THEN
-            j = MERGE(0, -cidx(1, i), cidx(1, i) == 0)
-         ELSE
-            j = cidx(1, i)
-            IF (MOD(ncz, 2) == 0 .AND. j == ncz/2) THEN
-               j = -ncz/2
-            ELSE IF (j > ncz/2) THEN
-               j = j - ncz
-            END IF
-         END IF
-         k = cidx(2, i)
-         IF (MOD(ncy, 2) == 0 .AND. k == ncy/2) THEN
-            k = -ncy/2
-         ELSE IF (k > ncy/2) THEN
-            k = k - ncy
-         END IF
-         ncx = cidx(3, i)
-         IF (MOD(pw_grid%npts(1), 2) == 0 .AND. ncx == pw_grid%npts(1)/2) THEN
-            ncx = -pw_grid%npts(1)/2
-         ELSE IF (ncx > pw_grid%npts(1)/2) THEN
-            ncx = ncx - pw_grid%npts(1)
-         END IF
-         found = .FALSE.
-         DO l = 1, pw_grid%ngpts_cut_local
-            IF (used(l)) CYCLE
-            IF (ABS(cgsq(i) - pw_grid%gsq(l)) > 1.e-12_dp*MAX(1._dp, cgsq(i))) CYCLE
-            IF (ncx /= pw_grid%g_hat(1, l)) CYCLE
-            IF (k /= pw_grid%g_hat(2, l)) CYCLE
-            IF (j /= pw_grid%g_hat(3, l)) CYCLE
-            used(l) = .TRUE.
-            found = .TRUE.
-            EXIT
-         END DO
-         IF (.NOT. found) &
-            CPABORT("C-generated g-space does not match pw_grid_assign")
-      END DO
-      IF (.NOT. ALL(used(1:pw_grid%ngpts_cut_local))) &
-         CPABORT("C-generated g-space does not match pw_grid_assign")
-      IF (pw_grid%para%group%mepos == 0) &
-         WRITE (*, '(A,I8)') ' C g-space validation passed for local g-vectors: ', n
-      DEALLOCATE (cidx, cgsq, used)
-   END SUBROUTINE pw_grid_validate_c_gspace
 
 ! **************************************************************************************************
 !> \brief Fill the PW-grid distribution caches from the FFT layout.
@@ -1324,93 +1247,6 @@ CONTAINS
 
    END SUBROUTINE pw_grid_sort
 
-! **************************************************************************************************
-!> \brief ...
-!> \param gsq ...
-!> \param g_hat ...
-!> \param idx ...
-! **************************************************************************************************
-   SUBROUTINE sort_shells(gsq, g_hat, idx)
-
-      ! Argument
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN)            :: gsq
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: g_hat
-      INTEGER, DIMENSION(:), INTENT(INOUT)               :: idx
-
-      CHARACTER(len=*), PARAMETER                        :: routineN = 'sort_shells'
-      REAL(KIND=dp), PARAMETER                           :: small = 5.e-16_dp
-
-      INTEGER                                            :: handle, ig, ng, s1, s2
-      REAL(KIND=dp)                                      :: s_begin
-
-      CALL timeset(routineN, handle)
-
-! Juergs temporary hack to get the grids sorted for large (4000Ry) cutoffs.
-! might need to call lapack for machine precision.
-
-      ng = SIZE(gsq)
-      s_begin = -1.0_dp
-      s1 = 0
-      s2 = 0
-      ig = 1
-      DO ig = 1, ng
-         IF (ABS(gsq(ig) - s_begin) < small) THEN
-            s2 = ig
-         ELSE
-            CALL redist(g_hat, idx, s1, s2)
-            s_begin = gsq(ig)
-            s1 = ig
-            s2 = ig
-         END IF
-      END DO
-      CALL redist(g_hat, idx, s1, s2)
-
-      CALL timestop(handle)
-
-   END SUBROUTINE sort_shells
-
-! **************************************************************************************************
-!> \brief ...
-!> \param g_hat ...
-!> \param idx ...
-!> \param s1 ...
-!> \param s2 ...
-! **************************************************************************************************
-   SUBROUTINE redist(g_hat, idx, s1, s2)
-
-      ! Argument
-      INTEGER, DIMENSION(:, :), INTENT(IN)               :: g_hat
-      INTEGER, DIMENSION(:), INTENT(INOUT)               :: idx
-      INTEGER, INTENT(IN)                                :: s1, s2
-
-      INTEGER                                            :: i, ii, n1, n2, n3, ns
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: indl
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: slen
-
-      IF (s2 <= s1) RETURN
-      ns = s2 - s1 + 1
-      ALLOCATE (indl(ns))
-      ALLOCATE (slen(ns))
-
-      DO i = s1, s2
-         ii = idx(i)
-         n1 = g_hat(1, ii)
-         n2 = g_hat(2, ii)
-         n3 = g_hat(3, ii)
-         slen(i - s1 + 1) = 1000.0_dp*REAL(n1, dp) + &
-                            REAL(n2, dp) + 0.001_dp*REAL(n3, dp)
-      END DO
-      CALL sort(slen, ns, indl)
-      DO i = 1, ns
-         ii = indl(i) + s1 - 1
-         indl(i) = idx(ii)
-      END DO
-      idx(s1:s2) = indl(1:ns)
-
-      DEALLOCATE (indl)
-      DEALLOCATE (slen)
-
-   END SUBROUTINE redist
 
 ! **************************************************************************************************
 !> \brief Recalculate the g-vectors after a change of the box

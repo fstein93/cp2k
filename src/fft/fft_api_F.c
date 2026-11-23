@@ -1081,15 +1081,6 @@ void fft_grid_prepare_ray_mapping_F(fft_grid_layout *fft_grid,
   grid_prepare_ray_mapping(fft_grid, ref);
 }
 
-int fft_grid_finalize_ray_distribution_F(fft_grid_layout *fft_grid,
-                                           const int nlocal,
-                                           const int *index_to_g,
-                                           const double *gsquared) {
-  cp_assert(fft_grid != NULL);
-  return grid_finalize_ray_distribution(
-      fft_grid, nlocal, (const int(*)[3])index_to_g, gsquared);
-}
-
 void fft_grid_set_spherical_F(fft_grid_layout *fft_grid,
                                const bool spherical) {
   cp_assert(fft_grid != NULL);

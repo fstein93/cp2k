@@ -62,7 +62,6 @@ MODULE fft_api
    PUBLIC :: fft_grid_get_local_index_to_ref_grid
    PUBLIC :: fft_grid_set_yz_mapping
    PUBLIC :: fft_grid_set_spherical
-   PUBLIC :: fft_grid_finalize_ray_distribution
 
    ! Keep it synchronized with fft_api_F.c
    INTEGER, PARAMETER, PUBLIC :: FFT_LIBRARY_BACKEND_DEFAULT = 1
@@ -2146,50 +2145,6 @@ CONTAINS
       END IF
       CALL fft_grid_prepare_ray_mapping_c(fft_grid%fft_grid, ref_ptr)
    END SUBROUTINE fft_grid_prepare_ray_mapping
-
-! **************************************************************************************************
-!> \brief Finalize a ray layout using the C-prepared mapping.
-! **************************************************************************************************
-   SUBROUTINE fft_grid_finalize_ray_distribution(fft_grid, index_to_g, gsquared)
-      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
-      INTEGER, DIMENSION(:, :), INTENT(IN), TARGET       :: index_to_g
-      REAL(KIND=dp), DIMENSION(:), INTENT(IN), TARGET    :: gsquared
-
-      INTEGER                                            :: i, nlocal
-      INTEGER(C_INT)                                     :: status
-      INTEGER(C_INT), ALLOCATABLE, DIMENSION(:), TARGET  :: g_c
-      REAL(C_DOUBLE), ALLOCATABLE, DIMENSION(:), TARGET  :: gsq_c
-
-      INTERFACE
-         INTEGER(C_INT) FUNCTION fft_grid_finalize_ray_distribution_c(layout, nlocal, g, gsq) &
-            BIND(C, name="fft_grid_finalize_ray_distribution_F")
-            IMPORT :: C_PTR, C_INT, C_DOUBLE
-            TYPE(C_PTR), VALUE :: layout
-            INTEGER(C_INT), VALUE :: nlocal
-            INTEGER(C_INT), DIMENSION(*), INTENT(IN) :: g
-            REAL(C_DOUBLE), DIMENSION(*), INTENT(IN) :: gsq
-         END FUNCTION fft_grid_finalize_ray_distribution_c
-      END INTERFACE
-
-      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
-      CPASSERT(SIZE(index_to_g, 1) == 3)
-      nlocal = SIZE(index_to_g, 2)
-      CPASSERT(SIZE(gsquared) == nlocal)
-      ALLOCATE (g_c(0:3*nlocal - 1))
-      DO i = 1, nlocal
-         g_c(3*(i - 1)) = INT(index_to_g(1, i))
-         g_c(3*(i - 1) + 1) = INT(index_to_g(2, i))
-         g_c(3*(i - 1) + 2) = INT(index_to_g(3, i))
-      END DO
-      ALLOCATE (gsq_c(0:nlocal - 1))
-      DO i = 1, nlocal
-         gsq_c(i - 1) = REAL(gsquared(i), KIND=C_DOUBLE)
-      END DO
-      status = fft_grid_finalize_ray_distribution_c(fft_grid%fft_grid, INT(nlocal, KIND=C_INT), &
-                                                    g_c, gsq_c)
-      CPASSERT(status == 0)
-      DEALLOCATE (g_c, gsq_c)
-   END SUBROUTINE fft_grid_finalize_ray_distribution
 
 ! **************************************************************************************************
 !> \brief Tell the layout whether the PW grid uses a spherical cutoff.

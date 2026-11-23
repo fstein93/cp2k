@@ -135,10 +135,6 @@ void grid_get_local_index_to_ref_grid(fft_grid_layout *g,
                                        const int *g_hat, const int *ref_g_hat,
                                        int *local_index_to_ref_grid);
 
-int grid_finalize_ray_distribution(fft_grid_layout *g, const int nlocal,
-                                    const int (*index_to_g)[3],
-                                    const double *gsquared);
-
 void grid_set_yz_mapping(fft_grid_layout *g, const int *yz_to_process);
 void grid_set_spherical(fft_grid_layout *g, const bool spherical);
 
