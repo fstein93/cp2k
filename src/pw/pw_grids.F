@@ -715,9 +715,8 @@ CONTAINS
          END DO
          DEALLOCATE (yzp)
       ELSE
-         CPASSERT(ALLOCATED(pw_grid%para%nyzray))
-         ALLOCATE (nyzray(0:SIZE(pw_grid%para%nyzray) - 1))
-         nyzray(0:) = pw_grid%para%nyzray
+         ALLOCATE (nyzray(0:np - 1))
+         CPASSERT(fft_grid_get_rays_per_process(pw_grid%fft_grid, nyzray))
       END IF
 
    END SUBROUTINE pw_grid_get_nyzray
@@ -1034,12 +1033,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute'
 
-      INTEGER                                            :: blocked_local, handle, i, ip, ipl, &
-                                                             ipp, j, m, n, np, ns, ny, nz
+      INTEGER                                            :: blocked_local, handle, np
       INTEGER(KIND=int_8)                                :: gpt_global
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap
-      LOGICAL                                            :: blocking, nyzray_from_layout, &
-                                                            ray_distribution_now
+      LOGICAL                                            :: blocking, ray_distribution_now
 
 !------------------------------------------------------------------------------
 
@@ -1066,8 +1062,6 @@ CONTAINS
 
       ELSE
 
-         ny = pw_grid%npts(2)
-         nz = pw_grid%npts(3)
          np = pw_grid%para%group%num_pe
 
          SELECT CASE (blocked_local)
@@ -1109,63 +1103,6 @@ CONTAINS
             CALL fft_grid_generate_g_space(pw_grid%fft_grid)
             pw_grid%ngpts_cut_local = fft_grid_get_npts_gs_local(pw_grid%fft_grid)
             pw_grid%ngpts_local = pw_grid%ngpts_cut_local
-
-            ALLOCATE (pw_grid%para%nyzray(0:np - 1))
-            ALLOCATE (pw_grid%para%yzq(ny, nz))
-
-            nyzray_from_layout = &
-               fft_grid_get_rays_per_process(pw_grid%fft_grid, pw_grid%para%nyzray)
-            IF (.NOT. nyzray_from_layout) THEN
-               DO ip = 0, np - 1
-                  m = pw_grid%para%bo(2, 2, ip, 3) - &
-                      pw_grid%para%bo(1, 2, ip, 3) + 1
-                  n = pw_grid%para%bo(2, 3, ip, 3) - &
-                      pw_grid%para%bo(1, 3, ip, 3) + 1
-                  pw_grid%para%nyzray(ip) = n*m
-               END DO
-            END IF
-
-            ipl = pw_grid%para%group%mepos
-            pw_grid%para%yzq = 0
-            ny = pw_grid%para%bo(2, 2, ipl, 3) - &
-                 pw_grid%para%bo(1, 2, ipl, 3) + 1
-            DO n = pw_grid%para%bo(1, 3, ipl, 3), &
-               pw_grid%para%bo(2, 3, ipl, 3)
-               i = n - pw_grid%para%bo(1, 3, ipl, 3)
-               DO m = pw_grid%para%bo(1, 2, ipl, 3), &
-                  pw_grid%para%bo(2, 2, ipl, 3)
-                  j = m - pw_grid%para%bo(1, 2, ipl, 3) + 1
-                  pw_grid%para%yzq(m, n) = j + i*ny
-               END DO
-            END DO
-
-            ns = MAXVAL(pw_grid%para%nyzray(0:np - 1))
-            ALLOCATE (pw_grid%para%yzp(2, ns, 0:np - 1))
-            pw_grid%para%yzp = 0
-
-            ALLOCATE (pemap(0:np - 1))
-            pemap = 0
-            pemap(pw_grid%para%group%mepos) = pw_grid%para%group%mepos
-            CALL pw_grid%para%group%sum(pemap)
-
-            DO ip = 0, np - 1
-               ipp = pemap(ip)
-               ns = 0
-               DO n = pw_grid%para%bo(1, 3, ipp, 3), &
-                  pw_grid%para%bo(2, 3, ipp, 3)
-                  i = n - pw_grid%bounds(1, 3) + 1
-                  DO m = pw_grid%para%bo(1, 2, ipp, 3), &
-                     pw_grid%para%bo(2, 2, ipp, 3)
-                     j = m - pw_grid%bounds(1, 2) + 1
-                     ns = ns + 1
-                     pw_grid%para%yzp(1, ns, ip) = j
-                     pw_grid%para%yzp(2, ns, ip) = i
-                  END DO
-               END DO
-               CPASSERT(ns == pw_grid%para%nyzray(ip))
-            END DO
-
-            DEALLOCATE (pemap)
 
          END IF
 
@@ -2012,15 +1949,6 @@ CONTAINS
                DEALLOCATE (pw_grid%para%bo)
             END IF
             IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-               IF (ALLOCATED(pw_grid%para%yzp)) THEN
-                  DEALLOCATE (pw_grid%para%yzp)
-               END IF
-               IF (ALLOCATED(pw_grid%para%yzq)) THEN
-                  DEALLOCATE (pw_grid%para%yzq)
-               END IF
-               IF (ALLOCATED(pw_grid%para%nyzray)) THEN
-                  DEALLOCATE (pw_grid%para%nyzray)
-               END IF
             END IF
             ! also release groups
             CALL pw_grid%para%group%free()
