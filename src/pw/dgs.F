@@ -12,10 +12,9 @@
 ! **************************************************************************************************
 MODULE dgs
 
-   USE fft_tools,                       ONLY: BWFFT,&
-                                              FFT_RADIX_CLOSEST,&
+   USE fft_api,                         ONLY: fft_3d_local_inplace
+   USE fft_tools,                       ONLY: FFT_RADIX_CLOSEST,&
                                               FFT_RADIX_NEXT_ODD,&
-                                              fft3d,&
                                               fft_radix_operations
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: gaussi,&
@@ -862,6 +861,7 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
+      COMPLEX(KIND=dp), DIMENSION(:), POINTER             :: c1d
       INTEGER                                            :: nd(3)
       TYPE(pw_c3d_rs_type)                               :: cd
 
@@ -876,7 +876,8 @@ CONTAINS
       zb = CMPLX(charge1, 0.0_dp, KIND=dp)
       CALL rankup(nd, za, cd%array, zb, ex1, ey1, ez1, zs)
       CALL pw_multiply_with(cd, rho0)
-      CALL fft3d(BWFFT, nd, cd%array)
+      c1d(1:SIZE(cd%array)) => cd%array
+      CALL fft_3d_local_inplace(.FALSE., nd, 1, .FALSE., c1d)
       CALL pw_copy(cd, rhos1)
 
       DEALLOCATE (zs)
@@ -908,6 +909,7 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
+      COMPLEX(KIND=dp), DIMENSION(:), POINTER             :: c1d
       INTEGER                                            :: nd(3)
       TYPE(pw_c3d_rs_type)                               :: cd
 
@@ -925,7 +927,8 @@ CONTAINS
       zb = CMPLX(charge1, 0.0_dp, KIND=dp)
       CALL rankup(nd, za, cd%array, zb, ex1, ey1, ez1, zs)
       CALL pw_multiply_with(cd, rho0)
-      CALL fft3d(BWFFT, nd, cd%array)
+      c1d(1:SIZE(cd%array)) => cd%array
+      CALL fft_3d_local_inplace(.FALSE., nd, 1, .FALSE., c1d)
       CALL copy_cri(cd%array, rhos1%array, rhos2%array)
 
       DEALLOCATE (zs)
