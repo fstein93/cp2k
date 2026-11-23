@@ -639,8 +639,7 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup_internal'
 
-      INTEGER                                            :: handle, n(3)
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: yz_mask
+      INTEGER                                            :: handle
       REAL(KIND=dp)                                      :: ecut
 
 !------------------------------------------------------------------------------
@@ -660,14 +659,9 @@ CONTAINS
          ecut = 1.e10_dp
       END IF
 
-      n(:) = pw_grid%npts(:)
-
-      ! Find the number of grid points
-      ! yz_mask counts the number of g-vectors orthogonal to the yz plane
-      ! the indices in yz_mask are from -n/2 .. n/2 shifted by n/2 + 1
-      ! these are not mapped indices !
-      ALLOCATE (yz_mask(n(2), n(3)))
-      CALL pw_grid_count(cell_h_inv, pw_grid, pw_grid%para%group, ecut, yz_mask)
+      IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
+         CALL pw_grid_count(cell_h_inv, pw_grid, ecut)
+      END IF
 
       ! Check if reference grid is compatible
       IF (PRESENT(ref_grid)) THEN
@@ -677,7 +671,7 @@ CONTAINS
       END IF
 
       ! Distribute grid
-      CALL pw_grid_distribute(pw_grid, yz_mask, blocked=blocked, &
+      CALL pw_grid_distribute(pw_grid, blocked=blocked, &
                               use_ray_distribution=use_ray_distribution)
 
       ! Allocate the grid fields
@@ -689,8 +683,6 @@ CONTAINS
 
       ! Sort g vector wrt length (only local for each processor)
       CALL pw_grid_sort(pw_grid, ref_grid)
-
-      DEALLOCATE (yz_mask)
 
       CALL cell2grid(cell_hmat, cell_h_inv, cell_deth, pw_grid)
       !
@@ -909,7 +901,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Distribute grids in real and Fourier Space to the processors in group
 !> \param pw_grid ...
-!> \param yz_mask ...
 !> \param blocked ...
 !> \par History
 !>      JGH (01-Mar-2001) optional reference grid
@@ -1075,28 +1066,24 @@ CONTAINS
       CPASSERT(ALL(pw_grid%npts_local == expected_bounds(2, :) - expected_bounds(1, :) + 1))
    END SUBROUTINE pw_grid_check_distribution
 
-   SUBROUTINE pw_grid_distribute(pw_grid, yz_mask, blocked, use_ray_distribution)
+   SUBROUTINE pw_grid_distribute(pw_grid, blocked, use_ray_distribution)
 
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
-      INTEGER, DIMENSION(:, :), INTENT(INOUT)            :: yz_mask
       INTEGER, INTENT(IN), OPTIONAL                      :: blocked
       LOGICAL, INTENT(IN), OPTIONAL                      :: use_ray_distribution
 
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_distribute'
 
-      INTEGER                                            :: blocked_local, gmax, handle, i, ip, ipl, &
-                                                             ipp, ixx, j, jz, l, lby, lbz, m, n, np, ns, &
-                                                             ny, nz, nz_ray
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap, xy_to_process
+      INTEGER                                            :: blocked_local, handle, i, ip, ipl, &
+                                                             ipp, j, m, n, np, ns, ny, nz
+      INTEGER(KIND=int_8)                                :: gpt_global
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap
       LOGICAL                                            :: blocking, nyzray_from_layout, &
                                                             ray_distribution_now
 
 !------------------------------------------------------------------------------
 
       CALL timeset(routineN, handle)
-
-      lby = pw_grid%bounds(1, 2)
-      lbz = pw_grid%bounds(1, 3)
 
       pw_grid%ngpts = PRODUCT(INT(pw_grid%npts, KIND=int_8))
 
@@ -1119,12 +1106,10 @@ CONTAINS
 
       ELSE
 
-         !..find the real space distribution
          ny = pw_grid%npts(2)
          nz = pw_grid%npts(3)
          np = pw_grid%para%group%num_pe
 
-         ! now fix the blocking if we have a choice
          SELECT CASE (blocked_local)
          CASE (do_pw_grid_blocked_false)
             blocking = .FALSE.
@@ -1140,9 +1125,6 @@ CONTAINS
             CPABORT("Unknown PW grid blocking")
          END SELECT
 
-         !..find the g space distribution
-         pw_grid%ngpts_cut_local = 0
-
          ray_distribution_now = pw_grid%spherical .OR. pw_grid%grid_span == HALFSPACE &
                                 .OR. .NOT. blocking
          IF (PRESENT(use_ray_distribution)) ray_distribution_now = use_ray_distribution
@@ -1150,54 +1132,23 @@ CONTAINS
 
             pw_grid%para%ray_distribution = .TRUE.
 
-            ! the mirror tags below only handle lower-skewed or symmetric
-            ! frequency windows (the only ones the grid setup produces today)
             IF (pw_grid%grid_span == HALFSPACE) THEN
                CPASSERT(pw_grid%bounds(2, 2) <= -pw_grid%bounds(1, 2))
                CPASSERT(pw_grid%bounds(2, 3) <= -pw_grid%bounds(1, 3))
             END IF
 
-            ! Use the ray mapping prepared by the FFT layout.
-            nz_ray = nz
-            IF (pw_grid%grid_span == HALFSPACE) nz_ray = nz/2 + 1
-            ALLOCATE (xy_to_process(0:nz_ray*ny - 1))
-            CPASSERT(fft_grid_get_xy_to_process(pw_grid%fft_grid, xy_to_process))
-            DO i = 1, nz
-               IF (pw_grid%grid_span == HALFSPACE) THEN
-                  ixx = nz_ray - i
-               ELSE
-                  ixx = i + lbz - 1
-                  IF (ixx < 0) ixx = ixx + nz
-               END IF
-               DO j = 1, ny
-                  gmax = yz_mask(j, i)
-                  IF (gmax == 0) CYCLE
-                  jz = j + lby - 1
-                  IF (jz < 0) jz = jz + ny
-                  ip = xy_to_process(ixx*ny + jz)
-                  yz_mask(j, i) = 0
-                  IF (pw_grid%grid_span == HALFSPACE) THEN
-                     m = -j - 2*lby + 2
-                     n = -i - 2*lbz + 2
-                     IF (m >= 1 .AND. m <= ny .AND. n >= 1 .AND. n <= nz) yz_mask(m, n) = 0
-                  END IF
-                  IF (ip == pw_grid%para%group%mepos) THEN
-                     pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local + gmax
-                  END IF
-               END DO
-            END DO
-            DEALLOCATE (xy_to_process)
             CALL fft_grid_generate_g_space(pw_grid%fft_grid)
-
+            pw_grid%ngpts_cut_local = fft_grid_get_npts_gs_local(pw_grid%fft_grid)
             pw_grid%ngpts_local = PRODUCT(pw_grid%npts_local)
 
          ELSE
-            !
-            !  block distribution of g vectors, we do not have a spherical cutoff
-            !
 
             pw_grid%para%blocked = .TRUE.
             pw_grid%para%ray_distribution = .FALSE.
+
+            CALL fft_grid_generate_g_space(pw_grid%fft_grid)
+            pw_grid%ngpts_cut_local = fft_grid_get_npts_gs_local(pw_grid%fft_grid)
+            pw_grid%ngpts_local = pw_grid%ngpts_cut_local
 
             ALLOCATE (pw_grid%para%nyzray(0:np - 1))
             ALLOCATE (pw_grid%para%yzq(ny, nz))
@@ -1215,15 +1166,6 @@ CONTAINS
             END IF
 
             ipl = pw_grid%para%group%mepos
-            l = pw_grid%para%bo(2, 1, ipl, 3) - &
-                pw_grid%para%bo(1, 1, ipl, 3) + 1
-            m = pw_grid%para%bo(2, 2, ipl, 3) - &
-                pw_grid%para%bo(1, 2, ipl, 3) + 1
-            n = pw_grid%para%bo(2, 3, ipl, 3) - &
-                pw_grid%para%bo(1, 3, ipl, 3) + 1
-            pw_grid%ngpts_cut_local = l*m*n
-            pw_grid%ngpts_local = pw_grid%ngpts_cut_local
-
             pw_grid%para%yzq = 0
             ny = pw_grid%para%bo(2, 2, ipl, 3) - &
                  pw_grid%para%bo(1, 2, ipl, 3) + 1
@@ -1237,7 +1179,6 @@ CONTAINS
                END DO
             END DO
 
-            ! Allocate mapping array (y:z, nray, nproc)
             ns = MAXVAL(pw_grid%para%nyzray(0:np - 1))
             ALLOCATE (pw_grid%para%yzp(2, ns, 0:np - 1))
             pw_grid%para%yzp = 0
@@ -1268,17 +1209,19 @@ CONTAINS
 
          END IF
 
+         gpt_global = INT(pw_grid%ngpts_cut_local, KIND=int_8)
+         CALL pw_grid%para%group%sum(gpt_global)
+         pw_grid%ngpts_cut = gpt_global
+
       END IF
 
       ! pos_of_x(i) tells on which cpu pw%array(i,:,:) is located
-      ! should be computable in principle, without the need for communication
       IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
          ALLOCATE (pw_grid%para%pos_of_x(pw_grid%bounds(1, 1):pw_grid%bounds(2, 1)))
          pw_grid%para%pos_of_x = 0
          pw_grid%para%pos_of_x(pw_grid%bounds_local(1, 1):pw_grid%bounds_local(2, 1)) = pw_grid%para%group%mepos
          CALL pw_grid%para%group%sum(pw_grid%para%pos_of_x)
       ELSE
-         ! this should not be needed
          ALLOCATE (pw_grid%para%pos_of_x(pw_grid%bounds(1, 1):pw_grid%bounds(2, 1)))
          pw_grid%para%pos_of_x = 0
       END IF
@@ -1376,27 +1319,22 @@ CONTAINS
    END FUNCTION mirror_outside_bounds
 
 ! **************************************************************************************************
-!> \brief Count total number of g vectors
+!> \brief Count total number of g vectors for a local grid.
 !> \param h_inv ...
 !> \param pw_grid ...
-!> \param mp_comm ...
 !> \param cutoff ...
-!> \param yz_mask ...
 !> \par History
 !>      JGH (22-12-2000) : Adapted for parallel use
 !> \author apsi
 !>      Christopher Mundy
 ! **************************************************************************************************
-   SUBROUTINE pw_grid_count(h_inv, pw_grid, mp_comm, cutoff, yz_mask)
+   SUBROUTINE pw_grid_count(h_inv, pw_grid, cutoff)
 
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
-
-      CLASS(mp_comm_type), INTENT(IN) :: mp_comm
       REAL(KIND=dp), INTENT(IN)                          :: cutoff
-      INTEGER, DIMENSION(:, :), INTENT(OUT)              :: yz_mask
 
-      INTEGER                                            :: l, m, mm, n, n_upperlimit, nlim(2), nn
+      INTEGER                                            :: l, m, n, n_upperlimit
       INTEGER(KIND=int_8)                                :: gpt
       REAL(KIND=dp)                                      :: length, length_x, length_y, length_z
 
@@ -1410,50 +1348,23 @@ CONTAINS
             CPABORT("No type set for the grid")
          END IF
 
-         ! finds valid g-points within grid
          gpt = 0
-         IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
-            nlim(1) = bounds(1, 3)
-            nlim(2) = n_upperlimit
-         ELSE IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-            n = n_upperlimit - bounds(1, 3) + 1
-            nlim = get_limit(n, mp_comm%num_pe, mp_comm%mepos)
-            nlim = nlim + bounds(1, 3) - 1
-         ELSE
-            CPABORT("para % mode not specified")
-         END IF
-
-         yz_mask = 0
-         DO n = nlim(1), nlim(2)
-            nn = n - bounds(1, 3) + 1
+         DO n = bounds(1, 3), n_upperlimit
             DO m = bounds(1, 2), bounds(2, 2)
-               mm = m - bounds(1, 2) + 1
                DO l = bounds(1, 1), bounds(2, 1)
                   IF (pw_grid%grid_span == HALFSPACE .AND. n == 0) THEN
                      IF ((m == 0 .AND. l > 0) .OR. (m > 0)) CYCLE
                   END IF
-                  ! keep the stored half-space closed under negation: the ray
-                  ! distribution and the negation maps rely on it (see also the
-                  ! z = 0 plane cut above and mirror_outside_bounds)
                   IF (mirror_outside_bounds(pw_grid%grid_span, m, n, bounds)) CYCLE
 
                   CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
 
-                  IF (0.5_dp*length <= cutoff) THEN
-                     gpt = gpt + 1
-                     yz_mask(mm, nn) = yz_mask(mm, nn) + 1
-                  END IF
-
+                  IF (0.5_dp*length <= cutoff) gpt = gpt + 1
                END DO
             END DO
          END DO
       END ASSOCIATE
 
-      ! number of g-vectors for grid
-      IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-         CALL mp_comm%sum(gpt)
-         CALL mp_comm%sum(yz_mask)
-      END IF
       pw_grid%ngpts_cut = gpt
 
    END SUBROUTINE pw_grid_count
