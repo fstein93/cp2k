@@ -1154,6 +1154,140 @@ void grid_get_gsquared(const fft_grid_layout *g, double *gsquared) {
          (size_t)g->npts_gs_local * sizeof(double));
 }
 
+int grid_generate_local_g_space(fft_grid_layout *g) {
+  cp_assert(g != NULL);
+  cp_assert(!g->ray_distribution);
+  cp_assert(cp_mpi_comm_size(g->comm) == 1);
+  const int nz = g->npts_global[0];
+  const int ny = g->npts_global[1];
+  const int nx = g->npts_global[2];
+  const int n0 = g->npts_global_gspace[0];
+  const int me = cp_mpi_comm_rank(g->comm);
+
+  int capacity = 1024;
+  int nlocal = 0;
+  int (*index_to_g)[3] = malloc((size_t)capacity * sizeof(int[3]));
+  double *gsquared = malloc((size_t)capacity * sizeof(double));
+  cp_assert(index_to_g != NULL && gsquared != NULL);
+
+  for (int c0 = 0; c0 < n0; c0++) {
+    const int s0 = g->use_halfspace
+                       ? (c0 == 0 ? 0 : -c0)
+                       : convert_c_index_to_shifted_index(c0, nz);
+    for (int c1 = 0; c1 < ny; c1++) {
+      const int s1 = convert_c_index_to_shifted_index(c1, ny);
+      if (g->use_halfspace &&
+          ((nz % 2 == 0 && s0 == -(nz / 2)) ||
+           (ny % 2 == 0 && s1 == -(ny / 2))))
+        continue;
+      for (int c2 = 0; c2 < nx; c2++) {
+        const int s2 = convert_c_index_to_shifted_index(c2, nx);
+        if (g->use_halfspace && s0 == 0 &&
+            ((s1 == 0 && s2 > 0) || s1 > 0))
+          continue;
+        const double gsq = squared_length_of_g_vector(
+            (const int[3]){s0, s1, s2}, g->cell_info.dhmat);
+        if (g->spherical && g->cutoff > 0.0 && 0.5 * gsq > g->cutoff)
+          continue;
+        if (nlocal == capacity) {
+          capacity *= 2;
+          index_to_g = realloc(index_to_g, (size_t)capacity * sizeof(int[3]));
+          gsquared = realloc(gsquared, (size_t)capacity * sizeof(double));
+          cp_assert(index_to_g != NULL && gsquared != NULL);
+        }
+        index_to_g[nlocal][0] = c0;
+        index_to_g[nlocal][1] = c1;
+        index_to_g[nlocal][2] = c2;
+        gsquared[nlocal] = gsq;
+        nlocal++;
+      }
+    }
+  }
+
+  free(g->index_to_g);
+  free(g->index_to_gsquared);
+  g->npts_gs_local = nlocal;
+  g->index_to_g = malloc((size_t)nlocal * sizeof(int[3]));
+  g->index_to_gsquared = malloc((size_t)nlocal * sizeof(double));
+  cp_assert(g->index_to_g != NULL && g->index_to_gsquared != NULL);
+  memcpy(g->index_to_g, index_to_g, (size_t)nlocal * sizeof(int[3]));
+  memcpy(g->index_to_gsquared, gsquared, (size_t)nlocal * sizeof(double));
+  free(index_to_g);
+  free(gsquared);
+
+  sort_g_vectors(g);
+
+  int number_of_positive_gs_points = 0;
+  for (int index = 0; index < nlocal; index++)
+    number_of_positive_gs_points += g->index_to_g[index][0] < n0;
+  g->number_of_positive_gs_points = number_of_positive_gs_points;
+  g->number_of_negative_gs_points = nlocal - number_of_positive_gs_points;
+
+  int (*bounds_gs)[2] = g->proc2local_gs[me];
+  free(g->index_to_cart);
+  free(g->index_to_cart_pos);
+  free(g->index_to_cart_neg);
+  free(g->index_to_ray);
+  free(g->index_to_ray_pos);
+  free(g->index_to_ray_neg);
+  g->index_to_ray = NULL;
+  g->index_to_ray_pos = NULL;
+  g->index_to_ray_neg = NULL;
+
+  if (g->use_halfspace) {
+    g->index_to_cart = NULL;
+    g->index_to_cart_pos =
+        calloc(g->number_of_positive_gs_points, sizeof(int[2]));
+    g->index_to_cart_neg =
+        calloc(g->number_of_negative_gs_points, sizeof(int[2]));
+    int positive_index = 0;
+    int negative_index = 0;
+    for (int index = 0; index < nlocal; index++) {
+      int *index_g = g->index_to_g[index];
+      if (index_g[0] < n0) {
+        g->index_to_cart_pos[positive_index][0] = index;
+        g->index_to_cart_pos[positive_index][1] =
+            ((index_g[0] - bounds_gs[0][0]) * bounds_gs[1][1] +
+             (index_g[1] - bounds_gs[1][0])) *
+                bounds_gs[2][1] +
+            (index_g[2] - bounds_gs[2][0]);
+        positive_index++;
+      } else {
+        g->index_to_cart_neg[negative_index][0] = index;
+        g->index_to_cart_neg[negative_index][1] =
+            (((g->npts_global[0] - index_g[0]) % g->npts_global[0] -
+              bounds_gs[0][0]) *
+                 bounds_gs[1][1] +
+             ((g->npts_global[1] - index_g[1]) % g->npts_global[1] -
+              bounds_gs[1][0])) *
+                bounds_gs[2][1] +
+            ((g->npts_global[2] - index_g[2]) % g->npts_global[2] -
+             bounds_gs[2][0]);
+        negative_index++;
+      }
+    }
+  } else {
+    g->index_to_cart = malloc((size_t)nlocal * sizeof(int));
+    g->index_to_cart_pos = NULL;
+    g->index_to_cart_neg = NULL;
+    for (int index = 0; index < nlocal; index++) {
+      int *index_g = g->index_to_g[index];
+      g->index_to_cart[index] =
+          ((index_g[0] - bounds_gs[0][0]) * bounds_gs[1][1] +
+           (index_g[1] - bounds_gs[1][0])) *
+              bounds_gs[2][1] +
+          (index_g[2] - bounds_gs[2][0]);
+    }
+  }
+
+  free(g->local_index_to_ref_grid);
+  g->local_index_to_ref_grid = malloc((size_t)nlocal * sizeof(int));
+  cp_assert(g->local_index_to_ref_grid != NULL);
+  for (int index = 0; index < nlocal; index++)
+    g->local_index_to_ref_grid[index] = index;
+  return 0;
+}
+
 int grid_generate_g_space(fft_grid_layout *g) {
   cp_assert(g != NULL);
   if (!g->ray_distribution && g->xy_to_process == NULL) {

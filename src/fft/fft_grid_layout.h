@@ -122,6 +122,7 @@ void grid_prepare_ray_mapping(fft_grid_layout *g,
                               const fft_grid_layout *ref);
 
 int grid_generate_g_space(fft_grid_layout *g);
+int grid_generate_local_g_space(fft_grid_layout *g);
 int grid_get_yzp_max(const fft_grid_layout *g);
 void grid_get_yzp(const fft_grid_layout *g, int *yzp);
 int grid_get_npts_gs_local(const fft_grid_layout *g);

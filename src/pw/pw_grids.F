@@ -52,6 +52,7 @@ MODULE pw_grids
                                               fft_grid_set_spherical,&
                                               fft_grid_prepare_ray_mapping,&
                                               fft_grid_generate_g_space,&
+                                              fft_grid_generate_local_g_space,&
                                               fft_grid_get_npts_gs_local,&
                                               fft_grid_get_index_to_g,&
                                               fft_grid_get_index_to_fft,&
@@ -577,7 +578,6 @@ CONTAINS
       CHARACTER(len=*), PARAMETER :: routineN = 'pw_grid_setup_internal'
 
       INTEGER                                            :: handle
-      REAL(KIND=dp)                                      :: ecut
 
 !------------------------------------------------------------------------------
 
@@ -590,15 +590,6 @@ CONTAINS
          pw_grid%reference = ref_grid%id_nr
       END IF
 
-      IF (pw_grid%spherical) THEN
-         ecut = pw_grid%cutoff
-      ELSE
-         ecut = 1.e10_dp
-      END IF
-
-      IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
-         CALL pw_grid_count(cell_h_inv, pw_grid, ecut)
-      END IF
 
       ! Check if reference grid is compatible
       IF (PRESENT(ref_grid)) THEN
@@ -615,7 +606,7 @@ CONTAINS
       CALL pw_grid_allocate(pw_grid, pw_grid%ngpts_cut_local)
 
       ! Fill in the grid structure
-      CALL pw_grid_assign(cell_h_inv, pw_grid, ecut)
+      CALL pw_grid_assign(cell_h_inv, pw_grid)
 
       ! Sort g vector wrt length (only local for each processor)
       CALL pw_grid_sort(pw_grid, ref_grid)
@@ -1030,9 +1021,9 @@ CONTAINS
       IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
 
          pw_grid%para%ray_distribution = .FALSE.
-
-         CPASSERT(pw_grid%ngpts_cut < HUGE(pw_grid%ngpts_cut_local))
-         pw_grid%ngpts_cut_local = INT(pw_grid%ngpts_cut)
+         CALL fft_grid_generate_local_g_space(pw_grid%fft_grid)
+         pw_grid%ngpts_cut_local = fft_grid_get_npts_gs_local(pw_grid%fft_grid)
+         pw_grid%ngpts_cut = INT(pw_grid%ngpts_cut_local, KIND=int_8)
          CPASSERT(pw_grid%ngpts < HUGE(pw_grid%ngpts_local))
          pw_grid%ngpts_local = INT(pw_grid%ngpts)
 
@@ -1165,82 +1156,6 @@ CONTAINS
 
    END FUNCTION shifted_index_from_c
 
-! **************************************************************************************************
-!> \brief True for rays that must stay out of the stored half-space: on an
-!>        asymmetric (even) frequency window the -g mirror of a ray on the
-!>        lower extreme plane falls outside the grid, while the ray
-!>        distribution and the negation maps both require the stored
-!>        half-space to be closed under negation (the z = 0 plane cut in
-!>        pw_grid_count serves the same contract). Symmetric (odd) windows
-!>        are never affected.
-!> \param grid_span ...
-!> \param m ray frequency in direction 2
-!> \param n ray frequency in direction 3
-!> \param bounds global frequency bounds of the grid
-!> \return whether the -g mirror of the ray falls outside the grid
-! **************************************************************************************************
-   PURE FUNCTION mirror_outside_bounds(grid_span, m, n, bounds) RESULT(outside)
-
-      INTEGER, INTENT(IN)                                :: grid_span, m, n
-      INTEGER, DIMENSION(2, 3), INTENT(IN)               :: bounds
-      LOGICAL                                            :: outside
-
-      outside = grid_span == HALFSPACE .AND. &
-                ((m == bounds(1, 2) .AND. bounds(2, 2) < -bounds(1, 2)) .OR. &
-                 (n == bounds(1, 3) .AND. bounds(2, 3) < -bounds(1, 3)))
-
-   END FUNCTION mirror_outside_bounds
-
-! **************************************************************************************************
-!> \brief Count total number of g vectors for a local grid.
-!> \param h_inv ...
-!> \param pw_grid ...
-!> \param cutoff ...
-!> \par History
-!>      JGH (22-12-2000) : Adapted for parallel use
-!> \author apsi
-!>      Christopher Mundy
-! **************************************************************************************************
-   SUBROUTINE pw_grid_count(h_inv, pw_grid, cutoff)
-
-      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
-      TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
-      REAL(KIND=dp), INTENT(IN)                          :: cutoff
-
-      INTEGER                                            :: l, m, n, n_upperlimit
-      INTEGER(KIND=int_8)                                :: gpt
-      REAL(KIND=dp)                                      :: length, length_x, length_y, length_z
-
-      ASSOCIATE (bounds => pw_grid%bounds)
-
-         IF (pw_grid%grid_span == HALFSPACE) THEN
-            n_upperlimit = 0
-         ELSE IF (pw_grid%grid_span == FULLSPACE) THEN
-            n_upperlimit = bounds(2, 3)
-         ELSE
-            CPABORT("No type set for the grid")
-         END IF
-
-         gpt = 0
-         DO n = bounds(1, 3), n_upperlimit
-            DO m = bounds(1, 2), bounds(2, 2)
-               DO l = bounds(1, 1), bounds(2, 1)
-                  IF (pw_grid%grid_span == HALFSPACE .AND. n == 0) THEN
-                     IF ((m == 0 .AND. l > 0) .OR. (m > 0)) CYCLE
-                  END IF
-                  IF (mirror_outside_bounds(pw_grid%grid_span, m, n, bounds)) CYCLE
-
-                  CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
-
-                  IF (0.5_dp*length <= cutoff) gpt = gpt + 1
-               END DO
-            END DO
-         END DO
-      END ASSOCIATE
-
-      pw_grid%ngpts_cut = gpt
-
-   END SUBROUTINE pw_grid_count
 
 
 ! **************************************************************************************************
@@ -1299,95 +1214,48 @@ CONTAINS
 
    END SUBROUTINE pw_grid_allocate
 
-   SUBROUTINE pw_grid_assign(h_inv, pw_grid, cutoff)
+   SUBROUTINE pw_grid_assign(h_inv, pw_grid)
 
-      REAL(KIND=dp), DIMENSION(3, 3)                     :: h_inv
+      REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
-      REAL(KIND=dp), INTENT(IN)                          :: cutoff
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_assign'
 
-      INTEGER                                            :: gpt, handle, l, m, n, n_upperlimit, nc
+      INTEGER                                            :: gpt, handle, l, m, n, nc
       INTEGER(KIND=int_8)                                :: gpt_global
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cidx
-      INTEGER, DIMENSION(2, 3)                           :: bounds
       REAL(KIND=dp)                                      :: length, length_x, length_y, length_z
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgsq
 
       CALL timeset(routineN, handle)
 
-      bounds = pw_grid%bounds
+      nc = fft_grid_get_npts_gs_local(pw_grid%fft_grid)
+      CPASSERT(nc == pw_grid%ngpts_cut_local)
+      ALLOCATE (cidx(3, nc), cgsq(nc))
+      CALL fft_grid_get_index_to_g(pw_grid%fft_grid, cidx)
+      CALL fft_grid_get_gsquared(pw_grid%fft_grid, cgsq)
+      DO gpt = 1, nc
+         IF (pw_grid%grid_span == HALFSPACE) THEN
+            n = MERGE(0, -cidx(1, gpt), cidx(1, gpt) == 0)
+         ELSE
+            n = shifted_index_from_c(cidx(1, gpt), pw_grid%npts(3))
+         END IF
+         m = shifted_index_from_c(cidx(2, gpt), pw_grid%npts(2))
+         l = shifted_index_from_c(cidx(3, gpt), pw_grid%npts(1))
+         CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
+         pw_grid%g(1, gpt) = length_x
+         pw_grid%g(2, gpt) = length_y
+         pw_grid%g(3, gpt) = length_z
+         pw_grid%gsq(gpt) = cgsq(gpt)
+         pw_grid%g_hat(1, gpt) = l
+         pw_grid%g_hat(2, gpt) = m
+         pw_grid%g_hat(3, gpt) = n
+      END DO
+      DEALLOCATE (cidx, cgsq)
 
-      IF (pw_grid%grid_span == HALFSPACE) THEN
-         n_upperlimit = 0
-      ELSE IF (pw_grid%grid_span == FULLSPACE) THEN
-         n_upperlimit = bounds(2, 3)
-      ELSE
-         CPABORT("No type set for the grid")
-      END IF
-
-      ! finds valid g-points within grid
-      IF (pw_grid%para%mode == PW_MODE_LOCAL) THEN
-         gpt = 0
-         DO n = bounds(1, 3), n_upperlimit
-            DO m = bounds(1, 2), bounds(2, 2)
-               DO l = bounds(1, 1), bounds(2, 1)
-                  IF (pw_grid%grid_span == HALFSPACE .AND. n == 0) THEN
-                     IF ((m == 0 .AND. l > 0) .OR. (m > 0)) CYCLE
-                  END IF
-                  ! keep the stored half-space closed under negation (see pw_grid_count)
-                  IF (mirror_outside_bounds(pw_grid%grid_span, m, n, bounds)) CYCLE
-
-                  CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
-
-                  IF (0.5_dp*length <= cutoff) THEN
-                     gpt = gpt + 1
-                     pw_grid%g(1, gpt) = length_x
-                     pw_grid%g(2, gpt) = length_y
-                     pw_grid%g(3, gpt) = length_z
-                     pw_grid%gsq(gpt) = length
-                     pw_grid%g_hat(1, gpt) = l
-                     pw_grid%g_hat(2, gpt) = m
-                     pw_grid%g_hat(3, gpt) = n
-                  END IF
-
-               END DO
-            END DO
-         END DO
-
-      ELSE
-
-         nc = fft_grid_get_npts_gs_local(pw_grid%fft_grid)
-         CPASSERT(nc == pw_grid%ngpts_cut_local)
-         ALLOCATE (cidx(3, nc), cgsq(nc))
-         CALL fft_grid_get_index_to_g(pw_grid%fft_grid, cidx)
-         CALL fft_grid_get_gsquared(pw_grid%fft_grid, cgsq)
-         DO gpt = 1, nc
-            IF (pw_grid%grid_span == HALFSPACE) THEN
-               n = MERGE(0, -cidx(1, gpt), cidx(1, gpt) == 0)
-            ELSE
-               n = shifted_index_from_c(cidx(1, gpt), pw_grid%npts(3))
-            END IF
-            m = shifted_index_from_c(cidx(2, gpt), pw_grid%npts(2))
-            l = shifted_index_from_c(cidx(3, gpt), pw_grid%npts(1))
-            CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
-            pw_grid%g(1, gpt) = length_x
-            pw_grid%g(2, gpt) = length_y
-            pw_grid%g(3, gpt) = length_z
-            pw_grid%gsq(gpt) = cgsq(gpt)
-            pw_grid%g_hat(1, gpt) = l
-            pw_grid%g_hat(2, gpt) = m
-            pw_grid%g_hat(3, gpt) = n
-         END DO
-         gpt = nc
-         DEALLOCATE (cidx, cgsq)
-
-      END IF
-
-      ! Check the number of g-vectors for grid
-      CPASSERT(pw_grid%ngpts_cut_local == gpt)
+      CPASSERT(pw_grid%ngpts_cut_local == nc)
       IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-         gpt_global = gpt
+         gpt_global = nc
          CALL pw_grid%para%group%sum(gpt_global)
          CPASSERT(pw_grid%ngpts_cut == gpt_global)
       END IF
@@ -1433,47 +1301,10 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_sort'
 
-      INTEGER                                            :: handle, i, ng
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cidx_ref, idx
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: int_tmp
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: real_tmp
+      INTEGER                                            :: handle
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cidx_ref
 
       CALL timeset(routineN, handle)
-
-      ng = SIZE(pw_grid%gsq)
-
-      IF (pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
-         ALLOCATE (idx(ng))
-
-         CALL sort(pw_grid%gsq, ng, idx)
-         CALL sort_shells(pw_grid%gsq, pw_grid%g_hat, idx)
-
-         ALLOCATE (real_tmp(3, ng))
-         DO i = 1, ng
-            real_tmp(1, i) = pw_grid%g(1, idx(i))
-            real_tmp(2, i) = pw_grid%g(2, idx(i))
-            real_tmp(3, i) = pw_grid%g(3, idx(i))
-         END DO
-         DO i = 1, ng
-            pw_grid%g(1, i) = real_tmp(1, i)
-            pw_grid%g(2, i) = real_tmp(2, i)
-            pw_grid%g(3, i) = real_tmp(3, i)
-         END DO
-         DEALLOCATE (real_tmp)
-
-         ALLOCATE (int_tmp(3, ng))
-         DO i = 1, ng
-            int_tmp(1, i) = pw_grid%g_hat(1, idx(i))
-            int_tmp(2, i) = pw_grid%g_hat(2, idx(i))
-            int_tmp(3, i) = pw_grid%g_hat(3, idx(i))
-         END DO
-         DO i = 1, ng
-            pw_grid%g_hat(1, i) = int_tmp(1, i)
-            pw_grid%g_hat(2, i) = int_tmp(2, i)
-            pw_grid%g_hat(3, i) = int_tmp(3, i)
-         END DO
-         DEALLOCATE (int_tmp, idx)
-      END IF
 
       IF (PRESENT(ref_grid)) THEN
          CALL fft_grid_get_local_index_to_ref_grid(pw_grid%fft_grid, ref_grid%fft_grid, &

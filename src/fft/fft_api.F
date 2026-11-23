@@ -52,6 +52,7 @@ MODULE fft_api
    PUBLIC :: fft_grid_is_ray_distributed
    PUBLIC :: fft_grid_prepare_ray_mapping
    PUBLIC :: fft_grid_generate_g_space
+   PUBLIC :: fft_grid_generate_local_g_space
    PUBLIC :: fft_grid_get_yzp_max
    PUBLIC :: fft_grid_get_yzp
    PUBLIC :: fft_grid_get_npts_gs_local
@@ -2095,6 +2096,27 @@ CONTAINS
       status = fft_grid_generate_g_space_c(fft_grid%fft_grid)
       CPASSERT(status == 0)
    END SUBROUTINE fft_grid_generate_g_space
+
+! **************************************************************************************************
+!> \brief Generate the local g-space data for a serial layout.
+! **************************************************************************************************
+   SUBROUTINE fft_grid_generate_local_g_space(fft_grid)
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+
+      INTEGER(C_INT)                                     :: status
+
+      INTERFACE
+         INTEGER(C_INT) FUNCTION fft_grid_generate_local_g_space_c(layout) &
+            BIND(C, name="fft_grid_generate_local_g_space_F")
+            IMPORT :: C_PTR, C_INT
+            TYPE(C_PTR), VALUE :: layout
+         END FUNCTION fft_grid_generate_local_g_space_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      status = fft_grid_generate_local_g_space_c(fft_grid%fft_grid)
+      CPASSERT(status == 0)
+   END SUBROUTINE fft_grid_generate_local_g_space
 
 ! **************************************************************************************************
 !> \brief Prepare a provisional ray mapping in the FFT layout.

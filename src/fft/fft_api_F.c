@@ -1070,6 +1070,10 @@ int fft_grid_generate_g_space_F(fft_grid_layout *fft_grid) {
   cp_assert(fft_grid != NULL);
   return grid_generate_g_space(fft_grid);
 }
+int fft_grid_generate_local_g_space_F(fft_grid_layout *fft_grid) {
+  cp_assert(fft_grid != NULL);
+  return grid_generate_local_g_space(fft_grid);
+}
 
 void fft_grid_prepare_ray_mapping_F(fft_grid_layout *fft_grid,
                                       const fft_grid_layout *ref) {

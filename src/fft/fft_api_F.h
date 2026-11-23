@@ -685,6 +685,7 @@ void fft_grid_get_proc_grid_F(const fft_grid_layout *fft_grid,
 int fft_grid_is_ray_distributed_F(const fft_grid_layout *fft_grid);
 
 int fft_grid_generate_g_space_F(fft_grid_layout *fft_grid);
+int fft_grid_generate_local_g_space_F(fft_grid_layout *fft_grid);
 int fft_grid_get_yzp_max_F(const fft_grid_layout *fft_grid);
 void fft_grid_get_yzp_F(const fft_grid_layout *fft_grid, int *yzp);
 int fft_grid_get_npts_gs_local_F(const fft_grid_layout *fft_grid);
