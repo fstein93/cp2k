@@ -744,6 +744,42 @@ CONTAINS
    END SUBROUTINE cell2grid
 
 ! **************************************************************************************************
+!> \brief Fetch the per-process number of yz rays.
+! **************************************************************************************************
+   SUBROUTINE pw_grid_get_nyzray(pw_grid, nyzray)
+
+      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
+      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: nyzray
+
+      INTEGER                                            :: np
+
+      np = pw_grid%para%group%num_pe
+      IF (pw_grid%para%ray_distribution) THEN
+         ALLOCATE (nyzray(0:np - 1))
+         CPASSERT(fft_grid_get_rays_per_process(pw_grid%fft_grid, nyzray))
+      ELSE
+         CPASSERT(ALLOCATED(pw_grid%para%nyzray))
+         ALLOCATE (nyzray(0:SIZE(pw_grid%para%nyzray) - 1))
+         nyzray(0:) = pw_grid%para%nyzray
+      END IF
+
+   END SUBROUTINE pw_grid_get_nyzray
+
+! **************************************************************************************************
+!> \brief Number of yz rays on the local process.
+! **************************************************************************************************
+   INTEGER FUNCTION pw_grid_my_nyzray(pw_grid) RESULT(nyzray)
+
+      TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
+
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nyzray_all
+
+      CALL pw_grid_get_nyzray(pw_grid, nyzray_all)
+      nyzray = nyzray_all(pw_grid%para%group%mepos)
+
+   END FUNCTION pw_grid_my_nyzray
+
+! **************************************************************************************************
 !> \brief Output of information on pw_grid
 !> \param pw_grid ...
 !> \param info ...
@@ -755,6 +791,7 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: info
 
       INTEGER                                            :: i
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nyzray
       INTEGER(KIND=int_8)                                :: n(3)
       REAL(KIND=dp)                                      :: rv(3, 3)
 
@@ -795,20 +832,22 @@ CONTAINS
          END IF
       ELSE
 
+         CALL pw_grid_get_nyzray(pw_grid, nyzray)
+
          n(1) = pw_grid%ngpts_cut_local
          n(2) = pw_grid%ngpts_local
          CALL pw_grid%para%group%sum(n(1:2))
-         n(3) = SUM(pw_grid%para%nyzray)
+         n(3) = SUM(nyzray)
          rv(:, 1) = REAL(n, KIND=dp)/REAL(pw_grid%para%group%num_pe, KIND=dp)
          n(1) = pw_grid%ngpts_cut_local
          n(2) = pw_grid%ngpts_local
          CALL pw_grid%para%group%max(n(1:2))
-         n(3) = MAXVAL(pw_grid%para%nyzray)
+         n(3) = MAXVAL(nyzray)
          rv(:, 2) = REAL(n, KIND=dp)
          n(1) = pw_grid%ngpts_cut_local
          n(2) = pw_grid%ngpts_local
          CALL pw_grid%para%group%min(n(1:2))
-         n(3) = MINVAL(pw_grid%para%nyzray)
+         n(3) = MINVAL(nyzray)
          rv(:, 3) = REAL(n, KIND=dp)
 
          IF (info > 0) THEN
@@ -1043,7 +1082,7 @@ CONTAINS
       INTEGER                                            :: blocked_local, gmax, handle, i, ip, ipl, &
                                                              ipp, ixx, j, jz, l, lby, lbz, m, n, np, ns, &
                                                              ny, nz, nz_ray
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap, ray_count, xy_to_process
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: pemap, xy_to_process
       LOGICAL                                            :: blocking, nyzray_from_layout, &
                                                             ray_distribution_now
 
@@ -1099,10 +1138,6 @@ CONTAINS
          !..find the g space distribution
          pw_grid%ngpts_cut_local = 0
 
-         ALLOCATE (pw_grid%para%nyzray(0:np - 1))
-
-         ALLOCATE (pw_grid%para%yzq(ny, nz))
-
          ray_distribution_now = pw_grid%spherical .OR. pw_grid%grid_span == HALFSPACE &
                                 .OR. .NOT. blocking
          IF (PRESENT(use_ray_distribution)) ray_distribution_now = use_ray_distribution
@@ -1117,94 +1152,36 @@ CONTAINS
                CPASSERT(pw_grid%bounds(2, 3) <= -pw_grid%bounds(1, 3))
             END IF
 
-            pw_grid%para%yzq = -1
-
             ! Use the ray mapping prepared by the FFT layout.
             nz_ray = nz
             IF (pw_grid%grid_span == HALFSPACE) nz_ray = nz/2 + 1
             ALLOCATE (xy_to_process(0:nz_ray*ny - 1))
             CPASSERT(fft_grid_get_xy_to_process(pw_grid%fft_grid, xy_to_process))
-               ! Assign each ray to the process given by the FFT grid layout
-               DO i = 1, nz
-                  IF (pw_grid%grid_span == HALFSPACE) THEN
-                     ixx = nz_ray - i
-                  ELSE
-                     ixx = i + lbz - 1
-                     IF (ixx < 0) ixx = ixx + nz
-                  END IF
-                  DO j = 1, ny
-                     gmax = yz_mask(j, i)
-                     IF (gmax == 0) CYCLE
-                     jz = j + lby - 1
-                     IF (jz < 0) jz = jz + ny
-                     ip = xy_to_process(ixx*ny + jz)
-                     yz_mask(j, i) = 0
-                     pw_grid%para%yzq(j, i) = ip
-                     IF (pw_grid%grid_span == HALFSPACE) THEN
-                        m = -j - 2*lby + 2
-                        n = -i - 2*lbz + 2
-                        IF (m >= 1 .AND. m <= ny .AND. n >= 1 .AND. n <= nz) THEN
-                           pw_grid%para%yzq(m, n) = ip
-                           yz_mask(m, n) = 0
-                        END IF
-                     END IF
-                     IF (ip == pw_grid%para%group%mepos) THEN
-                        pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local + gmax
-                     END IF
-                  END DO
-               END DO
-            DEALLOCATE (xy_to_process)
-
-            ! Fetch the number of rays per process from the FFT grid layout.
-            nyzray_from_layout = &
-               fft_grid_get_rays_per_process(pw_grid%fft_grid, pw_grid%para%nyzray)
-
-            ! Count the rays of the mapping constructed above.
-            ALLOCATE (ray_count(0:np - 1))
-            ray_count = 0
             DO i = 1, nz
-               DO j = 1, ny
-                  ip = pw_grid%para%yzq(j, i)
-                  IF (ip >= 0) ray_count(ip) = ray_count(ip) + 1
-               END DO
-            END DO
-            ! Use the layout counts only if they match the constructed mapping.
-            IF (nyzray_from_layout) THEN
-               IF (ANY(ray_count(0:np - 1) /= pw_grid%para%nyzray(0:np - 1))) THEN
-                  nyzray_from_layout = .FALSE.
+               IF (pw_grid%grid_span == HALFSPACE) THEN
+                  ixx = nz_ray - i
+               ELSE
+                  ixx = i + lbz - 1
+                  IF (ixx < 0) ixx = ixx + nz
                END IF
-            END IF
-            IF (.NOT. nyzray_from_layout) THEN
-               DO ip = 0, np - 1
-                  pw_grid%para%nyzray(ip) = ray_count(ip)
-               END DO
-            END IF
-
-            ! Allocate mapping array (y:z, nray, nproc)
-            ns = MAXVAL(pw_grid%para%nyzray(0:np - 1))
-            ALLOCATE (pw_grid%para%yzp(2, ns, 0:np - 1))
-
-            ! Fill mapping array
-            ray_count = 0
-            DO i = 1, nz
                DO j = 1, ny
-                  ip = pw_grid%para%yzq(j, i)
-                  IF (ip >= 0) THEN
-                     ray_count(ip) = ray_count(ip) + 1
-                     ns = ray_count(ip)
-                     pw_grid%para%yzp(1, ns, ip) = j
-                     pw_grid%para%yzp(2, ns, ip) = i
-                     IF (ip == pw_grid%para%group%mepos) THEN
-                        pw_grid%para%yzq(j, i) = ns
-                     ELSE
-                        pw_grid%para%yzq(j, i) = -1
-                     END IF
-                  ELSE
-                     pw_grid%para%yzq(j, i) = -2
+                  gmax = yz_mask(j, i)
+                  IF (gmax == 0) CYCLE
+                  jz = j + lby - 1
+                  IF (jz < 0) jz = jz + ny
+                  ip = xy_to_process(ixx*ny + jz)
+                  yz_mask(j, i) = 0
+                  IF (pw_grid%grid_span == HALFSPACE) THEN
+                     m = -j - 2*lby + 2
+                     n = -i - 2*lbz + 2
+                     IF (m >= 1 .AND. m <= ny .AND. n >= 1 .AND. n <= nz) yz_mask(m, n) = 0
+                  END IF
+                  IF (ip == pw_grid%para%group%mepos) THEN
+                     pw_grid%ngpts_cut_local = pw_grid%ngpts_cut_local + gmax
                   END IF
                END DO
             END DO
-            DEALLOCATE (ray_count)
+            DEALLOCATE (xy_to_process)
 
             pw_grid%ngpts_local = PRODUCT(pw_grid%npts_local)
 
@@ -1215,6 +1192,9 @@ CONTAINS
 
             pw_grid%para%blocked = .TRUE.
             pw_grid%para%ray_distribution = .FALSE.
+
+            ALLOCATE (pw_grid%para%nyzray(0:np - 1))
+            ALLOCATE (pw_grid%para%yzq(ny, nz))
 
             nyzray_from_layout = &
                fft_grid_get_rays_per_process(pw_grid%fft_grid, pw_grid%para%nyzray)
@@ -1763,8 +1743,7 @@ CONTAINS
 #endif
 
       IF (pw_grid%para%mode == PW_MODE_DISTRIBUTED) THEN
-         ALLOCATE (pw_grid%grays(pw_grid%npts(1), &
-                                 pw_grid%para%nyzray(pw_grid%para%group%mepos)))
+         ALLOCATE (pw_grid%grays(pw_grid%npts(1), pw_grid_my_nyzray(pw_grid)))
       END IF
 
       ALLOCATE (pw_grid%mapl%pos(bounds(1, 1):bounds(2, 1)))
