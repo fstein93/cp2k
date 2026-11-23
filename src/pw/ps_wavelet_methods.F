@@ -164,14 +164,15 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_distribution_to_z_slices'
 
-      INTEGER                                            :: dest, handle, i, ii, iproc, j, k, l, &
-                                                            local_z_dim, loz, m, m2, md2, nproc, &
-                                                            should_warn
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount, rdispl, scount, sdispl, tmp
-      INTEGER, DIMENSION(2)                              :: cart_pos, lox, loy
+      INTEGER                                            :: dest, handle, i, ii, iproc, j, k, &
+                                                            local_z_dim, loz, m2, md2, nproc, rank, &
+                                                            zglobal, zstart
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount, rdispl, scount, sdispl
+      INTEGER, DIMENSION(2, 3)                           :: bounds_local
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_all
       INTEGER, DIMENSION(3)                              :: lb, ub
-      REAL(KIND=dp)                                      :: max_val_low, max_val_up
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: rbuf, sbuf
+      INTEGER                                            :: lbx, lby, lbz, ubx, uby, ubz
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rbuf, sbuf
 
       CALL timeset(routineN, handle)
 
@@ -184,19 +185,26 @@ CONTAINS
          RETURN
       END IF
 
-      nproc = PRODUCT(pw_grid%para%group%num_pe_cart)
+      nproc = PW_GRID%PARA%GROUP%NUM_PE
       iproc = pw_grid%para%group%mepos
       md2 = wavelet%PS_grid(3)
       m2 = pw_grid%npts(3)
+      local_z_dim = MAX((md2/nproc), 1)
       lb(:) = pw_grid%bounds_local(1, :)
       ub(:) = pw_grid%bounds_local(2, :)
-      local_z_dim = MAX((md2/nproc), 1)
+      bounds_local = pw_grid%bounds_local
+      ALLOCATE (bounds_all(2, 3, nproc))
+      CALL pw_grid%para%group%allgather(bounds_local, bounds_all)
 
-      ALLOCATE (sbuf(PRODUCT(pw_grid%npts_local)))
-      ALLOCATE (rbuf(PRODUCT(wavelet%PS_grid)/nproc))
-      ALLOCATE (scount(nproc), sdispl(nproc), rcount(nproc), rdispl(nproc), tmp(nproc))
-
-      rbuf = 0.0_dp
+      ALLOCATE (scount(nproc), sdispl(nproc), rcount(nproc), rdispl(nproc))
+      scount = 0
+      DO k = lb(3), ub(3)
+         zglobal = k - pw_grid%bounds(1, 3) + 1
+         dest = MIN((zglobal - 1)/local_z_dim, nproc - 1)
+         scount(dest + 1) = scount(dest + 1) + (ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)
+      END DO
+      CALL set_displacements(scount, sdispl)
+      ALLOCATE (sbuf(MAX(SUM(scount), 1)))
       ii = 1
       DO k = lb(3), ub(3)
          DO j = lb(2), ub(2)
@@ -207,107 +215,46 @@ CONTAINS
          END DO
       END DO
 
-      should_warn = 0
-      IF (wavelet%geocode == 'S' .OR. wavelet%geocode == 'F') THEN
-         max_val_low = 0._dp
-         max_val_up = 0._dp
-         IF (lb(2) == pw_grid%bounds(1, 2)) max_val_low = MAXVAL(ABS(density%array(:, lb(2), :)))
-         IF (ub(2) == pw_grid%bounds(2, 2)) max_val_up = MAXVAL(ABS(density%array(:, ub(2), :)))
-         IF (max_val_low >= 0.0001_dp) should_warn = 1
-         IF (max_val_up >= 0.0001_dp) should_warn = 1
-         IF (wavelet%geocode == 'F') THEN
-            max_val_low = 0._dp
-            max_val_up = 0._dp
-            IF (lb(1) == pw_grid%bounds(1, 1)) max_val_low = MAXVAL(ABS(density%array(lb(1), :, :)))
-            IF (ub(1) == pw_grid%bounds(2, 1)) max_val_up = MAXVAL(ABS(density%array(ub(1), :, :)))
-            IF (max_val_low >= 0.0001_dp) should_warn = 1
-            IF (max_val_up >= 0.0001_dp) should_warn = 1
-            max_val_low = 0._dp
-            max_val_up = 0._dp
-            IF (lb(3) == pw_grid%bounds(1, 3)) max_val_low = MAXVAL(ABS(density%array(:, :, lb(3))))
-            IF (ub(3) == pw_grid%bounds(2, 3)) max_val_up = MAXVAL(ABS(density%array(:, :, ub(3))))
-            IF (max_val_low >= 0.0001_dp) should_warn = 1
-            IF (max_val_up >= 0.0001_dp) should_warn = 1
+      zstart = iproc*local_z_dim
+      loz = MAX(0, MIN(local_z_dim, m2 - zstart))
+      rcount = 0
+      DO rank = 0, nproc - 1
+         lbx = bounds_all(1, 1, rank + 1)
+         lby = bounds_all(1, 2, rank + 1)
+         ubx = bounds_all(2, 1, rank + 1)
+         uby = bounds_all(2, 2, rank + 1)
+         IF (ubx >= lbx .AND. uby >= lby) THEN
+            rcount(rank + 1) = (ubx - lbx + 1)*(uby - lby + 1)*loz
          END IF
-      END IF
-
-      CALL pw_grid%para%group%max(should_warn)
-      IF (should_warn > 0 .AND. iproc == 0) THEN
-         CPWARN("Density non-zero on the edges of the unit cell: wrong results in WAVELET solver")
-      END IF
-      DO i = 0, pw_grid%para%group%num_pe_cart(1) - 1
-         DO j = 0, pw_grid%para%group%num_pe_cart(2) - 1
-            cart_pos = [i, j]
-            CALL pw_grid%para%group%rank_cart(cart_pos, dest)
-            IF ((ub(1) >= lb(1)) .AND. (ub(2) >= lb(2))) THEN
-               IF (dest*local_z_dim <= m2) THEN
-                  IF ((dest + 1)*local_z_dim <= m2) THEN
-                     scount(dest + 1) = ABS((ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)*local_z_dim)
-                  ELSE
-                     scount(dest + 1) = ABS((ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)*MOD(m2, local_z_dim))
-                  END IF
-               ELSE
-                  scount(dest + 1) = 0
-               END IF
-            ELSE
-               scount(dest + 1) = 0
-            END IF
-            lox = get_limit(pw_grid%npts(1), pw_grid%para%group%num_pe_cart(1), i)
-            loy = get_limit(pw_grid%npts(2), pw_grid%para%group%num_pe_cart(2), j)
-            IF ((lox(2) >= lox(1)) .AND. (loy(2) >= loy(1))) THEN
-               IF (iproc*local_z_dim <= m2) THEN
-                  IF ((iproc + 1)*local_z_dim <= m2) THEN
-                     rcount(dest + 1) = ABS((lox(2) - lox(1) + 1)*(loy(2) - loy(1) + 1)*local_z_dim)
-                  ELSE
-                     rcount(dest + 1) = ABS((lox(2) - lox(1) + 1)*(loy(2) - loy(1) + 1)*MOD(m2, local_z_dim))
-                  END IF
-               ELSE
-                  rcount(dest + 1) = 0
-               END IF
-            ELSE
-               rcount(dest + 1) = 0
-            END IF
-
-         END DO
       END DO
-      sdispl(1) = 0
-      rdispl(1) = 0
-      DO i = 2, nproc
-         sdispl(i) = sdispl(i - 1) + scount(i - 1)
-         rdispl(i) = rdispl(i - 1) + rcount(i - 1)
-      END DO
+      CALL set_displacements(rcount, rdispl)
+      ALLOCATE (rbuf(MAX(SUM(rcount), 1)))
       CALL pw_grid%para%group%alltoall(sbuf, scount, sdispl, rbuf, rcount, rdispl)
-      !!!! and now, how to put the right cubes to the right position!!!!!!
 
       wavelet%rho_z_sliced = 0.0_dp
-
-      DO i = 0, pw_grid%para%group%num_pe_cart(1) - 1
-         DO j = 0, pw_grid%para%group%num_pe_cart(2) - 1
-            cart_pos = [i, j]
-            CALL pw_grid%para%group%rank_cart(cart_pos, dest)
-
-            lox = get_limit(pw_grid%npts(1), pw_grid%para%group%num_pe_cart(1), i)
-            loy = get_limit(pw_grid%npts(2), pw_grid%para%group%num_pe_cart(2), j)
-            IF (iproc*local_z_dim <= m2) THEN
-               IF ((iproc + 1)*local_z_dim <= m2) THEN
-                  loz = local_z_dim
-               ELSE
-                  loz = MOD(m2, local_z_dim)
-               END IF
-               ii = 1
-               DO k = 1, loz
-                  DO l = loy(1), loy(2)
-                     DO m = lox(1), lox(2)
-                        wavelet%rho_z_sliced(m, l, k) = rbuf(ii + rdispl(dest + 1))
-                        ii = ii + 1
-                     END DO
-                  END DO
+      DO rank = 0, nproc - 1
+         lbx = bounds_all(1, 1, rank + 1)
+         lby = bounds_all(1, 2, rank + 1)
+         lbz = bounds_all(1, 3, rank + 1)
+         ubx = bounds_all(2, 1, rank + 1)
+         uby = bounds_all(2, 2, rank + 1)
+         ubz = bounds_all(2, 3, rank + 1)
+         IF (ubx < lbx .OR. uby < lby .OR. ubz < lbz) CYCLE
+         ii = rdispl(rank + 1) + 1
+         DO k = lbz, ubz
+            zglobal = k - pw_grid%bounds(1, 3) + 1
+            IF (MIN((zglobal - 1)/local_z_dim, nproc - 1) /= iproc) CYCLE
+            DO j = lby, uby
+               DO i = lbx, ubx
+                  wavelet%rho_z_sliced(i - pw_grid%bounds(1, 1) + 1, &
+                                       j - pw_grid%bounds(1, 2) + 1, zglobal - zstart) = rbuf(ii)
+                  ii = ii + 1
                END DO
-            END IF
+            END DO
          END DO
       END DO
 
-      DEALLOCATE (sbuf, rbuf, scount, sdispl, rcount, rdispl, tmp)
+      DEALLOCATE (rbuf, sbuf, rcount, rdispl, scount, sdispl, bounds_all)
 
       CALL timestop(handle)
 
@@ -325,12 +272,13 @@ CONTAINS
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      INTEGER                                            :: dest, i, ii, iproc, j, k, l, &
-                                                            local_z_dim, loz, m, m2, md2, nproc
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount, rdispl, scount, sdispl, tmp
-      INTEGER, DIMENSION(2)                              :: cart_pos, lox, loy, min_x, min_y
-      INTEGER, DIMENSION(3)                              :: lb, ub
-      REAL(KIND=dp), DIMENSION(:), POINTER               :: rbuf, sbuf
+      INTEGER                                            :: dest, i, ii, iproc, j, k, local_z_dim, &
+                                                            loz, m2, md2, nproc, rank, zstart
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount, rdispl, scount, sdispl
+      INTEGER, DIMENSION(2, 3)                           :: bounds_local
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_all
+      INTEGER                                            :: lbx, lby, ubx, uby, lbxs, lbys, ubxs, ubys
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rbuf, sbuf
 
       CPASSERT(ASSOCIATED(wavelet))
 
@@ -339,104 +287,79 @@ CONTAINS
          RETURN
       END IF
 
-      nproc = PRODUCT(pw_grid%para%group%num_pe_cart)
+      nproc = PW_GRID%PARA%GROUP%NUM_PE
       iproc = pw_grid%para%group%mepos
       md2 = wavelet%PS_grid(3)
       m2 = pw_grid%npts(3)
-
-      lb(:) = pw_grid%bounds_local(1, :)
-      ub(:) = pw_grid%bounds_local(2, :)
-
       local_z_dim = MAX((md2/nproc), 1)
+      zstart = iproc*local_z_dim
+      loz = MAX(0, MIN(local_z_dim, m2 - zstart))
+      bounds_local = pw_grid%bounds_local
+      ALLOCATE (bounds_all(2, 3, nproc))
+      CALL pw_grid%para%group%allgather(bounds_local, bounds_all)
 
-      ALLOCATE (rbuf(PRODUCT(pw_grid%npts_local)))
-      ALLOCATE (sbuf(PRODUCT(wavelet%PS_grid)/nproc))
-      ALLOCATE (scount(nproc), sdispl(nproc), rcount(nproc), rdispl(nproc), tmp(nproc))
+      ALLOCATE (scount(nproc), sdispl(nproc), rcount(nproc), rdispl(nproc))
       scount = 0
-      rcount = 0
-      rbuf = 0.0_dp
-      ii = 1
-      IF (iproc*local_z_dim <= m2) THEN
-         IF ((iproc + 1)*local_z_dim <= m2) THEN
-            loz = local_z_dim
-         ELSE
-            loz = MOD(m2, local_z_dim)
+      DO dest = 0, nproc - 1
+         lbx = bounds_all(1, 1, dest + 1)
+         lby = bounds_all(1, 2, dest + 1)
+         ubx = bounds_all(2, 1, dest + 1)
+         uby = bounds_all(2, 2, dest + 1)
+         IF (ubx >= lbx .AND. uby >= lby) THEN
+            scount(dest + 1) = (ubx - lbx + 1)*(uby - lby + 1)*loz
          END IF
-      ELSE
-         loz = 0
-      END IF
-
-      min_x = get_limit(pw_grid%npts(1), pw_grid%para%group%num_pe_cart(1), 0)
-      min_y = get_limit(pw_grid%npts(2), pw_grid%para%group%num_pe_cart(2), 0)
-      DO i = 0, pw_grid%para%group%num_pe_cart(1) - 1
-         DO j = 0, pw_grid%para%group%num_pe_cart(2) - 1
-            cart_pos = [i, j]
-            CALL pw_grid%para%group%rank_cart(cart_pos, dest)
-            IF ((ub(1) >= lb(1)) .AND. (ub(2) >= lb(2))) THEN
-               IF (dest*local_z_dim <= m2) THEN
-                  IF ((dest + 1)*local_z_dim <= m2) THEN
-                     rcount(dest + 1) = ABS((ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)*local_z_dim)
-                  ELSE
-                     rcount(dest + 1) = ABS((ub(1) - lb(1) + 1)*(ub(2) - lb(2) + 1)*MOD(m2, local_z_dim))
-                  END IF
-               ELSE
-                  rcount(dest + 1) = 0
-               END IF
-            ELSE
-               rcount(dest + 1) = 0
-            END IF
-            lox = get_limit(pw_grid%npts(1), pw_grid%para%group%num_pe_cart(1), i)
-            loy = get_limit(pw_grid%npts(2), pw_grid%para%group%num_pe_cart(2), j)
-            IF ((lox(2) >= lox(1)) .AND. (loy(2) >= loy(1))) THEN
-               scount(dest + 1) = ABS((lox(2) - lox(1) + 1)*(loy(2) - loy(1) + 1)*loz)
-               DO k = lox(1) - min_x(1) + 1, lox(2) - min_x(1) + 1
-                  DO l = loy(1) - min_y(1) + 1, loy(2) - min_y(1) + 1
-                     DO m = 1, loz
-                        sbuf(ii) = wavelet%rho_z_sliced(k, l, m)
-                        ii = ii + 1
-                     END DO
-                  END DO
+      END DO
+      CALL set_displacements(scount, sdispl)
+      ALLOCATE (sbuf(MAX(SUM(scount), 1)))
+      DO dest = 0, nproc - 1
+         lbx = bounds_all(1, 1, dest + 1)
+         lby = bounds_all(1, 2, dest + 1)
+         ubx = bounds_all(2, 1, dest + 1)
+         uby = bounds_all(2, 2, dest + 1)
+         IF (ubx < lbx .OR. uby < lby) CYCLE
+         ii = sdispl(dest + 1) + 1
+         DO k = 1, loz
+            DO j = lby, uby
+               DO i = lbx, ubx
+                  sbuf(ii) = wavelet%rho_z_sliced(i - pw_grid%bounds(1, 1) + 1, &
+                                                  j - pw_grid%bounds(1, 2) + 1, k)
+                  ii = ii + 1
                END DO
-            ELSE
-               scount(dest + 1) = 0
-            END IF
+            END DO
          END DO
       END DO
-      sdispl(1) = 0
-      rdispl(1) = 0
-      DO i = 2, nproc
-         sdispl(i) = sdispl(i - 1) + scount(i - 1)
-         rdispl(i) = rdispl(i - 1) + rcount(i - 1)
+
+      lbxs = bounds_all(1, 1, iproc + 1)
+      lbys = bounds_all(1, 2, iproc + 1)
+      ubxs = bounds_all(2, 1, iproc + 1)
+      ubys = bounds_all(2, 2, iproc + 1)
+      rcount = 0
+      DO rank = 0, nproc - 1
+         loz = MAX(0, MIN(local_z_dim, m2 - rank*local_z_dim))
+         IF (ubxs >= lbxs .AND. ubys >= lbys) THEN
+            rcount(rank + 1) = (ubxs - lbxs + 1)*(ubys - lbys + 1)*loz
+         END IF
       END DO
+      CALL set_displacements(rcount, rdispl)
+      ALLOCATE (rbuf(MAX(SUM(rcount), 1)))
       CALL pw_grid%para%group%alltoall(sbuf, scount, sdispl, rbuf, rcount, rdispl)
 
-      !!!! and now, how to put the right cubes to the right position!!!!!!
-
-      DO i = 0, pw_grid%para%group%num_pe_cart(1) - 1
-         DO j = 0, pw_grid%para%group%num_pe_cart(2) - 1
-            cart_pos = [i, j]
-            CALL pw_grid%para%group%rank_cart(cart_pos, dest)
-            IF (dest*local_z_dim <= m2) THEN
-               IF ((dest + 1)*local_z_dim <= m2) THEN
-                  loz = local_z_dim
-               ELSE
-                  loz = MOD(m2, local_z_dim)
-               END IF
-               ii = 1
-               IF (lb(3) + (dest*local_z_dim) <= ub(3)) THEN
-                  DO m = lb(1), ub(1)
-                     DO l = lb(2), ub(2)
-                        DO k = lb(3) + (dest*local_z_dim), lb(3) + (dest*local_z_dim) + loz - 1
-                           density%array(m, l, k) = rbuf(ii + rdispl(dest + 1))
-                           ii = ii + 1
-                        END DO
-                     END DO
-                  END DO
-               END IF
-            END IF
+      DO rank = 0, nproc - 1
+         loz = MAX(0, MIN(local_z_dim, m2 - rank*local_z_dim))
+         zstart = rank*local_z_dim
+         IF (loz == 0) CYCLE
+         ii = rdispl(rank + 1) + 1
+         DO k = 1, loz
+            DO j = lbys, ubys
+               DO i = lbxs, ubxs
+                  density%array(i, j, pw_grid%bounds(1, 3) + zstart + k - 1) = rbuf(ii)
+                  ii = ii + 1
+               END DO
+            END DO
          END DO
       END DO
-      DEALLOCATE (sbuf, rbuf, scount, sdispl, rcount, rdispl, tmp)
+
+      DEALLOCATE (rbuf, sbuf, rcount, rdispl, scount, sdispl, bounds_all)
 
    END SUBROUTINE z_slices_to_cp2k_distribution
 
