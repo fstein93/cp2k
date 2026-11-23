@@ -751,12 +751,17 @@ CONTAINS
       TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: nyzray
 
-      INTEGER                                            :: np
+      INTEGER                                            :: ip, np
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: yzp
 
       np = pw_grid%para%group%num_pe
       IF (pw_grid%para%ray_distribution) THEN
-         ALLOCATE (nyzray(0:np - 1))
-         CPASSERT(fft_grid_get_rays_per_process(pw_grid%fft_grid, nyzray))
+         CALL fft_grid_get_yzp(pw_grid%fft_grid, yzp)
+         ALLOCATE (nyzray(0:SIZE(yzp, 3) - 1))
+         DO ip = 0, SIZE(nyzray) - 1
+            nyzray(ip) = COUNT(yzp(1, :, ip) > 0)
+         END DO
+         DEALLOCATE (yzp)
       ELSE
          CPASSERT(ALLOCATED(pw_grid%para%nyzray))
          ALLOCATE (nyzray(0:SIZE(pw_grid%para%nyzray) - 1))
@@ -1182,6 +1187,7 @@ CONTAINS
                END DO
             END DO
             DEALLOCATE (xy_to_process)
+            CALL fft_grid_generate_g_space(pw_grid%fft_grid)
 
             pw_grid%ngpts_local = PRODUCT(pw_grid%npts_local)
 
@@ -1470,19 +1476,16 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_assign'
 
-      INTEGER                                            :: gpt, handle, l, lby, lbz, ll, m, &
-                                                            mm, n, n_upperlimit, nc, nn
+      INTEGER                                            :: gpt, handle, l, m, n, n_upperlimit, nc
       INTEGER(KIND=int_8)                                :: gpt_global
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cidx
-      INTEGER, DIMENSION(2, 3)                           :: bol, bounds
+      INTEGER, DIMENSION(2, 3)                           :: bounds
       REAL(KIND=dp)                                      :: length, length_x, length_y, length_z
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgsq
 
       CALL timeset(routineN, handle)
 
       bounds = pw_grid%bounds
-      lby = pw_grid%bounds(1, 2)
-      lbz = pw_grid%bounds(1, 3)
 
       IF (pw_grid%grid_span == HALFSPACE) THEN
          n_upperlimit = 0
@@ -1523,76 +1526,30 @@ CONTAINS
 
       ELSE
 
-         IF (pw_grid%para%ray_distribution) THEN
-
-            CALL fft_grid_generate_g_space(pw_grid%fft_grid)
-            nc = fft_grid_get_npts_gs_local(pw_grid%fft_grid)
-            CPASSERT(nc == pw_grid%ngpts_cut_local)
-            ALLOCATE (cidx(3, nc), cgsq(nc))
-            CALL fft_grid_get_index_to_g(pw_grid%fft_grid, cidx)
-            CALL fft_grid_get_gsquared(pw_grid%fft_grid, cgsq)
-            DO gpt = 1, nc
-               IF (pw_grid%grid_span == HALFSPACE) THEN
-                  n = MERGE(0, -cidx(1, gpt), cidx(1, gpt) == 0)
-               ELSE
-                  n = shifted_index_from_c(cidx(1, gpt), pw_grid%npts(3))
-               END IF
-               m = shifted_index_from_c(cidx(2, gpt), pw_grid%npts(2))
-               l = shifted_index_from_c(cidx(3, gpt), pw_grid%npts(1))
-               CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
-               pw_grid%g(1, gpt) = length_x
-               pw_grid%g(2, gpt) = length_y
-               pw_grid%g(3, gpt) = length_z
-               pw_grid%gsq(gpt) = cgsq(gpt)
-               pw_grid%g_hat(1, gpt) = l
-               pw_grid%g_hat(2, gpt) = m
-               pw_grid%g_hat(3, gpt) = n
-            END DO
-            gpt = nc
-            DEALLOCATE (cidx, cgsq)
-
-         ELSE
-
-            bol = pw_grid%para%bo(:, :, pw_grid%para%group%mepos, 3)
-            gpt = 0
-            DO n = bounds(1, 3), bounds(2, 3)
-               IF (n < 0) THEN
-                  nn = n + pw_grid%npts(3) + 1
-               ELSE
-                  nn = n + 1
-               END IF
-               IF (nn < bol(1, 3) .OR. nn > bol(2, 3)) CYCLE
-               DO m = bounds(1, 2), bounds(2, 2)
-                  IF (m < 0) THEN
-                     mm = m + pw_grid%npts(2) + 1
-                  ELSE
-                     mm = m + 1
-                  END IF
-                  IF (mm < bol(1, 2) .OR. mm > bol(2, 2)) CYCLE
-                  DO l = bounds(1, 1), bounds(2, 1)
-                     IF (l < 0) THEN
-                        ll = l + pw_grid%npts(1) + 1
-                     ELSE
-                        ll = l + 1
-                     END IF
-                     IF (ll < bol(1, 1) .OR. ll > bol(2, 1)) CYCLE
-
-                     CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
-
-                     gpt = gpt + 1
-                     pw_grid%g(1, gpt) = length_x
-                     pw_grid%g(2, gpt) = length_y
-                     pw_grid%g(3, gpt) = length_z
-                     pw_grid%gsq(gpt) = length
-                     pw_grid%g_hat(1, gpt) = l
-                     pw_grid%g_hat(2, gpt) = m
-                     pw_grid%g_hat(3, gpt) = n
-
-                  END DO
-               END DO
-            END DO
-
-         END IF
+         nc = fft_grid_get_npts_gs_local(pw_grid%fft_grid)
+         CPASSERT(nc == pw_grid%ngpts_cut_local)
+         ALLOCATE (cidx(3, nc), cgsq(nc))
+         CALL fft_grid_get_index_to_g(pw_grid%fft_grid, cidx)
+         CALL fft_grid_get_gsquared(pw_grid%fft_grid, cgsq)
+         DO gpt = 1, nc
+            IF (pw_grid%grid_span == HALFSPACE) THEN
+               n = MERGE(0, -cidx(1, gpt), cidx(1, gpt) == 0)
+            ELSE
+               n = shifted_index_from_c(cidx(1, gpt), pw_grid%npts(3))
+            END IF
+            m = shifted_index_from_c(cidx(2, gpt), pw_grid%npts(2))
+            l = shifted_index_from_c(cidx(3, gpt), pw_grid%npts(1))
+            CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
+            pw_grid%g(1, gpt) = length_x
+            pw_grid%g(2, gpt) = length_y
+            pw_grid%g(3, gpt) = length_z
+            pw_grid%gsq(gpt) = cgsq(gpt)
+            pw_grid%g_hat(1, gpt) = l
+            pw_grid%g_hat(2, gpt) = m
+            pw_grid%g_hat(3, gpt) = n
+         END DO
+         gpt = nc
+         DEALLOCATE (cidx, cgsq)
 
       END IF
 

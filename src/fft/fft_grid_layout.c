@@ -1056,7 +1056,12 @@ void grid_get_gsquared(const fft_grid_layout *g, double *gsquared) {
 }
 
 int grid_generate_g_space(fft_grid_layout *g) {
-  cp_assert(g != NULL && g->xy_to_process != NULL);
+  cp_assert(g != NULL);
+  if (!g->ray_distribution && g->xy_to_process == NULL) {
+    cp_assert(g->index_to_g != NULL && g->index_to_gsquared != NULL);
+    return 0;
+  }
+  cp_assert(g->xy_to_process != NULL);
   const int n0 = g->npts_global_gspace[0];
   const int n1 = g->npts_global[1];
   const int n2 = g->npts_global[2];
