@@ -185,7 +185,7 @@ void grid_retain_fft_grid_layout(fft_grid_layout *fft_grid);
  * \author Frederick Stein
  ******************************************************************************/
 inline bool is_on_grid(const int shifted_index, const int npts) {
-  return (shifted_index >= -(npts - 1) / 2 && shifted_index <= npts / 2);
+  return (shifted_index >= -npts / 2 && shifted_index <= npts / 2);
 }
 
 /*******************************************************************************

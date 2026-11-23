@@ -2142,9 +2142,14 @@ void grid_create_fft_grid_layout_from_reference(
     if (is_on_grid(shifted_indices[0], my_fft_grid->npts_global[0]) &&
         is_on_grid(shifted_indices[1], my_fft_grid->npts_global[1]) &&
         is_on_grid(shifted_indices[2], my_fft_grid->npts_global[2])) {
+      const int c0 =
+          convert_shifted_index_to_c_index(shifted_indices[0],
+                                           my_fft_grid->npts_global[0]);
       my_fft_grid->npts_gs_local++;
-      my_fft_grid->number_of_positive_gs_points += shifted_indices[0] >= 0;
-      my_fft_grid->number_of_negative_gs_points += shifted_indices[0] < 0;
+      my_fft_grid->number_of_positive_gs_points +=
+          c0 < my_fft_grid->npts_global_gspace[0];
+      my_fft_grid->number_of_negative_gs_points +=
+          c0 >= my_fft_grid->npts_global_gspace[0];
     }
   }
   cp_assert(my_fft_grid->npts_gs_local ==

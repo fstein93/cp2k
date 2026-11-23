@@ -139,10 +139,10 @@ target_link_libraries(
     $<$<BOOL:${CP2K_USE_LIBXS}>:libxs::libxs>
     $<$<BOOL:${CP2K_USE_LIBXSMM}>:libxsmm::libxsmm>
     cp2k::BLAS::blas
-    $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
+    $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT}>>:cp2k::FFTW3::fftw3_mpi>
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_THREADS_SUPPORT}>>:cp2k::FFTW3::fftw3_threads>
     $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_OPENMP_SUPPORT}>>:cp2k::FFTW3::fftw3_omp>
-    $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT}>>:cp2k::FFTW3::fftw3_mpi>
+    $<$<BOOL:${CP2K_USE_FFTW3_}>:cp2k::FFTW3::fftw3>
     $<$<BOOL:${CP2K_USE_CUDA}>:cp2k_cuda_libs>
     $<$<BOOL:${CP2K_USE_HIP}>:cp2k_hip_libs>
     $<$<BOOL:${CP2K_USE_MPI}>:MPI::MPI_Fortran>

@@ -1205,6 +1205,7 @@ CONTAINS
                                     IF (pw1%pw_grid%para%group /= pw2%pw_grid%para%group) THEN
                                        CPABORT("PW grids have not compatible MPI groups")
                                     END IF
+                                    CPABORT("Incompatible Grid layouts")
                                  END IF
 
                                  n => pw1%pw_grid%npts

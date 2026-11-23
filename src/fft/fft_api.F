@@ -2005,7 +2005,7 @@ CONTAINS
       INTEGER, DIMENSION(:, :), INTENT(IN)               :: g_hat, ref_g_hat
       INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)    :: index_to_ref
 
-      INTEGER                                            :: i, nlocal, nref
+      INTEGER                                            :: i, nlocal, nref, nmap
       INTEGER(C_INT), ALLOCATABLE, DIMENSION(:), TARGET  :: g_c, ref_g_c, idx_c
 
       INTERFACE
@@ -2026,8 +2026,9 @@ CONTAINS
       CPASSERT(SIZE(g_hat, 2) == nlocal)
       CPASSERT(SIZE(ref_g_hat, 1) == 3)
       CPASSERT(SIZE(ref_g_hat, 2) == nref)
-      ALLOCATE (index_to_ref(nlocal))
-      ALLOCATE (g_c(0:3*nlocal - 1), ref_g_c(0:3*nref - 1), idx_c(0:nlocal - 1))
+      nmap = MIN(nlocal, nref)
+      ALLOCATE (index_to_ref(nmap))
+      ALLOCATE (g_c(0:3*nlocal - 1), ref_g_c(0:3*nref - 1), idx_c(0:nmap - 1))
       DO i = 1, nlocal
          g_c(3*(i - 1)) = INT(g_hat(1, i))
          g_c(3*(i - 1) + 1) = INT(g_hat(2, i))
@@ -2038,9 +2039,14 @@ CONTAINS
          ref_g_c(3*(i - 1) + 1) = INT(ref_g_hat(2, i))
          ref_g_c(3*(i - 1) + 2) = INT(ref_g_hat(3, i))
       END DO
-      CALL fft_grid_get_local_index_to_ref_grid_c(fft_grid%fft_grid, ref_grid%fft_grid, &
-                                                  g_c, ref_g_c, idx_c)
-      DO i = 1, nlocal
+      IF (nlocal <= nref) THEN
+         CALL fft_grid_get_local_index_to_ref_grid_c(fft_grid%fft_grid, ref_grid%fft_grid, &
+                                                     g_c, ref_g_c, idx_c)
+      ELSE
+         CALL fft_grid_get_local_index_to_ref_grid_c(ref_grid%fft_grid, fft_grid%fft_grid, &
+                                                     ref_g_c, g_c, idx_c)
+      END IF
+      DO i = 1, nmap
          index_to_ref(i) = INT(idx_c(i - 1))
       END DO
       DEALLOCATE (g_c, ref_g_c, idx_c)
