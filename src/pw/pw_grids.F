@@ -1463,36 +1463,39 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       ng = SIZE(pw_grid%gsq)
-      ALLOCATE (idx(ng))
 
-      CALL sort(pw_grid%gsq, ng, idx)
-      CALL sort_shells(pw_grid%gsq, pw_grid%g_hat, idx)
+      IF (pw_grid%para%mode /= PW_MODE_DISTRIBUTED) THEN
+         ALLOCATE (idx(ng))
 
-      ALLOCATE (real_tmp(3, ng))
-      DO i = 1, ng
-         real_tmp(1, i) = pw_grid%g(1, idx(i))
-         real_tmp(2, i) = pw_grid%g(2, idx(i))
-         real_tmp(3, i) = pw_grid%g(3, idx(i))
-      END DO
-      DO i = 1, ng
-         pw_grid%g(1, i) = real_tmp(1, i)
-         pw_grid%g(2, i) = real_tmp(2, i)
-         pw_grid%g(3, i) = real_tmp(3, i)
-      END DO
-      DEALLOCATE (real_tmp)
+         CALL sort(pw_grid%gsq, ng, idx)
+         CALL sort_shells(pw_grid%gsq, pw_grid%g_hat, idx)
 
-      ALLOCATE (int_tmp(3, ng))
-      DO i = 1, ng
-         int_tmp(1, i) = pw_grid%g_hat(1, idx(i))
-         int_tmp(2, i) = pw_grid%g_hat(2, idx(i))
-         int_tmp(3, i) = pw_grid%g_hat(3, idx(i))
-      END DO
-      DO i = 1, ng
-         pw_grid%g_hat(1, i) = int_tmp(1, i)
-         pw_grid%g_hat(2, i) = int_tmp(2, i)
-         pw_grid%g_hat(3, i) = int_tmp(3, i)
-      END DO
-      DEALLOCATE (int_tmp, idx)
+         ALLOCATE (real_tmp(3, ng))
+         DO i = 1, ng
+            real_tmp(1, i) = pw_grid%g(1, idx(i))
+            real_tmp(2, i) = pw_grid%g(2, idx(i))
+            real_tmp(3, i) = pw_grid%g(3, idx(i))
+         END DO
+         DO i = 1, ng
+            pw_grid%g(1, i) = real_tmp(1, i)
+            pw_grid%g(2, i) = real_tmp(2, i)
+            pw_grid%g(3, i) = real_tmp(3, i)
+         END DO
+         DEALLOCATE (real_tmp)
+
+         ALLOCATE (int_tmp(3, ng))
+         DO i = 1, ng
+            int_tmp(1, i) = pw_grid%g_hat(1, idx(i))
+            int_tmp(2, i) = pw_grid%g_hat(2, idx(i))
+            int_tmp(3, i) = pw_grid%g_hat(3, idx(i))
+         END DO
+         DO i = 1, ng
+            pw_grid%g_hat(1, i) = int_tmp(1, i)
+            pw_grid%g_hat(2, i) = int_tmp(2, i)
+            pw_grid%g_hat(3, i) = int_tmp(3, i)
+         END DO
+         DEALLOCATE (int_tmp, idx)
+      END IF
 
       IF (PRESENT(ref_grid)) THEN
          CALL fft_grid_get_local_index_to_ref_grid(pw_grid%fft_grid, ref_grid%fft_grid, &

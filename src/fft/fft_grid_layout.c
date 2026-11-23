@@ -153,29 +153,6 @@ void sort_g_vectors(fft_grid_layout *my_fft_grid) {
     free(gsquared_sorted);
   }
 
-  // Sort the vectors with the same length according to the x-, then y-, then
-  // z-coordinate
-  {
-    double last_g_squared = g_square_index_pair[0].value;
-    int start_index = 0;
-    for (int end_index = 1; end_index < my_fft_grid->npts_gs_local;
-         end_index++) {
-      if (fabs(g_square_index_pair[end_index].value - last_g_squared) >
-          fmax(g_square_index_pair[end_index].value, last_g_squared) *
-              max_rel_error_for_equivalence_g_squared) {
-        // If the length of the current vector is different from the previous
-        // one, sort the vectors with the same length according to the x-, then
-        // y-, then z-coordinate
-        sort_shell(my_fft_grid->index_to_g + start_index,
-                   end_index - start_index);
-        start_index = end_index;
-        last_g_squared = g_square_index_pair[end_index].value;
-      }
-    }
-    // At the end, we need to sort the last shell
-    sort_shell(my_fft_grid->index_to_g + start_index,
-               my_fft_grid->npts_gs_local - start_index);
-  }
   free(g_square_index_pair);
   free(local_index2g_squared);
 
