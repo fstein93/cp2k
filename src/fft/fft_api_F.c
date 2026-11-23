@@ -1052,6 +1052,15 @@ void fft_grid_get_index_to_fft_F(const fft_grid_layout *fft_grid,
   grid_get_index_to_fft(fft_grid, g_hat, index_to_fft);
 }
 
+void fft_grid_get_local_index_to_ref_grid_F(fft_grid_layout *fft_grid,
+                                              const fft_grid_layout *ref,
+                                              const int *g_hat,
+                                              const int *ref_g_hat,
+                                              int *index_to_ref_grid) {
+  grid_get_local_index_to_ref_grid(fft_grid, ref, g_hat, ref_g_hat,
+                                   index_to_ref_grid);
+}
+
 void fft_grid_get_gsquared_F(const fft_grid_layout *fft_grid,
                               double *gsquared) {
   grid_get_gsquared(fft_grid, gsquared);

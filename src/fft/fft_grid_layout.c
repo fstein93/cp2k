@@ -39,6 +39,19 @@ static inline int shifted_index_from_c_index(const fft_grid_layout *g,
   return convert_c_index_to_shifted_index(c_index, g->npts_global[direction]);
 }
 
+static inline int reference_shifted_index(const fft_grid_layout *g,
+                                           const int c_index,
+                                           const int direction) {
+  if (direction == 0 && g->use_halfspace) {
+    if (c_index == 0)
+      return 0;
+    if (c_index >= g->npts_global_gspace[0])
+      return c_index - g->npts_global[0];
+    return -c_index;
+  }
+  return convert_c_index_to_shifted_index(c_index, g->npts_global[direction]);
+}
+
 double squared_length_of_g_vector(const int g[3], double h_inv[3][3]) {
   if (g[0] == 0 && g[1] == 0 && g[2] == 0) {
     return 0.0;
@@ -1097,6 +1110,66 @@ void grid_get_index_to_fft(const fft_grid_layout *g, const int *g_hat,
   free(yzq);
 }
 
+
+void grid_get_local_index_to_ref_grid(fft_grid_layout *g,
+                                       const fft_grid_layout *ref,
+                                       const int *g_hat, const int *ref_g_hat,
+                                       int *local_index_to_ref_grid) {
+  cp_assert(g != NULL && ref != NULL && g_hat != NULL && ref_g_hat != NULL &&
+            local_index_to_ref_grid != NULL);
+  const int nx = ref->npts_global[2];
+  const int ny = ref->npts_global[1];
+  const int nz = ref->npts_global[0];
+  const int ox = (nx - 1) / 2;
+  const int oy = (ny - 1) / 2;
+  const int oz = (nz - 1) / 2;
+  const int nref = ref->npts_gs_local;
+
+  size_t table_size = 1;
+  while (table_size < (size_t)2 * (size_t)nref)
+    table_size <<= 1;
+  long long *keys = malloc(table_size * sizeof(long long));
+  int *values = malloc(table_size * sizeof(int));
+  cp_assert(keys != NULL && values != NULL);
+  for (size_t i = 0; i < table_size; i++)
+    keys[i] = -1;
+
+  for (int ref_index = 0; ref_index < nref; ref_index++) {
+    const long long key =
+        (((long long)(ref_g_hat[3 * ref_index + 2] + oz)) * ny +
+         (ref_g_hat[3 * ref_index + 1] + oy)) *
+            nx +
+        (ref_g_hat[3 * ref_index] + ox);
+    size_t pos = (size_t)((unsigned long long)key * 11400714819323198485ull) &
+                 (table_size - 1);
+    while (keys[pos] != -1)
+      pos = (pos + 1) & (table_size - 1);
+    keys[pos] = key;
+    values[pos] = ref_index;
+  }
+
+  free(g->local_index_to_ref_grid);
+  g->local_index_to_ref_grid =
+      malloc((size_t)g->npts_gs_local * sizeof(int));
+  cp_assert(g->local_index_to_ref_grid != NULL);
+  for (int index = 0; index < g->npts_gs_local; index++) {
+    const long long key =
+        (((long long)(g_hat[3 * index + 2] + oz)) * ny +
+         (g_hat[3 * index + 1] + oy)) *
+            nx +
+        (g_hat[3 * index] + ox);
+    size_t pos = (size_t)((unsigned long long)key * 11400714819323198485ull) &
+                 (table_size - 1);
+    while (keys[pos] != -1 && keys[pos] != key)
+      pos = (pos + 1) & (table_size - 1);
+    cp_assert(keys[pos] == key);
+    g->local_index_to_ref_grid[index] = values[pos];
+    local_index_to_ref_grid[index] = values[pos];
+  }
+
+  free(keys);
+  free(values);
+}
 
 void grid_get_gsquared(const fft_grid_layout *g, double *gsquared) {
   cp_assert(g != NULL && gsquared != NULL);

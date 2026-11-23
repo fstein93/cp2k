@@ -129,6 +129,10 @@ void grid_get_index_to_g(const fft_grid_layout *g, int *index_to_g);
 void grid_get_index_to_fft(const fft_grid_layout *g, const int *g_hat,
                            int *index_to_fft);
 void grid_get_gsquared(const fft_grid_layout *g, double *gsquared);
+void grid_get_local_index_to_ref_grid(fft_grid_layout *g,
+                                       const fft_grid_layout *ref,
+                                       const int *g_hat, const int *ref_g_hat,
+                                       int *local_index_to_ref_grid);
 
 int grid_finalize_ray_distribution(fft_grid_layout *g, const int nlocal,
                                     const int (*index_to_g)[3],

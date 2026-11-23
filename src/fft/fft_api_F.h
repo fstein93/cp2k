@@ -694,6 +694,11 @@ void fft_grid_get_index_to_fft_F(const fft_grid_layout *fft_grid,
                                   const int *g_hat, int *index_to_fft);
 void fft_grid_get_gsquared_F(const fft_grid_layout *fft_grid,
                               double *gsquared);
+void fft_grid_get_local_index_to_ref_grid_F(fft_grid_layout *fft_grid,
+                                              const fft_grid_layout *ref,
+                                              const int *g_hat,
+                                              const int *ref_g_hat,
+                                              int *index_to_ref_grid);
 
 void fft_grid_prepare_ray_mapping_F(fft_grid_layout *fft_grid,
                                       const fft_grid_layout *ref);

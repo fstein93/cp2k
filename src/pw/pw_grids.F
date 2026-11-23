@@ -55,6 +55,7 @@ MODULE pw_grids
                                               fft_grid_get_npts_gs_local,&
                                               fft_grid_get_index_to_g,&
                                               fft_grid_get_index_to_fft,&
+                                              fft_grid_get_local_index_to_ref_grid,&
                                               fft_grid_get_gsquared,&
                                               fft_grid_get_yzp,&
                                               fft_grid_finalize_ray_distribution
@@ -1454,11 +1455,9 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_sort'
 
-      INTEGER                                            :: handle, i, ig, ih, ip, is, it, ng, ngr
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: idx
+      INTEGER                                            :: handle, i, ng
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cidx_ref, idx
       INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: int_tmp
-      LOGICAL                                            :: g_found
-      REAL(KIND=dp)                                      :: gig, gigr
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:, :)        :: real_tmp
 
       CALL timeset(routineN, handle)
@@ -1466,9 +1465,7 @@ CONTAINS
       ng = SIZE(pw_grid%gsq)
       ALLOCATE (idx(ng))
 
-      ! grids are (locally) ordered by length of G-vectors
       CALL sort(pw_grid%gsq, ng, idx)
-      ! within shells order wrt x,y,z
       CALL sort_shells(pw_grid%gsq, pw_grid%g_hat, idx)
 
       ALLOCATE (real_tmp(3, ng))
@@ -1495,130 +1492,16 @@ CONTAINS
          pw_grid%g_hat(2, i) = int_tmp(2, i)
          pw_grid%g_hat(3, i) = int_tmp(3, i)
       END DO
-      DEALLOCATE (int_tmp)
+      DEALLOCATE (int_tmp, idx)
 
-      DEALLOCATE (idx)
-
-      ! check if ordering is compatible to reference grid
       IF (PRESENT(ref_grid)) THEN
-         ngr = SIZE(ref_grid%gsq)
-         ngr = MIN(ng, ngr)
-         IF (pw_grid%spherical) THEN
-            IF (.NOT. ALL(pw_grid%g_hat(1:3, 1:ngr) &
-                          == ref_grid%g_hat(1:3, 1:ngr))) THEN
-               CPABORT("G space sorting not compatible")
-            END IF
-         ELSE
-            ALLOCATE (pw_grid%gidx(1:ngr))
-            pw_grid%gidx = 0
-            ! first try as many trivial associations as possible
-            it = 0
-            DO ig = 1, ngr
-               IF (.NOT. ALL(pw_grid%g_hat(1:3, ig) &
-                             == ref_grid%g_hat(1:3, ig))) EXIT
-               pw_grid%gidx(ig) = ig
-               it = ig
-            END DO
-            ! now for the ones that could not be done
-            IF (ng == ngr) THEN
-               ! for the case pw_grid <= ref_grid
-               is = it
-               DO ig = it + 1, ngr
-                  gig = pw_grid%gsq(ig)
-                  gigr = MAX(1._dp, gig)
-                  g_found = .FALSE.
-                  DO ih = is + 1, SIZE(ref_grid%gsq)
-                     IF (ABS(gig - ref_grid%gsq(ih))/gigr > 1.e-12_dp) CYCLE
-                     g_found = .TRUE.
-                     EXIT
-                  END DO
-                  IF (.NOT. g_found) THEN
-                     WRITE (*, "(A,I10,F20.10)") "G-vector", ig, pw_grid%gsq(ig)
-                     CPABORT("G vector not found")
-                  END IF
-                  ip = ih - 1
-                  DO ih = ip + 1, SIZE(ref_grid%gsq)
-                     IF (ABS(gig - ref_grid%gsq(ih))/gigr > 1.e-12_dp) CYCLE
-                     IF (pw_grid%g_hat(1, ig) /= ref_grid%g_hat(1, ih)) CYCLE
-                     IF (pw_grid%g_hat(2, ig) /= ref_grid%g_hat(2, ih)) CYCLE
-                     IF (pw_grid%g_hat(3, ig) /= ref_grid%g_hat(3, ih)) CYCLE
-                     pw_grid%gidx(ig) = ih
-                     EXIT
-                  END DO
-                  IF (pw_grid%gidx(ig) == 0) THEN
-                     DO ih = 1, SIZE(ref_grid%gsq)
-                        IF (ABS(gig - ref_grid%gsq(ih))/gigr > 1.e-12_dp) CYCLE
-                        IF (pw_grid%g_hat(1, ig) /= ref_grid%g_hat(1, ih)) CYCLE
-                        IF (pw_grid%g_hat(2, ig) /= ref_grid%g_hat(2, ih)) CYCLE
-                        IF (pw_grid%g_hat(3, ig) /= ref_grid%g_hat(3, ih)) CYCLE
-                        pw_grid%gidx(ig) = ih
-                        EXIT
-                     END DO
-                  END IF
-                  IF (pw_grid%gidx(ig) == 0) THEN
-                     WRITE (*, "(A,2I10)") " G-Shell ", is + 1, ip + 1
-                     WRITE (*, "(A,I10,3I6,F20.10)") &
-                        " G-vector", ig, pw_grid%g_hat(1:3, ig), pw_grid%gsq(ig)
-                     DO ih = 1, SIZE(ref_grid%gsq)
-                        IF (pw_grid%g_hat(1, ig) /= ref_grid%g_hat(1, ih)) CYCLE
-                        IF (pw_grid%g_hat(2, ig) /= ref_grid%g_hat(2, ih)) CYCLE
-                        IF (pw_grid%g_hat(3, ig) /= ref_grid%g_hat(3, ih)) CYCLE
-                        WRITE (*, "(A,I10,3I6,F20.10)") &
-                           " G-vector", ih, ref_grid%g_hat(1:3, ih), ref_grid%gsq(ih)
-                     END DO
-                     CPABORT("G vector not found")
-                  END IF
-                  is = ip
-               END DO
-            ELSE
-               ! for the case pw_grid > ref_grid
-               is = it
-               DO ig = it + 1, ngr
-                  gig = ref_grid%gsq(ig)
-                  gigr = MAX(1._dp, gig)
-                  g_found = .FALSE.
-                  DO ih = is + 1, ng
-                     IF (ABS(pw_grid%gsq(ih) - gig)/gigr > 1.e-12_dp) CYCLE
-                     g_found = .TRUE.
-                     EXIT
-                  END DO
-                  IF (.NOT. g_found) THEN
-                     WRITE (*, "(A,I10,F20.10)") "G-vector", ig, ref_grid%gsq(ig)
-                     CPABORT("G vector not found")
-                  END IF
-                  ip = ih - 1
-                  DO ih = ip + 1, ng
-                     IF (ABS(pw_grid%gsq(ih) - gig)/gigr > 1.e-12_dp) CYCLE
-                     IF (pw_grid%g_hat(1, ih) /= ref_grid%g_hat(1, ig)) CYCLE
-                     IF (pw_grid%g_hat(2, ih) /= ref_grid%g_hat(2, ig)) CYCLE
-                     IF (pw_grid%g_hat(3, ih) /= ref_grid%g_hat(3, ig)) CYCLE
-                     pw_grid%gidx(ig) = ih
-                     EXIT
-                  END DO
-                  IF (pw_grid%gidx(ig) == 0) THEN
-                     WRITE (*, "(A,2I10)") " G-Shell ", is + 1, ip + 1
-                     WRITE (*, "(A,I10,3I6,F20.10)") &
-                        " G-vector", ig, ref_grid%g_hat(1:3, ig), ref_grid%gsq(ig)
-                     DO ih = 1, ng
-                        IF (pw_grid%g_hat(1, ih) /= ref_grid%g_hat(1, ig)) CYCLE
-                        IF (pw_grid%g_hat(2, ih) /= ref_grid%g_hat(2, ig)) CYCLE
-                        IF (pw_grid%g_hat(3, ih) /= ref_grid%g_hat(3, ig)) CYCLE
-                        WRITE (*, "(A,I10,3I6,F20.10)") &
-                           " G-vector", ih, pw_grid%g_hat(1:3, ih), pw_grid%gsq(ih)
-                     END DO
-                     CPABORT("G vector not found")
-                  END IF
-                  is = ip
-               END DO
-            END IF
-            ! test if all g-vectors are associated
-            IF (ANY(pw_grid%gidx == 0)) THEN
-               CPABORT("G space sorting not compatible")
-            END IF
-         END IF
+         CALL fft_grid_get_local_index_to_ref_grid(pw_grid%fft_grid, ref_grid%fft_grid, &
+                                                   pw_grid%g_hat, ref_grid%g_hat, cidx_ref)
+         ALLOCATE (pw_grid%gidx(SIZE(cidx_ref)))
+         pw_grid%gidx = cidx_ref + 1
+         DEALLOCATE (cidx_ref)
       END IF
 
-      !check if G=0 is at first position
       IF (pw_grid%have_g0) THEN
          IF (pw_grid%gsq(1) /= 0.0_dp) THEN
             CPABORT("G = 0 not in first position")
