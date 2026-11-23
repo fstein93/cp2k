@@ -57,8 +57,7 @@ MODULE pw_grids
                                               fft_grid_get_index_to_fft,&
                                               fft_grid_get_local_index_to_ref_grid,&
                                               fft_grid_get_gsquared,&
-                                              fft_grid_get_yzp,&
-                                              fft_grid_finalize_ray_distribution
+                                              fft_grid_get_yzp
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               int_size
@@ -325,9 +324,6 @@ CONTAINS
       INTEGER, DIMENSION(2)                              :: my_rs_dims
       INTEGER, DIMENSION(3)                              :: n
       INTEGER, DIMENSION(2)                              :: pgrid
-      INTEGER                                            :: c0, c1, c2, ig, nlocal_ray
-      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: gidx_ray
-      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: gsq_ray
       LOGICAL                                            :: blocking_now, my_fft_usage, my_odd, &
                                                             my_spherical, use_ray
       REAL(KIND=dp)                                      :: cell_deth, my_cutoff
@@ -474,25 +470,7 @@ CONTAINS
                                   blocked=blocked, ref_grid=ref_grid, iounit=iounit, &
                                   use_ray_distribution=use_ray)
 
-      IF (use_ray) THEN
-         CALL pw_grid_validate_c_gspace(pw_grid)
-         nlocal_ray = pw_grid%ngpts_cut_local
-         ALLOCATE (gidx_ray(3, nlocal_ray), gsq_ray(nlocal_ray))
-         DO ig = 1, nlocal_ray
-            c2 = pw_grid%g_hat(1, ig)
-            c1 = pw_grid%g_hat(2, ig)
-            c0 = pw_grid%g_hat(3, ig)
-            IF (c0 < 0) c0 = c0 + pw_grid%npts(3)
-            IF (c1 < 0) c1 = c1 + pw_grid%npts(2)
-            IF (c2 < 0) c2 = c2 + pw_grid%npts(1)
-            gidx_ray(1, ig) = c0
-            gidx_ray(2, ig) = c1
-            gidx_ray(3, ig) = c2
-            gsq_ray(ig) = pw_grid%gsq(ig)
-         END DO
-         CALL fft_grid_finalize_ray_distribution(pw_grid%fft_grid, gidx_ray, gsq_ray)
-         DEALLOCATE (gidx_ray, gsq_ray)
-      END IF
+      IF (use_ray) CALL pw_grid_validate_c_gspace(pw_grid)
       CALL pw_grid_check_distribution(pw_grid)
       CPASSERT(use_ray .EQV. fft_grid_is_ray_distributed(pw_grid%fft_grid))
       CPASSERT(use_ray .EQV. pw_grid%para%ray_distribution)
