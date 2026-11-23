@@ -31,21 +31,29 @@ typedef struct {
   int index;
 } double_index_pair;
 
+static inline int shifted_index_from_c_index(const fft_grid_layout *g,
+                                             const int c_index,
+                                             const int direction) {
+  if (direction == 0 && g->use_halfspace)
+    return c_index == 0 ? 0 : -c_index;
+  return convert_c_index_to_shifted_index(c_index, g->npts_global[direction]);
+}
+
 double squared_length_of_g_vector(const int g[3], double h_inv[3][3]) {
   if (g[0] == 0 && g[1] == 0 && g[2] == 0) {
     return 0.0;
   }
   const double two_pi = 2.0 * acos(-1.0);
-  double length_g_squared = 0.0;
-  for (int dir = 0; dir < 3; dir++) {
-    double length_g_dir = 0.0;
-    for (int dir2 = 0; dir2 < 3; dir2++) {
-      length_g_dir += g[dir] * h_inv[dir2][dir];
-    }
-    length_g_dir *= two_pi;
-    length_g_squared += length_g_dir * length_g_dir;
-  }
-  return length_g_squared;
+  const double gx = g[2];
+  const double gy = g[1];
+  const double gz = g[0];
+  double length_x = gx * h_inv[2][2] + gy * h_inv[2][1] + gz * h_inv[2][0];
+  double length_y = gx * h_inv[1][2] + gy * h_inv[1][1] + gz * h_inv[1][0];
+  double length_z = gx * h_inv[0][2] + gy * h_inv[0][1] + gz * h_inv[0][0];
+  length_x *= two_pi;
+  length_y *= two_pi;
+  length_z *= two_pi;
+  return length_x * length_x + length_y * length_y + length_z * length_z;
 }
 
 int compare_double(const void *a, const void *b) {
@@ -87,12 +95,12 @@ void sort_g_vectors(fft_grid_layout *my_fft_grid) {
   for (int index = 0; index < my_fft_grid->npts_gs_local; index++) {
     local_index2g_squared[index] = squared_length_of_g_vector(
         (const int[3]){
-            convert_c_index_to_shifted_index(my_fft_grid->index_to_g[index][0],
-                                             my_fft_grid->npts_global[0]),
-            convert_c_index_to_shifted_index(my_fft_grid->index_to_g[index][1],
-                                             my_fft_grid->npts_global[1]),
-            convert_c_index_to_shifted_index(my_fft_grid->index_to_g[index][2],
-                                             my_fft_grid->npts_global[2])},
+            shifted_index_from_c_index(my_fft_grid,
+                                       my_fft_grid->index_to_g[index][0], 0),
+            shifted_index_from_c_index(my_fft_grid,
+                                       my_fft_grid->index_to_g[index][1], 1),
+            shifted_index_from_c_index(my_fft_grid,
+                                       my_fft_grid->index_to_g[index][2], 2)},
         my_fft_grid->cell_info.dhmat);
   }
 
@@ -157,6 +165,21 @@ void sort_g_vectors(fft_grid_layout *my_fft_grid) {
   }
   free(g_square_index_pair);
   free(local_index2g_squared);
+
+  if (my_fft_grid->index_to_gsquared != NULL) {
+#pragma omp parallel for default(none) shared(my_fft_grid)
+    for (int index = 0; index < my_fft_grid->npts_gs_local; index++) {
+      my_fft_grid->index_to_gsquared[index] = squared_length_of_g_vector(
+          (const int[3]){
+              shifted_index_from_c_index(my_fft_grid,
+                                         my_fft_grid->index_to_g[index][0], 0),
+              shifted_index_from_c_index(my_fft_grid,
+                                         my_fft_grid->index_to_g[index][1], 1),
+              shifted_index_from_c_index(my_fft_grid,
+                                         my_fft_grid->index_to_g[index][2], 2)},
+          my_fft_grid->cell_info.dhmat);
+    }
+  }
 }
 
 void grid_free_fft_grid_layout(fft_grid_layout *fft_grid) {
@@ -1055,6 +1078,13 @@ int grid_generate_g_space(fft_grid_layout *g) {
                          : convert_c_index_to_shifted_index(
                                c0, g->npts_global[0]);
       const int s1 = convert_c_index_to_shifted_index(c1, n1);
+      const bool mirror_outside =
+          g->use_halfspace &&
+          ((g->npts_global[0] % 2 == 0 &&
+            s0 == -(g->npts_global[0] / 2)) ||
+           (n1 % 2 == 0 && s1 == -(n1 / 2)));
+      if (mirror_outside)
+        continue;
       for (int c2 = 0; c2 < n2; c2++) {
         const int s2 = convert_c_index_to_shifted_index(c2, n2);
         if (g->use_halfspace && s0 == 0 &&
@@ -1629,12 +1659,12 @@ void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
   for (int index = 0; index < my_fft_grid->npts_gs_local; index++) {
     my_fft_grid->index_to_gsquared[index] = squared_length_of_g_vector(
         (const int[3]){
-            convert_c_index_to_shifted_index(my_fft_grid->index_to_g[index][0],
-                                             my_fft_grid->npts_global[0]),
-            convert_c_index_to_shifted_index(my_fft_grid->index_to_g[index][1],
-                                             my_fft_grid->npts_global[1]),
-            convert_c_index_to_shifted_index(my_fft_grid->index_to_g[index][2],
-                                             my_fft_grid->npts_global[2])},
+            shifted_index_from_c_index(my_fft_grid,
+                                       my_fft_grid->index_to_g[index][0], 0),
+            shifted_index_from_c_index(my_fft_grid,
+                                       my_fft_grid->index_to_g[index][1], 1),
+            shifted_index_from_c_index(my_fft_grid,
+                                       my_fft_grid->index_to_g[index][2], 2)},
         my_fft_grid->cell_info.dhmat);
   }
 
@@ -2063,12 +2093,12 @@ void grid_create_fft_grid_layout_from_reference(
   for (int index = 0; index < my_fft_grid->npts_gs_local; index++) {
     my_fft_grid->index_to_gsquared[index] = squared_length_of_g_vector(
         (const int[3]){
-            convert_c_index_to_shifted_index(my_fft_grid->index_to_g[index][0],
-                                             my_fft_grid->npts_global[0]),
-            convert_c_index_to_shifted_index(my_fft_grid->index_to_g[index][1],
-                                             my_fft_grid->npts_global[1]),
-            convert_c_index_to_shifted_index(my_fft_grid->index_to_g[index][2],
-                                             my_fft_grid->npts_global[2])},
+            shifted_index_from_c_index(my_fft_grid,
+                                       my_fft_grid->index_to_g[index][0], 0),
+            shifted_index_from_c_index(my_fft_grid,
+                                       my_fft_grid->index_to_g[index][1], 1),
+            shifted_index_from_c_index(my_fft_grid,
+                                       my_fft_grid->index_to_g[index][2], 2)},
         my_fft_grid->cell_info.dhmat);
   }
 

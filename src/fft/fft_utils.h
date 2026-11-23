@@ -272,7 +272,7 @@ static inline void transpose_xyz2zyx_double(
  * \author Frederick Stein
  ******************************************************************************/
 inline int convert_c_index_to_shifted_index(const int c_index, const int npts) {
-  return (c_index > npts / 2 ? c_index - npts : c_index);
+  return (c_index >= (npts + 1) / 2 ? c_index - npts : c_index);
 }
 
 /*******************************************************************************

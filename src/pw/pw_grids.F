@@ -1348,6 +1348,22 @@ CONTAINS
    END SUBROUTINE pw_vec_length
 
 ! **************************************************************************************************
+!> \brief Convert a C-space index to the shifted Fortran frequency convention.
+! **************************************************************************************************
+   PURE INTEGER FUNCTION shifted_index_from_c(c, n) RESULT(s)
+
+      INTEGER, INTENT(IN)                                :: c, n
+
+      s = c
+      IF (MOD(n, 2) == 0 .AND. s == n/2) THEN
+         s = -n/2
+      ELSE IF (s > n/2) THEN
+         s = s - n
+      END IF
+
+   END FUNCTION shifted_index_from_c
+
+! **************************************************************************************************
 !> \brief True for rays that must stay out of the stored half-space: on an
 !>        asymmetric (even) frequency window the -g mirror of a ray on the
 !>        lower extreme plane falls outside the grid, while the ray
@@ -1474,11 +1490,13 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER                        :: routineN = 'pw_grid_assign'
 
-      INTEGER                                            :: gpt, handle, i, ip, l, lby, lbz, ll, m, &
-                                                            mm, n, n_upperlimit, nn
+      INTEGER                                            :: gpt, handle, l, lby, lbz, ll, m, &
+                                                            mm, n, n_upperlimit, nc, nn
       INTEGER(KIND=int_8)                                :: gpt_global
+      INTEGER, ALLOCATABLE, DIMENSION(:, :)              :: cidx
       INTEGER, DIMENSION(2, 3)                           :: bol, bounds
       REAL(KIND=dp)                                      :: length, length_x, length_y, length_z
+      REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: cgsq
 
       CALL timeset(routineN, handle)
 
@@ -1527,34 +1545,31 @@ CONTAINS
 
          IF (pw_grid%para%ray_distribution) THEN
 
-            gpt = 0
-            ip = pw_grid%para%group%mepos
-            DO i = 1, pw_grid%para%nyzray(ip)
-               n = pw_grid%para%yzp(2, i, ip) + lbz - 1
-               m = pw_grid%para%yzp(1, i, ip) + lby - 1
-               IF (n > n_upperlimit) CYCLE
-               ! keep the stored half-space closed under negation (see pw_grid_count)
-               IF (mirror_outside_bounds(pw_grid%grid_span, m, n, bounds)) CYCLE
-               DO l = bounds(1, 1), bounds(2, 1)
-                  IF (pw_grid%grid_span == HALFSPACE .AND. n == 0) THEN
-                     IF ((m == 0 .AND. l > 0) .OR. (m > 0)) CYCLE
-                  END IF
-
-                  CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
-
-                  IF (0.5_dp*length <= cutoff) THEN
-                     gpt = gpt + 1
-                     pw_grid%g(1, gpt) = length_x
-                     pw_grid%g(2, gpt) = length_y
-                     pw_grid%g(3, gpt) = length_z
-                     pw_grid%gsq(gpt) = length
-                     pw_grid%g_hat(1, gpt) = l
-                     pw_grid%g_hat(2, gpt) = m
-                     pw_grid%g_hat(3, gpt) = n
-                  END IF
-
-               END DO
+            CALL fft_grid_generate_g_space(pw_grid%fft_grid)
+            nc = fft_grid_get_npts_gs_local(pw_grid%fft_grid)
+            CPASSERT(nc == pw_grid%ngpts_cut_local)
+            ALLOCATE (cidx(3, nc), cgsq(nc))
+            CALL fft_grid_get_index_to_g(pw_grid%fft_grid, cidx)
+            CALL fft_grid_get_gsquared(pw_grid%fft_grid, cgsq)
+            DO gpt = 1, nc
+               IF (pw_grid%grid_span == HALFSPACE) THEN
+                  n = MERGE(0, -cidx(1, gpt), cidx(1, gpt) == 0)
+               ELSE
+                  n = shifted_index_from_c(cidx(1, gpt), pw_grid%npts(3))
+               END IF
+               m = shifted_index_from_c(cidx(2, gpt), pw_grid%npts(2))
+               l = shifted_index_from_c(cidx(3, gpt), pw_grid%npts(1))
+               CALL pw_vec_length(h_inv, length_x, length_y, length_z, length, l, m, n)
+               pw_grid%g(1, gpt) = length_x
+               pw_grid%g(2, gpt) = length_y
+               pw_grid%g(3, gpt) = length_z
+               pw_grid%gsq(gpt) = cgsq(gpt)
+               pw_grid%g_hat(1, gpt) = l
+               pw_grid%g_hat(2, gpt) = m
+               pw_grid%g_hat(3, gpt) = n
             END DO
+            gpt = nc
+            DEALLOCATE (cidx, cgsq)
 
          ELSE
 
