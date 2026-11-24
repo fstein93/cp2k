@@ -1592,6 +1592,7 @@ set(CP2K_FFT_SRCS_C
     fft/fft_api_F.c
     fft/fft_lib.c
     fft/fft_driver.c
+    fft/fft_driver_gpu.c
     fft/fft_redistribution.c
     fft/fft_grid_layout.c
     fft/fft_redistribution_test.c
