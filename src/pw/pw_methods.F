@@ -1199,12 +1199,6 @@ CONTAINS
 
                                  !..check if grids are compatible
                                  IF (.NOT. ASSOCIATED(pw1%pw_grid, pw2%pw_grid)) THEN
-                                    IF (pw1%pw_grid%dvol /= pw2%pw_grid%dvol) THEN
-                                       CPABORT("PW grids not compatible")
-                                    END IF
-                                    IF (pw1%pw_grid%para%group /= pw2%pw_grid%para%group) THEN
-                                       CPABORT("PW grids have not compatible MPI groups")
-                                    END IF
                                     CPABORT("Incompatible Grid layouts")
                                  END IF
 
@@ -1401,7 +1395,7 @@ CONTAINS
                                                 WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
                                              grays = z_zero
                                              CALL pw_scatter_p_${kind}$ (pw1, grays)
-                                             nloc = pw2%pw_grid%npts_local
+                                             nloc = pw1%pw_grid%npts_local
                                              ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
                                              !..transform
                                              IF (pw1%pw_grid%para%ray_distribution) THEN
