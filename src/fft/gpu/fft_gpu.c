@@ -862,9 +862,11 @@ static void fft_gpu_r2c_3d(const int direction, const int nx, const int ny,
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
 void fft_gpu_register_3d_local(const bool dir, const int *npts,
-                               const bool inplace, const int number_of_ffts,
+                               const int number_of_ffts,
                                const bool transpose_in,
-                               const bool transpose_out) {
+                               const bool transpose_out,
+                               double complex *grid_in,
+                               double complex *grid_out) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   if (npts[0] == 0 || npts[1] == 0 || npts[2] == 0 || number_of_ffts == 0) {
@@ -873,14 +875,15 @@ void fft_gpu_register_3d_local(const bool dir, const int *npts,
   // Run FFT on the device.
   fft_gpu_register_3d(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, npts[0],
                       npts[1], npts[2], number_of_ffts, transpose_in,
-                      transpose_out, inplace);
+                      transpose_out, grid_in == grid_out);
 #else
   (void)dir;
   (void)npts;
-  (void)inplace;
   (void)number_of_ffts;
   (void)transpose_in;
   (void)transpose_out;
+  (void)grid_in;
+  (void)grid_out;
 #endif
 }
 
@@ -935,7 +938,8 @@ void fft_gpu_register_1d_local(const bool dir, const int n, const int m,
                                const bool transpose_out,
                                const int leading_dimension_in,
                                const int leading_dimension_out,
-                               const bool inplace) {
+                               double complex *grid_in,
+                               double complex *grid_out) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   if (n == 0 || m == 0) {
@@ -945,7 +949,7 @@ void fft_gpu_register_1d_local(const bool dir, const int n, const int m,
   // Run FFT on the device.
   fft_gpu_register_1d(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, n, m,
                       transpose_in, transpose_out, leading_dimension_in,
-                      leading_dimension_out, inplace);
+                      leading_dimension_out, grid_in == grid_out);
 #else
   (void)dir;
   (void)n;
@@ -954,7 +958,8 @@ void fft_gpu_register_1d_local(const bool dir, const int n, const int m,
   (void)transpose_out;
   (void)leading_dimension_in;
   (void)leading_dimension_out;
-  (void)inplace;
+  (void)grid_in;
+  (void)grid_out;
 #endif
 }
 
@@ -970,12 +975,12 @@ void fft_gpu_register_1d_local(const bool dir, const int n, const int m,
  * \param inplace Whether the transform is performed in-place.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
-void fft_gpu_register_1d_r2c_local(const bool dir, const int n, const int m,
+void fft_gpu_register_1d_r2c_local(const int n, const int m,
                                    const bool transpose_in,
                                    const bool transpose_out,
                                    const int leading_dimension_in,
                                    const int leading_dimension_out,
-                                   const bool inplace) {
+                                   double *grid_in, double complex *grid_out) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   const int nrpts = n * m;
@@ -984,18 +989,61 @@ void fft_gpu_register_1d_r2c_local(const bool dir, const int n, const int m,
   }
 
   // Run FFT on the device.
-  fft_gpu_register_r2c_1d(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, n, m,
-                          transpose_in, transpose_out, leading_dimension_in,
-                          leading_dimension_out, inplace);
+  fft_gpu_register_r2c_1d(OFFLOAD_FFT_FORWARD, n, m, transpose_in,
+                          transpose_out, leading_dimension_in,
+                          leading_dimension_out,
+                          (void *)grid_in == (void *)grid_out);
 #else
-  (void)dir;
   (void)n;
   (void)m;
   (void)transpose_in;
   (void)transpose_out;
   (void)leading_dimension_in;
   (void)leading_dimension_out;
-  (void)inplace;
+  (void)grid_in;
+  (void)grid_out;
+#endif
+}
+
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) C2R 1D-FFT on the GPU.
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param grid_in Input complex data.
+ * \param grid_out Output real data.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_register_1d_c2r_local(const int n, const int m,
+                                   const bool transpose_in,
+                                   const bool transpose_out,
+                                   const int leading_dimension_in,
+                                   const int leading_dimension_out,
+                                   double complex *grid_in, double *grid_out) {
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+  // Check inputs.
+  const int nrpts = n * m;
+  if (nrpts == 0) {
+    return;
+  }
+
+  // Run FFT on the device.
+  fft_gpu_register_r2c_1d(OFFLOAD_FFT_INVERSE, n, m, transpose_in,
+                          transpose_out, leading_dimension_in,
+                          leading_dimension_out,
+                          (void *)grid_in == (void *)grid_out);
+#else
+  (void)n;
+  (void)m;
+  (void)transpose_in;
+  (void)transpose_out;
+  (void)leading_dimension_in;
+  (void)leading_dimension_out;
+  (void)grid_in;
+  (void)grid_out;
 #endif
 }
 
@@ -1011,7 +1059,9 @@ void fft_gpu_register_1d_r2c_local(const bool dir, const int n, const int m,
  ******************************************************************************/
 void fft_gpu_register_2d_local(const bool dir, const int n[2], const int m,
                                const bool transpose_in,
-                               const bool transpose_out, const bool inplace) {
+                               const bool transpose_out,
+                               double complex *grid_in,
+                               double complex *grid_out) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   const int nrpts = n[0] * n[1] * m;
@@ -1021,14 +1071,15 @@ void fft_gpu_register_2d_local(const bool dir, const int n[2], const int m,
 
   // Run FFT on the device.
   fft_gpu_register_2d(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, n, m,
-                      transpose_in, transpose_out, inplace);
+                      transpose_in, transpose_out, grid_in == grid_out);
 #else
   (void)dir;
   (void)n;
   (void)m;
   (void)transpose_in;
   (void)transpose_out;
-  (void)inplace;
+  (void)grid_in;
+  (void)grid_out;
 #endif
 }
 
@@ -1078,9 +1129,10 @@ void fft_gpu_register_2d_r2c_local(const bool dir, const int n[2], const int m,
  * \param transpose_out Whether the output array uses the transposed layout.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
-void fft_gpu_3d_local(const double *zin, double *zout, const bool dir,
-                      const int *npts, const int number_of_ffts,
-                      const bool transpose_in, const bool transpose_out) {
+void fft_gpu_3d_local(const bool dir, const int *npts,
+                      const int number_of_ffts, const bool transpose_in,
+                      const bool transpose_out, const double complex *zin,
+                      double complex *zout) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   if (npts[0] == 0 || npts[1] == 0 || npts[2] == 0 || number_of_ffts == 0) {
@@ -1187,10 +1239,11 @@ void fft_gpu_3d_r2c_local(const double *zin, double *zout, const bool dir,
  * \param leading_dimension_out Leading dimension of the output array.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
-void fft_gpu_1d_local(const double *zin, double *zout, const bool dir,
-                      const int n, const int m, const bool transpose_in,
-                      const bool transpose_out, const int leading_dimension_in,
-                      const int leading_dimension_out) {
+void fft_gpu_1d_local(const bool dir, const int n, const int m,
+                      const bool transpose_in, const bool transpose_out,
+                      const int leading_dimension_in,
+                      const int leading_dimension_out,
+                      const double complex *zin, double complex *zout) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   if (n == 0 || m == 0) {
@@ -1252,11 +1305,12 @@ void fft_gpu_1d_local(const double *zin, double *zout, const bool dir,
  * \param leading_dimension_out Leading dimension of the output array.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
-void fft_gpu_1d_r2c_local(const double *zin, double *zout, const bool dir,
-                          const int n, const int m, const bool transpose_in,
-                          const bool transpose_out,
-                          const int leading_dimension_in,
-                          const int leading_dimension_out) {
+static void fft_gpu_1d_r2c_impl(const double *zin, double *zout,
+                                const bool dir, const int n, const int m,
+                                const bool transpose_in,
+                                const bool transpose_out,
+                                const int leading_dimension_in,
+                                const int leading_dimension_out) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   if (n == 0 || m == 0) {
@@ -1302,6 +1356,50 @@ void fft_gpu_1d_r2c_local(const double *zin, double *zout, const bool dir,
 }
 
 /*******************************************************************************
+ * \brief   Performs a (double precision complex) R2C 1D-FFT on the GPU.
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param zin Input real data.
+ * \param zout Output complex data.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_1d_r2c_local(const int n, const int m, const bool transpose_in,
+                          const bool transpose_out,
+                          const int leading_dimension_in,
+                          const int leading_dimension_out, const double *zin,
+                          double complex *zout) {
+  fft_gpu_1d_r2c_impl(zin, (double *)zout, true, n, m, transpose_in,
+                      transpose_out, leading_dimension_in,
+                      leading_dimension_out);
+}
+
+/*******************************************************************************
+ * \brief   Performs a (double precision complex) C2R 1D-FFT on the GPU.
+ * \param n Transform length.
+ * \param m Number of transforms.
+ * \param transpose_in Whether the input array uses the transposed layout.
+ * \param transpose_out Whether the output array uses the transposed layout.
+ * \param leading_dimension_in Leading dimension of the input array.
+ * \param leading_dimension_out Leading dimension of the output array.
+ * \param zin Input complex data.
+ * \param zout Output real data.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_1d_c2r_local(const int n, const int m, const bool transpose_in,
+                          const bool transpose_out,
+                          const int leading_dimension_in,
+                          const int leading_dimension_out,
+                          const double complex *zin, double *zout) {
+  fft_gpu_1d_r2c_impl((const double *)zin, zout, false, n, m, transpose_in,
+                      transpose_out, leading_dimension_in,
+                      leading_dimension_out);
+}
+
+/*******************************************************************************
  * \brief   Performs a (double precision complex) 2D-FFT on the GPU.
  * \param zin Input complex data.
  * \param zout Output complex data.
@@ -1312,9 +1410,9 @@ void fft_gpu_1d_r2c_local(const double *zin, double *zout, const bool dir,
  * \param transpose_out Whether the output array uses the transposed layout.
  * \author  Frederick Stein
  ******************************************************************************/
-void fft_gpu_2d_local(const double *zin, double *zout, const bool dir,
-                      const int n[2], const int m, const bool transpose_in,
-                      const bool transpose_out) {
+void fft_gpu_2d_local(const bool dir, const int n[2], const int m,
+                      const bool transpose_in, const bool transpose_out,
+                      const double complex *zin, double complex *zout) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   if (n[0] == 0 || n[1] == 0 || m == 0) {
