@@ -59,6 +59,8 @@ MODULE fft_api
    PUBLIC :: fft_grid_get_index_to_g
    PUBLIC :: fft_grid_get_index_to_fft
    PUBLIC :: fft_grid_get_gsquared
+   PUBLIC :: fft_3d_fw_with_layout, fft_3d_fw_r2c_with_layout
+   PUBLIC :: fft_3d_bw_with_layout, fft_3d_bw_c2r_with_layout
    PUBLIC :: fft_grid_get_local_index_to_ref_grid
    PUBLIC :: fft_grid_set_yz_mapping
    PUBLIC :: fft_grid_set_spherical
@@ -2080,6 +2082,86 @@ CONTAINS
       END DO
       DEALLOCATE (gsq_c)
    END SUBROUTINE fft_grid_get_gsquared
+
+! **************************************************************************************************
+!> \brief Performs a complex-to-complex 3D FFT using a prepared grid layout.
+! **************************************************************************************************
+   SUBROUTINE fft_3d_fw_with_layout(grid_rs, grid_gs, fft_grid)
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN), TARGET  :: grid_rs
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(OUT), TARGET :: grid_gs
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+
+      INTERFACE
+         SUBROUTINE fft_3d_fw_with_layout_c(grid_rs, grid_gs, layout) &
+            BIND(C, name="fft_3d_fw_with_layout")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE :: grid_rs, grid_gs, layout
+         END SUBROUTINE fft_3d_fw_with_layout_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      CALL fft_3d_fw_with_layout_c(C_LOC(grid_rs), C_LOC(grid_gs), fft_grid%fft_grid)
+   END SUBROUTINE fft_3d_fw_with_layout
+
+! **************************************************************************************************
+!> \brief Performs a real-to-complex 3D FFT using a prepared grid layout.
+! **************************************************************************************************
+   SUBROUTINE fft_3d_fw_r2c_with_layout(grid_rs, grid_gs, fft_grid)
+      REAL(KIND=dp), DIMENSION(*), INTENT(IN), TARGET     :: grid_rs
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(OUT), TARGET :: grid_gs
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+
+      INTERFACE
+         SUBROUTINE fft_3d_fw_r2c_with_layout_c(grid_rs, grid_gs, layout) &
+            BIND(C, name="fft_3d_fw_r2c_with_layout")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE :: grid_rs, grid_gs, layout
+         END SUBROUTINE fft_3d_fw_r2c_with_layout_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      CALL fft_3d_fw_r2c_with_layout_c(C_LOC(grid_rs), C_LOC(grid_gs), fft_grid%fft_grid)
+   END SUBROUTINE fft_3d_fw_r2c_with_layout
+
+! **************************************************************************************************
+!> \brief Performs a complex-to-complex inverse 3D FFT using a prepared grid layout.
+! **************************************************************************************************
+   SUBROUTINE fft_3d_bw_with_layout(grid_gs, grid_rs, fft_grid)
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN), TARGET  :: grid_gs
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(OUT), TARGET :: grid_rs
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+
+      INTERFACE
+         SUBROUTINE fft_3d_bw_with_layout_c(grid_gs, grid_rs, layout) &
+            BIND(C, name="fft_3d_bw_with_layout")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE :: grid_gs, grid_rs, layout
+         END SUBROUTINE fft_3d_bw_with_layout_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      CALL fft_3d_bw_with_layout_c(C_LOC(grid_gs), C_LOC(grid_rs), fft_grid%fft_grid)
+   END SUBROUTINE fft_3d_bw_with_layout
+
+! **************************************************************************************************
+!> \brief Performs a complex-to-real inverse 3D FFT using a prepared grid layout.
+! **************************************************************************************************
+   SUBROUTINE fft_3d_bw_c2r_with_layout(grid_gs, grid_rs, fft_grid)
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(IN), TARGET :: grid_gs
+      REAL(KIND=dp), DIMENSION(*), INTENT(OUT), TARGET   :: grid_rs
+      TYPE(fft_grid_type), INTENT(IN)                    :: fft_grid
+
+      INTERFACE
+         SUBROUTINE fft_3d_bw_c2r_with_layout_c(grid_gs, grid_rs, layout) &
+            BIND(C, name="fft_3d_bw_c2r_with_layout")
+            IMPORT :: C_PTR
+            TYPE(C_PTR), VALUE :: grid_gs, grid_rs, layout
+         END SUBROUTINE fft_3d_bw_c2r_with_layout_c
+      END INTERFACE
+
+      CPASSERT(C_ASSOCIATED(fft_grid%fft_grid))
+      CALL fft_3d_bw_c2r_with_layout_c(C_LOC(grid_gs), C_LOC(grid_rs), fft_grid%fft_grid)
+   END SUBROUTINE fft_3d_bw_c2r_with_layout
 
 ! **************************************************************************************************
 !> \brief Generate the local g-space data from the prepared C ray mapping.

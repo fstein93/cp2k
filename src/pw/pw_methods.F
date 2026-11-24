@@ -26,10 +26,14 @@ MODULE pw_methods
    #:include "pw_types.fypp"
    USE cp_log_handling, ONLY: cp_logger_get_default_io_unit, &
                               cp_to_string
-   USE fft_api, ONLY: fft_grid_get_yzp
+   USE fft_api, ONLY: fft_3d_bw_c2r_with_layout, &
+                      fft_3d_bw_with_layout, &
+                      fft_3d_fw_r2c_with_layout, &
+                      fft_3d_fw_with_layout, &
+                      fft_3d_local, &
+                      fft_3d_local_inplace
    USE fft_tools, ONLY: BWFFT, &
-                        FWFFT, &
-                        fft3d
+                        FWFFT
    USE kahan_sum, ONLY: accurate_dot_product, &
                         accurate_sum
    USE kinds, ONLY: dp
@@ -220,19 +224,6 @@ MODULE pw_methods
    END INTERFACE
 
 CONTAINS
-   SUBROUTINE get_c_ray_mapping(pw_grid, yzp, nyzray)
-      TYPE(pw_grid_type), INTENT(IN)                        :: pw_grid
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :), INTENT(OUT) :: yzp
-      INTEGER, ALLOCATABLE, DIMENSION(:), INTENT(OUT)       :: nyzray
-
-      INTEGER                                            :: ip
-
-      CALL fft_grid_get_yzp(pw_grid%fft_grid, yzp)
-      ALLOCATE (nyzray(0:pw_grid%para%group%num_pe - 1))
-      DO ip = 0, SIZE(nyzray) - 1
-         nyzray(ip) = COUNT(yzp(1, :, ip) > 0)
-      END DO
-   END SUBROUTINE get_c_ray_mapping
 
    #:for kind, type in pw_list
       #:for space in pw_spaces
@@ -1165,24 +1156,16 @@ CONTAINS
 
                                  CHARACTER(len=*), PARAMETER                        :: routineN = 'fft_wrap_pw1pw2'
 
-                                 COMPLEX(KIND=dp), DIMENSION(:, :), CONTIGUOUS, POINTER         :: grays
-                                 COMPLEX(KIND=dp), DIMENSION(:, :, :), CONTIGUOUS, POINTER      :: c_in, c_out
-                                 INTEGER                                            ::  handle, handle2, out_unit
-                                 INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: cyzp
-                                 INTEGER, ALLOCATABLE, DIMENSION(:)                 :: cnyzray
-                                 #:if (space=="rs" and kind=="r3d" and kind2=="c1d") or (space=="gs" and kind=="c1d" and kind2=="r3d")
-                                    INTEGER, DIMENSION(3)                              :: nloc
+                                 #:if space=="gs" and kind=="c3d" and kind2=="r3d"
+                                    COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:, :, :)  :: c_out
                                  #:endif
-                                 INTEGER, DIMENSION(:), POINTER                     :: n
+                                 INTEGER                                            ::  handle, handle2, out_unit
                                  LOGICAL                                            :: test
 
                                  CALL timeset(routineN, handle2)
                                  out_unit = cp_logger_get_default_io_unit()
                                  CALL timeset(routineN//"_"//TRIM(ADJUSTL(cp_to_string( &
                                                                           CEILING(pw1%pw_grid%cutoff/10)*10))), handle)
-
-                                 NULLIFY (c_in)
-                                 NULLIFY (c_out)
 
                                  IF (PRESENT(debug)) THEN
                                     test = debug
@@ -1195,192 +1178,46 @@ CONTAINS
                                     CPABORT("Incompatible Grid layouts")
                                  END IF
 
-                                 n => pw1%pw_grid%npts
-
-                                 IF (pw1%pw_grid%para%mode == PW_MODE_LOCAL) THEN
-
-                                    !
-                                    !..replicated data, use local FFT
-                                    !
-
-                                    IF (test .AND. out_unit > 0) THEN
-                                       WRITE (out_unit, '(A)') " FFT Protocol "
-                                       #:if space=="rs"
-                                          WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
-                                          WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
-                                          WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
-                                       #:else
-                                          WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
-                                          WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
-                                          WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
-                                       #:endif
-                                    END IF
-
+                                 IF (test .AND. out_unit > 0) THEN
+                                    WRITE (out_unit, '(A)') " FFT Protocol "
                                     #:if space=="rs"
-                                       #:if kind==kind2=="c3d"
-                                          c_in => pw1%array
-                                          c_out => pw2%array
-                                          CALL fft3d(FWFFT, n, c_in, c_out, debug=test)
-                                       #:elif kind=="r3d" and kind2=="c3d"
-                                          pw2%array = CMPLX(pw1%array, 0.0_dp, KIND=dp)
-                                          c_out => pw2%array
-                                          CALL fft3d(FWFFT, n, c_out, debug=test)
-                                       #:elif kind=="c3d" and kind2=="c1d"
-                                          c_in => pw1%array
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
-                                          ! transform
-                                          CALL fft3d(FWFFT, n, c_in, c_out, debug=test)
-                                          ! gather results
-                                          IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_GATHER : 3d -> 1d "
-                                          CALL pw_gather_s_${kind2}$_c3d(pw2, c_out)
-                                          DEALLOCATE (c_out)
-                                       #:elif kind=="r3d" and kind2=="c1d"
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
-                                          c_out = 0.0_dp
-                                          CALL pw_copy_to_array(pw1, c_out)
-                                          CALL fft3d(FWFFT, n, c_out, debug=test)
-                                          CALL pw_gather_s_${kind2}$_c3d(pw2, c_out)
-                                          DEALLOCATE (c_out)
-                                       #:endif
+                                       WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
+                                       WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
+                                       WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
                                     #:else
-                                       #:if kind=="c3d" and kind2=="c3d"
-                                          c_in => pw1%array
-                                          c_out => pw2%array
-                                          CALL fft3d(BWFFT, n, c_in, c_out, debug=test)
-                                       #:elif kind=="c3d" and kind2=="r3d"
-                                          c_in => pw1%array
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
-                                          CALL fft3d(BWFFT, n, c_in, c_out, debug=test)
-                                          ! use real part only
-                                          IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
-                                          pw2%array = REAL(c_out, KIND=dp)
-                                          DEALLOCATE (c_out)
-                                       #:elif kind=="c1d" and kind2=="c3d"
-                                          c_out => pw2%array
-                                          IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
-                                          CALL pw_scatter_s_${kind}$_c3d(pw1, c_out)
-                                          CALL fft3d(BWFFT, n, c_out, debug=test)
-                                       #:elif kind=="c1d" and kind2=="r3d"
-                                          ALLOCATE (c_out(n(1), n(2), n(3)))
-                                          IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  PW_SCATTER : 3d -> 1d "
-                                          CALL pw_scatter_s_${kind}$_c3d(pw1, c_out)
-                                          ! transform
-                                          CALL fft3d(BWFFT, n, c_out, debug=test)
-                                          ! use real part only
-                                          IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') "  REAL part "
-                                          CALL pw_copy_from_array(pw2, c_out)
-                                          DEALLOCATE (c_out)
-                                       #:endif
-                                    #:endif
-
-                                    IF (test .AND. out_unit > 0) WRITE (out_unit, '(A)') " End of FFT Protocol "
-
-                                 ELSE
-
-                                    !
-                                    !..parallel FFT
-                                    !
-
-                                    IF (test .AND. out_unit > 0) THEN
-                                       WRITE (out_unit, '(A)') " FFT Protocol "
-                                       #:if space=="rs"
-                                          WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "FWFFT"
-                                          WRITE (out_unit, '(A,T72,A)') "  in space ", "REALSPACE"
-                                          WRITE (out_unit, '(A,T72,A)') "  out space ", "REALSPACE"
-                                       #:else
-                                          WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
-                                          WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
-                                          WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
-                                       #:endif
-                                    END IF
-
-                                    grays => pw1%pw_grid%grays
-                                    IF (pw1%pw_grid%para%ray_distribution) THEN
-                                       CALL get_c_ray_mapping(pw1%pw_grid, cyzp, cnyzray)
-                                    END IF
-
-                                    #:if space=="rs"
-                                       #:if kind=="c3d" and kind2=="c1d"
-                                          !..prepare input
-                                          c_in => pw1%array
-                                          grays = z_zero
-                                          !..transform
-                                          IF (pw1%pw_grid%para%ray_distribution) THEN
-                                             CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        cyzp, cnyzray, &
-                                                        pw1%pw_grid%para%bo, debug=test)
-                                          ELSE
-                                             CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        pw1%pw_grid%para%bo, debug=test)
-                                          END IF
-                                          !..prepare output
-                                          IF (test .AND. out_unit > 0) &
-                                             WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
-                                          CALL pw_gather_p_${kind2}$ (pw2, grays)
-                                       #:elif kind=="r3d" and kind2=="c1d"
-                                          !..prepare input
-                                          nloc = pw1%pw_grid%npts_local
-                                          ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
-                                          CALL pw_copy_to_array(pw1, c_in)
-                                          grays = z_zero
-                                          !..transform
-                                          IF (pw1%pw_grid%para%ray_distribution) THEN
-                                             CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        cyzp, cnyzray, &
-                                                        pw1%pw_grid%para%bo, debug=test)
-                                          ELSE
-                                             CALL fft3d(FWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        pw1%pw_grid%para%bo, debug=test)
-                                          END IF
-                                          !..prepare output
-                                          IF (test .AND. out_unit > 0) &
-                                             WRITE (out_unit, '(A)') "  PW_GATHER : 2d -> 1d "
-                                          CALL pw_gather_p_${kind2}$ (pw2, grays)
-                                          DEALLOCATE (c_in)
-                                       #:endif
-                                    #:else
-                                       #:if kind=="c1d" and kind2=="c3d"
-                                          !..prepare input
-                                          IF (test .AND. out_unit > 0) &
-                                             WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
-                                          grays = z_zero
-                                          CALL pw_scatter_p_${kind}$ (pw1, grays)
-                                          c_in => pw2%array
-                                          !..transform
-                                          IF (pw1%pw_grid%para%ray_distribution) THEN
-                                             CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        cyzp, cnyzray, &
-                                                        pw1%pw_grid%para%bo, debug=test)
-                                          ELSE
-                                             CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        pw1%pw_grid%para%bo, debug=test)
-                                          END IF
-                                          !..prepare output (nothing to do)
-                                       #:elif kind=="c1d" and kind2=="r3d"
-                                          !..prepare input
-                                          IF (test .AND. out_unit > 0) &
-                                             WRITE (out_unit, '(A)') "  PW_SCATTER : 2d -> 1d "
-                                          grays = z_zero
-                                          CALL pw_scatter_p_${kind}$ (pw1, grays)
-                                          nloc = pw1%pw_grid%npts_local
-                                          ALLOCATE (c_in(nloc(1), nloc(2), nloc(3)))
-                                          !..transform
-                                          IF (pw1%pw_grid%para%ray_distribution) THEN
-                                             CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        cyzp, cnyzray, &
-                                                        pw1%pw_grid%para%bo, debug=test)
-                                          ELSE
-                                             CALL fft3d(BWFFT, n, c_in, grays, pw1%pw_grid%para%group, &
-                                                        pw1%pw_grid%para%bo, debug=test)
-                                          END IF
-                                          !..prepare output
-                                          IF (test .AND. out_unit > 0) &
-                                             WRITE (out_unit, '(A)') "  Real part "
-                                          CALL pw_copy_from_array(pw2, c_in)
-                                          DEALLOCATE (c_in)
-                                       #:endif
+                                       WRITE (out_unit, '(A,T76,A)') "  Transform direction ", "BWFFT"
+                                       WRITE (out_unit, '(A,T66,A)') "  in space ", "RECIPROCALSPACE"
+                                       WRITE (out_unit, '(A,T66,A)') "  out space ", "RECIPROCALSPACE"
                                     #:endif
                                  END IF
+
+                                 #:if space=="rs"
+                                    #:if kind=="c3d" and kind2=="c3d"
+                                       CALL fft_3d_local(FWFFT, pw1%pw_grid%npts, 1, .FALSE., .FALSE., pw1%array, pw2%array)
+                                       pw2%array = pw2%array/REAL(PRODUCT(pw1%pw_grid%npts), KIND=dp)
+                                    #:elif kind=="r3d" and kind2=="c3d"
+                                       pw2%array = CMPLX(pw1%array, 0.0_dp, KIND=dp)
+                                       CALL fft_3d_local_inplace(FWFFT, pw1%pw_grid%npts, 1, .FALSE., pw2%array)
+                                       pw2%array = pw2%array/REAL(PRODUCT(pw1%pw_grid%npts), KIND=dp)
+                                    #:elif kind=="c3d" and kind2=="c1d"
+                                       CALL fft_3d_fw_with_layout(pw1%array, pw2%array, pw1%pw_grid%fft_grid)
+                                    #:elif kind=="r3d" and kind2=="c1d"
+                                       CALL fft_3d_fw_r2c_with_layout(pw1%array, pw2%array, pw1%pw_grid%fft_grid)
+                                    #:endif
+                                 #:else
+                                    #:if kind=="c3d" and kind2=="c3d"
+                                       CALL fft_3d_local(BWFFT, pw1%pw_grid%npts, 1, .FALSE., .FALSE., pw1%array, pw2%array)
+                                    #:elif kind=="c3d" and kind2=="r3d"
+                                       ALLOCATE (c_out(pw1%pw_grid%npts(1), pw1%pw_grid%npts(2), pw1%pw_grid%npts(3)))
+                                       CALL fft_3d_local(BWFFT, pw1%pw_grid%npts, 1, .FALSE., .FALSE., pw1%array, c_out)
+                                       pw2%array = REAL(c_out, KIND=dp)
+                                       DEALLOCATE (c_out)
+                                    #:elif kind=="c1d" and kind2=="c3d"
+                                       CALL fft_3d_bw_with_layout(pw1%array, pw2%array, pw1%pw_grid%fft_grid)
+                                    #:elif kind=="c1d" and kind2=="r3d"
+                                       CALL fft_3d_bw_c2r_with_layout(pw1%array, pw2%array, pw1%pw_grid%fft_grid)
+                                    #:endif
+                                 #:endif
 
                                  IF (test .AND. out_unit > 0) THEN
                                     WRITE (out_unit, '(A)') " End of FFT Protocol "
