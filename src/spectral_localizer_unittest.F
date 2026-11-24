@@ -371,8 +371,8 @@ CONTAINS
       USE cp_dbcsr_api, ONLY: dbcsr_create, dbcsr_distribution_new, dbcsr_distribution_release, &
                               dbcsr_distribution_type, dbcsr_finalize, dbcsr_finalize_lib, &
                               dbcsr_init_lib, dbcsr_put_block, dbcsr_type_no_symmetry
-      USE fft_api, ONLY: FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_FFTW_MODE_ESTIMATE
-      USE fft_tools, ONLY: finalize_fft, init_fft
+      USE fft_api, ONLY: FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_FFTW_MODE_ESTIMATE, &
+                         fft_library_finalize, fft_library_init
       USE kinds, ONLY: dp
       USE mathconstants, ONLY: twopi
       USE message_passing, ONLY: mp_para_env_type
@@ -404,8 +404,7 @@ CONTAINS
          CALL offload_set_chosen_device(MOD(para_env%mepos, offload_get_device_count()))
       END IF
       CALL dbcsr_init_lib(para_env%get_handle(), io)
-      CALL init_fft(FFT_LIBRARY_BACKEND_DEFAULT, alltoall=.FALSE., pool_limit=4, wisdom_file='', &
-                    plan_style=FFT_LIBRARY_FFTW_MODE_ESTIMATE, status=status)
+      CALL fft_library_init(FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_FFTW_MODE_ESTIMATE, .TRUE., .TRUE., '', status)
       IF (status /= 0) CPABORT("FFT initalization step failed")
       nr = para_env%num_pe
       nc = 1
@@ -503,7 +502,7 @@ CONTAINS
       CALL dbcsr_distribution_release(distribution)
       DEALLOCATE (process_grid, row_dist, col_dist, sizes)
       CALL dbcsr_finalize_lib()
-      CALL finalize_fft('')
+      CALL fft_library_finalize('')
    CONTAINS
 
 ! **************************************************************************************************

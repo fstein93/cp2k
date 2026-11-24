@@ -12,12 +12,12 @@
 MODULE ps_wavelet_base
    USE fft_api,                         ONLY: fft_allocate,&
                                               fft_deallocate
-   USE fft_tools,                       ONLY: BWFFT,&
-                                              FWFFT,&
-                                              fft_1d,&
+   USE fft_api,                         ONLY: fft_1d,&
                                               fft_create_plan_1d,&
                                               fft_destroy_plan,&
                                               fft_plan_type
+   USE fft_tools,                       ONLY: BWFFT,&
+                                              FWFFT
    USE kinds,                           ONLY: dp
    USE mathconstants,                   ONLY: pi
    USE message_passing,                 ONLY: mp_comm_type

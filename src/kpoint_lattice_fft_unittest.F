@@ -6,9 +6,9 @@
 !--------------------------------------------------------------------------------------------------!
 PROGRAM kpoint_lattice_fft_unittest
    USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_DEFAULT,&
-                                              FFT_LIBRARY_FFTW_MODE_ESTIMATE
-   USE fft_tools,                       ONLY: finalize_fft,&
-                                              init_fft
+                                              FFT_LIBRARY_FFTW_MODE_ESTIMATE,&
+                                              fft_library_finalize,&
+                                              fft_library_init
    USE kinds,                           ONLY: dp,&
                                               int_8
    USE kpoint_lattice_fft,              ONLY: cell_to_k_grid_fft,&
@@ -75,8 +75,7 @@ PROGRAM kpoint_lattice_fft_unittest
       CALL offload_set_chosen_device(MOD(mp_comm%mepos, offload_get_device_count()))
    END IF
    CALL check_image_reconstruction(mp_comm)
-   CALL init_fft(FFT_LIBRARY_BACKEND_DEFAULT, alltoall=.FALSE., pool_limit=4, &
-                 wisdom_file="", plan_style=FFT_LIBRARY_FFTW_MODE_ESTIMATE, status=status)
+   CALL fft_library_init(FFT_LIBRARY_BACKEND_DEFAULT, FFT_LIBRARY_FFTW_MODE_ESTIMATE, .TRUE., .TRUE., "", status)
    IF (status /= 0) ERROR STOP "FFT library initalization step failed"
 
    nkp_grid = [4, 4, 4]
@@ -359,7 +358,7 @@ PROGRAM kpoint_lattice_fft_unittest
    DEALLOCATE (coarse_inverse, correction_indices, local_operator)
    DEALLOCATE (inverse_k)
 
-   CALL finalize_fft("")
+   CALL fft_library_finalize("")
    CALL mp_world_finalize()
 
 CONTAINS

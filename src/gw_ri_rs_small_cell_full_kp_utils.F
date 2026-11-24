@@ -32,9 +32,9 @@ MODULE gw_ri_rs_small_cell_full_kp_utils
                                               cp_fm_release,&
                                               cp_fm_type
    USE cp_log_handling,                 ONLY: cp_logger_get_default_io_unit
-   USE fft_tools,                       ONLY: BWFFT,&
-                                              fft_allocate,&
+   USE fft_api,                         ONLY: fft_allocate,&
                                               fft_deallocate
+   USE fft_tools,                       ONLY: BWFFT
    USE gw_ri_rs_small_cell_full_kp_lattice,ONLY: &
         assemble_AA_contraction, block_range, build_full_cell_grid, build_ri_2c_lattice, &
         complex_bytes, gamma_auxiliary_charges, grid_pair_gemm_panel, grid_pair_indices, &

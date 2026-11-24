@@ -59,9 +59,9 @@ MODULE environment
                                               FFT_LIBRARY_BACKEND_FFTW,&
                                               FFT_LIBRARY_BACKEND_GPU,&
                                               fft_backend_in_use,&
-                                              fft_has_guru_interface
-   USE fft_tools,                       ONLY: finalize_fft,&
-                                              init_fft
+                                              fft_has_guru_interface,&
+                                              fft_library_finalize,&
+                                              fft_library_init
    USE force_env_types,                 ONLY: multiple_fe_list
    USE gamma,                           ONLY: deallocate_md_ftable
    USE global_types,                    ONLY: global_environment_type
@@ -1082,7 +1082,7 @@ CONTAINS
                                          extension=".log")
 
       CALL integral_setup_library(global_section)
-      CALL fft_setup_library(globenv, global_section)
+      CALL fft_setup_library(globenv)
       CALL diag_setup_library(globenv, global_section)
 
       SELECT CASE (fft_backend_in_use())
@@ -1144,10 +1144,9 @@ CONTAINS
 !>      Nov-2013 (MI) refactoring
 !> \author JGH,MK
 ! **************************************************************************************************
-   SUBROUTINE fft_setup_library(globenv, global_section)
+   SUBROUTINE fft_setup_library(globenv)
 
       TYPE(global_environment_type), POINTER             :: globenv
-      TYPE(section_vals_type), POINTER                   :: global_section
 
       CHARACTER(LEN=3*default_string_length)             :: message
       INTEGER                                            :: stat
@@ -1165,12 +1164,8 @@ CONTAINS
       END IF
 
       ! Initialize FFT library with the user's preferred FFT library
-      CALL init_fft(fftlib=globenv%default_fft_library, &
-                    alltoall=section_get_lval(global_section, "ALLTOALL_SGL"), &
-                    pool_limit=globenv%fft_pool_scratch_limit, &
-                    wisdom_file=globenv%fftw_wisdom_file_name, &
-                    plan_style=globenv%fftw_plan_type, status=stat, &
-                    use_guru_interface=globenv%fftw_use_guru_interface)
+      CALL fft_library_init(globenv%default_fft_library, globenv%fftw_plan_type, .TRUE., &
+                            globenv%fftw_use_guru_interface, globenv%fftw_wisdom_file_name, stat)
 
       IF (stat /= 0) THEN
          IF (try_fftw) THEN
@@ -1181,12 +1176,8 @@ CONTAINS
             END IF
             CPWARN(TRIM(message))
             globenv%default_fft_library = FFT_LIBRARY_BACKEND_FFTW
-            CALL init_fft(fftlib=globenv%default_fft_library, &
-                          alltoall=section_get_lval(global_section, "ALLTOALL_SGL"), &
-                          pool_limit=globenv%fft_pool_scratch_limit, &
-                          wisdom_file=globenv%fftw_wisdom_file_name, &
-                          plan_style=globenv%fftw_plan_type, status=stat, &
-                          use_guru_interface=globenv%fftw_use_guru_interface)
+            CALL fft_library_init(globenv%default_fft_library, globenv%fftw_plan_type, .TRUE., &
+                                  globenv%fftw_use_guru_interface, globenv%fftw_wisdom_file_name, stat)
          END IF
          IF (stat /= 0) THEN
             CPABORT("FFT library FFTW does not work. No FFT library available.")
@@ -1379,7 +1370,7 @@ CONTAINS
          ! the LibXC functional objects are kept alive across calculations
          CALL libxc_release_workers()
          ! finalize the fft (i.e. writes the wisdom if FFTW3 and a wisdom file was specified)
-         CALL finalize_fft(globenv%fftw_wisdom_file_name)
+         CALL fft_library_finalize(globenv%fftw_wisdom_file_name)
          CALL finalize_libvori()
       END IF
 

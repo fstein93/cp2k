@@ -15,12 +15,12 @@
 !>        callers. The selected RSKP FFT backend requires successful FFT execution.
 ! **************************************************************************************************
 MODULE kpoint_lattice_fft
-   USE fft_api,                         ONLY: fft_3d_local
+   USE fft_api,                         ONLY: fft_3d_local,&
+                                              fft_allocate,&
+                                              fft_deallocate
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_NEXT,&
                                               FWFFT,&
-                                              fft_allocate,&
-                                              fft_deallocate,&
                                               fft_radix_operations
    USE kinds,                           ONLY: dp,&
                                               int_8

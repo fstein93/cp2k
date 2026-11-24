@@ -43,7 +43,6 @@ MODULE pw_env_methods
                                               derivative_cd5,&
                                               derivative_cd7,&
                                               rho_dependent
-   USE fft_tools,                       ONLY: init_fft_scratch_pool
    USE gaussian_gridlevels,             ONLY: destroy_gaussian_gridlevel,&
                                               gaussian_gridlevel,&
                                               init_gaussian_gridlevel
@@ -255,7 +254,6 @@ CONTAINS
       NULLIFY (pw_env%pw_pools, pw_env%cube_info)
 
       ! remove fft scratch pool, as it depends on pw_env mpi group handles
-      CALL init_fft_scratch_pool()
 
       !
       !

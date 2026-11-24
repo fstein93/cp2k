@@ -14,10 +14,6 @@ configure_file(base/base_uses.f90 base/base_uses.f90 @ONLY)
 # Source lists are kept separately from source selection and build logic.
 include("${CMAKE_CURRENT_LIST_DIR}/CMakeSources.cmake")
 
-if(CP2K_USE_FFT_GPU)
-  list(APPEND CP2K_SRCS_F fft/fft_gpu.F)
-endif()
-
 list(APPEND CP2K_SRCS_C "${CP2K_OFFLOAD_SRCS_C}" "${CP2K_MPIWRAP_SRCS_C}")
 
 # ##############################################################################

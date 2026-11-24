@@ -59,6 +59,7 @@ MODULE fft_api
    PUBLIC :: fft_grid_get_index_to_g
    PUBLIC :: fft_grid_get_index_to_fft
    PUBLIC :: fft_grid_get_gsquared
+   PUBLIC :: fft_plan_type, fft_create_plan_1d, fft_1d, fft_destroy_plan
    PUBLIC :: fft_3d_fw_with_layout, fft_3d_fw_r2c_with_layout
    PUBLIC :: fft_3d_bw_with_layout, fft_3d_bw_c2r_with_layout
    PUBLIC :: fft_grid_get_local_index_to_ref_grid
@@ -126,6 +127,15 @@ MODULE fft_api
       PRIVATE
       TYPE(C_PTR) :: fft_grid = C_NULL_PTR
    END TYPE fft_grid_type
+
+! **************************************************************************************************
+!> \brief Cached 1D FFT plan description for the new FFT backend.
+! **************************************************************************************************
+   TYPE fft_plan_type
+      LOGICAL :: fsign = .TRUE.
+      LOGICAL :: trans_in = .FALSE., trans_out = .FALSE., valid = .FALSE.
+      INTEGER :: n = -1, m = -1, ldx_in = -1, ldx_out = -1
+   END TYPE fft_plan_type
 
 CONTAINS
 
@@ -2371,5 +2381,54 @@ CONTAINS
       END IF
 
    END SUBROUTINE fft_free_grid
+
+! **************************************************************************************************
+!> \brief Prepare a cached 1D FFT plan on the new backend.
+! **************************************************************************************************
+   SUBROUTINE fft_create_plan_1d(plan, fsign, trans_in, trans_out, ldx_in, ldx_out, n, m, zin, zout)
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
+      LOGICAL, INTENT(IN)                                :: fsign, trans_in, trans_out
+      INTEGER, INTENT(IN)                                :: ldx_in, ldx_out, n, m
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: zin, zout
+
+      plan%fsign = fsign
+      plan%trans_in = trans_in
+      plan%trans_out = trans_out
+      plan%ldx_in = ldx_in
+      plan%ldx_out = ldx_out
+      plan%n = n
+      plan%m = m
+
+      IF (n*m /= 0) THEN
+         CALL fft_register_1d_local(fsign, n, m, trans_in, trans_out, ldx_in, ldx_out, zin, zout)
+         plan%valid = .TRUE.
+      ELSE
+         plan%valid = .FALSE.
+      END IF
+   END SUBROUTINE fft_create_plan_1d
+
+! **************************************************************************************************
+!> \brief Execute a cached 1D FFT plan on the new backend.
+! **************************************************************************************************
+   SUBROUTINE fft_1d(plan, zin, zout, scale)
+      TYPE(fft_plan_type), INTENT(IN)                    :: plan
+      COMPLEX(KIND=dp), DIMENSION(*), INTENT(INOUT), TARGET :: zin, zout
+      REAL(KIND=dp), INTENT(IN)                          :: scale
+
+      IF (plan%n*plan%m > 0) THEN
+         CALL fft_1d_local(plan%fsign, plan%n, plan%m, plan%trans_in, plan%trans_out, &
+                           plan%ldx_in, plan%ldx_out, zin, zout)
+         IF (scale /= 1.0_dp) zout(1:plan%n*plan%m) = zout(1:plan%n*plan%m)*scale
+      END IF
+   END SUBROUTINE fft_1d
+
+! **************************************************************************************************
+!> \brief Release a cached 1D FFT plan description.
+! **************************************************************************************************
+   SUBROUTINE fft_destroy_plan(plan)
+      TYPE(fft_plan_type), INTENT(INOUT)                 :: plan
+
+      plan%valid = .FALSE.
+   END SUBROUTINE fft_destroy_plan
 
 END MODULE fft_api

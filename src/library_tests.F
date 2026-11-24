@@ -52,14 +52,15 @@ MODULE library_tests
    USE cp_realspace_grid_init,          ONLY: init_input_type
    USE dbm_tests,                       ONLY: dbm_run_tests
    USE fft_api,                         ONLY: FFT_LIBRARY_BACKEND_FFTW,&
-                                              FFT_LIBRARY_BACKEND_GPU
+                                              FFT_LIBRARY_BACKEND_GPU,&
+                                              fft_3d_local,&
+                                              fft_3d_local_inplace,&
+                                              fft_library_finalize,&
+                                              fft_library_init
    USE fft_tools,                       ONLY: BWFFT,&
                                               FFT_RADIX_CLOSEST,&
                                               FWFFT,&
-                                              fft3d,&
-                                              fft_radix_operations,&
-                                              finalize_fft,&
-                                              init_fft
+                                              fft_radix_operations
    USE global_types,                    ONLY: global_environment_type
    USE input_constants,                 ONLY: do_diag_syevd,&
                                               do_diag_syevx,&
@@ -581,12 +582,11 @@ CONTAINS
          ELSE
             EXIT
          END IF
-         CALL init_fft(backends(iall), alltoall=.FALSE., wisdom_file=wisdom_file, &
-                       pool_limit=10, plan_style=fftw_plan_type, status=status)
+         CALL fft_library_init(backends(iall), fftw_plan_type, .TRUE., .TRUE., wisdom_file, status)
          IF (status /= 0) CYCLE
          n = 4
          zz = 0.0_dp
-         CALL fft3d(FWFFT, n, zz)
+         CALL fft_3d_local_inplace(FWFFT, n, 1, .FALSE., zz)
          DO it = 1, 3
             radix_in = ndate(it)
             CALL fft_radix_operations(radix_in, radix_out, FFT_RADIX_CLOSEST)
@@ -606,8 +606,8 @@ CONTAINS
             scale = 1.0_dp/REAL(len**3, KIND=dp)
             tstart = m_walltime()
             DO j = 1, ntim
-               CALL fft3d(FWFFT, n, ca)
-               CALL fft3d(BWFFT, n, ca)
+               CALL fft_3d_local_inplace(FWFFT, n, 1, .FALSE., ca)
+               CALL fft_3d_local_inplace(BWFFT, n, 1, .FALSE., ca)
             END DO
             tend = m_walltime()
             t = tend - tstart + threshold
@@ -637,7 +637,7 @@ CONTAINS
          CALL RANDOM_NUMBER(ra)
          ca(:, :, :) = ca + gaussi*ra
          cc(:, :, :) = ca
-         CALL fft3d(FWFFT, n, ca, cb)
+         CALL fft_3d_local(FWFFT, n, 1, .FALSE., .FALSE., ca, cb)
          tdiff = MAXVAL(ABS(ca - cc))
          IF (tdiff > 1.0E-12_dp) THEN
             IF (iw > 0) THEN
@@ -651,7 +651,7 @@ CONTAINS
             END IF
          END IF
          ca(:, :, :) = cc
-         CALL fft3d(BWFFT, n, ca, cb)
+         CALL fft_3d_local(BWFFT, n, 1, .FALSE., .FALSE., ca, cb)
          tdiff = MAXVAL(ABS(ca - cc))
          IF (tdiff > 1.0E-12_dp) THEN
             IF (iw > 0) THEN
@@ -671,7 +671,7 @@ CONTAINS
          DEALLOCATE (cb)
          DEALLOCATE (cc)
 
-         CALL finalize_fft(wisdom_file)
+         CALL fft_library_finalize(wisdom_file)
       END DO
 
    END SUBROUTINE fft_test
@@ -712,10 +712,8 @@ CONTAINS
       CALL timeset(routineN, handle)
 
       !..set fft lib
-      CALL init_fft(globenv%default_fft_library, alltoall=.FALSE., &
-                    pool_limit=globenv%fft_pool_scratch_limit, &
-                    wisdom_file=globenv%fftw_wisdom_file_name, &
-                    plan_style=globenv%fftw_plan_type, status=status)
+      CALL fft_library_init(globenv%default_fft_library, globenv%fftw_plan_type, .TRUE., .TRUE., &
+                            globenv%fftw_wisdom_file_name, status)
       IF (status /= 0) THEN
          CPABORT("Initialization of the FFT library failed!")
       END IF
@@ -784,7 +782,7 @@ CONTAINS
       CALL ca%release()
       CALL pw_grid_release(grid)
       CALL cell_release(box)
-      CALL finalize_fft(globenv%fftw_wisdom_file_name)
+      CALL fft_library_finalize(globenv%fftw_wisdom_file_name)
 
       CALL timestop(handle)
 
@@ -829,10 +827,8 @@ CONTAINS
 
 !..set fft lib
 
-      CALL init_fft(globenv%default_fft_library, alltoall=.FALSE., &
-                    pool_limit=globenv%fft_pool_scratch_limit, &
-                    wisdom_file=globenv%fftw_wisdom_file_name, &
-                    plan_style=globenv%fftw_plan_type, status=status)
+      CALL fft_library_init(globenv%default_fft_library, globenv%fftw_plan_type, .TRUE., .TRUE., &
+                            globenv%fftw_wisdom_file_name, status)
       IF (status /= 0) THEN
          CPABORT("Initialization of the FFT library failed!")
       END IF
@@ -1007,7 +1003,7 @@ CONTAINS
 
       ! cleanup
       CALL cell_release(box)
-      CALL finalize_fft(globenv%fftw_wisdom_file_name)
+      CALL fft_library_finalize(globenv%fftw_wisdom_file_name)
 
    END SUBROUTINE pw_fft_test
 
