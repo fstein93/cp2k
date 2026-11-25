@@ -37,6 +37,9 @@ int fft_library_init_F(const int backend_F, const int fftw_plan,
   case FFT_LIBRARY_BACKEND_GPU:
     backend = FFT_LIB_GPU;
     break;
+  case FFT_LIBRARY_BACKEND_CUFFTMP:
+    backend = FFT_LIB_CUFFTMP;
+    break;
   default:
     return 1;
   }
@@ -145,6 +148,8 @@ int fft_backend_in_use_F() {
     return FFT_LIBRARY_BACKEND_FFTW;
   case FFT_LIB_GPU:
     return FFT_LIBRARY_BACKEND_GPU;
+  case FFT_LIB_CUFFTMP:
+    return FFT_LIBRARY_BACKEND_CUFFTMP;
   default:
     return FFT_LIBRARY_BACKEND_DEFAULT;
   }

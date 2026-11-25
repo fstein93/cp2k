@@ -7,6 +7,7 @@
 
 #include "fft_lib.h"
 #include "../offload/offload_runtime.h"
+#include "fft_lib_cufftmp.h"
 #include "fft_lib_fftw.h"
 #include "fft_timer.h"
 #include "fft_utils.h"
@@ -50,7 +51,7 @@ static int fft_timer_start(const char *format, ...) {
 /*******************************************************************************
  * \brief Forward a void FFT call to the selected backend.
  ******************************************************************************/
-#define FFT_DISPATCH_VOID(gpu_call, fftw_call)                                 \
+#define FFT_DISPATCH_VOID(gpu_call, fftw_call, cufftmp_call)                   \
   do {                                                                         \
     switch (fft_lib_choice) {                                                  \
     case FFT_LIB_GPU:                                                          \
@@ -58,6 +59,9 @@ static int fft_timer_start(const char *format, ...) {
       break;                                                                   \
     case FFT_LIB_FFTW:                                                         \
       fftw_call;                                                               \
+      break;                                                                   \
+    case FFT_LIB_CUFFTMP:                                                      \
+      cufftmp_call;                                                            \
       break;                                                                   \
     default:                                                                   \
       cp_assert(0 && "Unknown FFT library.");                                  \
@@ -110,6 +114,16 @@ int fft_init_lib(const fft_lib lib, const int fftw_planning_flag,
   case FFT_LIB_GPU:
     status = fft_init_acc_lib();
     break;
+  case FFT_LIB_CUFFTMP:
+    status = fft_cufftmp_init_lib(fftw_planning_flag, use_fft_mpi,
+                                  use_guru_interface, wisdom_file);
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+    // The merged backend uses the GPU implementation for local/serial work.
+    if (status == 0) {
+      status = fft_init_acc_lib();
+    }
+#endif
+    break;
   default:
     cp_assert(0 && "Unknown FFT library.");
   }
@@ -148,7 +162,11 @@ void fft_finalize_lib(const char *wisdom_file) {
   buffer_1 = NULL;
   buffer_2 = NULL;
   buffer_size = -1;
-  fft_fftw_finalize_lib(wisdom_file);
+  if (fft_lib_choice == FFT_LIB_CUFFTMP) {
+    fft_cufftmp_finalize_lib(wisdom_file);
+  } else {
+    fft_fftw_finalize_lib(wisdom_file);
+  }
   fft_finalize_acc_lib();
   fft_lib_initialized = false;
 }
@@ -175,6 +193,8 @@ bool fft_lib_use_mpi() {
     return fft_fftw_lib_use_mpi();
   case FFT_LIB_GPU:
     return false;
+  case FFT_LIB_CUFFTMP:
+    return fft_cufftmp_lib_use_mpi();
   default:
     cp_assert(0 && "Unknown FFT library.");
     return false;
@@ -191,6 +211,8 @@ bool fft_lib_has_guru_interface() {
     return fft_fftw_lib_has_guru_interface();
   case FFT_LIB_GPU:
     return false;
+  case FFT_LIB_CUFFTMP:
+    return fft_cufftmp_lib_has_guru_interface();
   default:
     cp_assert(0 && "Unknown FFT library.");
     return false;
@@ -215,7 +237,8 @@ void ensure_buffer_size(const int size) {
     fft_allocate_complex(size, &buffer_2);
     buffer_size = size;
   }
-  if (fft_lib_choice == FFT_LIB_GPU) {
+  if (fft_lib_choice == FFT_LIB_GPU ||
+      fft_lib_choice == FFT_LIB_CUFFTMP) {
     fft_gpu_ensure_buffer_size(size);
   }
 }
@@ -240,7 +263,8 @@ double complex *get_buffer_2() { return buffer_2; }
  ******************************************************************************/
 void fft_allocate_double(const int length, double **buffer) {
   FFT_DISPATCH_VOID((fft_gpu_allocate_double(length, buffer)),
-                    (fft_fftw_allocate_double(length, buffer)));
+                    (fft_fftw_allocate_double(length, buffer)),
+                    (fft_cufftmp_allocate_double(length, buffer)));
 }
 
 /*******************************************************************************
@@ -251,7 +275,8 @@ void fft_allocate_double(const int length, double **buffer) {
  ******************************************************************************/
 void fft_allocate_complex(const int length, double complex **buffer) {
   FFT_DISPATCH_VOID((fft_gpu_allocate_complex(imax(1, length), buffer)),
-                    (fft_fftw_allocate_complex(imax(1, length), buffer)));
+                    (fft_fftw_allocate_complex(imax(1, length), buffer)),
+                    (fft_cufftmp_allocate_complex(imax(1, length), buffer)));
 }
 
 /*******************************************************************************
@@ -262,6 +287,8 @@ void fft_allocate_complex(const int length, double complex **buffer) {
 void fft_free_double(double *buffer) {
   if (fft_lib_choice == FFT_LIB_FFTW) {
     fft_fftw_free_double(buffer);
+  } else if (fft_lib_choice == FFT_LIB_CUFFTMP) {
+    fft_cufftmp_free_double(buffer);
   } else if (fft_lib_choice == FFT_LIB_GPU) {
     fft_gpu_free_double(buffer);
   } else {
@@ -277,6 +304,8 @@ void fft_free_double(double *buffer) {
 void fft_free_complex(double complex *buffer) {
   if (fft_lib_choice == FFT_LIB_FFTW) {
     fft_fftw_free_complex(buffer);
+  } else if (fft_lib_choice == FFT_LIB_CUFFTMP) {
+    fft_cufftmp_free_complex(buffer);
   } else if (fft_lib_choice == FFT_LIB_GPU) {
     fft_gpu_free_complex(buffer);
   } else {
@@ -307,11 +336,13 @@ void fft_register_1d_local(const bool dir, const int fft_size,
   const int handle2 = fft_timer_start(
       "register_1d_l_%s_%s_%i_%i", dir ? "fw" : "bw",
       grid_in == grid_out ? "i" : "o", fft_size, number_of_ffts);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_register_1d_local(dir, fft_size, number_of_ffts, transpose_in,
+  FFT_DISPATCH_VOID((fft_gpu_register_1d_local(dir, fft_size, number_of_ffts, transpose_in,
                                  transpose_out, leading_dimension_in,
                                  leading_dimension_out, grid_in, grid_out)),
-      (fft_fftw_register_1d_local(dir, fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_register_1d_local(dir, fft_size, number_of_ffts, transpose_in,
+                                  transpose_out, leading_dimension_in,
+                                  leading_dimension_out, grid_in, grid_out)),
+                    (fft_cufftmp_register_1d_local(dir, fft_size, number_of_ffts, transpose_in,
                                   transpose_out, leading_dimension_in,
                                   leading_dimension_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
@@ -340,11 +371,13 @@ void fft_register_1d_r2c_local(const int fft_size, const int number_of_ffts,
   const int handle2 = fft_timer_start("register_1d_r2c_l_%s_%i_%i",
                                       grid_in == (double *)grid_out ? "i" : "o",
                                       fft_size, number_of_ffts);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_register_1d_r2c_local(fft_size, number_of_ffts, transpose_in,
+  FFT_DISPATCH_VOID((fft_gpu_register_1d_r2c_local(fft_size, number_of_ffts, transpose_in,
                                      transpose_out, leading_dimension_in,
                                      leading_dimension_out, grid_in, grid_out)),
-      (fft_fftw_register_1d_r2c_local(
+                    (fft_fftw_register_1d_r2c_local(
+          fft_size, number_of_ffts, transpose_in, transpose_out,
+          leading_dimension_in, leading_dimension_out, grid_in, grid_out)),
+                    (fft_cufftmp_register_1d_r2c_local(
           fft_size, number_of_ffts, transpose_in, transpose_out,
           leading_dimension_in, leading_dimension_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
@@ -373,11 +406,13 @@ void fft_register_1d_c2r_local(const int fft_size, const int number_of_ffts,
   const int handle2 = fft_timer_start("register_1d_c2r_l_%s_%i_%i",
                                       (double *)grid_in == grid_out ? "i" : "o",
                                       fft_size, number_of_ffts);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_register_1d_c2r_local(fft_size, number_of_ffts, transpose_in,
+  FFT_DISPATCH_VOID((fft_gpu_register_1d_c2r_local(fft_size, number_of_ffts, transpose_in,
                                      transpose_out, leading_dimension_in,
                                      leading_dimension_out, grid_in, grid_out)),
-      (fft_fftw_register_1d_c2r_local(
+                    (fft_fftw_register_1d_c2r_local(
+          fft_size, number_of_ffts, transpose_in, transpose_out,
+          leading_dimension_in, leading_dimension_out, grid_in, grid_out)),
+                    (fft_cufftmp_register_1d_c2r_local(
           fft_size, number_of_ffts, transpose_in, transpose_out,
           leading_dimension_in, leading_dimension_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
@@ -404,10 +439,11 @@ void fft_register_2d_local(const bool dir, const int fft_size[2],
       fft_timer_start("register_2d_l_%s_%s_%i_%i_%i", dir ? "fw" : "bw",
                       grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1],
                       number_of_ffts);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_register_2d_local(dir, fft_size, number_of_ffts, transpose_in,
+  FFT_DISPATCH_VOID((fft_gpu_register_2d_local(dir, fft_size, number_of_ffts, transpose_in,
                                  transpose_out, grid_in, grid_out)),
-      (fft_fftw_register_2d_local(dir, fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_register_2d_local(dir, fft_size, number_of_ffts, transpose_in,
+                                  transpose_out, grid_in, grid_out)),
+                    (fft_cufftmp_register_2d_local(dir, fft_size, number_of_ffts, transpose_in,
                                   transpose_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -431,11 +467,12 @@ void fft_register_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
   const int handle2 = fft_timer_start("register_2d_r2c_l_%s_%i_%i_%i",
                                       grid_in == (double *)grid_out ? "i" : "o",
                                       fft_size[0], fft_size[1], number_of_ffts);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_register_2d_r2c_local(true, fft_size, number_of_ffts,
+  FFT_DISPATCH_VOID((fft_gpu_register_2d_r2c_local(true, fft_size, number_of_ffts,
                                      transpose_in, transpose_out,
                                      grid_in == (double *)grid_out)),
-      (fft_fftw_register_2d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_register_2d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                                      transpose_out, grid_in, grid_out)),
+                    (fft_cufftmp_register_2d_r2c_local(fft_size, number_of_ffts, transpose_in,
                                       transpose_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -459,11 +496,12 @@ void fft_register_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
   const int handle2 = fft_timer_start("register_2d_c2r_l_%s_%i_%i_%i",
                                       (double *)grid_in == grid_out ? "i" : "o",
                                       fft_size[0], fft_size[1], number_of_ffts);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_register_2d_r2c_local(false, fft_size, number_of_ffts,
+  FFT_DISPATCH_VOID((fft_gpu_register_2d_r2c_local(false, fft_size, number_of_ffts,
                                      transpose_in, transpose_out,
                                      grid_in == (double complex *)grid_out)),
-      (fft_fftw_register_2d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_register_2d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                                      transpose_out, grid_in, grid_out)),
+                    (fft_cufftmp_register_2d_c2r_local(fft_size, number_of_ffts, transpose_in,
                                       transpose_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -490,10 +528,11 @@ void fft_register_3d_local(const bool dir, const int fft_size[3],
   const int handle2 = fft_timer_start(
       "register_3d_l_%s_%s_%i_%i_%i", dir ? "fw" : "bw",
       grid_in == grid_out ? "i" : "o", fft_size[0], fft_size[1], fft_size[2]);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_register_3d_local(dir, fft_size, number_of_ffts, transpose_in,
+  FFT_DISPATCH_VOID((fft_gpu_register_3d_local(dir, fft_size, number_of_ffts, transpose_in,
                                  transpose_out, grid_in, grid_out)),
-      (fft_fftw_register_3d_local(dir, fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_register_3d_local(dir, fft_size, number_of_ffts, transpose_in,
+                                  transpose_out, grid_in, grid_out)),
+                    (fft_cufftmp_register_3d_local(dir, fft_size, number_of_ffts, transpose_in,
                                   transpose_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -517,11 +556,12 @@ void fft_register_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
   const int handle2 = fft_timer_start("register_3d_r2c_l_%s_%i_%i_%i",
                                       grid_in == (double *)grid_out ? "i" : "o",
                                       fft_size[0], fft_size[1], fft_size[2]);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_register_3d_r2c_local(
+  FFT_DISPATCH_VOID((fft_gpu_register_3d_r2c_local(
           true, fft_size, grid_in == (double *)grid_out, number_of_ffts,
           transpose_in, transpose_out)),
-      (fft_fftw_register_3d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_register_3d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                                      transpose_out, grid_in, grid_out)),
+                    (fft_cufftmp_register_3d_r2c_local(fft_size, number_of_ffts, transpose_in,
                                       transpose_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -545,11 +585,12 @@ void fft_register_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
   const int handle2 = fft_timer_start("register_3d_c2r_l_%s_%i_%i_%i",
                                       (double *)grid_in == grid_out ? "i" : "o",
                                       fft_size[0], fft_size[1], fft_size[2]);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_register_3d_r2c_local(
+  FFT_DISPATCH_VOID((fft_gpu_register_3d_r2c_local(
           false, fft_size, grid_in == (double complex *)grid_out,
           number_of_ffts, transpose_in, transpose_out)),
-      (fft_fftw_register_3d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_register_3d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                                      transpose_out, grid_in, grid_out)),
+                    (fft_cufftmp_register_3d_c2r_local(fft_size, number_of_ffts, transpose_in,
                                       transpose_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -575,6 +616,10 @@ void fft_register_guru(const bool dir, const int rank, const fft_iodim *dims,
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_guru(dir, rank, dims, howmany_rank, howmany_dims,
+                           number_of_threads, grid_in, grid_out);
+    break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_register_guru(dir, rank, dims, howmany_rank, howmany_dims,
                            number_of_threads, grid_in, grid_out);
     break;
   default:
@@ -605,6 +650,10 @@ void fft_register_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
     fft_fftw_register_r2c_guru(rank, dims, howmany_rank, howmany_dims,
                                number_of_threads, grid_in, grid_out);
     break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_register_r2c_guru(rank, dims, howmany_rank, howmany_dims,
+                               number_of_threads, grid_in, grid_out);
+    break;
   default:
     cp_assert(0 && "Unknown FFT library.");
   }
@@ -631,6 +680,10 @@ void fft_register_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_c2r_guru(rank, dims, howmany_rank, howmany_dims,
+                               number_of_threads, grid_in, grid_out);
+    break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_register_c2r_guru(rank, dims, howmany_rank, howmany_dims,
                                number_of_threads, grid_in, grid_out);
     break;
   default:
@@ -663,6 +716,10 @@ void fft_register_2d_distributed(const bool dir, const int npts_global[2],
     fft_fftw_register_2d_distributed(dir, npts_global, number_of_ffts, comm,
                                      grid_in, grid_out);
     break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_register_2d_distributed(dir, npts_global, number_of_ffts, comm,
+                                        grid_in, grid_out);
+    break;
   default:
     cp_assert(0 && "Distributed 2D FFT not available.");
   }
@@ -693,6 +750,10 @@ void fft_register_2d_r2c_distributed(const int npts_global[2],
   case FFT_LIB_FFTW:
     fft_fftw_register_2d_r2c_distributed(npts_global, number_of_ffts, comm,
                                          grid_in, grid_out);
+    break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_register_2d_r2c_distributed(npts_global, number_of_ffts, comm,
+                                            grid_in, grid_out);
     break;
   default:
     cp_assert(0 && "Distributed 2D FFT not available.");
@@ -725,6 +786,10 @@ void fft_register_2d_c2r_distributed(const int npts_global[2],
     fft_fftw_register_2d_c2r_distributed(npts_global, number_of_ffts, comm,
                                          grid_in, grid_out);
     break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_register_2d_c2r_distributed(npts_global, number_of_ffts, comm,
+                                            grid_in, grid_out);
+    break;
   default:
     cp_assert(0 && "Distributed 2D FFT not available.");
   }
@@ -752,6 +817,10 @@ void fft_register_3d_distributed(const bool dir, const int npts_global[3],
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_3d_distributed(dir, npts_global, comm, grid_in, grid_out);
+    break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_register_3d_distributed(dir, npts_global, comm, grid_in,
+                                        grid_out);
     break;
   default:
     cp_assert(0 && "Distributed 3D FFT not available.");
@@ -782,6 +851,10 @@ void fft_register_3d_r2c_distributed(const int npts_global[3],
   case FFT_LIB_FFTW:
     fft_fftw_register_3d_r2c_distributed(npts_global, comm, grid_in, grid_out);
     break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_register_3d_r2c_distributed(npts_global, comm, grid_in,
+                                            grid_out);
+    break;
   default:
     cp_assert(0 && "Distributed 3D FFT not available.");
   }
@@ -810,6 +883,10 @@ void fft_register_3d_c2r_distributed(const int npts_global[3],
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_register_3d_c2r_distributed(npts_global, comm, grid_in, grid_out);
+    break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_register_3d_c2r_distributed(npts_global, comm, grid_in,
+                                            grid_out);
     break;
   default:
     cp_assert(0 && "Distributed 3D FFT not available.");
@@ -840,11 +917,13 @@ void fft_1d_local(const bool dir, const int fft_size, const int number_of_ffts,
   const int handle2 = fft_timer_start("1d_l_%s_%s_%i_%i", dir ? "fw" : "bw",
                                       grid_in == grid_out ? "i" : "o", fft_size,
                                       number_of_ffts);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_1d_local(dir, fft_size, number_of_ffts, transpose_in,
+  FFT_DISPATCH_VOID((fft_gpu_1d_local(dir, fft_size, number_of_ffts, transpose_in,
                         transpose_out, leading_dimension_in,
                         leading_dimension_out, grid_in, grid_out)),
-      (fft_fftw_1d_local(dir, fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_1d_local(dir, fft_size, number_of_ffts, transpose_in,
+                         transpose_out, leading_dimension_in,
+                         leading_dimension_out, grid_in, grid_out)),
+                    (fft_cufftmp_1d_local(dir, fft_size, number_of_ffts, transpose_in,
                          transpose_out, leading_dimension_in,
                          leading_dimension_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
@@ -872,11 +951,13 @@ void fft_1d_r2c_local(const int fft_size, const int number_of_ffts,
   const int handle2 = fft_timer_start("1d_r2c_l_%s_%i_%i",
                                       grid_in == (double *)grid_out ? "i" : "o",
                                       fft_size, number_of_ffts);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_1d_r2c_local(fft_size, number_of_ffts, transpose_in,
+  FFT_DISPATCH_VOID((fft_gpu_1d_r2c_local(fft_size, number_of_ffts, transpose_in,
                             transpose_out, leading_dimension_in,
                             leading_dimension_out, grid_in, grid_out)),
-      (fft_fftw_1d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_1d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                             transpose_out, leading_dimension_in,
+                             leading_dimension_out, grid_in, grid_out)),
+                    (fft_cufftmp_1d_r2c_local(fft_size, number_of_ffts, transpose_in,
                              transpose_out, leading_dimension_in,
                              leading_dimension_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
@@ -904,11 +985,13 @@ void fft_1d_c2r_local(const int fft_size, const int number_of_ffts,
   const int handle2 = fft_timer_start("1d_c2r_l_%s_%i_%i",
                                       (double *)grid_in == grid_out ? "i" : "o",
                                       fft_size, number_of_ffts);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_1d_c2r_local(fft_size, number_of_ffts, transpose_in,
+  FFT_DISPATCH_VOID((fft_gpu_1d_c2r_local(fft_size, number_of_ffts, transpose_in,
                             transpose_out, leading_dimension_in,
                             leading_dimension_out, grid_in, grid_out)),
-      (fft_fftw_1d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_1d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                             transpose_out, leading_dimension_in,
+                             leading_dimension_out, grid_in, grid_out)),
+                    (fft_cufftmp_1d_c2r_local(fft_size, number_of_ffts, transpose_in,
                              transpose_out, leading_dimension_in,
                              leading_dimension_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
@@ -934,10 +1017,11 @@ void fft_2d_local(const bool dir, const int fft_size[2],
   const int handle2 = fft_timer_start("2d_l_%s_%s_%i_%i_%i", dir ? "fw" : "bw",
                                       grid_in == grid_out ? "i" : "o",
                                       fft_size[0], fft_size[1], number_of_ffts);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_2d_local(dir, fft_size, number_of_ffts, transpose_in,
+  FFT_DISPATCH_VOID((fft_gpu_2d_local(dir, fft_size, number_of_ffts, transpose_in,
                         transpose_out, grid_in, grid_out)),
-      (fft_fftw_2d_local(dir, fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_2d_local(dir, fft_size, number_of_ffts, transpose_in,
+                         transpose_out, grid_in, grid_out)),
+                    (fft_cufftmp_2d_local(dir, fft_size, number_of_ffts, transpose_in,
                          transpose_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -960,11 +1044,12 @@ void fft_2d_r2c_local(const int fft_size[2], const int number_of_ffts,
   const int handle2 = fft_timer_start("2d_r2c_l_%s_%i_%i_%i",
                                       grid_in == (double *)grid_out ? "i" : "o",
                                       fft_size[0], fft_size[1], number_of_ffts);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_2d_r2c_local((const double *)grid_in, (double *)grid_out, true,
+  FFT_DISPATCH_VOID((fft_gpu_2d_r2c_local((const double *)grid_in, (double *)grid_out, true,
                             fft_size, number_of_ffts, transpose_in,
                             transpose_out)),
-      (fft_fftw_2d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_2d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                             transpose_out, grid_in, grid_out)),
+                    (fft_cufftmp_2d_r2c_local(fft_size, number_of_ffts, transpose_in,
                              transpose_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -987,11 +1072,12 @@ void fft_2d_c2r_local(const int fft_size[2], const int number_of_ffts,
   const int handle2 = fft_timer_start("2d_c2r_l_%s_%i_%i_%i",
                                       (double *)grid_in == grid_out ? "i" : "o",
                                       fft_size[0], fft_size[1], number_of_ffts);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_2d_r2c_local((const double *)grid_in, (double *)grid_out, false,
+  FFT_DISPATCH_VOID((fft_gpu_2d_r2c_local((const double *)grid_in, (double *)grid_out, false,
                             fft_size, number_of_ffts, transpose_in,
                             transpose_out)),
-      (fft_fftw_2d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_2d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                             transpose_out, grid_in, grid_out)),
+                    (fft_cufftmp_2d_c2r_local(fft_size, number_of_ffts, transpose_in,
                              transpose_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1016,10 +1102,11 @@ void fft_3d_local(const bool dir, const int fft_size[3],
   const int handle2 = fft_timer_start("3d_l_%s_%s_%i_%i_%i", dir ? "fw" : "bw",
                                       grid_in == grid_out ? "i" : "o",
                                       fft_size[0], fft_size[1], fft_size[2]);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_3d_local(dir, fft_size, number_of_ffts, transpose_in,
+  FFT_DISPATCH_VOID((fft_gpu_3d_local(dir, fft_size, number_of_ffts, transpose_in,
                         transpose_out, grid_in, grid_out)),
-      (fft_fftw_3d_local(dir, fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_3d_local(dir, fft_size, number_of_ffts, transpose_in,
+                         transpose_out, grid_in, grid_out)),
+                    (fft_cufftmp_3d_local(dir, fft_size, number_of_ffts, transpose_in,
                          transpose_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1042,11 +1129,12 @@ void fft_3d_r2c_local(const int fft_size[3], const int number_of_ffts,
   const int handle2 = fft_timer_start("3d_r2c_l_%s_%i_%i_%i",
                                       grid_in == (double *)grid_out ? "i" : "o",
                                       fft_size[0], fft_size[1], fft_size[2]);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_3d_r2c_local((const double *)grid_in, (double *)grid_out, true,
+  FFT_DISPATCH_VOID((fft_gpu_3d_r2c_local((const double *)grid_in, (double *)grid_out, true,
                             fft_size, number_of_ffts, transpose_in,
                             transpose_out)),
-      (fft_fftw_3d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_3d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                             transpose_out, grid_in, grid_out)),
+                    (fft_cufftmp_3d_r2c_local(fft_size, number_of_ffts, transpose_in,
                              transpose_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1069,11 +1157,12 @@ void fft_3d_c2r_local(const int fft_size[3], const int number_of_ffts,
   const int handle2 = fft_timer_start("3d_c2r_l_%s_%i_%i_%i",
                                       (double *)grid_in == grid_out ? "i" : "o",
                                       fft_size[0], fft_size[1], fft_size[2]);
-  FFT_DISPATCH_VOID(
-      (fft_gpu_3d_r2c_local((const double *)grid_in, (double *)grid_out, false,
+  FFT_DISPATCH_VOID((fft_gpu_3d_r2c_local((const double *)grid_in, (double *)grid_out, false,
                             fft_size, number_of_ffts, transpose_in,
                             transpose_out)),
-      (fft_fftw_3d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                    (fft_fftw_3d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                             transpose_out, grid_in, grid_out)),
+                    (fft_cufftmp_3d_c2r_local(fft_size, number_of_ffts, transpose_in,
                              transpose_out, grid_in, grid_out)));
   fft_stop_timer(handle2);
   fft_stop_timer(handle);
@@ -1098,6 +1187,10 @@ void fft_guru(const bool dir, int rank, const fft_iodim *dims, int howmany_rank,
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_guru(dir, rank, dims, howmany_rank, howmany_dims,
+                  number_of_threads, grid_in, grid_out);
+    break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_guru(dir, rank, dims, howmany_rank, howmany_dims,
                   number_of_threads, grid_in, grid_out);
     break;
   default:
@@ -1127,6 +1220,10 @@ void fft_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
     fft_fftw_guru_r2c(rank, dims, howmany_rank, howmany_dims, number_of_threads,
                       grid_in, grid_out);
     break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_guru_r2c(rank, dims, howmany_rank, howmany_dims, number_of_threads,
+                      grid_in, grid_out);
+    break;
   default:
     cp_assert(0 && "Unknown FFT library.");
   }
@@ -1154,6 +1251,10 @@ void fft_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
     fft_fftw_guru_c2r(rank, dims, howmany_rank, howmany_dims, number_of_threads,
                       grid_in, grid_out);
     break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_guru_c2r(rank, dims, howmany_rank, howmany_dims, number_of_threads,
+                      grid_in, grid_out);
+    break;
   default:
     cp_assert(0 && "Unknown FFT library.");
   }
@@ -1173,6 +1274,10 @@ int fft_2d_distributed_sizes(const int npts_global[2], const int number_of_ffts,
     return fft_fftw_2d_distributed_sizes(npts_global, number_of_ffts, comm,
                                          local_n0, local_n0_start, local_n1,
                                          local_n1_start);
+  } else if (fft_lib_choice == FFT_LIB_CUFFTMP) {
+    return fft_cufftmp_2d_distributed_sizes(npts_global, number_of_ffts, comm,
+                                            local_n0, local_n0_start, local_n1,
+                                            local_n1_start);
   } else {
     cp_assert(0 && "Unknown FFT library.");
     return -1;
@@ -1192,6 +1297,10 @@ int fft_2d_distributed_sizes_r2c(const int npts_global[2],
     return fft_fftw_2d_distributed_sizes_r2c(npts_global, number_of_ffts, comm,
                                              local_n0, local_n0_start, local_n1,
                                              local_n1_start);
+  } else if (fft_lib_choice == FFT_LIB_CUFFTMP) {
+    return fft_cufftmp_2d_distributed_sizes_r2c(
+        npts_global, number_of_ffts, comm, local_n0, local_n0_start, local_n1,
+        local_n1_start);
   } else {
     cp_assert(0 && "Unknown FFT library.");
     return -1;
@@ -1208,6 +1317,10 @@ int fft_3d_distributed_sizes(const int npts_global[3], const cp_mpi_comm_t comm,
   if (fft_lib_choice == FFT_LIB_FFTW) {
     return fft_fftw_3d_distributed_sizes(
         npts_global, comm, local_n2, local_n2_start, local_n1, local_n1_start);
+  } else if (fft_lib_choice == FFT_LIB_CUFFTMP) {
+    return fft_cufftmp_3d_distributed_sizes(npts_global, comm, local_n2,
+                                            local_n2_start, local_n1,
+                                            local_n1_start);
   } else {
     cp_assert(0 && "Unknown FFT library.");
     return -1;
@@ -1224,6 +1337,9 @@ int fft_3d_distributed_sizes_r2c(const int npts_global[3],
                                  int *local_n1_start) {
   if (fft_lib_choice == FFT_LIB_FFTW) {
     return fft_fftw_3d_distributed_sizes_r2c(
+        npts_global, comm, local_n0, local_n0_start, local_n1, local_n1_start);
+  } else if (fft_lib_choice == FFT_LIB_CUFFTMP) {
+    return fft_cufftmp_3d_distributed_sizes_r2c(
         npts_global, comm, local_n0, local_n0_start, local_n1, local_n1_start);
   } else {
     cp_assert(0 && "Unknown FFT library.");
@@ -1253,6 +1369,10 @@ void fft_2d_distributed(const bool dir, const int npts_global[2],
     fft_fftw_2d_distributed(dir, npts_global, number_of_ffts, comm, grid_in,
                             grid_out);
     break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_2d_distributed(dir, npts_global, number_of_ffts, comm, grid_in,
+                               grid_out);
+    break;
   default:
     cp_assert(0 && "Distributed 2D FFT not available.");
   }
@@ -1280,6 +1400,10 @@ void fft_2d_r2c_distributed(const int npts_global[2], const int number_of_ffts,
   case FFT_LIB_FFTW:
     fft_fftw_2d_r2c_distributed(npts_global, number_of_ffts, comm, grid_in,
                                 grid_out);
+    break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_2d_r2c_distributed(npts_global, number_of_ffts, comm, grid_in,
+                                   grid_out);
     break;
   default:
     cp_assert(0 && "Distributed 2D FFT not available.");
@@ -1310,6 +1434,10 @@ void fft_2d_c2r_distributed(const int npts_global[2], const int number_of_ffts,
     fft_fftw_2d_c2r_distributed(npts_global, number_of_ffts, comm, grid_in,
                                 grid_out);
     break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_2d_c2r_distributed(npts_global, number_of_ffts, comm, grid_in,
+                                   grid_out);
+    break;
   default:
     cp_assert(0 && "Distributed 2D FFT not available.");
   }
@@ -1338,6 +1466,9 @@ void fft_3d_distributed(const bool dir, const int npts_global[3],
   case FFT_LIB_FFTW:
     fft_fftw_3d_distributed(dir, npts_global, comm, grid_in, grid_out);
     break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_3d_distributed(dir, npts_global, comm, grid_in, grid_out);
+    break;
   default:
     cp_assert(0 && "Distributed 3D FFT not available.");
   }
@@ -1365,6 +1496,9 @@ void fft_3d_r2c_distributed(const int npts_global[3], const cp_mpi_comm_t comm,
   case FFT_LIB_FFTW:
     fft_fftw_3d_r2c_distributed(npts_global, comm, grid_in, grid_out);
     break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_3d_r2c_distributed(npts_global, comm, grid_in, grid_out);
+    break;
   default:
     cp_assert(0 && "Distributed 3D FFT not available.");
   }
@@ -1391,6 +1525,9 @@ void fft_3d_c2r_distributed(const int npts_global[3], const cp_mpi_comm_t comm,
   switch (fft_lib_choice) {
   case FFT_LIB_FFTW:
     fft_fftw_3d_c2r_distributed(npts_global, comm, grid_in, grid_out);
+    break;
+  case FFT_LIB_CUFFTMP:
+    fft_cufftmp_3d_c2r_distributed(npts_global, comm, grid_in, grid_out);
     break;
   default:
     cp_assert(0 && "Distributed 3D FFT not available.");

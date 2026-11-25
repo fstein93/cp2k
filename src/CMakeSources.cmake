@@ -1598,6 +1598,8 @@ set(CP2K_FFT_SRCS_C
     fft/fft_redistribution_test.c
     fft/fft_grid_test.c
     fft/fft_lib_fftw.c
+    fft/fft_lib_cufftmp.c
+    fft/fft_lib_cufftmp_mpi.c
     fft/fft_lib_test.c
     fft/fft_timer.c
     fft/gpu/fft_gpu.c)

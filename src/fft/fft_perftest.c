@@ -428,9 +428,23 @@ int main(int argc, char *argv[]) {
   }
   cp_mpi_barrier(cp_mpi_get_comm_world());
 
-  offload_set_chosen_device(0);
+  const int my_rank = cp_mpi_comm_rank(cp_mpi_get_comm_world());
+  const int device_count = offload_get_device_count();
+  if (device_count > 0) {
+    offload_set_chosen_device(my_rank % device_count);
+  }
 
-  const int backend = fft_lib_default_library();
+  int backend = fft_lib_default_library();
+  const char *backend_env = getenv("CP2K_FFT_BACKEND");
+  if (backend_env != NULL) {
+    if (strcmp(backend_env, "fftw") == 0) {
+      backend = FFT_LIB_FFTW;
+    } else if (strcmp(backend_env, "gpu") == 0) {
+      backend = FFT_LIB_GPU;
+    } else if (strcmp(backend_env, "cufftmp") == 0) {
+      backend = FFT_LIB_CUFFTMP;
+    }
+  }
   const int planning_mode = FFT_ESTIMATE;
   const double threshold = 0.01;
 

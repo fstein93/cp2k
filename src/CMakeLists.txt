@@ -110,6 +110,7 @@ if(CP2K_USE_CUDA)
       cp2k_cuda_libs
       INTERFACE
         $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:cp2k::CUSOLVER_MP::cusolver_mp>
+        $<$<BOOL:${CP2K_USE_CUFFTMP}>:cp2k::CUFFTMP::cufftmp>
         CUDA::cufft CUDA::cufftw CUDA::cublas CUDA::cudart CUDA::cuda_driver)
   endif()
   if(CP2K_WITH_GPU_PROFILING)
@@ -391,6 +392,7 @@ target_compile_definitions(
     $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","Apple">:__ACCELERATE>
     $<$<BOOL:${CP2K_USE_CUSOLVER_MP}>:__CUSOLVERMP>
     $<$<BOOL:${CP2K_CUSOLVERMP_USE_NCCL}>:__CUSOLVERMP_NCCL>
+    $<$<BOOL:${CP2K_USE_CUFFTMP}>:__CUFFTMP>
     $<$<AND:$<STREQUAL:"${CP2K_BLAS_VENDOR}","OpenBLAS">,$<STREQUAL:"${CP2K_BLAS_INTERFACE}","32bits">>:__OPENBLAS>
     $<$<BOOL:${CP2K_USE_CRAY_PM_ENERGY}>:__CRAY_PM_ENERGY>
     $<$<BOOL:${CP2K_USE_CRAY_PM_ACCEL_ENERGY}>:__CRAY_PM_ACCEL_ENERGY>
@@ -643,6 +645,7 @@ foreach(__app fft_unittest fft_perftest)
       $<$<BOOL:${CP2K_USE_MPI}>:__parallel>
       $<$<OR:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_USE_FFTW3_MKL_}>>:__FFTW3>
       $<$<AND:$<BOOL:${CP2K_USE_FFTW3_}>,$<BOOL:${CP2K_ENABLE_FFTW3_MPI_SUPPORT}>>:__FFTW3_MPI>
+      $<$<BOOL:${CP2K_USE_CUFFTMP}>:__CUFFTMP>
       $<$<STREQUAL:"${CP2K_BLAS_VENDOR}","MKL">:__MKL>)
 
   if(NOT CP2K_ENABLE_FFT_GPU)

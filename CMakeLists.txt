@@ -203,6 +203,11 @@ cmake_dependent_option(
   CP2K_USE_CUSOLVER_MP "Enable cuSOLVERMp. Only active when CUDA is ON" OFF
   "CP2K_USE_ACCEL MATCHES \"CUDA\"" OFF)
 
+cmake_dependent_option(
+  CP2K_USE_CUFFTMP
+  "Enable the cuFFTMp distributed FFT backend. Requires CUDA and MPI" OFF
+  "CP2K_USE_ACCEL MATCHES \"CUDA\" AND CP2K_USE_MPI" OFF)
+
 cmake_dependent_option(CP2K_USE_NVHPC "Enable Nvidia NVHPC kit" OFF
                        "CP2K_USE_ACCEL MATCHES \"CUDA\"" OFF)
 
@@ -569,6 +574,10 @@ if(CP2K_USE_ACCEL MATCHES "CUDA")
 
   if(CP2K_USE_CUSOLVER_MP)
     find_package(CuSolverMP REQUIRED)
+  endif()
+
+  if(CP2K_USE_CUFFTMP)
+    find_package(CuFFTMp REQUIRED)
   endif()
 
   message(STATUS "CUDA compiler and libraries found")
@@ -1104,6 +1113,13 @@ if(CP2K_USE_ACCEL MATCHES "OPENCL")
     "    - LIBXSTREAM package directory: ${libxstream_DIR}\n"
     "    - GPU-accelerated modules\n"
     "      - DBM: ${CP2K_ENABLE_DBM_GPU}\n")
+endif()
+
+if(CP2K_USE_CUFFTMP)
+  message("  - cuFFTMp\n"
+          "    - Include directories: ${CP2K_CUFFTMP_INCLUDE_DIRS}\n"
+          "    - Libraries: ${CP2K_CUFFTMP_LINK_LIBRARIES}\n"
+          "    - NVSHMEM compat libraries: ${CP2K_CUFFTMP_NVSHMEM_LINK_LIBRARIES}")
 endif()
 
 if(CP2K_USE_CUSOLVER_MP)

@@ -10,7 +10,9 @@ This package offers the following main features:
 - Complex-to-complex, Real-to-complex and complex-to-real FFTs
 - Fortran API
 
-Currently, this package has a FFTW-based (including MKL) and a GPU (CUDA or HIP) backend.
+Currently, this package has a FFTW-based (including MKL), a GPU (CUDA or HIP) and a cuFFTMp
+(distributed CUDA FFT) backend. The cuFFTMp backend is enabled with `-DCP2K_USE_CUFFTMP=ON` (CUDA and
+MPI required); it uses cuFFTMp for the distributed transforms and FFTW for the local ones.
 
 ## Unit Test
 

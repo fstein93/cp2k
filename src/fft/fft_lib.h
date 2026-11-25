@@ -13,7 +13,12 @@
 #include <complex.h>
 #include <stdbool.h>
 
-typedef enum { FFT_LIB_FFTW, FFT_LIB_GPU, FFT_LIB_DEFAULT } fft_lib;
+typedef enum {
+  FFT_LIB_FFTW,
+  FFT_LIB_GPU,
+  FFT_LIB_CUFFTMP,
+  FFT_LIB_DEFAULT
+} fft_lib;
 
 /*******************************************************************************
  * \brief Initialize the FFT library (if not done externally).

@@ -28,6 +28,16 @@ static inline bool use_gpu_fft_backend(void) {
   return fft_lib_backend_in_use() == FFT_LIB_GPU;
 }
 
+/*******************************************************************************
+ * \brief Whether a serial (single-rank) request should use the GPU driver for
+ *        the merged cuFFTMp backend.  Distributed requests keep using the
+ *        host/cuFFTMp path until the device-resident driver is complete.
+ ******************************************************************************/
+static inline bool use_cufftmp_serial_backend(const fft_grid_layout *g) {
+  return fft_lib_backend_in_use() == FFT_LIB_CUFFTMP && !g->ray_distribution &&
+         g->proc_grid[0] == 1 && g->proc_grid[1] == 1;
+}
+
 // Could be reformulated with Lapack or calculated
 // For orthorhombic cells, this is at the order of
 // 3*eps(multiplication)+6*eps(addition) For non-orthorhombic cells, this
@@ -2478,7 +2488,7 @@ void fft_3d_fw_with_layout(const double complex *restrict grid_rs,
   ensure_buffer_size(grid_layout->buffer_size);
 
   if (grid_layout->ray_distribution) {
-    if (use_gpu_fft_backend()) {
+    if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
       fft_3d_gpu_fw_ray(grid_rs, true, grid_gs, grid_layout->npts_gs_local,
                         grid_layout->npts_global, grid_layout->index_to_ray,
                         grid_layout->proc2local_rs, grid_layout->proc2local_ms,
@@ -2495,7 +2505,7 @@ void fft_3d_fw_with_layout(const double complex *restrict grid_rs,
                     grid_layout->sub_comm);
     }
   } else {
-    if (use_gpu_fft_backend()) {
+    if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
       fft_3d_gpu_fw_blocked(
           grid_rs, true, grid_gs, grid_layout->index_to_cart,
           grid_layout->npts_gs_local, grid_layout->npts_global,
@@ -2531,7 +2541,7 @@ void fft_3d_fw_with_layout_to_cart(const double complex *restrict grid_rs,
 
   ensure_buffer_size(grid_layout->buffer_size);
 
-  if (use_gpu_fft_backend()) {
+  if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
     fft_3d_gpu_fw_blocked(
         grid_rs, true, grid_gs, NULL, 0, grid_layout->npts_global,
         grid_layout->proc2local_rs, grid_layout->proc2local_ms,
@@ -2564,7 +2574,7 @@ void fft_3d_fw_r2c_with_layout_to_cart(const double *restrict grid_rs,
   ensure_buffer_size(grid_layout->buffer_size);
 
   if (grid_layout->use_halfspace) {
-    if (use_gpu_fft_backend()) {
+    if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
       fft_3d_gpu_fw_r2c_blocked(
           grid_rs, grid_gs, NULL, NULL, 0, 0, grid_layout->npts_global,
           grid_layout->npts_global_gspace, grid_layout->proc2local_rs,
@@ -2582,7 +2592,7 @@ void fft_3d_fw_r2c_with_layout_to_cart(const double *restrict grid_rs,
           grid_layout->sub_comm);
     }
   } else {
-    if (use_gpu_fft_backend()) {
+    if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
       fft_3d_gpu_fw_blocked(
           (const double complex *)grid_rs, false, grid_gs, NULL, 0,
           grid_layout->npts_global, grid_layout->proc2local_rs,
@@ -2620,7 +2630,7 @@ void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs,
 
   if (grid_layout->use_halfspace) {
     if (grid_layout->ray_distribution) {
-      if (use_gpu_fft_backend()) {
+      if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
         fft_3d_gpu_fw_r2c_ray(
             grid_rs, grid_gs, grid_layout->index_to_ray_pos,
             grid_layout->index_to_ray_neg,
@@ -2642,7 +2652,7 @@ void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs,
             grid_layout->comm, grid_layout->sub_comm);
       }
     } else {
-      if (use_gpu_fft_backend()) {
+      if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
         fft_3d_gpu_fw_r2c_blocked(
             grid_rs, grid_gs, grid_layout->index_to_cart_pos,
             grid_layout->index_to_cart_neg,
@@ -2668,7 +2678,7 @@ void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs,
     }
   } else {
     if (grid_layout->ray_distribution) {
-      if (use_gpu_fft_backend()) {
+      if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
         fft_3d_gpu_fw_ray(
             (const double complex *)grid_rs, false, grid_gs,
             grid_layout->npts_gs_local, grid_layout->npts_global,
@@ -2686,7 +2696,7 @@ void fft_3d_fw_r2c_with_layout(const double *restrict grid_rs,
                       grid_layout->sub_comm);
       }
     } else {
-      if (use_gpu_fft_backend()) {
+      if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
         fft_3d_gpu_fw_blocked(
             (const double complex *)grid_rs, false, grid_gs,
             grid_layout->index_to_cart, grid_layout->npts_gs_local,
@@ -2728,7 +2738,7 @@ void fft_3d_bw_with_layout(const double complex *restrict grid_gs,
   ensure_buffer_size(grid_layout->buffer_size);
 
   if (grid_layout->ray_distribution) {
-    if (use_gpu_fft_backend()) {
+    if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
       fft_3d_gpu_bw_ray(
           grid_gs, grid_layout->index_to_ray, grid_layout->npts_gs_local,
           grid_rs, true, grid_layout->npts_global, grid_layout->proc2local_rs,
@@ -2744,7 +2754,7 @@ void fft_3d_bw_with_layout(const double complex *restrict grid_gs,
                     grid_layout->comm, grid_layout->sub_comm);
     }
   } else {
-    if (use_gpu_fft_backend()) {
+    if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
       fft_3d_gpu_bw_blocked(
           grid_gs, grid_layout->index_to_cart, grid_layout->npts_gs_local,
           grid_rs, true, grid_layout->npts_global, grid_layout->proc2local_rs,
@@ -2781,7 +2791,7 @@ void fft_3d_bw_with_layout_from_cart(const double complex *restrict grid_gs,
 
   ensure_buffer_size(grid_layout->buffer_size);
 
-  if (use_gpu_fft_backend()) {
+  if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
     fft_3d_gpu_bw_blocked(
         grid_gs, NULL, 0, grid_rs, true, grid_layout->npts_global,
         grid_layout->proc2local_rs, grid_layout->proc2local_ms,
@@ -2816,7 +2826,7 @@ void fft_3d_bw_c2r_with_layout(const double complex *restrict grid_gs,
 
   if (grid_layout->use_halfspace) {
     if (grid_layout->ray_distribution) {
-      if (use_gpu_fft_backend()) {
+      if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
         fft_3d_gpu_bw_c2r_ray(
             grid_gs, grid_layout->index_to_ray_pos,
             grid_layout->number_of_positive_gs_points, grid_rs,
@@ -2836,7 +2846,7 @@ void fft_3d_bw_c2r_with_layout(const double complex *restrict grid_gs,
             grid_layout->sub_comm);
       }
     } else {
-      if (use_gpu_fft_backend()) {
+      if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
         fft_3d_gpu_bw_c2r_blocked(
             grid_gs, grid_layout->index_to_cart_pos,
             grid_layout->number_of_positive_gs_points, grid_rs,
@@ -2858,7 +2868,7 @@ void fft_3d_bw_c2r_with_layout(const double complex *restrict grid_gs,
     }
   } else {
     if (grid_layout->ray_distribution) {
-      if (use_gpu_fft_backend()) {
+      if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
         fft_3d_gpu_bw_ray(
             grid_gs, grid_layout->index_to_ray, grid_layout->npts_gs_local,
             (double complex *)grid_rs, false, grid_layout->npts_global,
@@ -2876,7 +2886,7 @@ void fft_3d_bw_c2r_with_layout(const double complex *restrict grid_gs,
             grid_layout->sub_comm);
       }
     } else {
-      if (use_gpu_fft_backend()) {
+      if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
         fft_3d_gpu_bw_blocked(
             grid_gs, grid_layout->index_to_cart, grid_layout->npts_gs_local,
             (double complex *)grid_rs, false, grid_layout->npts_global,
@@ -2915,7 +2925,7 @@ void fft_3d_bw_c2r_with_layout_from_cart(const double complex *restrict grid_gs,
   ensure_buffer_size(grid_layout->buffer_size);
 
   if (grid_layout->use_halfspace) {
-    if (use_gpu_fft_backend()) {
+    if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
       fft_3d_gpu_bw_c2r_blocked(
           grid_gs, NULL, 0, grid_rs, grid_layout->npts_global,
           grid_layout->npts_global_gspace, grid_layout->proc2local_rs,
@@ -2933,7 +2943,7 @@ void fft_3d_bw_c2r_with_layout_from_cart(const double complex *restrict grid_gs,
           grid_layout->sub_comm);
     }
   } else {
-    if (use_gpu_fft_backend()) {
+    if (use_gpu_fft_backend() || use_cufftmp_serial_backend(grid_layout)) {
       fft_3d_gpu_bw_blocked(
           grid_gs, NULL, 0, (double complex *)grid_rs, false,
           grid_layout->npts_global, grid_layout->proc2local_rs,

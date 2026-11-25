@@ -67,7 +67,17 @@ int main(int argc, char *argv[]) {
   }
 
   const double threshold = 1e-4;
-  const int backend = fft_lib_default_library();
+  int backend = fft_lib_default_library();
+  const char *backend_env = getenv("CP2K_FFT_BACKEND");
+  if (backend_env != NULL) {
+    if (strcmp(backend_env, "fftw") == 0) {
+      backend = FFT_LIB_FFTW;
+    } else if (strcmp(backend_env, "gpu") == 0) {
+      backend = FFT_LIB_GPU;
+    } else if (strcmp(backend_env, "cufftmp") == 0) {
+      backend = FFT_LIB_CUFFTMP;
+    }
+  }
 
   if (my_rank == 0) {
     printf("Number of MPI ranks: %i\n",
