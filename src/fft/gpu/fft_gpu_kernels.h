@@ -60,6 +60,20 @@ void fft_gpu_launch_ray_unpack_z_xy(
 void fft_gpu_launch_scale(double *data, const double scale, const int ngpts,
                           offloadStream_t stream);
 
+void fft_gpu_launch_gather_index(const double *src, double *dst, const int *idx,
+                                 const int n, const double scale,
+                                 const bool conj, offloadStream_t stream);
+
+void fft_gpu_launch_scatter_index(const double *src, double *dst,
+                                  const int *idx, const int n,
+                                  const double scale, const bool conj,
+                                  offloadStream_t stream);
+
+void fft_gpu_launch_scatter_pairs(const double *src, double *dst,
+                                  const int *pairs, const int n,
+                                  const double scale, const bool conj,
+                                  const bool reverse, offloadStream_t stream);
+
 #ifdef __cplusplus
 }
 #endif

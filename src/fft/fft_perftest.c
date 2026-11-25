@@ -342,6 +342,7 @@ void run_perftests(const int backend, const int planning_mode,
   //   QS_low_scaling_GW
   // run_test_c2c((const int[3]){600, 180, 120}, 10);
 
+#if 0
   // Repeat using the half-space formalism (R2C/C2R FFTs)
   run_test_r2c((const int[3]){100, 100, 100}, 10, false);
   run_test_r2c((const int[3]){125, 125, 125}, 10, false);
@@ -409,6 +410,7 @@ void run_perftests(const int backend, const int planning_mode,
   //    run_test_ray_r2c((const int[3]){630, 630, 630}, 10, true);
   //     QS_low_scaling_GW
   //  run_test_ray_r2c((const int[3]){600, 180, 120}, 10, true);
+#endif
 
   fft_print_timing_report(threshold, cp_mpi_get_comm_world());
   fft_finalize_timer();

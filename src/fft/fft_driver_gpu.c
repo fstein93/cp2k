@@ -30,6 +30,53 @@
     offloadStreamSynchronize(FFT_STREAM);                                      \
   } while (0)
 
+static inline void reorder_gather_index(const double complex *src,
+                                        double complex *dst, const int *idx,
+                                        const int n, const double scale,
+                                        const bool conj, void *fft_stream) {
+  fft_gpu_ensure_map_size(n);
+  int *map = fft_gpu_get_map_buffer();
+  offloadMemcpyAsyncHtoD(map, idx, (size_t)n * sizeof(int), FFT_STREAM);
+  fft_gpu_launch_gather_index((const double *)src, (double *)dst, map, n, scale,
+                              conj, FFT_STREAM);
+}
+
+static inline void reorder_scatter_pairs(const double complex *src,
+                                         double complex *dst,
+                                         const int (*idx)[2], const int n,
+                                         const double scale, const bool conj,
+                                         void *fft_stream) {
+  (void)fft_stream;
+  fft_gpu_ensure_map_size(2 * n);
+  int *map = fft_gpu_get_map_buffer();
+  offloadMemcpyAsyncHtoD(map, idx, (size_t)(2 * n) * sizeof(int), FFT_STREAM);
+  fft_gpu_launch_scatter_pairs((const double *)src, (double *)dst, map, n,
+                               scale, conj, false, FFT_STREAM);
+}
+
+static inline void reorder_scatter_index(const double complex *src,
+                                         double complex *dst, const int *idx,
+                                         const int n, const double scale,
+                                         const bool conj, void *fft_stream) {
+  (void)fft_stream;
+  fft_gpu_ensure_map_size(n);
+  int *map = fft_gpu_get_map_buffer();
+  offloadMemcpyAsyncHtoD(map, idx, (size_t)n * sizeof(int), FFT_STREAM);
+  fft_gpu_launch_scatter_index((const double *)src, (double *)dst, map, n,
+                               scale, conj, FFT_STREAM);
+}
+
+static inline void reorder_scatter_pairs_reverse(
+    const double complex *src, double complex *dst, const int (*idx)[2],
+    const int n, const double scale, const bool conj, void *fft_stream) {
+  (void)fft_stream;
+  fft_gpu_ensure_map_size(2 * n);
+  int *map = fft_gpu_get_map_buffer();
+  offloadMemcpyAsyncHtoD(map, idx, (size_t)(2 * n) * sizeof(int), FFT_STREAM);
+  fft_gpu_launch_scatter_pairs((const double *)src, (double *)dst, map, n,
+                               scale, conj, true, FFT_STREAM);
+}
+
 /*******************************************************************************
  * \brief Registers all FFTs using a blocked distribution.
  * \author Frederick Stein
@@ -682,21 +729,15 @@ void fft_3d_gpu_fw_blocked(const double complex *restrict grid_rs,
 
     // Perform the third FFT
     if (index_to_cart != NULL) {
-      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        npts_gs_local, index_to_cart, grid_gs, grid_buffer_1, scaling_factor)
-      for (int index = 0; index < npts_gs_local; index++) {
-        grid_gs[index] = scaling_factor * grid_buffer_1[index_to_cart[index]];
-      }
+      reorder_gather_index(grid_buffer_dev_1, grid_buffer_dev_2, index_to_cart,
+                           npts_gs_local, scaling_factor, false, fft_stream);
+      FFT_D2H(grid_gs, grid_buffer_dev_2,
+              npts_gs_local * sizeof(double complex));
     } else {
-      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_points_to_scale, grid_gs, grid_buffer_1, scaling_factor)
-      for (int index = 0; index < number_of_points_to_scale; index++) {
-        grid_gs[index] = scaling_factor * grid_buffer_1[index];
-      }
+      fft_gpu_launch_scale((double *)grid_buffer_dev_1, scaling_factor,
+                           number_of_points_to_scale, FFT_STREAM);
+      FFT_D2H(grid_gs, grid_buffer_dev_1,
+              number_of_points_to_scale * sizeof(double complex));
     }
   } else if (proc_grid[0] > 1) {
     cp_assert(fft_sizes_rs[1] == npts_global[1]);
@@ -731,13 +772,10 @@ void fft_3d_gpu_fw_blocked(const double complex *restrict grid_rs,
                               fft_sizes_gs[0] * fft_sizes_gs[1], npts_global[2],
                               grid_buffer_dev_1, grid_buffer_dev_2);
 
-      FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        npts_gs_local, index_to_cart, grid_gs, grid_buffer_2, scaling_factor)
-      for (int index = 0; index < npts_gs_local; index++) {
-        grid_gs[index] = scaling_factor * grid_buffer_2[index_to_cart[index]];
-      }
+      reorder_gather_index(grid_buffer_dev_2, grid_buffer_dev_1, index_to_cart,
+                           npts_gs_local, scaling_factor, false, fft_stream);
+      FFT_D2H(grid_gs, grid_buffer_dev_1,
+              npts_gs_local * sizeof(double complex));
     } else {
       fft_gpu_1d_local_device(true, npts_global[2],
                               fft_sizes_gs[0] * fft_sizes_gs[1], true, false,
@@ -787,21 +825,15 @@ void fft_3d_gpu_fw_blocked(const double complex *restrict grid_rs,
 
     // Perform the third FFT
     if (index_to_cart != NULL) {
-      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        npts_gs_local, index_to_cart, grid_gs, grid_buffer_1, scaling_factor)
-      for (int index = 0; index < npts_gs_local; index++) {
-        grid_gs[index] = scaling_factor * grid_buffer_1[index_to_cart[index]];
-      }
+      reorder_gather_index(grid_buffer_dev_1, grid_buffer_dev_2, index_to_cart,
+                           npts_gs_local, scaling_factor, false, fft_stream);
+      FFT_D2H(grid_gs, grid_buffer_dev_2,
+              npts_gs_local * sizeof(double complex));
     } else {
-      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_points_to_scale, grid_gs, grid_buffer_1, scaling_factor)
-      for (int index = 0; index < number_of_points_to_scale; index++) {
-        grid_gs[index] = scaling_factor * grid_buffer_1[index];
-      }
+      fft_gpu_launch_scale((double *)grid_buffer_dev_1, scaling_factor,
+                           number_of_points_to_scale, FFT_STREAM);
+      FFT_D2H(grid_gs, grid_buffer_dev_1,
+              number_of_points_to_scale * sizeof(double complex));
     }
   } else {
     if (is_complex) {
@@ -819,13 +851,10 @@ void fft_3d_gpu_fw_blocked(const double complex *restrict grid_rs,
       fft_gpu_3d_local_device(true, npts_global, 1, false, false,
                               grid_buffer_dev_1, grid_buffer_dev_2);
 
-      FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        npts_gs_local, index_to_cart, grid_gs, grid_buffer_2, scaling_factor)
-      for (int index = 0; index < npts_gs_local; index++) {
-        grid_gs[index] = scaling_factor * grid_buffer_2[index_to_cart[index]];
-      }
+      reorder_gather_index(grid_buffer_dev_2, grid_buffer_dev_1, index_to_cart,
+                           npts_gs_local, scaling_factor, false, fft_stream);
+      FFT_D2H(grid_gs, grid_buffer_dev_1,
+              npts_gs_local * sizeof(double complex));
     } else {
       fft_gpu_3d_local_device(true, npts_global, 1, false, false,
                               grid_buffer_dev_1, grid_buffer_dev_2);
@@ -1068,33 +1097,27 @@ void fft_3d_gpu_fw_r2c_blocked(
       fft_gpu_2d_local_device(
           true, (const int[2]){npts_global[1], npts_global[2]}, fft_sizes_gs[0],
           true, false, grid_buffer_dev_2, grid_buffer_dev_1);
-      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-      grid_result = grid_buffer_1;
     }
 
     // Perform the third FFT
     if (index_to_cart_neg != NULL && index_to_cart_pos != NULL) {
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_positive_points, index_to_cart_pos, grid_gs, grid_result, \
-               scaling_factor)
-      for (int index = 0; index < number_of_positive_points; index++) {
-        grid_gs[index_to_cart_pos[index][0]] =
-            scaling_factor * grid_result[index_to_cart_pos[index][1]];
-      }
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_negative_points, index_to_cart_neg, grid_gs, grid_result, \
-               scaling_factor)
-      for (int index = 0; index < number_of_negative_points; index++) {
-        grid_gs[index_to_cart_neg[index][0]] =
-            scaling_factor * conj(grid_result[index_to_cart_neg[index][1]]);
-      }
+      offloadMemsetAsync(grid_buffer_dev_2, 0,
+                         (size_t)fft_gpu_get_buffer_size() *
+                             sizeof(double complex),
+                         FFT_STREAM);
+      reorder_scatter_pairs(grid_buffer_dev_1, grid_buffer_dev_2,
+                            index_to_cart_pos, number_of_positive_points,
+                            scaling_factor, false, fft_stream);
+      reorder_scatter_pairs(grid_buffer_dev_1, grid_buffer_dev_2,
+                            index_to_cart_neg, number_of_negative_points,
+                            scaling_factor, true, fft_stream);
+      FFT_D2H(grid_gs, grid_buffer_dev_2,
+              number_of_points_to_scale * sizeof(double complex));
     } else {
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_points_to_scale, grid_gs, grid_result, scaling_factor)
-      for (int index = 0; index < number_of_points_to_scale; index++) {
-        grid_gs[index] = scaling_factor * grid_result[index];
-      }
+      fft_gpu_launch_scale((double *)grid_buffer_dev_1, scaling_factor,
+                           number_of_points_to_scale, FFT_STREAM);
+      FFT_D2H(grid_gs, grid_buffer_dev_1,
+              number_of_points_to_scale * sizeof(double complex));
     }
   } else {
     double complex *grid_result = NULL;
@@ -1113,33 +1136,27 @@ void fft_3d_gpu_fw_r2c_blocked(
       fft_gpu_2d_local_device(
           true, (const int[2]){npts_global[1], npts_global[2]}, fft_sizes_gs[0],
           false, false, grid_buffer_dev_2, grid_buffer_dev_1);
-      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-      grid_result = grid_buffer_1;
     }
 
     // Perform the third FFT
     if (index_to_cart_neg != NULL && index_to_cart_pos != NULL) {
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_positive_points, index_to_cart_pos, grid_gs, grid_result, \
-               scaling_factor)
-      for (int index = 0; index < number_of_positive_points; index++) {
-        grid_gs[index_to_cart_pos[index][0]] =
-            scaling_factor * grid_result[index_to_cart_pos[index][1]];
-      }
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_negative_points, index_to_cart_neg, grid_gs, grid_result, \
-               scaling_factor)
-      for (int index = 0; index < number_of_negative_points; index++) {
-        grid_gs[index_to_cart_neg[index][0]] =
-            scaling_factor * conj(grid_result[index_to_cart_neg[index][1]]);
-      }
+      offloadMemsetAsync(grid_buffer_dev_2, 0,
+                         (size_t)fft_gpu_get_buffer_size() *
+                             sizeof(double complex),
+                         FFT_STREAM);
+      reorder_scatter_pairs(grid_buffer_dev_1, grid_buffer_dev_2,
+                            index_to_cart_pos, number_of_positive_points,
+                            scaling_factor, false, fft_stream);
+      reorder_scatter_pairs(grid_buffer_dev_1, grid_buffer_dev_2,
+                            index_to_cart_neg, number_of_negative_points,
+                            scaling_factor, true, fft_stream);
+      FFT_D2H(grid_gs, grid_buffer_dev_2,
+              number_of_points_to_scale * sizeof(double complex));
     } else {
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_points_to_scale, grid_gs, grid_result, scaling_factor)
-      for (int index = 0; index < number_of_points_to_scale; index++) {
-        grid_gs[index] = scaling_factor * grid_result[index];
-      }
+      fft_gpu_launch_scale((double *)grid_buffer_dev_1, scaling_factor,
+                           number_of_points_to_scale, FFT_STREAM);
+      FFT_D2H(grid_gs, grid_buffer_dev_1,
+              number_of_points_to_scale * sizeof(double complex));
     }
   }
 
@@ -1147,10 +1164,6 @@ void fft_3d_gpu_fw_r2c_blocked(
   fft_stop_timer(handle);
 }
 
-/*******************************************************************************
- * \brief Performs a backward 3D-FFT using a blocked distribution.
- * \author Frederick Stein
- ******************************************************************************/
 void fft_3d_gpu_bw_blocked(const double complex *restrict grid_gs,
                            int *index_to_cart, int number_of_local_gpts,
                            double complex *restrict grid_rs, bool is_complex,
@@ -1203,18 +1216,18 @@ void fft_3d_gpu_bw_blocked(const double complex *restrict grid_gs,
   // FFTW interface
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     if (index_to_cart != NULL) {
-      memset(grid_buffer_1, 0, product3(fft_sizes_gs) * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_local_gpts, index_to_cart, grid_buffer_1, grid_gs)
-      for (int i = 0; i < number_of_local_gpts; i++) {
-        grid_buffer_1[index_to_cart[i]] = grid_gs[i];
-      }
+      FFT_H2D(grid_buffer_dev_2, grid_gs,
+              number_of_local_gpts * sizeof(double complex));
+      offloadMemsetAsync(grid_buffer_dev_1, 0,
+                         (size_t)fft_gpu_get_buffer_size() *
+                             sizeof(double complex),
+                         FFT_STREAM);
+      reorder_scatter_index(grid_buffer_dev_2, grid_buffer_dev_1, index_to_cart,
+                            number_of_local_gpts, 1.0, false, fft_stream);
     } else {
-      memcpy(grid_buffer_1, grid_gs,
-             product3(fft_sizes_gs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_1, grid_gs,
+              product3(fft_sizes_gs) * sizeof(double complex));
     }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
-            product3(fft_sizes_gs) * sizeof(double complex));
 
     // Perform the first FFT in z-direction
     fft_gpu_1d_local_device(false, npts_global[2],
@@ -1261,30 +1274,28 @@ void fft_3d_gpu_bw_blocked(const double complex *restrict grid_gs,
       }
 
       if (!is_complex) {
-        double *grid_rs_double = (double *)grid_rs;
-        FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-                (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(fft_sizes_rs, grid_rs_double, grid_buffer_2)
-        for (int i = 0; i < product3(fft_sizes_rs); i++)
-          grid_rs_double[i] = creal(grid_buffer_2[i]);
+        fft_gpu_launch_complex_to_real((const double *)grid_buffer_dev_2,
+                                       (double *)grid_buffer_dev_1,
+                                       product3(fft_sizes_rs), FFT_STREAM);
+        FFT_D2H(grid_rs, grid_buffer_dev_1,
+                product3(fft_sizes_rs) * sizeof(double));
       }
     }
   } else if (proc_grid[0] > 1) {
 
     if (index_to_cart != NULL) {
-      memset(grid_buffer_1, 0, product3(fft_sizes_gs) * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_local_gpts, index_to_cart, grid_buffer_1, grid_gs)
-      for (int i = 0; i < number_of_local_gpts; i++) {
-        grid_buffer_1[index_to_cart[i]] = grid_gs[i];
-      }
+      FFT_H2D(grid_buffer_dev_2, grid_gs,
+              number_of_local_gpts * sizeof(double complex));
+      offloadMemsetAsync(grid_buffer_dev_1, 0,
+                         (size_t)fft_gpu_get_buffer_size() *
+                             sizeof(double complex),
+                         FFT_STREAM);
+      reorder_scatter_index(grid_buffer_dev_2, grid_buffer_dev_1, index_to_cart,
+                            number_of_local_gpts, 1.0, false, fft_stream);
     } else {
-      memcpy(grid_buffer_1, grid_gs,
-             product3(fft_sizes_gs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_1, grid_gs,
+              product3(fft_sizes_gs) * sizeof(double complex));
     }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
-            product3(fft_sizes_gs) * sizeof(double complex));
 
     // Perform the first FFT and one transposition (x,y_d,z)->(z,x,y_d)
     fft_gpu_1d_local_device(false, npts_global[2],
@@ -1312,29 +1323,27 @@ void fft_3d_gpu_bw_blocked(const double complex *restrict grid_gs,
     }
 
     if (!is_complex) {
-      double *grid_rs_double = (double *)grid_rs;
-      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(fft_sizes_rs, grid_rs_double, grid_buffer_1)
-      for (int i = 0; i < product3(fft_sizes_rs); i++)
-        grid_rs_double[i] = creal(grid_buffer_1[i]);
+      fft_gpu_launch_complex_to_real((const double *)grid_buffer_dev_1,
+                                     (double *)grid_buffer_dev_2,
+                                     product3(fft_sizes_rs), FFT_STREAM);
+      FFT_D2H(grid_rs, grid_buffer_dev_2,
+              product3(fft_sizes_rs) * sizeof(double));
     }
 
   } else if (proc_grid[1] > 1) {
     if (index_to_cart != NULL) {
-      memset(grid_buffer_1, 0, product3(fft_sizes_gs) * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_local_gpts, index_to_cart, grid_buffer_1, grid_gs)
-      for (int i = 0; i < number_of_local_gpts; i++) {
-        grid_buffer_1[index_to_cart[i]] = grid_gs[i];
-      }
+      FFT_H2D(grid_buffer_dev_2, grid_gs,
+              number_of_local_gpts * sizeof(double complex));
+      offloadMemsetAsync(grid_buffer_dev_1, 0,
+                         (size_t)fft_gpu_get_buffer_size() *
+                             sizeof(double complex),
+                         FFT_STREAM);
+      reorder_scatter_index(grid_buffer_dev_2, grid_buffer_dev_1, index_to_cart,
+                            number_of_local_gpts, 1.0, false, fft_stream);
     } else {
-      memcpy(grid_buffer_1, grid_gs,
-             product3(fft_sizes_gs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_1, grid_gs,
+              product3(fft_sizes_gs) * sizeof(double complex));
     }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
-            product3(fft_sizes_gs) * sizeof(double complex));
 
     if (fft_sizes_rs[2] > 0) {
 
@@ -1365,29 +1374,27 @@ void fft_3d_gpu_bw_blocked(const double complex *restrict grid_gs,
       }
 
       if (!is_complex) {
-        double *grid_rs_double = (double *)grid_rs;
-        FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-                (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(fft_sizes_rs, grid_rs_double, grid_buffer_1)
-        for (int i = 0; i < product3(fft_sizes_rs); i++)
-          grid_rs_double[i] = creal(grid_buffer_1[i]);
+        fft_gpu_launch_complex_to_real((const double *)grid_buffer_dev_1,
+                                       (double *)grid_buffer_dev_2,
+                                       product3(fft_sizes_rs), FFT_STREAM);
+        FFT_D2H(grid_rs, grid_buffer_dev_2,
+                product3(fft_sizes_rs) * sizeof(double));
       }
     }
   } else {
     if (index_to_cart != NULL) {
-      memset(grid_buffer_1, 0, product3(fft_sizes_gs) * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_local_gpts, index_to_cart, grid_buffer_1, grid_gs)
-      for (int i = 0; i < number_of_local_gpts; i++) {
-        grid_buffer_1[index_to_cart[i]] = grid_gs[i];
-      }
+      FFT_H2D(grid_buffer_dev_2, grid_gs,
+              number_of_local_gpts * sizeof(double complex));
+      offloadMemsetAsync(grid_buffer_dev_1, 0,
+                         (size_t)fft_gpu_get_buffer_size() *
+                             sizeof(double complex),
+                         FFT_STREAM);
+      reorder_scatter_index(grid_buffer_dev_2, grid_buffer_dev_1, index_to_cart,
+                            number_of_local_gpts, 1.0, false, fft_stream);
     } else {
-      memcpy(grid_buffer_1, grid_gs,
-             product3(fft_sizes_gs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_1, grid_gs,
+              product3(fft_sizes_gs) * sizeof(double complex));
     }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
-            product3(fft_sizes_gs) * sizeof(double complex));
 
     fft_gpu_3d_local_device(false, npts_global, 1, false, false,
                             grid_buffer_dev_1, grid_buffer_dev_2);
@@ -1397,13 +1404,11 @@ void fft_3d_gpu_bw_blocked(const double complex *restrict grid_gs,
     }
 
     if (!is_complex) {
-      double *grid_rs_double = (double *)grid_rs;
-      FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(fft_sizes_rs, grid_rs_double, grid_buffer_2)
-      for (int i = 0; i < product3(fft_sizes_rs); i++)
-        grid_rs_double[i] = creal(grid_buffer_2[i]);
+      fft_gpu_launch_complex_to_real((const double *)grid_buffer_dev_2,
+                                     (double *)grid_buffer_dev_1,
+                                     product3(fft_sizes_rs), FFT_STREAM);
+      FFT_D2H(grid_rs, grid_buffer_dev_1,
+              product3(fft_sizes_rs) * sizeof(double));
     }
   }
 
@@ -1411,6 +1416,10 @@ void fft_3d_gpu_bw_blocked(const double complex *restrict grid_gs,
   fft_stop_timer(handle);
 }
 
+/*******************************************************************************
+ * \brief Performs a backward 3D-FFT using a blocked distribution.
+ * \author Frederick Stein
+ ******************************************************************************/
 /*******************************************************************************
  * \brief Performs a backward 3D-FFT using a blocked distribution.
  * \author Frederick Stein
@@ -1458,18 +1467,15 @@ void fft_3d_gpu_bw_c2r_blocked(
   cp_mpi_cart_get(comm, 2, proc_grid, periods, my_coord);
 
   if (index_to_cart_pos != NULL) {
-    memset(grid_buffer_1, 0, product3(fft_sizes_gs) * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        number_of_positive_points, index_to_cart_pos, grid_gs, grid_buffer_1)
-    for (int i = 0; i < number_of_positive_points; i++) {
-      grid_buffer_1[index_to_cart_pos[i][1]] = grid_gs[index_to_cart_pos[i][0]];
-    }
-  } else {
-    memcpy(grid_buffer_1, grid_gs,
-           product3(fft_sizes_gs) * sizeof(double complex));
+    FFT_H2D(grid_buffer_dev_2, grid_gs,
+            product3(fft_sizes_gs) * sizeof(double complex));
+    offloadMemsetAsync(grid_buffer_dev_1, 0,
+                       product3(fft_sizes_gs) * sizeof(double complex),
+                       FFT_STREAM);
+    reorder_scatter_pairs_reverse(grid_buffer_dev_2, grid_buffer_dev_1,
+                                  index_to_cart_pos, number_of_positive_points,
+                                  1.0, false, fft_stream);
   }
-  FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
-          product3(fft_sizes_gs) * sizeof(double complex));
 
   // We use different data distribution schemes depending on the availability of
   // a distributed FFT library because FFTW requires the data to the different
@@ -1479,19 +1485,15 @@ void fft_3d_gpu_bw_c2r_blocked(
   // FFTW interface
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     if (index_to_cart_pos != NULL) {
-      memset(grid_buffer_1, 0, product3(fft_sizes_gs) * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        number_of_positive_points, index_to_cart_pos, grid_gs, grid_buffer_1)
-      for (int i = 0; i < number_of_positive_points; i++) {
-        grid_buffer_1[index_to_cart_pos[i][1]] =
-            grid_gs[index_to_cart_pos[i][0]];
-      }
-    } else {
-      memcpy(grid_buffer_1, grid_gs,
-             product3(fft_sizes_gs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_2, grid_gs,
+              product3(fft_sizes_gs) * sizeof(double complex));
+      offloadMemsetAsync(grid_buffer_dev_1, 0,
+                         product3(fft_sizes_gs) * sizeof(double complex),
+                         FFT_STREAM);
+      reorder_scatter_pairs_reverse(
+          grid_buffer_dev_2, grid_buffer_dev_1, index_to_cart_pos,
+          number_of_positive_points, 1.0, false, fft_stream);
     }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
-            product3(fft_sizes_gs) * sizeof(double complex));
 
     // Perform the first FFT in z-direction (x_d,y_d,z)->(z,x_d,y_d)
     fft_gpu_1d_local_device(false, npts_global[2],
@@ -1536,19 +1538,15 @@ void fft_3d_gpu_bw_c2r_blocked(
   } else if (proc_grid[0] > 1) {
 
     if (index_to_cart_pos != NULL) {
-      memset(grid_buffer_1, 0, product3(fft_sizes_gs) * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        number_of_positive_points, index_to_cart_pos, grid_gs, grid_buffer_1)
-      for (int i = 0; i < number_of_positive_points; i++) {
-        grid_buffer_1[index_to_cart_pos[i][1]] =
-            grid_gs[index_to_cart_pos[i][0]];
-      }
-    } else {
-      memcpy(grid_buffer_1, grid_gs,
-             product3(fft_sizes_gs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_2, grid_gs,
+              product3(fft_sizes_gs) * sizeof(double complex));
+      offloadMemsetAsync(grid_buffer_dev_1, 0,
+                         product3(fft_sizes_gs) * sizeof(double complex),
+                         FFT_STREAM);
+      reorder_scatter_pairs_reverse(
+          grid_buffer_dev_2, grid_buffer_dev_1, index_to_cart_pos,
+          number_of_positive_points, 1.0, false, fft_stream);
     }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
-            product3(fft_sizes_gs) * sizeof(double complex));
 
     // Perform the first FFT and one transposition (x,y_d,z)->(z,x,y_d)
     fft_gpu_1d_local_device(false, npts_global[2],
@@ -1580,19 +1578,15 @@ void fft_3d_gpu_bw_c2r_blocked(
 
   } else if (proc_grid[1] > 1) {
     if (index_to_cart_pos != NULL) {
-      memset(grid_buffer_1, 0, product3(fft_sizes_gs) * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        number_of_positive_points, index_to_cart_pos, grid_gs, grid_buffer_1)
-      for (int i = 0; i < number_of_positive_points; i++) {
-        grid_buffer_1[index_to_cart_pos[i][1]] =
-            grid_gs[index_to_cart_pos[i][0]];
-      }
-    } else {
-      memcpy(grid_buffer_1, grid_gs,
-             product3(fft_sizes_gs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_2, grid_gs,
+              product3(fft_sizes_gs) * sizeof(double complex));
+      offloadMemsetAsync(grid_buffer_dev_1, 0,
+                         product3(fft_sizes_gs) * sizeof(double complex),
+                         FFT_STREAM);
+      reorder_scatter_pairs_reverse(
+          grid_buffer_dev_2, grid_buffer_dev_1, index_to_cart_pos,
+          number_of_positive_points, 1.0, false, fft_stream);
     }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
-            product3(fft_sizes_gs) * sizeof(double complex));
 
     if (fft_sizes_rs[2] > 0) {
 
@@ -1619,19 +1613,15 @@ void fft_3d_gpu_bw_c2r_blocked(
     }
   } else {
     if (index_to_cart_pos != NULL) {
-      memset(grid_buffer_1, 0, product3(fft_sizes_gs) * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        number_of_positive_points, index_to_cart_pos, grid_gs, grid_buffer_1)
-      for (int i = 0; i < number_of_positive_points; i++) {
-        grid_buffer_1[index_to_cart_pos[i][1]] =
-            grid_gs[index_to_cart_pos[i][0]];
-      }
-    } else {
-      memcpy(grid_buffer_1, grid_gs,
-             product3(fft_sizes_gs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_2, grid_gs,
+              product3(fft_sizes_gs) * sizeof(double complex));
+      offloadMemsetAsync(grid_buffer_dev_1, 0,
+                         product3(fft_sizes_gs) * sizeof(double complex),
+                         FFT_STREAM);
+      reorder_scatter_pairs_reverse(
+          grid_buffer_dev_2, grid_buffer_dev_1, index_to_cart_pos,
+          number_of_positive_points, 1.0, false, fft_stream);
     }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
-            product3(fft_sizes_gs) * sizeof(double complex));
 
     // Perform the first two FFTs
     fft_gpu_2d_local_device(false,
@@ -1757,13 +1747,9 @@ void fft_3d_gpu_fw_ray(const double complex *restrict grid_rs, bool is_complex,
                             false, false, npts_global[2], npts_global[2],
                             grid_buffer_dev_1, grid_buffer_dev_2);
 
-    FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-            (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        npts_gs_local, grid_gs, grid_buffer_2, scaling_factor, index_to_ray)
-    for (int index = 0; index < npts_gs_local; index++) {
-      grid_gs[index] = scaling_factor * grid_buffer_2[index_to_ray[index]];
-    }
+    reorder_gather_index(grid_buffer_dev_2, grid_buffer_dev_1, index_to_ray,
+                         npts_gs_local, scaling_factor, false, fft_stream);
+    FFT_D2H(grid_gs, grid_buffer_dev_1, npts_gs_local * sizeof(double complex));
   } else if (proc_grid[0] > 1) {
     if (is_complex) {
       FFT_H2D(grid_buffer_dev_1, grid_rs,
@@ -1795,14 +1781,9 @@ void fft_3d_gpu_fw_ray(const double complex *restrict grid_rs, bool is_complex,
                             false, false, npts_global[2], npts_global[2],
                             grid_buffer_dev_1, grid_buffer_dev_2);
 
-    FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-            (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(npts_gs_local, grid_gs, grid_buffer_2, scaling_factor,              \
-               index_to_ray, my_process)
-    for (int index = 0; index < npts_gs_local; index++) {
-      grid_gs[index] = scaling_factor * grid_buffer_2[index_to_ray[index]];
-    }
+    reorder_gather_index(grid_buffer_dev_2, grid_buffer_dev_1, index_to_ray,
+                         npts_gs_local, scaling_factor, false, fft_stream);
+    FFT_D2H(grid_gs, grid_buffer_dev_1, npts_gs_local * sizeof(double complex));
   } else if (proc_grid[1] > 1) {
 
     if (is_complex) {
@@ -1852,13 +1833,9 @@ void fft_3d_gpu_fw_ray(const double complex *restrict grid_rs, bool is_complex,
                             false, false, npts_global[2], npts_global[2],
                             grid_buffer_dev_1, grid_buffer_dev_2);
 
-    FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-            (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        npts_gs_local, grid_gs, grid_buffer_2, scaling_factor, index_to_ray)
-    for (int index = 0; index < npts_gs_local; index++) {
-      grid_gs[index] = scaling_factor * grid_buffer_2[index_to_ray[index]];
-    }
+    reorder_gather_index(grid_buffer_dev_2, grid_buffer_dev_1, index_to_ray,
+                         npts_gs_local, scaling_factor, false, fft_stream);
+    FFT_D2H(grid_gs, grid_buffer_dev_1, npts_gs_local * sizeof(double complex));
   } else {
     if (is_complex) {
       FFT_H2D(grid_buffer_dev_2, grid_rs,
@@ -1873,13 +1850,9 @@ void fft_3d_gpu_fw_ray(const double complex *restrict grid_rs, bool is_complex,
 
     fft_gpu_3d_local_device(true, npts_global, 1, false, false,
                             grid_buffer_dev_2, grid_buffer_dev_1);
-    FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-            (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        npts_gs_local, grid_gs, grid_buffer_1, scaling_factor, index_to_ray)
-    for (int index = 0; index < npts_gs_local; index++) {
-      grid_gs[index] = scaling_factor * grid_buffer_1[index_to_ray[index]];
-    }
+    reorder_gather_index(grid_buffer_dev_1, grid_buffer_dev_2, index_to_ray,
+                         npts_gs_local, scaling_factor, false, fft_stream);
+    FFT_D2H(grid_gs, grid_buffer_dev_2, npts_gs_local * sizeof(double complex));
   }
 
   fft_stop_timer(handle2);
@@ -1986,24 +1959,18 @@ void fft_3d_gpu_fw_r2c_ray(
                             false, false, npts_global[2], npts_global[2],
                             grid_buffer_dev_1, grid_buffer_dev_2);
 
-    FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-            (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_positive_points, index_to_ray_pos, grid_gs,               \
-               grid_buffer_2, scaling_factor)
-    for (int index = 0; index < number_of_positive_points; index++) {
-      grid_gs[index_to_ray_pos[index][0]] =
-          scaling_factor * grid_buffer_2[index_to_ray_pos[index][1]];
-    }
-    FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-            (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_negative_points, index_to_ray_neg, grid_gs,               \
-               grid_buffer_2, scaling_factor)
-    for (int index = 0; index < number_of_negative_points; index++) {
-      grid_gs[index_to_ray_neg[index][0]] =
-          scaling_factor * conj(grid_buffer_2[index_to_ray_neg[index][1]]);
-    }
+    offloadMemsetAsync(
+        grid_buffer_dev_1, 0,
+        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex), FFT_STREAM);
+    reorder_scatter_pairs(grid_buffer_dev_2, grid_buffer_dev_1,
+                          index_to_ray_pos, number_of_positive_points,
+                          scaling_factor, false, fft_stream);
+    reorder_scatter_pairs(grid_buffer_dev_2, grid_buffer_dev_1,
+                          index_to_ray_neg, number_of_negative_points,
+                          scaling_factor, true, fft_stream);
+    FFT_D2H(grid_gs, grid_buffer_dev_1,
+            (number_of_positive_points + number_of_negative_points) *
+                sizeof(double complex));
   } else if (proc_grid[0] > 1) {
 
     FFT_H2D(grid_buffer_dev_2, grid_rs,
@@ -2035,24 +2002,18 @@ void fft_3d_gpu_fw_r2c_ray(
                             false, false, npts_global[2], npts_global[2],
                             grid_buffer_dev_1, grid_buffer_dev_2);
 
-    FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-            (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_positive_points, index_to_ray_pos, grid_gs,               \
-               grid_buffer_2, scaling_factor)
-    for (int index = 0; index < number_of_positive_points; index++) {
-      grid_gs[index_to_ray_pos[index][0]] =
-          scaling_factor * grid_buffer_2[index_to_ray_pos[index][1]];
-    }
-    FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-            (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_negative_points, index_to_ray_neg, grid_gs,               \
-               grid_buffer_2, scaling_factor)
-    for (int index = 0; index < number_of_negative_points; index++) {
-      grid_gs[index_to_ray_neg[index][0]] =
-          scaling_factor * conj(grid_buffer_2[index_to_ray_neg[index][1]]);
-    }
+    offloadMemsetAsync(
+        grid_buffer_dev_1, 0,
+        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex), FFT_STREAM);
+    reorder_scatter_pairs(grid_buffer_dev_2, grid_buffer_dev_1,
+                          index_to_ray_pos, number_of_positive_points,
+                          scaling_factor, false, fft_stream);
+    reorder_scatter_pairs(grid_buffer_dev_2, grid_buffer_dev_1,
+                          index_to_ray_neg, number_of_negative_points,
+                          scaling_factor, true, fft_stream);
+    FFT_D2H(grid_gs, grid_buffer_dev_1,
+            (number_of_positive_points + number_of_negative_points) *
+                sizeof(double complex));
   } else if (proc_grid[1] > 1) {
 
     FFT_H2D(grid_buffer_dev_2, grid_rs,
@@ -2094,24 +2055,18 @@ void fft_3d_gpu_fw_r2c_ray(
                             false, false, npts_global[2], npts_global[2],
                             grid_buffer_dev_1, grid_buffer_dev_2);
 
-    FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-            (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_positive_points, index_to_ray_pos, grid_gs,               \
-               grid_buffer_2, scaling_factor)
-    for (int index = 0; index < number_of_positive_points; index++) {
-      grid_gs[index_to_ray_pos[index][0]] =
-          scaling_factor * grid_buffer_2[index_to_ray_pos[index][1]];
-    }
-    FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-            (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_negative_points, index_to_ray_neg, grid_gs,               \
-               grid_buffer_2, scaling_factor)
-    for (int index = 0; index < number_of_negative_points; index++) {
-      grid_gs[index_to_ray_neg[index][0]] =
-          scaling_factor * conj(grid_buffer_2[index_to_ray_neg[index][1]]);
-    }
+    offloadMemsetAsync(
+        grid_buffer_dev_1, 0,
+        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex), FFT_STREAM);
+    reorder_scatter_pairs(grid_buffer_dev_2, grid_buffer_dev_1,
+                          index_to_ray_pos, number_of_positive_points,
+                          scaling_factor, false, fft_stream);
+    reorder_scatter_pairs(grid_buffer_dev_2, grid_buffer_dev_1,
+                          index_to_ray_neg, number_of_negative_points,
+                          scaling_factor, true, fft_stream);
+    FFT_D2H(grid_gs, grid_buffer_dev_1,
+            (number_of_positive_points + number_of_negative_points) *
+                sizeof(double complex));
   } else {
 
     FFT_H2D(grid_buffer_dev_1, grid_rs,
@@ -2129,24 +2084,18 @@ void fft_3d_gpu_fw_r2c_ray(
                             grid_buffer_dev_2, grid_buffer_dev_1);
 
     // Copy to the ray format
-    FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-            (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_positive_points, index_to_ray_pos, grid_gs,               \
-               grid_buffer_1, scaling_factor)
-    for (int index = 0; index < number_of_positive_points; index++) {
-      grid_gs[index_to_ray_pos[index][0]] =
-          scaling_factor * grid_buffer_1[index_to_ray_pos[index][1]];
-    }
-    FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-            (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_negative_points, index_to_ray_neg, grid_gs,               \
-               grid_buffer_1, scaling_factor)
-    for (int index = 0; index < number_of_negative_points; index++) {
-      grid_gs[index_to_ray_neg[index][0]] =
-          scaling_factor * conj(grid_buffer_1[index_to_ray_neg[index][1]]);
-    }
+    offloadMemsetAsync(
+        grid_buffer_dev_2, 0,
+        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex), FFT_STREAM);
+    reorder_scatter_pairs(grid_buffer_dev_1, grid_buffer_dev_2,
+                          index_to_ray_pos, number_of_positive_points,
+                          scaling_factor, false, fft_stream);
+    reorder_scatter_pairs(grid_buffer_dev_1, grid_buffer_dev_2,
+                          index_to_ray_neg, number_of_negative_points,
+                          scaling_factor, true, fft_stream);
+    FFT_D2H(grid_gs, grid_buffer_dev_2,
+            (number_of_positive_points + number_of_negative_points) *
+                sizeof(double complex));
   }
 
   fft_stop_timer(handle2);
@@ -2204,15 +2153,13 @@ void fft_3d_gpu_bw_ray(const double complex *restrict grid_gs,
   // require the implementation of the Guru interface which is not available
   // with all implementations of the FFTW interface
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
-    memset(grid_buffer_1, 0,
-           number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_local_gpts, index_to_ray, grid_buffer_1, grid_gs)
-    for (int i = 0; i < number_of_local_gpts; i++) {
-      grid_buffer_1[index_to_ray[i]] = grid_gs[i];
-    }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
-            number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
+    FFT_H2D(grid_buffer_dev_2, grid_gs,
+            number_of_local_gpts * sizeof(double complex));
+    offloadMemsetAsync(
+        grid_buffer_dev_1, 0,
+        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex), FFT_STREAM);
+    reorder_scatter_index(grid_buffer_dev_2, grid_buffer_dev_1, index_to_ray,
+                          number_of_local_gpts, 1.0, false, fft_stream);
 
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_1d_local_device(false, npts_global[2], number_of_local_xy_rays,
@@ -2255,25 +2202,21 @@ void fft_3d_gpu_bw_ray(const double complex *restrict grid_gs,
     }
 
     if (!is_complex) {
-      double *grid_rs_double = (double *)grid_rs;
-      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(fft_sizes_rs, grid_rs_double, grid_buffer_1)
-      for (int i = 0; i < product3(fft_sizes_rs); i++)
-        grid_rs_double[i] = creal(grid_buffer_1[i]);
+      fft_gpu_launch_complex_to_real((const double *)grid_buffer_dev_1,
+                                     (double *)grid_buffer_dev_2,
+                                     product3(fft_sizes_rs), FFT_STREAM);
+      FFT_D2H(grid_rs, grid_buffer_dev_2,
+              product3(fft_sizes_rs) * sizeof(double));
     }
 
   } else if (proc_grid[0] > 1) {
-    memset(grid_buffer_1, 0,
-           number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_local_gpts, index_to_ray, grid_buffer_1, grid_gs)
-    for (int i = 0; i < number_of_local_gpts; i++) {
-      grid_buffer_1[index_to_ray[i]] = grid_gs[i];
-    }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
-            number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
+    FFT_H2D(grid_buffer_dev_2, grid_gs,
+            number_of_local_gpts * sizeof(double complex));
+    offloadMemsetAsync(
+        grid_buffer_dev_1, 0,
+        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex), FFT_STREAM);
+    reorder_scatter_index(grid_buffer_dev_2, grid_buffer_dev_1, index_to_ray,
+                          number_of_local_gpts, 1.0, false, fft_stream);
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_1d_local_device(false, npts_global[2], number_of_local_xy_rays,
                             false, false, npts_global[2], npts_global[2],
@@ -2297,24 +2240,20 @@ void fft_3d_gpu_bw_ray(const double complex *restrict grid_gs,
               product3(fft_sizes_rs) * sizeof(double complex));
     }
     if (!is_complex) {
-      double *grid_rs_double = (double *)grid_rs;
-      FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(fft_sizes_rs, grid_rs_double, grid_buffer_2)
-      for (int i = 0; i < product3(fft_sizes_rs); i++)
-        grid_rs_double[i] = creal(grid_buffer_2[i]);
+      fft_gpu_launch_complex_to_real((const double *)grid_buffer_dev_2,
+                                     (double *)grid_buffer_dev_1,
+                                     product3(fft_sizes_rs), FFT_STREAM);
+      FFT_D2H(grid_rs, grid_buffer_dev_1,
+              product3(fft_sizes_rs) * sizeof(double));
     }
   } else if (proc_grid[1] > 1) {
-    memset(grid_buffer_1, 0,
-           number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_local_gpts, index_to_ray, grid_buffer_1, grid_gs)
-    for (int i = 0; i < number_of_local_gpts; i++) {
-      grid_buffer_1[index_to_ray[i]] = grid_gs[i];
-    }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
-            number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
+    FFT_H2D(grid_buffer_dev_2, grid_gs,
+            number_of_local_gpts * sizeof(double complex));
+    offloadMemsetAsync(
+        grid_buffer_dev_1, 0,
+        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex), FFT_STREAM);
+    reorder_scatter_index(grid_buffer_dev_2, grid_buffer_dev_1, index_to_ray,
+                          number_of_local_gpts, 1.0, false, fft_stream);
 
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_1d_local_device(false, npts_global[2], number_of_local_xy_rays,
@@ -2356,25 +2295,22 @@ void fft_3d_gpu_bw_ray(const double complex *restrict grid_gs,
               product3(fft_sizes_rs) * sizeof(double complex));
     }
     if (!is_complex) {
-      double *grid_rs_double = (double *)grid_rs;
-      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(fft_sizes_rs, grid_rs_double, grid_buffer_1)
-      for (int i = 0; i < product3(fft_sizes_rs); i++)
-        grid_rs_double[i] = creal(grid_buffer_1[i]);
+      fft_gpu_launch_complex_to_real((const double *)grid_buffer_dev_1,
+                                     (double *)grid_buffer_dev_2,
+                                     product3(fft_sizes_rs), FFT_STREAM);
+      FFT_D2H(grid_rs, grid_buffer_dev_2,
+              product3(fft_sizes_rs) * sizeof(double));
     }
 
   } else {
     // Ray distribution
-    memset(grid_buffer_2, 0, product3(npts_global) * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(number_of_local_gpts, index_to_ray, grid_buffer_2, grid_gs)
-    for (int i = 0; i < number_of_local_gpts; i++) {
-      grid_buffer_2[index_to_ray[i]] = grid_gs[i];
-    }
-    FFT_H2D(grid_buffer_dev_2, grid_buffer_2,
-            product3(npts_global) * sizeof(double complex));
+    FFT_H2D(grid_buffer_dev_1, grid_gs,
+            number_of_local_gpts * sizeof(double complex));
+    offloadMemsetAsync(
+        grid_buffer_dev_2, 0,
+        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex), FFT_STREAM);
+    reorder_scatter_index(grid_buffer_dev_1, grid_buffer_dev_2, index_to_ray,
+                          number_of_local_gpts, 1.0, false, fft_stream);
 
     if (is_complex) {
       fft_gpu_3d_local_device(false, npts_global, 1, false, false,
@@ -2384,14 +2320,11 @@ void fft_3d_gpu_bw_ray(const double complex *restrict grid_gs,
     } else {
       fft_gpu_3d_local_device(false, npts_global, 1, false, false,
                               grid_buffer_dev_2, grid_buffer_dev_1);
-
-      double *grid_rs_double = (double *)grid_rs;
-      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
-              (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
-#pragma omp parallel for default(none)                                         \
-    shared(fft_sizes_rs, grid_rs_double, grid_buffer_1)
-      for (int i = 0; i < product3(fft_sizes_rs); i++)
-        grid_rs_double[i] = creal(grid_buffer_1[i]);
+      fft_gpu_launch_complex_to_real((const double *)grid_buffer_dev_1,
+                                     (double *)grid_buffer_dev_2,
+                                     product3(fft_sizes_rs), FFT_STREAM);
+      FFT_D2H(grid_rs, grid_buffer_dev_2,
+              product3(fft_sizes_rs) * sizeof(double));
     }
   }
 
@@ -2450,15 +2383,15 @@ void fft_3d_gpu_bw_c2r_ray(
   // require the implementation of the Guru interface which is not available
   // with all implementations of the FFTW interface
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
-    memset(grid_buffer_1, 0,
-           number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        number_of_positive_points, index_to_ray_pos, grid_buffer_1, grid_gs)
-    for (int i = 0; i < number_of_positive_points; i++) {
-      grid_buffer_1[index_to_ray_pos[i][1]] = grid_gs[index_to_ray_pos[i][0]];
-    }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
+    FFT_H2D(grid_buffer_dev_2, grid_gs,
             number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
+    offloadMemsetAsync(grid_buffer_dev_1, 0,
+                       number_of_local_xy_rays * npts_global[2] *
+                           sizeof(double complex),
+                       FFT_STREAM);
+    reorder_scatter_pairs_reverse(grid_buffer_dev_2, grid_buffer_dev_1,
+                                  index_to_ray_pos, number_of_positive_points,
+                                  1.0, false, fft_stream);
 
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_1d_local_device(false, npts_global[2], number_of_local_xy_rays,
@@ -2499,15 +2432,15 @@ void fft_3d_gpu_bw_c2r_ray(
 
   } else if (proc_grid[0] > 1) {
 
-    memset(grid_buffer_1, 0,
-           number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        number_of_positive_points, index_to_ray_pos, grid_buffer_1, grid_gs)
-    for (int i = 0; i < number_of_positive_points; i++) {
-      grid_buffer_1[index_to_ray_pos[i][1]] = grid_gs[index_to_ray_pos[i][0]];
-    }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
+    FFT_H2D(grid_buffer_dev_2, grid_gs,
             number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
+    offloadMemsetAsync(grid_buffer_dev_1, 0,
+                       number_of_local_xy_rays * npts_global[2] *
+                           sizeof(double complex),
+                       FFT_STREAM);
+    reorder_scatter_pairs_reverse(grid_buffer_dev_2, grid_buffer_dev_1,
+                                  index_to_ray_pos, number_of_positive_points,
+                                  1.0, false, fft_stream);
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_1d_local_device(false, npts_global[2], number_of_local_xy_rays,
                             false, false, npts_global[2], npts_global[2],
@@ -2536,15 +2469,15 @@ void fft_3d_gpu_bw_c2r_ray(
                          grid_rs);
 
   } else if (proc_grid[1] > 1) {
-    memset(grid_buffer_1, 0,
-           number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        number_of_positive_points, index_to_ray_pos, grid_buffer_1, grid_gs)
-    for (int i = 0; i < number_of_positive_points; i++) {
-      grid_buffer_1[index_to_ray_pos[i][1]] = grid_gs[index_to_ray_pos[i][0]];
-    }
-    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
+    FFT_H2D(grid_buffer_dev_2, grid_gs,
             number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
+    offloadMemsetAsync(grid_buffer_dev_1, 0,
+                       number_of_local_xy_rays * npts_global[2] *
+                           sizeof(double complex),
+                       FFT_STREAM);
+    reorder_scatter_pairs_reverse(grid_buffer_dev_2, grid_buffer_dev_1,
+                                  index_to_ray_pos, number_of_positive_points,
+                                  1.0, false, fft_stream);
 
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_1d_local_device(false, npts_global[2], number_of_local_xy_rays,
@@ -2584,15 +2517,14 @@ void fft_3d_gpu_bw_c2r_ray(
                          grid_rs);
 
   } else {
-    memset(grid_buffer_2, 0,
-           product3(npts_global_gspace) * sizeof(double complex));
-#pragma omp parallel for default(none) shared(                                 \
-        number_of_positive_points, index_to_ray_pos, grid_buffer_2, grid_gs)
-    for (int i = 0; i < number_of_positive_points; i++) {
-      grid_buffer_2[index_to_ray_pos[i][1]] = grid_gs[index_to_ray_pos[i][0]];
-    }
-    FFT_H2D(grid_buffer_dev_2, grid_buffer_2,
+    FFT_H2D(grid_buffer_dev_1, grid_gs,
             product3(npts_global_gspace) * sizeof(double complex));
+    offloadMemsetAsync(grid_buffer_dev_2, 0,
+                       product3(npts_global_gspace) * sizeof(double complex),
+                       FFT_STREAM);
+    reorder_scatter_pairs_reverse(grid_buffer_dev_1, grid_buffer_dev_2,
+                                  index_to_ray_pos, number_of_positive_points,
+                                  1.0, false, fft_stream);
 
     // second FFT (z_d,x,y) -> (y,z_d,x)
     fft_gpu_2d_local_device(false,

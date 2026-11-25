@@ -190,6 +190,82 @@ void fft_gpu_launch_ray_unpack_z_xy(
       npts_global_y, my_size_z_rs);
 }
 
+__global__ void gather_index_kernel(const double *src, double *dst,
+                                    const int *idx, const int n,
+                                    const double scale, const bool conj) {
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n) {
+    const int j = idx[i];
+    double re = src[2 * j];
+    double im = src[2 * j + 1];
+    if (conj)
+      im = -im;
+    dst[2 * i] = scale * re;
+    dst[2 * i + 1] = scale * im;
+  }
+}
+
+void fft_gpu_launch_gather_index(const double *src, double *dst, const int *idx,
+                                 const int n, const double scale,
+                                 const bool conj, offloadStream_t stream) {
+  const int threadsPerBlock = 256;
+  const int numBlocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+  gather_index_kernel<<<numBlocks, threadsPerBlock, 0, stream>>>(
+      src, dst, idx, n, scale, conj);
+}
+
+__global__ void scatter_index_kernel(const double *src, double *dst,
+                                     const int *idx, const int n,
+                                     const double scale, const bool conj) {
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n) {
+    double re = src[2 * i];
+    double im = src[2 * i + 1];
+    if (conj)
+      im = -im;
+    const int j = idx[i];
+    dst[2 * j] = scale * re;
+    dst[2 * j + 1] = scale * im;
+  }
+}
+
+void fft_gpu_launch_scatter_index(const double *src, double *dst,
+                                  const int *idx, const int n,
+                                  const double scale, const bool conj,
+                                  offloadStream_t stream) {
+  const int threadsPerBlock = 256;
+  const int numBlocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+  scatter_index_kernel<<<numBlocks, threadsPerBlock, 0, stream>>>(
+      src, dst, idx, n, scale, conj);
+}
+
+__global__ void scatter_pairs_kernel(const double *src, double *dst,
+                                     const int *pairs, const int n,
+                                     const double scale, const bool conj,
+                                     const bool reverse) {
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < n) {
+    const int s = reverse ? pairs[2 * i] : pairs[2 * i + 1];
+    const int d = reverse ? pairs[2 * i + 1] : pairs[2 * i];
+    double re = src[2 * s];
+    double im = src[2 * s + 1];
+    if (conj)
+      im = -im;
+    dst[2 * d] = scale * re;
+    dst[2 * d + 1] = scale * im;
+  }
+}
+
+void fft_gpu_launch_scatter_pairs(const double *src, double *dst,
+                                  const int *pairs, const int n,
+                                  const double scale, const bool conj,
+                                  const bool reverse, offloadStream_t stream) {
+  const int threadsPerBlock = 256;
+  const int numBlocks = (n + threadsPerBlock - 1) / threadsPerBlock;
+  scatter_pairs_kernel<<<numBlocks, threadsPerBlock, 0, stream>>>(
+      src, dst, pairs, n, scale, conj, reverse);
+}
+
 __global__ void scale_complex(double *data, const double scale,
                               const int ngpts) {
   const int igpt = blockIdx.x * blockDim.x + threadIdx.x;
