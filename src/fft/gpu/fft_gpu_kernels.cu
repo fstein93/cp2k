@@ -132,6 +132,67 @@ void fft_gpu_launch_scatter(double *c, const double *pwcc, const double scale,
                                                         nmaps, ghatmap);
 }
 
+__global__ void ray_pack_z_xy(const double *grid, double *send_buffer,
+                              const int *xy_to_proc, const int number_of_xy,
+                              const int my_size_x_gs, const int npts_global_y,
+                              const int my_size_z_rs) {
+  const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  const int total = number_of_xy * my_size_z_rs;
+  if (idx < total) {
+    const int xy_pair = idx / my_size_z_rs;
+    const int index_z = idx % my_size_z_rs;
+    const int src = 2 * (index_z * my_size_x_gs * npts_global_y + xy_pair);
+    const int dst = 2 * (xy_to_proc[xy_pair] * my_size_z_rs + index_z);
+    send_buffer[dst] = grid[src];
+    send_buffer[dst + 1] = grid[src + 1];
+  }
+}
+
+void fft_gpu_launch_ray_pack_z_xy(const double *grid, double *send_buffer,
+                                  const int *xy_to_proc, const int number_of_xy,
+                                  const int my_size_x_gs,
+                                  const int npts_global_y,
+                                  const int my_size_z_rs,
+                                  offloadStream_t stream) {
+  const int threadsPerBlock = 256;
+  const int total = number_of_xy * my_size_z_rs;
+  const int numBlocks = (total + threadsPerBlock - 1) / threadsPerBlock;
+  ray_pack_z_xy<<<numBlocks, threadsPerBlock, 0, stream>>>(
+      grid, send_buffer, xy_to_proc, number_of_xy, my_size_x_gs, npts_global_y,
+      my_size_z_rs);
+}
+
+__global__ void ray_unpack_z_xy(const double *recv_buffer, double *transposed,
+                                const int *xy_to_proc, const int number_of_xy,
+                                const int my_size_x_gs, const int npts_global_y,
+                                const int my_size_z_rs) {
+  const int idx = blockIdx.x * blockDim.x + threadIdx.x;
+  const int total = number_of_xy * my_size_z_rs;
+  if (idx < total) {
+    const int xy_pair = idx / my_size_z_rs;
+    const int index_z = idx % my_size_z_rs;
+    const int dst = 2 * (index_z * my_size_x_gs * npts_global_y + xy_pair);
+    const int src = 2 * (xy_to_proc[xy_pair] * my_size_z_rs + index_z);
+    transposed[dst] = recv_buffer[src];
+    transposed[dst + 1] = recv_buffer[src + 1];
+  }
+}
+
+void fft_gpu_launch_ray_unpack_z_xy(const double *recv_buffer,
+                                    double *transposed, const int *xy_to_proc,
+                                    const int number_of_xy,
+                                    const int my_size_x_gs,
+                                    const int npts_global_y,
+                                    const int my_size_z_rs,
+                                    offloadStream_t stream) {
+  const int threadsPerBlock = 256;
+  const int total = number_of_xy * my_size_z_rs;
+  const int numBlocks = (total + threadsPerBlock - 1) / threadsPerBlock;
+  ray_unpack_z_xy<<<numBlocks, threadsPerBlock, 0, stream>>>(
+      recv_buffer, transposed, xy_to_proc, number_of_xy, my_size_x_gs,
+      npts_global_y, my_size_z_rs);
+}
+
 #endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
 
 // EOF

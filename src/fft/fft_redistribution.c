@@ -9,6 +9,11 @@
 #include "../mpiwrap/cp_mpi.h"
 #include "fft_timer.h"
 #include "fft_utils.h"
+#if defined(__OFFLOAD_CUDA) || defined(__OFFLOAD_HIP)
+#include "../offload/offload_runtime.h"
+#include "gpu/fft_gpu.h"
+#include "gpu/fft_gpu_kernels.h"
+#endif
 
 #include "../base/cp_assert.h"
 #include <complex.h>
@@ -278,7 +283,7 @@ void collect_y_and_distribute_x_blocked_pack(
     const int current_send_size_0 = proc2local_x_ms[process][1];
     double complex *send_buffer =
         grid_packed + redistribution->displacements_xy_x[process];
-    double complex *grid_ptr = grid + proc2local_x_ms[process][0];
+    const double complex *grid_ptr = grid + proc2local_x_ms[process][0];
     for (int index_yz = 0; index_yz < number_of_yz_pairs; index_yz++) {
       memcpy(send_buffer + index_yz * current_send_size_0,
              grid_ptr + index_yz * redistribution->npts_global_gspace[0],
@@ -345,7 +350,7 @@ void collect_x_and_distribute_y_blocked_unpack(
   for (int process = 0; process < number_of_processes; process++) {
     const int current_recv_size_0 = proc2local_x_ms[process][1];
     double complex *transposed_ptr = grid + proc2local_x_ms[process][0];
-    double complex *recv_buffer =
+    const double complex *recv_buffer =
         grid_packed + redistribution->displacements_xy_x[process];
     for (int index_yz = 0; index_yz < number_of_yz_pairs; index_yz++) {
       memcpy(transposed_ptr + index_yz * redistribution->npts_global_gspace[0],
@@ -447,7 +452,7 @@ void collect_z_and_distribute_y_blocked_pack(
              redistribution->my_size_z_rs * sizeof(double complex));
 
   for (int process = 0; process < number_of_processes; process++) {
-    double complex *grid_ptr = grid + proc2local_y_gs[process][0];
+    const double complex *grid_ptr = grid + proc2local_y_gs[process][0];
     double complex *send_buffer =
         transposed + redistribution->displacements_yz_y[process];
     for (int index_xz = 0;
@@ -522,7 +527,7 @@ void collect_y_and_distribute_z_blocked_unpack(
   for (int process = 0; process < number_of_processes; process++) {
     const int recv_size_1 = proc2local_y_gs[process][1];
     double complex *transp = grid + proc2local_y_gs[process][0];
-    double complex *received_data =
+    const double complex *received_data =
         grid_packed + redistribution->displacements_yz_y[process];
     for (int index_xz = 0; index_xz < number_of_xz_pairs; index_xz++) {
       memcpy(transp + index_xz * redistribution->npts_global_gspace[1],
@@ -730,6 +735,281 @@ void collect_xy_and_distribute_z_ray_unpack_transposed(
   }
 
   fft_stop_timer(handle);
+}
+
+static void staged_alltoallv(const double complex *send_buffer,
+                             const int *send_counts,
+                             const int *send_displacements,
+                             double complex *recv_buffer,
+                             const int *recv_counts,
+                             const int *recv_displacements,
+                             const int number_of_processes,
+                             const cp_mpi_comm_t comm) {
+  (void)number_of_processes;
+  cp_mpi_alltoallv_double_complex(send_buffer, send_counts, send_displacements,
+                                  recv_buffer, recv_counts, recv_displacements,
+                                  comm);
+}
+
+void collect_y_and_distribute_x_blocked_comm_device(
+    const double complex *restrict send_buffer,
+    double complex *restrict recv_buffer,
+    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm) {
+  staged_alltoallv(send_buffer, redistribution->counts_xy_x,
+                   redistribution->displacements_xy_x, recv_buffer,
+                   redistribution->counts_xy_y,
+                   redistribution->displacements_xy_y,
+                   redistribution->process_grid[1], comm);
+}
+
+void collect_x_and_distribute_y_blocked_comm_device(
+    const double complex *restrict send_buffer,
+    double complex *restrict recv_buffer,
+    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm) {
+  staged_alltoallv(send_buffer, redistribution->counts_xy_y,
+                   redistribution->displacements_xy_y, recv_buffer,
+                   redistribution->counts_xy_x,
+                   redistribution->displacements_xy_x,
+                   redistribution->process_grid[1], comm);
+}
+
+void collect_z_and_distribute_y_blocked_comm_device(
+    const double complex *restrict send_buffer,
+    double complex *restrict recv_buffer,
+    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm) {
+  staged_alltoallv(send_buffer, redistribution->counts_yz_y,
+                   redistribution->displacements_yz_y, recv_buffer,
+                   redistribution->counts_yz_z,
+                   redistribution->displacements_yz_z,
+                   redistribution->process_grid[0], comm);
+}
+
+void collect_y_and_distribute_z_blocked_comm_device(
+    const double complex *restrict send_buffer,
+    double complex *restrict recv_buffer,
+    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm) {
+  staged_alltoallv(send_buffer, redistribution->counts_yz_z,
+                   redistribution->displacements_yz_z, recv_buffer,
+                   redistribution->counts_yz_y,
+                   redistribution->displacements_yz_y,
+                   redistribution->process_grid[0], comm);
+}
+
+void collect_z_and_distribute_xy_ray_comm_device(
+    const double complex *restrict send_buffer,
+    double complex *restrict recv_buffer,
+    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm) {
+  staged_alltoallv(send_buffer, redistribution->counts_yz_ray_y,
+                   redistribution->displacements_yz_ray_y, recv_buffer,
+                   redistribution->counts_yz_ray_z,
+                   redistribution->displacements_yz_ray_z,
+                   cp_mpi_comm_size(comm), comm);
+}
+
+void collect_xy_and_distribute_z_ray_comm_device(
+    const double complex *restrict send_buffer,
+    double complex *restrict recv_buffer,
+    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm) {
+  staged_alltoallv(send_buffer, redistribution->counts_yz_ray_z,
+                   redistribution->displacements_yz_ray_z, recv_buffer,
+                   redistribution->counts_yz_ray_y,
+                   redistribution->displacements_yz_ray_y,
+                   cp_mpi_comm_size(comm), comm);
+}
+
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+#define FFT_STREAM ((offloadStream_t)stream_in)
+#define FFT_D2D_MEMCPY(dst, src, size)                                         \
+  offloadMemcpyAsyncDtoD((dst), (src), (size), FFT_STREAM)
+#define FFT_D2D_MEMCPY2D(dst, dpitch, src, spitch, width, height)              \
+  offloadMemcpy2DAsyncDtoD((dst), (dpitch), (src), (spitch), (width),          \
+                           (height), FFT_STREAM)
+#define FFT_D2D_MEMSET(ptr, val, size)                                         \
+  offloadMemsetAsync((ptr), (val), (size), FFT_STREAM)
+#else
+#define FFT_STREAM NULL
+#define FFT_D2D_MEMCPY memcpy
+#define FFT_D2D_MEMCPY2D(dst, dpitch, src, spitch, width, height)              \
+  do {                                                                         \
+    for (size_t _row = 0; _row < (height); _row++) {                           \
+      memcpy((char *)(dst) + _row * (dpitch),                                  \
+             (const char *)(src) + _row * (spitch), (width));                  \
+    }                                                                          \
+  } while (0)
+#define FFT_D2D_MEMSET memset
+#endif
+
+void collect_y_and_distribute_x_blocked_pack_device(
+    const double complex *restrict grid, double complex *restrict grid_packed,
+    const fft_redistribution_t *redistribution, int (*proc2local_x_ms)[2], void *stream_in) {
+  const int number_of_processes = redistribution->process_grid[1];
+  const int number_of_yz_pairs =
+      redistribution->my_size_y_rs * redistribution->my_size_z_rs;
+  const size_t element_size = sizeof(double complex);
+  for (int process = 0; process < number_of_processes; process++) {
+    const int current_send_size_0 = proc2local_x_ms[process][1];
+    double complex *send_buffer =
+        grid_packed + redistribution->displacements_xy_x[process];
+    const double complex *grid_ptr = grid + proc2local_x_ms[process][0];
+    FFT_D2D_MEMCPY2D(send_buffer, (size_t)current_send_size_0 * element_size,
+                     grid_ptr,
+                     (size_t)redistribution->npts_global_gspace[0] *
+                         element_size,
+                     (size_t)current_send_size_0 * element_size,
+                     (size_t)number_of_yz_pairs);
+  }
+}
+
+void collect_x_and_distribute_y_blocked_unpack_device(
+    const double complex *restrict grid_packed, double complex *restrict grid,
+    const fft_redistribution_t *redistribution, int (*proc2local_x_ms)[2], void *stream_in) {
+  const int number_of_processes = redistribution->process_grid[1];
+  const int number_of_yz_pairs =
+      redistribution->my_size_y_rs * redistribution->my_size_z_rs;
+  const size_t element_size = sizeof(double complex);
+  for (int process = 0; process < number_of_processes; process++) {
+    const int current_recv_size_0 = proc2local_x_ms[process][1];
+    double complex *transposed_ptr = grid + proc2local_x_ms[process][0];
+    const double complex *recv_buffer =
+        grid_packed + redistribution->displacements_xy_x[process];
+    FFT_D2D_MEMCPY2D(transposed_ptr,
+                     (size_t)redistribution->npts_global_gspace[0] *
+                         element_size,
+                     recv_buffer, (size_t)current_recv_size_0 * element_size,
+                     (size_t)current_recv_size_0 * element_size,
+                     (size_t)number_of_yz_pairs);
+  }
+}
+
+void collect_z_and_distribute_y_blocked_pack_device(
+    const double complex *restrict grid, double complex *restrict transposed,
+    const fft_redistribution_t *redistribution, int (*proc2local_y_gs)[2], void *stream_in) {
+  const int number_of_processes = redistribution->process_grid[0];
+  const size_t element_size = sizeof(double complex);
+  FFT_D2D_MEMSET(transposed, 0,
+                 (size_t)redistribution->my_size_x_gs *
+                     redistribution->npts_global_gspace[1] *
+                     redistribution->my_size_z_rs * element_size);
+  for (int process = 0; process < number_of_processes; process++) {
+    const double complex *grid_ptr = grid + proc2local_y_gs[process][0];
+    double complex *send_buffer =
+        transposed + redistribution->displacements_yz_y[process];
+    FFT_D2D_MEMCPY2D(send_buffer,
+                     (size_t)proc2local_y_gs[process][1] * element_size,
+                     grid_ptr,
+                     (size_t)redistribution->npts_global_gspace[1] *
+                         element_size,
+                     (size_t)proc2local_y_gs[process][1] * element_size,
+                     (size_t)redistribution->my_size_x_gs *
+                         redistribution->my_size_z_rs);
+  }
+}
+
+void collect_y_and_distribute_z_blocked_unpack_device(
+    const double complex *restrict grid_packed, double complex *restrict grid,
+    const fft_redistribution_t *redistribution, int (*proc2local_y_gs)[2], void *stream_in) {
+  const int number_of_processes = redistribution->process_grid[0];
+  const int number_of_xz_pairs =
+      redistribution->my_size_x_gs * redistribution->my_size_z_rs;
+  const size_t element_size = sizeof(double complex);
+  for (int process = 0; process < number_of_processes; process++) {
+    const int recv_size_1 = proc2local_y_gs[process][1];
+    double complex *transp = grid + proc2local_y_gs[process][0];
+    const double complex *received_data =
+        grid_packed + redistribution->displacements_yz_y[process];
+    FFT_D2D_MEMCPY2D(transp,
+                     (size_t)redistribution->npts_global_gspace[1] *
+                         element_size,
+                     received_data, (size_t)recv_size_1 * element_size,
+                     (size_t)recv_size_1 * element_size,
+                     (size_t)number_of_xz_pairs);
+  }
+}
+
+void collect_z_and_distribute_xy_ray_pack_device(
+    const double complex *restrict grid, double complex *restrict send_buffer,
+    const fft_redistribution_t *redistribution, void *stream_in) {
+  const int number_of_xy =
+      redistribution->my_size_x_gs * redistribution->npts_global_gspace[1];
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+  fft_gpu_ensure_map_size(number_of_xy);
+  int *map_dev = fft_gpu_get_map_buffer();
+  offloadMemcpyAsyncHtoD(map_dev, redistribution->xy_to_proc_ray_y,
+                         (size_t)number_of_xy * sizeof(int), FFT_STREAM);
+  fft_gpu_launch_ray_pack_z_xy(
+      (const double *)grid, (double *)send_buffer, map_dev, number_of_xy,
+      redistribution->my_size_x_gs, redistribution->npts_global_gspace[1],
+      redistribution->my_size_z_rs, FFT_STREAM);
+#else
+  for (int xy_pair = 0; xy_pair < number_of_xy; xy_pair++) {
+    for (int index_z = 0; index_z < redistribution->my_size_z_rs; index_z++) {
+      send_buffer[redistribution->xy_to_proc_ray_y[xy_pair] *
+                      redistribution->my_size_z_rs +
+                  index_z] =
+          grid[index_z * redistribution->my_size_x_gs *
+                      redistribution->npts_global_gspace[1] +
+                  xy_pair];
+    }
+  }
+#endif
+}
+
+void collect_z_and_distribute_xy_ray_unpack_device(
+    const double complex *restrict recv_buffer,
+    double complex *restrict transposed,
+    const fft_redistribution_t *redistribution, void *stream_in) {
+  const size_t element_size = sizeof(double complex);
+  for (int ray_position = 0; ray_position < redistribution->rays_z;
+       ray_position++) {
+    FFT_D2D_MEMCPY(
+        transposed + redistribution->xy_to_proc_ray_z[ray_position][0],
+        recv_buffer + redistribution->xy_to_proc_ray_z[ray_position][1],
+        (size_t)redistribution->xy_to_proc_ray_z[ray_position][2] *
+            element_size);
+  }
+}
+
+void collect_xy_and_distribute_z_ray_pack_device(
+    const double complex *restrict grid, double complex *restrict send_buffer,
+    const fft_redistribution_t *redistribution, void *stream_in) {
+  const size_t element_size = sizeof(double complex);
+  for (int ray_position = 0; ray_position < redistribution->rays_z;
+       ray_position++) {
+    FFT_D2D_MEMCPY(
+        send_buffer + redistribution->xy_to_proc_ray_z[ray_position][1],
+        grid + redistribution->xy_to_proc_ray_z[ray_position][0],
+        (size_t)redistribution->xy_to_proc_ray_z[ray_position][2] *
+            element_size);
+  }
+}
+
+void collect_xy_and_distribute_z_ray_unpack_device(
+    const double complex *restrict recv_buffer,
+    double complex *restrict transposed,
+    const fft_redistribution_t *redistribution, void *stream_in) {
+  const int number_of_xy =
+      redistribution->my_size_x_gs * redistribution->npts_global_gspace[1];
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+  fft_gpu_ensure_map_size(number_of_xy);
+  int *map_dev = fft_gpu_get_map_buffer();
+  offloadMemcpyAsyncHtoD(map_dev, redistribution->xy_to_proc_ray_y,
+                         (size_t)number_of_xy * sizeof(int), FFT_STREAM);
+  fft_gpu_launch_ray_unpack_z_xy(
+      (const double *)recv_buffer, (double *)transposed, map_dev, number_of_xy,
+      redistribution->my_size_x_gs, redistribution->npts_global_gspace[1],
+      redistribution->my_size_z_rs, FFT_STREAM);
+#else
+  for (int xy_pair = 0; xy_pair < number_of_xy; xy_pair++) {
+    for (int index_z = 0; index_z < redistribution->my_size_z_rs; index_z++) {
+      transposed[index_z * redistribution->my_size_x_gs *
+                     redistribution->npts_global_gspace[1] +
+                 xy_pair] =
+          recv_buffer[redistribution->xy_to_proc_ray_y[xy_pair] *
+                          redistribution->my_size_z_rs +
+                      index_z];
+    }
+  }
+#endif
 }
 
 // EOF

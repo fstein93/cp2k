@@ -166,6 +166,70 @@ void collect_xy_and_distribute_z_ray_unpack_transposed(
     double complex *restrict transposed,
     const fft_redistribution_t *redistribution);
 
+void collect_y_and_distribute_x_blocked_comm_device(
+    const double complex *restrict send_buffer,
+    double complex *restrict recv_buffer,
+    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm);
+
+void collect_x_and_distribute_y_blocked_comm_device(
+    const double complex *restrict send_buffer,
+    double complex *restrict recv_buffer,
+    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm);
+
+void collect_z_and_distribute_y_blocked_comm_device(
+    const double complex *restrict send_buffer,
+    double complex *restrict recv_buffer,
+    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm);
+
+void collect_y_and_distribute_z_blocked_comm_device(
+    const double complex *restrict send_buffer,
+    double complex *restrict recv_buffer,
+    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm);
+
+void collect_z_and_distribute_xy_ray_comm_device(
+    const double complex *restrict send_buffer,
+    double complex *restrict recv_buffer,
+    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm);
+
+void collect_xy_and_distribute_z_ray_comm_device(
+    const double complex *restrict send_buffer,
+    double complex *restrict recv_buffer,
+    const fft_redistribution_t *redistribution, const cp_mpi_comm_t comm);
+
+void collect_y_and_distribute_x_blocked_pack_device(
+    const double complex *restrict grid, double complex *restrict grid_packed,
+    const fft_redistribution_t *redistribution, int (*proc2local_x_ms)[2], void *stream);
+
+void collect_x_and_distribute_y_blocked_unpack_device(
+    const double complex *restrict grid_packed, double complex *restrict grid,
+    const fft_redistribution_t *redistribution, int (*proc2local_x_ms)[2], void *stream);
+
+void collect_z_and_distribute_y_blocked_pack_device(
+    const double complex *restrict grid, double complex *restrict transposed,
+    const fft_redistribution_t *redistribution, int (*proc2local_y_gs)[2], void *stream);
+
+void collect_y_and_distribute_z_blocked_unpack_device(
+    const double complex *restrict grid_packed, double complex *restrict grid,
+    const fft_redistribution_t *redistribution, int (*proc2local_y_gs)[2], void *stream);
+
+void collect_z_and_distribute_xy_ray_pack_device(
+    const double complex *restrict grid, double complex *restrict send_buffer,
+    const fft_redistribution_t *redistribution, void *stream);
+
+void collect_z_and_distribute_xy_ray_unpack_device(
+    const double complex *restrict recv_buffer,
+    double complex *restrict transposed,
+    const fft_redistribution_t *redistribution, void *stream);
+
+void collect_xy_and_distribute_z_ray_pack_device(
+    const double complex *restrict grid, double complex *restrict send_buffer,
+    const fft_redistribution_t *redistribution, void *stream);
+
+void collect_xy_and_distribute_z_ray_unpack_device(
+    const double complex *restrict recv_buffer,
+    double complex *restrict transposed,
+    const fft_redistribution_t *redistribution, void *stream);
+
 #endif /* FFT_REORDER_H */
 
 // EOF

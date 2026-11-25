@@ -7,6 +7,7 @@
 
 #include "fft_driver_gpu.h"
 #include "gpu/fft_gpu.h"
+#include "../offload/offload_runtime.h"
 #include "fft_lib.h"
 #include "fft_redistribution.h"
 #include "fft_timer.h"
@@ -18,6 +19,15 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+
+#define FFT_STREAM ((offloadStream_t)fft_stream)
+#define FFT_H2D(dst, src, size)                                                \
+  offloadMemcpyAsyncHtoD((dst), (src), (size), FFT_STREAM)
+#define FFT_D2H(dst, src, size)                                                \
+  do {                                                                         \
+    offloadMemcpyAsyncDtoH((dst), (src), (size), FFT_STREAM);                  \
+    offloadStreamSynchronize(FFT_STREAM);                                      \
+  } while (0)
 
 /*******************************************************************************
  * \brief Registers all FFTs using a blocked distribution.
@@ -32,8 +42,11 @@ void fft_register_3d_gpu_blocked(const int npts_global[3],
 
   const int my_process = cp_mpi_comm_rank(comm);
 
-  double complex *grid_buffer_1 = fft_gpu_get_buffer_1();
-  double complex *grid_buffer_2 = fft_gpu_get_buffer_2();
+  double complex *grid_buffer_1 = get_buffer_1();
+  double complex *grid_buffer_2 = get_buffer_2();
+  double complex *grid_buffer_dev_1 = fft_gpu_get_buffer_1();
+  double complex *grid_buffer_dev_2 = fft_gpu_get_buffer_2();
+  void *fft_stream = fft_gpu_get_stream();
 
   int (*my_bounds_rs)[2] = proc2local_rs[my_process];
   int (*my_bounds_ms)[2] = proc2local_ms[my_process];
@@ -65,50 +78,50 @@ void fft_register_3d_gpu_blocked(const int npts_global[3],
       fft_gpu_register_1d_local(true, npts_global[0],
                             fft_sizes_rs[1] * fft_sizes_rs[2], true, false,
                             fft_sizes_rs[1] * fft_sizes_rs[2], npts_global[0],
-                            grid_buffer_1, grid_buffer_2);
+                            grid_buffer_dev_1, grid_buffer_dev_2);
       fft_gpu_register_1d_local(false, npts_global[0],
                             fft_sizes_rs[1] * fft_sizes_rs[2], false, true,
                             npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
-                            grid_buffer_1, grid_buffer_2);
+                            grid_buffer_dev_1, grid_buffer_dev_2);
 
       // Perform the second FFT
       fft_gpu_register_1d_local(true, npts_global[1],
                             fft_sizes_ms[0] * fft_sizes_ms[2], true, false,
                             fft_sizes_ms[0] * fft_sizes_ms[2], npts_global[1],
-                            grid_buffer_2, grid_buffer_1);
+                            grid_buffer_dev_2, grid_buffer_dev_1);
       fft_gpu_register_1d_local(false, npts_global[1],
                             fft_sizes_ms[0] * fft_sizes_ms[2], false, true,
                             npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
-                            grid_buffer_2, grid_buffer_1);
+                            grid_buffer_dev_2, grid_buffer_dev_1);
 
     }
 
     fft_gpu_register_1d_local(true, npts_global[2],
                           fft_sizes_gs[0] * fft_sizes_gs[1], true, false,
                           fft_sizes_gs[0] * fft_sizes_gs[1], npts_global[2],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[2],
                           fft_sizes_gs[0] * fft_sizes_gs[1], false, true,
                           npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
   } else if (proc_grid[0] > 1) {
     cp_assert(fft_sizes_rs[1] == npts_global[1]);
 
     fft_gpu_register_2d_local(
         true, (const int[2]){npts_global[0], npts_global[1]}, fft_sizes_rs[2],
-        true, false, grid_buffer_2, grid_buffer_1);
+        true, false, grid_buffer_dev_2, grid_buffer_dev_1);
     fft_gpu_register_2d_local(
         false, (const int[2]){npts_global[0], npts_global[1]},
-        fft_sizes_ms[2], false, true, grid_buffer_2, grid_buffer_1);
+        fft_sizes_ms[2], false, true, grid_buffer_dev_2, grid_buffer_dev_1);
 
     fft_gpu_register_1d_local(true, npts_global[2],
                           fft_sizes_gs[0] * fft_sizes_gs[1], true, false,
                           fft_sizes_gs[0] * fft_sizes_gs[1], npts_global[2],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[2],
                           fft_sizes_gs[0] * fft_sizes_gs[1], false, true,
                           npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
 
   } else if (proc_grid[1] > 1) {
     if (fft_sizes_rs[2] > 0) {
@@ -117,24 +130,24 @@ void fft_register_3d_gpu_blocked(const int npts_global[3],
       fft_gpu_register_1d_local(true, npts_global[0],
                             fft_sizes_rs[1] * fft_sizes_rs[2], true, false,
                             fft_sizes_rs[1] * fft_sizes_rs[2], npts_global[0],
-                            grid_buffer_1, grid_buffer_2);
+                            grid_buffer_dev_1, grid_buffer_dev_2);
       fft_gpu_register_1d_local(false, npts_global[0],
                             fft_sizes_rs[1] * fft_sizes_rs[2], false, true,
                             npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
-                            grid_buffer_2, grid_buffer_1);
+                            grid_buffer_dev_2, grid_buffer_dev_1);
 
       // Perform the second FFT
       fft_gpu_register_2d_local(
           true, (const int[2]){npts_global[1], npts_global[2]},
-          fft_sizes_ms[0], true, false, grid_buffer_2, grid_buffer_1);
+          fft_sizes_ms[0], true, false, grid_buffer_dev_2, grid_buffer_dev_1);
       fft_gpu_register_2d_local(
           false, (const int[2]){npts_global[1], npts_global[2]},
-          fft_sizes_gs[0], false, true, grid_buffer_1, grid_buffer_2);
+          fft_sizes_gs[0], false, true, grid_buffer_dev_1, grid_buffer_dev_2);
 
     }
   } else {
-    fft_gpu_register_3d_local(true, npts_global, 1, false, false, grid_buffer_1, grid_buffer_2);
-    fft_gpu_register_3d_local(false, npts_global, 1, false, false, grid_buffer_1, grid_buffer_2);
+    fft_gpu_register_3d_local(true, npts_global, 1, false, false, grid_buffer_dev_1, grid_buffer_dev_2);
+    fft_gpu_register_3d_local(false, npts_global, 1, false, false, grid_buffer_dev_1, grid_buffer_dev_2);
   }
 }
 
@@ -152,8 +165,11 @@ void fft_register_3d_gpu_r2c_blocked(const int npts_global[3],
 
   const int my_process = cp_mpi_comm_rank(comm);
 
-  double complex *grid_buffer_1 = fft_gpu_get_buffer_1();
-  double complex *grid_buffer_2 = fft_gpu_get_buffer_2();
+  double complex *grid_buffer_1 = get_buffer_1();
+  double complex *grid_buffer_2 = get_buffer_2();
+  double complex *grid_buffer_dev_1 = fft_gpu_get_buffer_1();
+  double complex *grid_buffer_dev_2 = fft_gpu_get_buffer_2();
+  void *fft_stream = fft_gpu_get_stream();
 
   int (*my_bounds_rs)[2] = proc2local_rs[my_process];
   int (*my_bounds_ms)[2] = proc2local_ms[my_process];
@@ -185,31 +201,31 @@ void fft_register_3d_gpu_r2c_blocked(const int npts_global[3],
       fft_gpu_register_1d_r2c_local(
           npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], true, false,
           fft_sizes_rs[1] * fft_sizes_rs[2], npts_global[0] / 2 + 1,
-          (double *)grid_buffer_1, grid_buffer_2);
+          (double *)grid_buffer_dev_1, grid_buffer_dev_2);
       fft_gpu_register_1d_c2r_local(
           npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false, true,
           npts_global[0] / 2 + 1, fft_sizes_rs[1] * fft_sizes_rs[2],
-          grid_buffer_1, (double *)grid_buffer_2);
+          grid_buffer_dev_1, (double *)grid_buffer_dev_2);
 
       // Perform the second FFT
       fft_gpu_register_1d_local(true, npts_global[1],
                             fft_sizes_ms[0] * fft_sizes_ms[2], true, false,
                             fft_sizes_ms[0] * fft_sizes_ms[2], npts_global[1],
-                            grid_buffer_2, grid_buffer_1);
+                            grid_buffer_dev_2, grid_buffer_dev_1);
       fft_gpu_register_1d_local(false, npts_global[1],
                             fft_sizes_ms[0] * fft_sizes_ms[2], false, true,
                             npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
-                            grid_buffer_2, grid_buffer_1);
+                            grid_buffer_dev_2, grid_buffer_dev_1);
 
     }
     fft_gpu_register_1d_local(true, npts_global[2],
                           fft_sizes_gs[0] * fft_sizes_gs[1], true, false,
                           fft_sizes_gs[0] * fft_sizes_gs[1], npts_global[2],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[2],
                           fft_sizes_gs[0] * fft_sizes_gs[1], false, true,
                           npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
   } else if (proc_grid[0] > 1) {
     cp_assert(fft_sizes_rs[1] == npts_global[1]);
 
@@ -218,29 +234,29 @@ void fft_register_3d_gpu_r2c_blocked(const int npts_global[3],
     fft_gpu_register_1d_r2c_local(
         npts_global[0], npts_global[1] * fft_sizes_rs[2], true, false,
         npts_global[1] * fft_sizes_rs[2], npts_global[0] / 2 + 1,
-        (double *)grid_buffer_1, grid_buffer_2);
+        (double *)grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_1d_c2r_local(
         npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false, true,
         npts_global[0] / 2 + 1, fft_sizes_rs[1] * fft_sizes_rs[2],
-        grid_buffer_2, (double *)grid_buffer_1);
+        grid_buffer_dev_2, (double *)grid_buffer_dev_1);
     // Perform the second FFT and one transposition (y,z_d,x) -> (x,y,z_d)
     fft_gpu_register_1d_local(true, npts_global[1],
                           npts_global_gspace[0] * fft_sizes_rs[2], true,
                           false, npts_global_gspace[0] * fft_sizes_rs[2],
-                          npts_global[1], grid_buffer_2, grid_buffer_1);
+                          npts_global[1], grid_buffer_dev_2, grid_buffer_dev_1);
     fft_gpu_register_1d_local(false, npts_global[1],
                           fft_sizes_ms[0] * fft_sizes_ms[2], false, true,
                           npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
-                          grid_buffer_2, grid_buffer_1);
+                          grid_buffer_dev_2, grid_buffer_dev_1);
 
     fft_gpu_register_1d_local(true, npts_global[2],
                           fft_sizes_gs[0] * fft_sizes_gs[1], true, false,
                           fft_sizes_gs[0] * fft_sizes_gs[1], npts_global[2],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[2],
                           fft_sizes_gs[0] * fft_sizes_gs[1], false, true,
                           npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
 
   } else if (proc_grid[1] > 1) {
     if (fft_sizes_rs[2] > 0) {
@@ -248,20 +264,20 @@ void fft_register_3d_gpu_r2c_blocked(const int npts_global[3],
       // Perform the first FFT in z-direction (x_d,y_d,z)->(z,x_d,y_d)
       fft_gpu_register_2d_local(
           true, (const int[2]){npts_global[1], npts_global[2]},
-          fft_sizes_gs[0], true, false, grid_buffer_2, grid_buffer_1);
+          fft_sizes_gs[0], true, false, grid_buffer_dev_2, grid_buffer_dev_1);
       fft_gpu_register_2d_local(
           false, (const int[2]){npts_global[1], npts_global[2]},
-          fft_sizes_gs[0], false, true, grid_buffer_1, grid_buffer_2);
+          fft_sizes_gs[0], false, true, grid_buffer_dev_1, grid_buffer_dev_2);
 
       // Perform the third FFT and one transposition (y,x,z)->(z,y,x)
       fft_gpu_register_1d_r2c_local(
           npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], true, false,
           fft_sizes_rs[1] * fft_sizes_rs[2], npts_global[0] / 2 + 1,
-          (double *)grid_buffer_1, grid_buffer_2);
+          (double *)grid_buffer_dev_1, grid_buffer_dev_2);
       fft_gpu_register_1d_c2r_local(
           npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false, true,
           npts_global[0] / 2 + 1, fft_sizes_rs[1] * fft_sizes_rs[2],
-          grid_buffer_2, (double *)grid_buffer_1);
+          grid_buffer_dev_2, (double *)grid_buffer_dev_1);
 
     }
   } else {
@@ -269,19 +285,19 @@ void fft_register_3d_gpu_r2c_blocked(const int npts_global[3],
     // first FFT (x,y,z) -> (x,y,z)
     fft_gpu_register_1d_r2c_local(npts_global[0], npts_global[1] * npts_global[2],
                               true, true, npts_global[1] * npts_global[2],
-                              npts_global[0] / 2 + 1, (double *)grid_buffer_2,
-                              grid_buffer_1);
+                              npts_global[0] / 2 + 1, (double *)grid_buffer_dev_2,
+                              grid_buffer_dev_1);
     fft_gpu_register_1d_c2r_local(npts_global[0], npts_global[1] * npts_global[2],
                               true, true, npts_global[1] * npts_global[2],
-                              npts_global[1] * npts_global[2], grid_buffer_2,
-                              (double *)grid_buffer_1);
+                              npts_global[1] * npts_global[2], grid_buffer_dev_2,
+                              (double *)grid_buffer_dev_1);
     // second FFT (x,y,z) -> (x,y,z)
     fft_gpu_register_2d_local(
         true, (const int[2]){npts_global[1], npts_global[2]},
-        npts_global_gspace[0], false, false, grid_buffer_1, grid_buffer_2);
+        npts_global_gspace[0], false, false, grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_2d_local(
         false, (const int[2]){npts_global[1], npts_global[2]},
-        npts_global_gspace[0], false, false, grid_buffer_1, grid_buffer_2);
+        npts_global_gspace[0], false, false, grid_buffer_dev_1, grid_buffer_dev_2);
 
   }
 }
@@ -297,8 +313,11 @@ void fft_register_3d_gpu_ray(const int npts_global[3], int (*proc2local_rs)[3][2
 
   const int my_process = cp_mpi_comm_rank(comm);
 
-  double complex *grid_buffer_1 = fft_gpu_get_buffer_1();
-  double complex *grid_buffer_2 = fft_gpu_get_buffer_2();
+  double complex *grid_buffer_1 = get_buffer_1();
+  double complex *grid_buffer_2 = get_buffer_2();
+  double complex *grid_buffer_dev_1 = fft_gpu_get_buffer_1();
+  double complex *grid_buffer_dev_2 = fft_gpu_get_buffer_2();
+  void *fft_stream = fft_gpu_get_stream();
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {proc2local_rs[my_process][0][1],
@@ -326,79 +345,79 @@ void fft_register_3d_gpu_ray(const int npts_global[3], int (*proc2local_rs)[3][2
     fft_gpu_register_1d_local(true, npts_global[0],
                           fft_sizes_rs[1] * fft_sizes_rs[2], true, false,
                           fft_sizes_rs[1] * fft_sizes_rs[2], npts_global[0],
-                          grid_buffer_2, grid_buffer_1);
+                          grid_buffer_dev_2, grid_buffer_dev_1);
     fft_gpu_register_1d_local(false, npts_global[0],
                           fft_sizes_rs[1] * fft_sizes_rs[2], false, true,
                           npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
-                          grid_buffer_2, grid_buffer_1);
+                          grid_buffer_dev_2, grid_buffer_dev_1);
 
     // Perform the second FFT (y,z_d,x_d) -> (z_d,x_d,y)
     fft_gpu_register_1d_local(true, npts_global[1],
                           fft_sizes_ms[0] * fft_sizes_ms[2], true, false,
                           fft_sizes_ms[0] * fft_sizes_ms[2], npts_global[1],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[1],
                           fft_sizes_ms[0] * fft_sizes_ms[2], false, true,
                           npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
 
 
     // Perform the third FFT (z,xy_d) -> (xy_d,z)
     fft_gpu_register_1d_local(true, npts_global[2], number_of_local_xy_rays, false,
-                          false, npts_global[2], npts_global[2], grid_buffer_1,
-                          grid_buffer_2);
+                          false, npts_global[2], npts_global[2], grid_buffer_dev_1,
+                          grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[2], number_of_local_xy_rays, false,
-                          false, npts_global[2], npts_global[2], grid_buffer_1,
-                          grid_buffer_2);
+                          false, npts_global[2], npts_global[2], grid_buffer_dev_1,
+                          grid_buffer_dev_2);
   } else if (proc_grid[0] > 1) {
     // Now, we only need a local 2D FFT (x,y,z_d) -> (z_d,x,y)
     fft_gpu_register_2d_local(true, (const int[2]){npts_global[0], npts_global[1]},
-                          fft_sizes_ms[2], true, false, grid_buffer_1,
-                          grid_buffer_2);
+                          fft_sizes_ms[2], true, false, grid_buffer_dev_1,
+                          grid_buffer_dev_2);
     fft_gpu_register_2d_local(false, (const int[2]){npts_global[0], npts_global[1]},
-                          fft_sizes_rs[2], false, true, grid_buffer_2,
-                          grid_buffer_1);
+                          fft_sizes_rs[2], false, true, grid_buffer_dev_2,
+                          grid_buffer_dev_1);
 
     // Perform the third FFT (z,xy_d) -> (xy_d,z)
     fft_gpu_register_1d_local(true, npts_global[2], number_of_local_xy_rays, false,
-                          false, npts_global[2], npts_global[2], grid_buffer_1,
-                          grid_buffer_2);
+                          false, npts_global[2], npts_global[2], grid_buffer_dev_1,
+                          grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[2], number_of_local_xy_rays, false,
-                          false, npts_global[2], npts_global[2], grid_buffer_1,
-                          grid_buffer_2);
+                          false, npts_global[2], npts_global[2], grid_buffer_dev_1,
+                          grid_buffer_dev_2);
   } else if (proc_grid[1] > 1) {
 
     // Perform the first FFT (x,y_d,z_d) -> (y_d,z_d,x)
     fft_gpu_register_1d_local(true, npts_global[0],
                           fft_sizes_rs[1] * fft_sizes_rs[2], true, false,
                           fft_sizes_rs[1] * fft_sizes_rs[2], npts_global[0],
-                          grid_buffer_2, grid_buffer_1);
+                          grid_buffer_dev_2, grid_buffer_dev_1);
     fft_gpu_register_1d_local(false, npts_global[0],
                           fft_sizes_rs[1] * fft_sizes_rs[2], false, true,
                           npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
-                          grid_buffer_2, grid_buffer_1);
+                          grid_buffer_dev_2, grid_buffer_dev_1);
 
     // Perform the second FFT (y,z_d,x_d) -> (z_d,x_d,y)
     fft_gpu_register_1d_local(true, npts_global[1],
                           fft_sizes_ms[0] * fft_sizes_ms[2], true, false,
                           fft_sizes_ms[0] * fft_sizes_ms[2], npts_global[1],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[1],
                           fft_sizes_ms[0] * fft_sizes_ms[2], false, true,
                           npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
 
 
     // Perform the third FFT (z,xy_d) -> (xy_d,z)
     fft_gpu_register_1d_local(true, npts_global[2], number_of_local_xy_rays, false,
-                          false, npts_global[2], npts_global[2], grid_buffer_1,
-                          grid_buffer_2);
+                          false, npts_global[2], npts_global[2], grid_buffer_dev_1,
+                          grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[2], number_of_local_xy_rays, false,
-                          false, npts_global[2], npts_global[2], grid_buffer_1,
-                          grid_buffer_2);
+                          false, npts_global[2], npts_global[2], grid_buffer_dev_1,
+                          grid_buffer_dev_2);
   } else {
-    fft_gpu_register_3d_local(true, npts_global, 1, false, false, grid_buffer_2, grid_buffer_1);
-    fft_gpu_register_3d_local(false, npts_global, 1, false, false, grid_buffer_2, grid_buffer_1);
+    fft_gpu_register_3d_local(true, npts_global, 1, false, false, grid_buffer_dev_2, grid_buffer_dev_1);
+    fft_gpu_register_3d_local(false, npts_global, 1, false, false, grid_buffer_dev_2, grid_buffer_dev_1);
   }
 }
 
@@ -416,8 +435,11 @@ void fft_register_3d_gpu_r2c_ray(const int npts_global[3],
 
   const int my_process = cp_mpi_comm_rank(comm);
 
-  double complex *grid_buffer_1 = fft_gpu_get_buffer_1();
-  double complex *grid_buffer_2 = fft_gpu_get_buffer_2();
+  double complex *grid_buffer_1 = get_buffer_1();
+  double complex *grid_buffer_2 = get_buffer_2();
+  double complex *grid_buffer_dev_1 = fft_gpu_get_buffer_1();
+  double complex *grid_buffer_dev_2 = fft_gpu_get_buffer_2();
+  void *fft_stream = fft_gpu_get_stream();
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {proc2local_rs[my_process][0][1],
@@ -445,30 +467,30 @@ void fft_register_3d_gpu_r2c_ray(const int npts_global[3],
     fft_gpu_register_1d_r2c_local(
         npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], true, false,
         fft_sizes_rs[1] * fft_sizes_rs[2], npts_global[0] / 2 + 1,
-        (double *)grid_buffer_2, grid_buffer_1);
+        (double *)grid_buffer_dev_2, grid_buffer_dev_1);
     fft_gpu_register_1d_c2r_local(
         npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false, true,
         npts_global[0] / 2 + 1, fft_sizes_rs[1] * fft_sizes_rs[2],
-        grid_buffer_2, (double *)grid_buffer_1);
+        grid_buffer_dev_2, (double *)grid_buffer_dev_1);
 
     // Perform the second FFT (y,z_d,x_d) -> (z_d,x_d,y)
     fft_gpu_register_1d_local(true, npts_global[1],
                           fft_sizes_ms[0] * fft_sizes_ms[2], true, false,
                           fft_sizes_ms[0] * fft_sizes_ms[2], npts_global[1],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[1],
                           fft_sizes_ms[0] * fft_sizes_ms[2], false, true,
                           npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
 
     // Perform the third FFT (z,xy_d) -> (xy_d,z)
     fft_gpu_register_1d_local(true, npts_global[2], number_of_local_xy_rays,
                           false, false, npts_global[2], npts_global[2],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_register_1d_local(false, npts_global[2], number_of_local_xy_rays,
                           false, false, npts_global[2], npts_global[2],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
 
   } else if (proc_grid[0] > 1) {
 
@@ -477,60 +499,60 @@ void fft_register_3d_gpu_r2c_ray(const int npts_global[3],
     fft_gpu_register_1d_r2c_local(
         npts_global[0], npts_global[1] * fft_sizes_ms[2], true, false,
         npts_global[1] * fft_sizes_ms[2], npts_global[0] / 2 + 1,
-        (double *)grid_buffer_2, grid_buffer_1);
+        (double *)grid_buffer_dev_2, grid_buffer_dev_1);
     fft_gpu_register_1d_c2r_local(
         npts_global[0], npts_global[1] * fft_sizes_ms[2], false, true,
         npts_global[0] / 2 + 1, npts_global[1] * fft_sizes_ms[2],
-        grid_buffer_2, (double *)grid_buffer_1);
+        grid_buffer_dev_2, (double *)grid_buffer_dev_1);
     // second FFT (y,z_d,x) -> (z_d,x,y)
     fft_gpu_register_1d_local(true, npts_global[1],
                           npts_global_gspace[0] * fft_sizes_ms[2], true,
                           false, npts_global_gspace[0] * fft_sizes_ms[2],
-                          npts_global[1], grid_buffer_1, grid_buffer_2);
+                          npts_global[1], grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_1d_local(
         false, npts_global[1], npts_global_gspace[0] * fft_sizes_ms[2], false,
         true, npts_global[1], npts_global_gspace[0] * fft_sizes_ms[2],
-        grid_buffer_1, grid_buffer_2);
+        grid_buffer_dev_1, grid_buffer_dev_2);
 
 
     // Perform the third FFT (z,xy_d) -> (xy_d,z)
     fft_gpu_register_1d_local(true, npts_global[2], number_of_local_xy_rays, false,
-                          false, npts_global[2], npts_global[2], grid_buffer_1,
-                          grid_buffer_2);
+                          false, npts_global[2], npts_global[2], grid_buffer_dev_1,
+                          grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[2], number_of_local_xy_rays, false,
-                          false, npts_global[2], npts_global[2], grid_buffer_1,
-                          grid_buffer_2);
+                          false, npts_global[2], npts_global[2], grid_buffer_dev_1,
+                          grid_buffer_dev_2);
   } else if (proc_grid[1] > 1) {
 
     // Perform the first FFT (x,y_d,z_d) -> (y_d,z_d,x)
     fft_gpu_register_1d_r2c_local(
         npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], true, false,
         fft_sizes_rs[1] * fft_sizes_rs[2], npts_global[0] / 2 + 1,
-        (double *)grid_buffer_2, grid_buffer_1);
+        (double *)grid_buffer_dev_2, grid_buffer_dev_1);
     fft_gpu_register_1d_c2r_local(
         npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false, true,
         npts_global[0] / 2 + 1, fft_sizes_rs[1] * fft_sizes_rs[2],
-        grid_buffer_2, (double *)grid_buffer_1);
+        grid_buffer_dev_2, (double *)grid_buffer_dev_1);
 
     // Perform the second FFT (y,z_d,x_d) -> (z_d,x_d,y)
     fft_gpu_register_1d_local(true, npts_global[1],
                           fft_sizes_ms[0] * fft_sizes_ms[2], true, false,
                           fft_sizes_ms[0] * fft_sizes_ms[2], npts_global[1],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[1],
                           fft_sizes_ms[0] * fft_sizes_ms[2], false, true,
                           npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
 
     // Perform the third FFT (y_d,z_d,x) -> (x,y_d,z_d)
 
     // Perform the third FFT (z,xy_d) -> (xy_d,z)
     fft_gpu_register_1d_local(true, npts_global[2], number_of_local_xy_rays,
                           false, false, npts_global[2], npts_global[2],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_1d_local(false, npts_global[2], number_of_local_xy_rays,
                           false, false, npts_global[2], npts_global[2],
-                          grid_buffer_1, grid_buffer_2);
+                          grid_buffer_dev_1, grid_buffer_dev_2);
 
   } else {
 
@@ -538,18 +560,18 @@ void fft_register_3d_gpu_r2c_ray(const int npts_global[3],
     fft_gpu_register_1d_r2c_local(npts_global[0], npts_global[1] * npts_global[2],
                               true, true, npts_global[1] * npts_global[2],
                               npts_global[1] * npts_global[2],
-                              (double *)grid_buffer_1, grid_buffer_2);
+                              (double *)grid_buffer_dev_1, grid_buffer_dev_2);
     fft_gpu_register_1d_c2r_local(npts_global[0], npts_global[1] * npts_global[2],
                               true, true, npts_global[1] * npts_global[2],
-                              npts_global[1] * npts_global[2], grid_buffer_1,
-                              (double *)grid_buffer_2);
+                              npts_global[1] * npts_global[2], grid_buffer_dev_1,
+                              (double *)grid_buffer_dev_2);
     // second FFT (y,z_d,x) -> (z_d,x,y)
     fft_gpu_register_2d_local(
         true, (const int[2]){npts_global[1], npts_global[2]},
-        npts_global_gspace[0], false, false, grid_buffer_2, grid_buffer_1);
+        npts_global_gspace[0], false, false, grid_buffer_dev_2, grid_buffer_dev_1);
     fft_gpu_register_2d_local(
         false, (const int[2]){npts_global[1], npts_global[2]},
-        npts_global_gspace[0], false, false, grid_buffer_2, grid_buffer_1);
+        npts_global_gspace[0], false, false, grid_buffer_dev_2, grid_buffer_dev_1);
 
   }
 }
@@ -578,8 +600,11 @@ void fft_3d_gpu_fw_blocked(const double complex *restrict grid_rs, bool is_compl
 
   const int my_process = cp_mpi_comm_rank(comm);
 
-  double complex *grid_buffer_1 = fft_gpu_get_buffer_1();
-  double complex *grid_buffer_2 = fft_gpu_get_buffer_2();
+  double complex *grid_buffer_1 = get_buffer_1();
+  double complex *grid_buffer_2 = get_buffer_2();
+  double complex *grid_buffer_dev_1 = fft_gpu_get_buffer_1();
+  double complex *grid_buffer_dev_2 = fft_gpu_get_buffer_2();
+  void *fft_stream = fft_gpu_get_stream();
 
   int (*my_bounds_rs)[2] = proc2local_rs[my_process];
   int (*my_bounds_ms)[2] = proc2local_ms[my_process];
@@ -620,99 +645,98 @@ void fft_3d_gpu_fw_blocked(const double complex *restrict grid_rs, bool is_compl
       // Perform the first FFT
 
       if (is_complex) {
-        memcpy(grid_buffer_1, grid_rs,
-               product3(fft_sizes_rs) * sizeof(double complex));
+        FFT_H2D(grid_buffer_dev_1, grid_rs,
+                          product3(fft_sizes_rs) * sizeof(double complex));
       } else {
         const double *grid_rs_double = (const double *)grid_rs;
-#pragma omp parallel for default(none)                                         \
-  shared(fft_sizes_rs, grid_buffer_1, grid_rs_double)
+      #pragma omp parallel for default(none) shared(fft_sizes_rs, grid_buffer_1, grid_rs_double)
         for (int i = 0; i < product3(fft_sizes_rs); i++)
           grid_buffer_1[i] = CMPLX(grid_rs_double[i], 0.0);
+        FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
+                          product3(fft_sizes_rs) * sizeof(double complex));
       }
 
       fft_gpu_1d_local_device(true, npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                    true, false, fft_sizes_rs[1] * fft_sizes_rs[2],
-                   npts_global[0], grid_buffer_1, grid_buffer_2);
+                   npts_global[0], grid_buffer_dev_1, grid_buffer_dev_2);
 
       // Pack buffers
-      collect_y_and_distribute_x_blocked_pack(
-          grid_buffer_2, grid_buffer_1, redistribution, proc2local_x_gs);
+      collect_y_and_distribute_x_blocked_pack_device(
+          grid_buffer_dev_2, grid_buffer_dev_1, redistribution, proc2local_x_gs, fft_stream);
 
       // Communicate buffers
-      collect_y_and_distribute_x_blocked_comm(grid_buffer_1, grid_buffer_2,
+      offloadStreamSynchronize((offloadStream_t)fft_stream);
+      collect_y_and_distribute_x_blocked_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                               redistribution, sub_comm[1]);
 
       // Perform the second FFT
-      fft_gpu_1d_local_device(true, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
-                   true, false, fft_sizes_ms[0] * fft_sizes_ms[2],
-                   npts_global[1], grid_buffer_2, grid_buffer_1);
-
-      // Pack the buffer
-      collect_z_and_distribute_y_blocked_pack(
-          grid_buffer_1, grid_buffer_2, redistribution, proc2local_y_gs);
+      fft_gpu_2d_local_device(true, (const int[2]){npts_global[1], npts_global[2]},
+                   fft_sizes_ms[0], true, false, grid_buffer_dev_2,
+                   grid_buffer_dev_1);
 
     }
 
-    // Exchange data
-    collect_z_and_distribute_y_blocked_comm(grid_buffer_2, grid_buffer_1,
-                                            redistribution, sub_comm[0]);
-
     // Perform the third FFT
     if (index_to_cart != NULL) {
-      fft_gpu_1d_local_device(true, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
-                   true, false, fft_sizes_gs[0] * fft_sizes_gs[1],
-                   npts_global[2], grid_buffer_1, grid_buffer_2);
-
+FFT_D2H(grid_buffer_1, grid_buffer_dev_1, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none) shared(                                 \
-        npts_gs_local, index_to_cart, grid_gs, grid_buffer_2, scaling_factor)
+        npts_gs_local, index_to_cart, grid_gs, grid_buffer_1, scaling_factor)
       for (int index = 0; index < npts_gs_local; index++) {
-        grid_gs[index] = scaling_factor * grid_buffer_2[index_to_cart[index]];
+        grid_gs[index] = scaling_factor * grid_buffer_1[index_to_cart[index]];
       }
     } else {
-      fft_gpu_1d_local(true, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
-                   true, false, fft_sizes_gs[0] * fft_sizes_gs[1],
-                   npts_global[2], grid_buffer_1, grid_gs);
-      zdscal_(&number_of_points_to_scale, &scaling_factor, grid_gs,
-              &stride_size);
+FFT_D2H(grid_buffer_1, grid_buffer_dev_1, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
+#pragma omp parallel for default(none)                                         \
+    shared(number_of_points_to_scale, grid_gs, grid_buffer_1, scaling_factor)
+      for (int index = 0; index < number_of_points_to_scale; index++) {
+        grid_gs[index] = scaling_factor * grid_buffer_1[index];
+      }
     }
   } else if (proc_grid[0] > 1) {
     cp_assert(fft_sizes_rs[1] == npts_global[1]);
 
     if (is_complex) {
-      memcpy(grid_buffer_2, grid_rs,
-             product3(fft_sizes_rs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_2, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double complex));
     } else {
       const double *grid_rs_double = (const double *)grid_rs;
 #pragma omp parallel for default(none)                                         \
   shared(fft_sizes_rs, grid_buffer_2, grid_rs_double)
       for (int i = 0; i < product3(fft_sizes_rs); i++)
         grid_buffer_2[i] = CMPLX(grid_rs_double[i], 0.0);
+      FFT_H2D(grid_buffer_dev_2, grid_buffer_2,
+                        product3(fft_sizes_rs) * sizeof(double complex));
     }
 
     fft_gpu_2d_local_device(true, (const int[2]){npts_global[0], npts_global[1]},
-                 fft_sizes_rs[2], true, false, grid_buffer_2, grid_buffer_1);
+                 fft_sizes_rs[2], true, false, grid_buffer_dev_2, grid_buffer_dev_1);
 
     // Perform second transpose
-    collect_z_and_distribute_y_blocked_pack(grid_buffer_1, grid_buffer_2,
-                                            redistribution, proc2local_y_gs);
-    collect_z_and_distribute_y_blocked_comm(grid_buffer_2, grid_buffer_1,
+    collect_z_and_distribute_y_blocked_pack_device(grid_buffer_dev_1, grid_buffer_dev_2,
+                                            redistribution, proc2local_y_gs, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_z_and_distribute_y_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[0]);
 
     // Perform the third FFT
     if (index_to_cart != NULL) {
       fft_gpu_1d_local_device(true, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
                    true, false, fft_sizes_gs[0] * fft_sizes_gs[1],
-                   npts_global[2], grid_buffer_1, grid_buffer_2);
+                   npts_global[2], grid_buffer_dev_1, grid_buffer_dev_2);
 
+      FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
+                        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none) shared(                                 \
       npts_gs_local, index_to_cart, grid_gs, grid_buffer_2, scaling_factor)
       for (int index = 0; index < npts_gs_local; index++) {
         grid_gs[index] = scaling_factor * grid_buffer_2[index_to_cart[index]];
       }
     } else {
-      fft_gpu_1d_local(true, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
+      fft_gpu_1d_local_device(true, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
                    true, false, fft_sizes_gs[0] * fft_sizes_gs[1],
-                   npts_global[2], grid_buffer_1, grid_gs);
+                   npts_global[2], grid_buffer_dev_1, grid_buffer_dev_2);
+      FFT_D2H(grid_gs, grid_buffer_dev_2,
+                        number_of_points_to_scale * sizeof(double complex));
       zdscal_(&number_of_points_to_scale, &scaling_factor, grid_gs,
               &stride_size);
     }
@@ -722,14 +746,16 @@ void fft_3d_gpu_fw_blocked(const double complex *restrict grid_rs, bool is_compl
       // Perform the first FFT
 
       if (is_complex) {
-        memcpy(grid_buffer_1, grid_rs,
-               product3(fft_sizes_rs) * sizeof(double complex));
+        FFT_H2D(grid_buffer_dev_1, grid_rs,
+                          product3(fft_sizes_rs) * sizeof(double complex));
       } else {
         const double *grid_rs_double = (const double *)grid_rs;
 #pragma omp parallel for default(none)                                         \
   shared(fft_sizes_rs, grid_buffer_1, grid_rs_double)
         for (int i = 0; i < product3(fft_sizes_rs); i++)
           grid_buffer_1[i] = CMPLX(grid_rs_double[i], 0.0);
+        FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
+                          product3(fft_sizes_rs) * sizeof(double complex));
       }
 
       fft_gpu_1d_local_device(true, npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
@@ -737,11 +763,12 @@ void fft_3d_gpu_fw_blocked(const double complex *restrict grid_rs, bool is_compl
                    npts_global[0], grid_buffer_1, grid_buffer_2);
 
       // Pack buffers
-      collect_y_and_distribute_x_blocked_pack(
-          grid_buffer_2, grid_buffer_1, redistribution, proc2local_x_gs);
+      collect_y_and_distribute_x_blocked_pack_device(
+          grid_buffer_dev_2, grid_buffer_dev_1, redistribution, proc2local_x_gs, fft_stream);
 
       // Communicate buffers
-      collect_y_and_distribute_x_blocked_comm(grid_buffer_1, grid_buffer_2,
+      offloadStreamSynchronize((offloadStream_t)fft_stream);
+      collect_y_and_distribute_x_blocked_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                               redistribution, sub_comm[1]);
 
       // Perform the second FFT
@@ -753,12 +780,16 @@ void fft_3d_gpu_fw_blocked(const double complex *restrict grid_rs, bool is_compl
 
     // Perform the third FFT
     if (index_to_cart != NULL) {
+      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
+                        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none) shared(                                 \
         npts_gs_local, index_to_cart, grid_gs, grid_buffer_1, scaling_factor)
       for (int index = 0; index < npts_gs_local; index++) {
         grid_gs[index] = scaling_factor * grid_buffer_1[index_to_cart[index]];
       }
     } else {
+      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
+                        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(number_of_points_to_scale, grid_gs, grid_buffer_1, scaling_factor)
       for (int index = 0; index < number_of_points_to_scale; index++) {
@@ -767,26 +798,31 @@ void fft_3d_gpu_fw_blocked(const double complex *restrict grid_rs, bool is_compl
     }
   } else {
     if (is_complex) {
-      memcpy(grid_buffer_1, grid_rs,
-             product3(fft_sizes_rs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_1, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double complex));
     } else {
       const double *grid_rs_double = (const double *)grid_rs;
-#pragma omp parallel for default(none)                                         \
-    shared(fft_sizes_rs, grid_buffer_1, grid_rs_double)
+    #pragma omp parallel for default(none) shared(fft_sizes_rs, grid_buffer_1, grid_rs_double)
       for (int i = 0; i < product3(fft_sizes_rs); i++)
         grid_buffer_1[i] = CMPLX(grid_rs_double[i], 0.0);
+      FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
+                        product3(fft_sizes_rs) * sizeof(double complex));
     }
 
     if (index_to_cart != NULL) {
-      fft_gpu_3d_local_device(true, npts_global, 1, false, false, grid_buffer_1, grid_buffer_2);
+      fft_gpu_3d_local_device(true, npts_global, 1, false, false, grid_buffer_dev_1, grid_buffer_dev_2);
 
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none) shared(                                 \
         npts_gs_local, index_to_cart, grid_gs, grid_buffer_2, scaling_factor)
       for (int index = 0; index < npts_gs_local; index++) {
         grid_gs[index] = scaling_factor * grid_buffer_2[index_to_cart[index]];
       }
     } else {
-      fft_gpu_3d_local(true, npts_global, 1, false, false, grid_buffer_1, grid_gs);
+      fft_gpu_3d_local_device(true, npts_global, 1, false, false,
+                                   grid_buffer_dev_1, grid_buffer_dev_2);
+      FFT_D2H(grid_gs, grid_buffer_dev_2,
+                        number_of_points_to_scale * sizeof(double complex));
       zdscal_(&number_of_points_to_scale, &scaling_factor, grid_gs,
               &stride_size);
     }
@@ -821,8 +857,11 @@ void fft_3d_gpu_fw_r2c_blocked(
 
   const int my_process = cp_mpi_comm_rank(comm);
 
-  double complex *grid_buffer_1 = fft_gpu_get_buffer_1();
-  double complex *grid_buffer_2 = fft_gpu_get_buffer_2();
+  double complex *grid_buffer_1 = get_buffer_1();
+  double complex *grid_buffer_2 = get_buffer_2();
+  double complex *grid_buffer_dev_1 = fft_gpu_get_buffer_1();
+  double complex *grid_buffer_dev_2 = fft_gpu_get_buffer_2();
+  void *fft_stream = fft_gpu_get_stream();
 
   int (*my_bounds_rs)[2] = proc2local_rs[my_process];
   int (*my_bounds_ms)[2] = proc2local_ms[my_process];
@@ -863,44 +902,46 @@ void fft_3d_gpu_fw_r2c_blocked(
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
     if (fft_sizes_rs[2] > 0) {
       // Perform the first FFT
-
-      memcpy((double *)grid_buffer_1, grid_rs,
-             product3(fft_sizes_rs) * sizeof(double));
+      FFT_H2D(grid_buffer_dev_1, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double));
 
       fft_gpu_1d_r2c_local_device(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                        true, false, fft_sizes_rs[1] * fft_sizes_rs[2],
-                       npts_global[0] / 2 + 1, (double *)grid_buffer_1,
-                       grid_buffer_2);
+                       npts_global[0] / 2 + 1, (double *)grid_buffer_dev_1,
+                       grid_buffer_dev_2);
 
       // Pack buffer
-      collect_y_and_distribute_x_blocked_pack(
-          grid_buffer_2, grid_buffer_1, redistribution, proc2local_x_gs);
+      collect_y_and_distribute_x_blocked_pack_device(
+          grid_buffer_dev_2, grid_buffer_dev_1, redistribution, proc2local_x_gs, fft_stream);
 
       // Communicate buffer
-      collect_y_and_distribute_x_blocked_comm(grid_buffer_1, grid_buffer_2,
+      offloadStreamSynchronize((offloadStream_t)fft_stream);
+      collect_y_and_distribute_x_blocked_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                               redistribution, sub_comm[1]);
 
       // Perform the second FFT
       fft_gpu_1d_local_device(true, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
                    true, false, fft_sizes_ms[0] * fft_sizes_ms[2],
-                   npts_global[1], grid_buffer_2, grid_buffer_1);
+                   npts_global[1], grid_buffer_dev_2, grid_buffer_dev_1);
 
       // Pack the buffer
-      collect_z_and_distribute_y_blocked_pack(
-          grid_buffer_1, grid_buffer_2, redistribution, proc2local_y_gs);
+      collect_z_and_distribute_y_blocked_pack_device(
+          grid_buffer_dev_1, grid_buffer_dev_2, redistribution, proc2local_y_gs, fft_stream);
 
     }
 
     // Exchange data
-    collect_z_and_distribute_y_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_z_and_distribute_y_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[0]);
 
     // Perform the third FFT
     if (index_to_cart_neg != NULL && index_to_cart_pos != NULL) {
       fft_gpu_1d_local_device(true, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
                    true, false, fft_sizes_gs[0] * fft_sizes_gs[1],
-                   npts_global[2], grid_buffer_1, grid_buffer_2);
+                   npts_global[2], grid_buffer_dev_1, grid_buffer_dev_2);
 
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(number_of_positive_points, index_to_cart_pos, grid_gs,              \
                grid_buffer_2, scaling_factor)
@@ -908,6 +949,7 @@ void fft_3d_gpu_fw_r2c_blocked(
         grid_gs[index_to_cart_pos[index][0]] =
             scaling_factor * grid_buffer_2[index_to_cart_pos[index][1]];
       }
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(number_of_negative_points, index_to_cart_neg, grid_gs,              \
                grid_buffer_2, scaling_factor)
@@ -916,42 +958,45 @@ void fft_3d_gpu_fw_r2c_blocked(
             scaling_factor * conj(grid_buffer_2[index_to_cart_neg[index][1]]);
       }
     } else {
-      fft_gpu_1d_local(true, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
-                   true, false, fft_sizes_gs[0] * fft_sizes_gs[1],
-                   npts_global[2], grid_buffer_1, grid_gs);
+      fft_gpu_1d_local_device(true, npts_global[2],
+                                    fft_sizes_gs[0] * fft_sizes_gs[1], true, false,
+                                    fft_sizes_gs[0] * fft_sizes_gs[1], npts_global[2],
+                                    grid_buffer_dev_1, grid_buffer_dev_2);
+      FFT_D2H(grid_gs, grid_buffer_dev_2,
+                        number_of_points_to_scale * sizeof(double complex));
       zdscal_(&number_of_points_to_scale, &scaling_factor, grid_gs,
               &stride_size);
     }
   } else if (proc_grid[0] > 1) {
     cp_assert(fft_sizes_rs[1] == npts_global[1]);
 
-
-    memcpy((double *)grid_buffer_1, grid_rs,
-           product3(fft_sizes_rs) * sizeof(double));
+    FFT_H2D(grid_buffer_dev_1, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double));
 
     // Perform the first FFT
     fft_gpu_1d_r2c_local_device(npts_global[0], npts_global[1] * fft_sizes_rs[2], true,
                      false, npts_global[1] * fft_sizes_rs[2],
-                     npts_global[0] / 2 + 1, (double *)grid_buffer_1,
-                     grid_buffer_2);
+                     npts_global[0] / 2 + 1, (double *)grid_buffer_dev_1,
+                     grid_buffer_dev_2);
     fft_gpu_1d_local_device(true, npts_global[1],
                  npts_global_gspace[0] * fft_sizes_rs[2], true, false,
                  npts_global_gspace[0] * fft_sizes_rs[2], npts_global[1],
-                 grid_buffer_2, grid_buffer_1);
-
+                 grid_buffer_dev_2, grid_buffer_dev_1);
 
     // Perform second transpose
-    collect_z_and_distribute_y_blocked_pack(grid_buffer_1, grid_buffer_2,
-                                            redistribution, proc2local_y_gs);
-    collect_z_and_distribute_y_blocked_comm(grid_buffer_2, grid_buffer_1,
+    collect_z_and_distribute_y_blocked_pack_device(grid_buffer_dev_1, grid_buffer_dev_2,
+                                            redistribution, proc2local_y_gs, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_z_and_distribute_y_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[0]);
 
     // Perform the third FFT
     if (index_to_cart_neg != NULL) {
       fft_gpu_1d_local_device(true, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
                    true, false, fft_sizes_gs[0] * fft_sizes_gs[1],
-                   npts_global[2], grid_buffer_1, grid_buffer_2);
+                   npts_global[2], grid_buffer_dev_1, grid_buffer_dev_2);
 
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
   shared(number_of_positive_points, index_to_cart_pos, grid_gs,              \
              grid_buffer_2, scaling_factor)
@@ -959,6 +1004,7 @@ void fft_3d_gpu_fw_r2c_blocked(
         grid_gs[index_to_cart_pos[index][0]] =
             scaling_factor * grid_buffer_2[index_to_cart_pos[index][1]];
       }
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
   shared(number_of_negative_points, index_to_cart_neg, grid_gs,              \
              grid_buffer_2, scaling_factor)
@@ -967,9 +1013,12 @@ void fft_3d_gpu_fw_r2c_blocked(
             scaling_factor * conj(grid_buffer_2[index_to_cart_neg[index][1]]);
       }
     } else {
-      fft_gpu_1d_local(true, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
-                   true, false, fft_sizes_gs[0] * fft_sizes_gs[1],
-                   npts_global[2], grid_buffer_1, grid_gs);
+      fft_gpu_1d_local_device(true, npts_global[2],
+                                    fft_sizes_gs[0] * fft_sizes_gs[1], true, false,
+                                    fft_sizes_gs[0] * fft_sizes_gs[1], npts_global[2],
+                                    grid_buffer_dev_1, grid_buffer_dev_2);
+      FFT_D2H(grid_gs, grid_buffer_dev_2,
+                        number_of_points_to_scale * sizeof(double complex));
       zdscal_(&number_of_points_to_scale, &scaling_factor, grid_gs,
               &stride_size);
     }
@@ -980,26 +1029,29 @@ void fft_3d_gpu_fw_r2c_blocked(
       // Perform the first FFT
 
       cp_assert(grid_rs != NULL);
-      memcpy((double *)grid_buffer_1, grid_rs,
-             product3(fft_sizes_rs) * sizeof(double));
+      FFT_H2D(grid_buffer_dev_1, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double));
 
       fft_gpu_1d_r2c_local_device(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                        true, false, fft_sizes_rs[1] * fft_sizes_rs[2],
-                       npts_global[0] / 2 + 1, (double *)grid_buffer_1,
-                       grid_buffer_2);
+                       npts_global[0] / 2 + 1, (double *)grid_buffer_dev_1,
+                       grid_buffer_dev_2);
 
       // Pack buffer
-      collect_y_and_distribute_x_blocked_pack(
-          grid_buffer_2, grid_buffer_1, redistribution, proc2local_x_gs);
+      collect_y_and_distribute_x_blocked_pack_device(
+          grid_buffer_dev_2, grid_buffer_dev_1, redistribution, proc2local_x_gs, fft_stream);
 
       // Communicate buffer
-      collect_y_and_distribute_x_blocked_comm(grid_buffer_1, grid_buffer_2,
+      offloadStreamSynchronize((offloadStream_t)fft_stream);
+      collect_y_and_distribute_x_blocked_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                               redistribution, sub_comm[1]);
 
       // Perform the second FFT
       fft_gpu_2d_local_device(true, (const int[2]){npts_global[1], npts_global[2]},
-                   fft_sizes_gs[0], true, false, grid_buffer_2,
-                   grid_buffer_1);
+                   fft_sizes_gs[0], true, false, grid_buffer_dev_2,
+                   grid_buffer_dev_1);
+      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
+                        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
       grid_result = grid_buffer_1;
 
     }
@@ -1032,18 +1084,20 @@ void fft_3d_gpu_fw_r2c_blocked(
     if (fft_sizes_rs[2] > 0) {
       // Perform the first FFT
 
-      memcpy((double *)grid_buffer_1, grid_rs,
-             product3(fft_sizes_rs) * sizeof(double));
+      FFT_H2D(grid_buffer_dev_1, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double));
 
       fft_gpu_1d_r2c_local_device(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                        true, true, fft_sizes_rs[1] * fft_sizes_rs[2],
                        fft_sizes_rs[1] * fft_sizes_rs[2],
-                       (double *)grid_buffer_1, grid_buffer_2);
+                       (double *)grid_buffer_dev_1, grid_buffer_dev_2);
 
       // Perform the second FFT
       fft_gpu_2d_local_device(true, (const int[2]){npts_global[1], npts_global[2]},
-                   fft_sizes_gs[0], false, false, grid_buffer_2,
-                   grid_buffer_1);
+                   fft_sizes_gs[0], false, false, grid_buffer_dev_2,
+                   grid_buffer_dev_1);
+      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
+                        (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
       grid_result = grid_buffer_1;
 
     }
@@ -1101,8 +1155,11 @@ void fft_3d_gpu_bw_blocked(const double complex *restrict grid_gs,
 
   const int my_process = cp_mpi_comm_rank(comm);
 
-  double complex *grid_buffer_1 = fft_gpu_get_buffer_1();
-  double complex *grid_buffer_2 = fft_gpu_get_buffer_2();
+  double complex *grid_buffer_1 = get_buffer_1();
+  double complex *grid_buffer_2 = get_buffer_2();
+  double complex *grid_buffer_dev_1 = fft_gpu_get_buffer_1();
+  double complex *grid_buffer_dev_2 = fft_gpu_get_buffer_2();
+  void *fft_stream = fft_gpu_get_stream();
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {proc2local_rs[my_process][0][1],
@@ -1138,44 +1195,51 @@ void fft_3d_gpu_bw_blocked(const double complex *restrict grid_gs,
       memcpy(grid_buffer_1, grid_gs,
              product3(fft_sizes_gs) * sizeof(double complex));
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1, product3(fft_sizes_gs) * sizeof(double complex));
 
     // Perform the first FFT in z-direction
     fft_gpu_1d_local_device(false, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
                  false, true, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
-                 grid_buffer_1, grid_buffer_2);
+                 grid_buffer_dev_1, grid_buffer_dev_2);
 
     // Perform second redistribution and transpose
     // (z,x_d,y_d) -> (x_d,y,z_d)
-    collect_y_and_distribute_z_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_y_and_distribute_z_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[0]);
 
     if (fft_sizes_rs[2] > 0) {
 
-      collect_y_and_distribute_z_blocked_unpack(
-          grid_buffer_1, grid_buffer_2, redistribution, proc2local_y_gs);
+      collect_y_and_distribute_z_blocked_unpack_device(
+          grid_buffer_dev_1, grid_buffer_dev_2, redistribution, proc2local_y_gs, fft_stream);
 
       // Perform the second FFT and one transposition (z_D,x_D,y)->(y,z_D,x_D)
       fft_gpu_1d_local_device(false, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
                    false, true, npts_global[1],
-                   fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_2,
-                   grid_buffer_1);
+                   fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_dev_2,
+                   grid_buffer_dev_1);
 
       // Collect data in z-direction and distribute y-direction
-      collect_x_and_distribute_y_blocked_comm(grid_buffer_1, grid_buffer_2,
+      offloadStreamSynchronize((offloadStream_t)fft_stream);
+      collect_x_and_distribute_y_blocked_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                               redistribution, sub_comm[1]);
 
       // Collect data in z-direction and distribute y-direction
-      collect_x_and_distribute_y_blocked_unpack(
-          grid_buffer_2, grid_buffer_1, redistribution, proc2local_x_gs);
+      collect_x_and_distribute_y_blocked_unpack_device(
+          grid_buffer_dev_2, grid_buffer_dev_1, redistribution, proc2local_x_gs, fft_stream);
 
       // Perform the third FFT and one transposition (y_D,z_D,x)->(x,y_D,z_D)
-      fft_gpu_1d_local(false, npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
+      fft_gpu_1d_local_device(false, npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                    false, true, npts_global[0],
-                   fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_1,
-                   is_complex ? grid_rs : grid_buffer_2);
+                   fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_dev_1, grid_buffer_dev_2);
+if (is_complex) {
+  FFT_D2H(grid_rs, grid_buffer_dev_2,
+                    product3(fft_sizes_rs) * sizeof(double complex));
+}
 
       if (!is_complex) {
         double *grid_rs_double = (double *)grid_rs;
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
   shared(fft_sizes_rs, grid_rs_double, grid_buffer_2)
         for (int i = 0; i < product3(fft_sizes_rs); i++)
@@ -1197,28 +1261,34 @@ void fft_3d_gpu_bw_blocked(const double complex *restrict grid_gs,
       memcpy(grid_buffer_1, grid_gs,
              product3(fft_sizes_gs) * sizeof(double complex));
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1, product3(fft_sizes_gs) * sizeof(double complex));
 
     // Perform the first FFT and one transposition (x,y_d,z)->(z,x,y_d)
     fft_gpu_1d_local_device(false, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
                  false, true, npts_global[2],
-                 fft_sizes_gs[0] * fft_sizes_gs[1], grid_buffer_1,
-                 grid_buffer_2);
+                 fft_sizes_gs[0] * fft_sizes_gs[1], grid_buffer_dev_1,
+                 grid_buffer_dev_2);
 
     // Collect data in y-direction and distribute x-direction
     // (z,x,y_d)->(z_d,x,y)
-    collect_y_and_distribute_z_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_y_and_distribute_z_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[0]);
-    collect_y_and_distribute_z_blocked_unpack(
-        grid_buffer_1, grid_buffer_2, redistribution, proc2local_y_gs);
+    collect_y_and_distribute_z_blocked_unpack_device(
+        grid_buffer_dev_1, grid_buffer_dev_2, redistribution, proc2local_y_gs, fft_stream);
 
     // Perform the second FFT and one transposition (z_d,x,y)->(x,y,z_d)
 
-    fft_gpu_2d_local(false, (const int[2]){npts_global[0], npts_global[1]},
-                 fft_sizes_ms[2], false, true, grid_buffer_2,
-                 is_complex ? grid_rs : grid_buffer_1);
+    fft_gpu_2d_local_device(false, (const int[2]){npts_global[0], npts_global[1]},
+                 fft_sizes_ms[2], false, true, grid_buffer_dev_2, grid_buffer_dev_1);
+if (is_complex) {
+  FFT_D2H(grid_rs, grid_buffer_dev_1,
+                    product3(fft_sizes_rs) * sizeof(double complex));
+}
 
     if (!is_complex) {
       double *grid_rs_double = (double *)grid_rs;
+FFT_D2H(grid_buffer_1, grid_buffer_dev_1, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
   shared(fft_sizes_rs, grid_rs_double, grid_buffer_1)
       for (int i = 0; i < product3(fft_sizes_rs); i++)
@@ -1237,31 +1307,37 @@ void fft_3d_gpu_bw_blocked(const double complex *restrict grid_gs,
       memcpy(grid_buffer_1, grid_gs,
              product3(fft_sizes_gs) * sizeof(double complex));
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1, product3(fft_sizes_gs) * sizeof(double complex));
 
     if (fft_sizes_rs[2] > 0) {
 
       // Perform the first FFT in z-direction
       fft_gpu_2d_local_device(false, (const int[2]){npts_global[1], npts_global[2]},
-                   fft_sizes_gs[0], false, true, grid_buffer_1,
-                   grid_buffer_2);
+                   fft_sizes_gs[0], false, true, grid_buffer_dev_1,
+                   grid_buffer_dev_2);
 
       // Collect data in z-direction and distribute y-direction
-      collect_x_and_distribute_y_blocked_comm(grid_buffer_2, grid_buffer_1,
+      offloadStreamSynchronize((offloadStream_t)fft_stream);
+      collect_x_and_distribute_y_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                               redistribution, sub_comm[1]);
 
       // Collect data in z-direction and distribute y-direction
-      collect_x_and_distribute_y_blocked_unpack(
-          grid_buffer_1, grid_buffer_2, redistribution, proc2local_x_gs);
+      collect_x_and_distribute_y_blocked_unpack_device(
+          grid_buffer_dev_1, grid_buffer_dev_2, redistribution, proc2local_x_gs, fft_stream);
 
       // Perform the third FFT and one transposition (y_D,z_D,x)->(x,y_D,z_D)
 
-      fft_gpu_1d_local(false, npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
+      fft_gpu_1d_local_device(false, npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                    false, true, npts_global[0],
-                   fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_2,
-                   is_complex ? grid_rs : grid_buffer_1);
+                   fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_dev_2, grid_buffer_dev_1);
+if (is_complex) {
+  FFT_D2H(grid_rs, grid_buffer_dev_1,
+                    product3(fft_sizes_rs) * sizeof(double complex));
+}
 
       if (!is_complex) {
         double *grid_rs_double = (double *)grid_rs;
+FFT_D2H(grid_buffer_1, grid_buffer_dev_1, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
   shared(fft_sizes_rs, grid_rs_double, grid_buffer_1)
         for (int i = 0; i < product3(fft_sizes_rs); i++)
@@ -1281,12 +1357,17 @@ void fft_3d_gpu_bw_blocked(const double complex *restrict grid_gs,
       memcpy(grid_buffer_1, grid_gs,
              product3(fft_sizes_gs) * sizeof(double complex));
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1, product3(fft_sizes_gs) * sizeof(double complex));
 
-    fft_gpu_3d_local(false, npts_global, 1, false, false, grid_buffer_1,
-                 is_complex ? grid_rs : grid_buffer_2);
+    fft_gpu_3d_local_device(false, npts_global, 1, false, false, grid_buffer_dev_1, grid_buffer_dev_2);
+if (is_complex) {
+  FFT_D2H(grid_rs, grid_buffer_dev_2,
+                    product3(fft_sizes_rs) * sizeof(double complex));
+}
 
     if (!is_complex) {
       double *grid_rs_double = (double *)grid_rs;
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(fft_sizes_rs, grid_rs_double, grid_buffer_2)
       for (int i = 0; i < product3(fft_sizes_rs); i++)
@@ -1322,8 +1403,11 @@ void fft_3d_gpu_bw_c2r_blocked(
 
   const int my_process = cp_mpi_comm_rank(comm);
 
-  double complex *grid_buffer_1 = fft_gpu_get_buffer_1();
-  double complex *grid_buffer_2 = fft_gpu_get_buffer_2();
+  double complex *grid_buffer_1 = get_buffer_1();
+  double complex *grid_buffer_2 = get_buffer_2();
+  double complex *grid_buffer_dev_1 = fft_gpu_get_buffer_1();
+  double complex *grid_buffer_dev_2 = fft_gpu_get_buffer_2();
+  void *fft_stream = fft_gpu_get_stream();
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {proc2local_rs[my_process][0][1],
@@ -1352,6 +1436,7 @@ void fft_3d_gpu_bw_c2r_blocked(
     memcpy(grid_buffer_1, grid_gs,
            product3(fft_sizes_gs) * sizeof(double complex));
   }
+  FFT_H2D(grid_buffer_dev_1, grid_buffer_1, product3(fft_sizes_gs) * sizeof(double complex));
 
   // We use different data distribution schemes depending on the availability of
   // a distributed FFT library because FFTW requires the data to the different
@@ -1372,39 +1457,43 @@ void fft_3d_gpu_bw_c2r_blocked(
       memcpy(grid_buffer_1, grid_gs,
              product3(fft_sizes_gs) * sizeof(double complex));
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1, product3(fft_sizes_gs) * sizeof(double complex));
 
     // Perform the first FFT in z-direction (x_d,y_d,z)->(z,x_d,y_d)
     fft_gpu_1d_local_device(false, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
                  false, true, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
-                 grid_buffer_1, grid_buffer_2);
+                 grid_buffer_dev_1, grid_buffer_dev_2);
 
     // Perform second redistribution and transpose
     // (z,x_d,y_d) -> (x_d,y,z_d)
-    collect_y_and_distribute_z_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_y_and_distribute_z_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[0]);
 
     if (fft_sizes_rs[2] > 0) {
 
-      collect_y_and_distribute_z_blocked_unpack(
-          grid_buffer_1, grid_buffer_2, redistribution, proc2local_y_gs);
+      collect_y_and_distribute_z_blocked_unpack_device(
+          grid_buffer_dev_1, grid_buffer_dev_2, redistribution, proc2local_y_gs, fft_stream);
 
       // Perform the second FFT and one transposition (x,z,y)->(y,x,z)
       fft_gpu_1d_local_device(false, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
                    false, true, npts_global[1],
-                   fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_2,
-                   grid_buffer_1);
+                   fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_dev_2,
+                   grid_buffer_dev_1);
 
       // Collect data in z-direction and distribute y-direction
-      collect_x_and_distribute_y_blocked_comm(grid_buffer_1, grid_buffer_2,
+      offloadStreamSynchronize((offloadStream_t)fft_stream);
+      collect_x_and_distribute_y_blocked_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                               redistribution, sub_comm[1]);
-      collect_x_and_distribute_y_blocked_unpack(
-          grid_buffer_2, grid_buffer_1, redistribution, proc2local_x_gs);
+      collect_x_and_distribute_y_blocked_unpack_device(
+          grid_buffer_dev_2, grid_buffer_dev_1, redistribution, proc2local_x_gs, fft_stream);
 
       // Perform the third FFT and one transposition (y,x,z)->(z,y,x)
-      fft_gpu_1d_c2r_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
+      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
+                      (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
+fft_gpu_1d_c2r_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                        false, true, npts_global[0] / 2 + 1,
-                       fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_1,
-                       grid_rs);
+                       fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_1, grid_rs);
 
     }
   } else if (proc_grid[0] > 1) {
@@ -1422,31 +1511,34 @@ void fft_3d_gpu_bw_c2r_blocked(
       memcpy(grid_buffer_1, grid_gs,
              product3(fft_sizes_gs) * sizeof(double complex));
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1, product3(fft_sizes_gs) * sizeof(double complex));
 
     // Perform the first FFT and one transposition (x,y_d,z)->(z,x,y_d)
     fft_gpu_1d_local_device(false, npts_global[2], fft_sizes_gs[0] * fft_sizes_gs[1],
                  false, true, npts_global[2],
-                 fft_sizes_gs[0] * fft_sizes_gs[1], grid_buffer_1,
-                 grid_buffer_2);
+                 fft_sizes_gs[0] * fft_sizes_gs[1], grid_buffer_dev_1,
+                 grid_buffer_dev_2);
 
     // Collect data in y-direction and distribute x-direction (z,x,y_d) ->
     // (z_d,x,y)
-    collect_y_and_distribute_z_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_y_and_distribute_z_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[0]);
-    collect_y_and_distribute_z_blocked_unpack(
-        grid_buffer_1, grid_buffer_2, redistribution, proc2local_y_gs);
+    collect_y_and_distribute_z_blocked_unpack_device(
+        grid_buffer_dev_1, grid_buffer_dev_2, redistribution, proc2local_y_gs, fft_stream);
 
 
     // Perform the second FFT and one transposition (z_d,x,y)->(y,z_d,x)
     fft_gpu_1d_local_device(false, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
                  false, true, npts_global[1],
-                 fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_2,
-                 grid_buffer_1);
+                 fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_dev_2,
+                 grid_buffer_dev_1);
     // Perform the second FFT and one transposition (y,z_d,x) -> (x,y,z_d)
-    fft_gpu_1d_c2r_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
+      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
+                      (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
+fft_gpu_1d_c2r_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                      false, true, npts_global[0] / 2 + 1,
-                     fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_1,
-                     grid_rs);
+                     fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_1, grid_rs);
 
 
   } else if (proc_grid[1] > 1) {
@@ -1462,25 +1554,28 @@ void fft_3d_gpu_bw_c2r_blocked(
       memcpy(grid_buffer_1, grid_gs,
              product3(fft_sizes_gs) * sizeof(double complex));
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1, product3(fft_sizes_gs) * sizeof(double complex));
 
     if (fft_sizes_rs[2] > 0) {
 
       // Perform the first FFT in z-direction (x_d,y_d,z)->(z,x_d,y_d)
       fft_gpu_2d_local_device(false, (const int[2]){npts_global[1], npts_global[2]},
-                   fft_sizes_gs[0], false, true, grid_buffer_1,
-                   grid_buffer_2);
+                   fft_sizes_gs[0], false, true, grid_buffer_dev_1,
+                   grid_buffer_dev_2);
 
       // Collect data in z-direction and distribute y-direction
-      collect_x_and_distribute_y_blocked_comm(grid_buffer_2, grid_buffer_1,
+      offloadStreamSynchronize((offloadStream_t)fft_stream);
+      collect_x_and_distribute_y_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                               redistribution, sub_comm[1]);
-      collect_x_and_distribute_y_blocked_unpack(
-          grid_buffer_1, grid_buffer_2, redistribution, proc2local_x_gs);
+      collect_x_and_distribute_y_blocked_unpack_device(
+          grid_buffer_dev_1, grid_buffer_dev_2, redistribution, proc2local_x_gs, fft_stream);
 
       // Perform the third FFT and one transposition (y,x,z)->(z,y,x)
-      fft_gpu_1d_c2r_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
+      FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
+                      (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
+fft_gpu_1d_c2r_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                        false, true, npts_global[0] / 2 + 1,
-                       fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_2,
-                       grid_rs);
+                       fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_2, grid_rs);
 
     }
   } else {
@@ -1496,14 +1591,17 @@ void fft_3d_gpu_bw_c2r_blocked(
       memcpy(grid_buffer_1, grid_gs,
              product3(fft_sizes_gs) * sizeof(double complex));
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1, product3(fft_sizes_gs) * sizeof(double complex));
 
 
     // Perform the first two FFTs
     fft_gpu_2d_local_device(false, (const int[2]){npts_global[1], npts_global[2]},
-                 npts_global_gspace[0], false, false, grid_buffer_1,
-                 grid_buffer_2);
+                 npts_global_gspace[0], false, false, grid_buffer_dev_1,
+                 grid_buffer_dev_2);
     // And the R2C FFT separately to get rid of additional transposition steps
-    fft_gpu_1d_c2r_local(npts_global[0], npts_global[1] * npts_global[2], true,
+      FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
+                      (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
+fft_gpu_1d_c2r_local(npts_global[0], npts_global[1] * npts_global[2], true,
                      true, npts_global[1] * npts_global[2],
                      npts_global[1] * npts_global[2], grid_buffer_2, grid_rs);
 
@@ -1536,8 +1634,11 @@ void fft_3d_gpu_fw_ray(const double complex *restrict grid_rs, bool is_complex,
 
   const int my_process = cp_mpi_comm_rank(comm);
 
-  double complex *grid_buffer_1 = fft_gpu_get_buffer_1();
-  double complex *grid_buffer_2 = fft_gpu_get_buffer_2();
+  double complex *grid_buffer_1 = get_buffer_1();
+  double complex *grid_buffer_2 = get_buffer_2();
+  double complex *grid_buffer_dev_1 = fft_gpu_get_buffer_1();
+  double complex *grid_buffer_dev_2 = fft_gpu_get_buffer_2();
+  void *fft_stream = fft_gpu_get_stream();
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {proc2local_rs[my_process][0][1],
@@ -1570,47 +1671,53 @@ void fft_3d_gpu_fw_ray(const double complex *restrict grid_rs, bool is_complex,
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
 
     if (is_complex) {
-      memcpy(grid_buffer_2, grid_rs,
-             product3(fft_sizes_rs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_2, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double complex));
     } else {
       const double *grid_rs_double = (const double *)grid_rs;
 #pragma omp parallel for default(none)                                         \
   shared(fft_sizes_rs, grid_buffer_2, grid_rs_double)
       for (int i = 0; i < product3(fft_sizes_rs); i++)
         grid_buffer_2[i] = CMPLX(grid_rs_double[i], 0.0);
+      FFT_H2D(grid_buffer_dev_2, grid_buffer_2,
+                        product3(fft_sizes_rs) * sizeof(double complex));
     }
 
     // Perform the first FFT (x,y_d,z_d) -> (y_d,z_d,x)
     fft_gpu_1d_local_device(true, npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                  true, false, fft_sizes_rs[1] * fft_sizes_rs[2],
-                 npts_global[0], grid_buffer_2, grid_buffer_1);
+                 npts_global[0], grid_buffer_dev_2, grid_buffer_dev_1);
 
     // Perform redistribution (y_d,z_d,x) -> (y,z_d,x_d)
-    collect_y_and_distribute_x_blocked_pack(grid_buffer_1, grid_buffer_2,
-                                            redistribution, proc2local_x_gs);
+    collect_y_and_distribute_x_blocked_pack_device(grid_buffer_dev_1, grid_buffer_dev_2,
+                                            redistribution, proc2local_x_gs, fft_stream);
 
     // Perform communication (y_d,z_d,x) -> (y,z_d,x_d)
-    collect_y_and_distribute_x_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_y_and_distribute_x_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[1]);
 
     // Perform the second FFT (y,z_d,x_d) -> (z_d,x_d,y)
     fft_gpu_1d_local_device(true, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
                  true, false, fft_sizes_ms[0] * fft_sizes_ms[2],
-                 npts_global[1], grid_buffer_1, grid_buffer_2);
+                 npts_global[1], grid_buffer_dev_1, grid_buffer_dev_2);
 
     // Perform second redistribution (z_d,x_d,y) -> (z,xy_d)
-    collect_z_and_distribute_xy_ray_pack(grid_buffer_2, grid_buffer_1,
-                                         redistribution);
-    collect_z_and_distribute_xy_ray_comm(grid_buffer_1, grid_buffer_2,
+    collect_z_and_distribute_xy_ray_pack_device(grid_buffer_2, grid_buffer_1,
+                                         redistribution, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_z_and_distribute_xy_ray_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                          redistribution, comm);
-    collect_z_and_distribute_xy_ray_unpack(grid_buffer_2, grid_buffer_1,
-                                           redistribution);
+    collect_z_and_distribute_xy_ray_unpack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                           redistribution, fft_stream);
 
 
     // Perform the third FFT (z,xy_d) -> (xy_d,z)
     fft_gpu_1d_local_device(true, npts_global[2], number_of_local_xy_rays, false, false,
-                 npts_global[2], npts_global[2], grid_buffer_1, grid_buffer_2);
+                 npts_global[2], npts_global[2], grid_buffer_dev_1, grid_buffer_dev_2);
 
+    FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
+                      (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none) shared(                                 \
         npts_gs_local, grid_gs, grid_buffer_2, scaling_factor, index_to_ray)
     for (int index = 0; index < npts_gs_local; index++) {
@@ -1618,32 +1725,37 @@ void fft_3d_gpu_fw_ray(const double complex *restrict grid_rs, bool is_complex,
     }
   } else if (proc_grid[0] > 1) {
     if (is_complex) {
-      memcpy(grid_buffer_1, grid_rs,
-             product3(fft_sizes_rs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_1, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double complex));
     } else {
       const double *grid_rs_double = (const double *)grid_rs;
 #pragma omp parallel for default(none)                                         \
     shared(fft_sizes_rs, grid_buffer_1, grid_rs_double)
       for (int i = 0; i < product3(fft_sizes_rs); i++)
         grid_buffer_1[i] = CMPLX(grid_rs_double[i], 0.0);
+      FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
+                        product3(fft_sizes_rs) * sizeof(double complex));
     }
 
     // Now, we only need a local 2D FFT (x,y,z_d) -> (z_d,x,y)
     fft_gpu_2d_local_device(true, (const int[2]){npts_global[0], npts_global[1]},
-                 fft_sizes_ms[2], true, false, grid_buffer_1, grid_buffer_2);
+                 fft_sizes_ms[2], true, false, grid_buffer_dev_1, grid_buffer_dev_2);
 
     // Perform second transpose (z_d,x,y) -> (z,xy_d)
-    collect_z_and_distribute_xy_ray_pack(grid_buffer_2, grid_buffer_1,
-                                         redistribution);
-    collect_z_and_distribute_xy_ray_comm(grid_buffer_1, grid_buffer_2,
+    collect_z_and_distribute_xy_ray_pack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                         redistribution, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_z_and_distribute_xy_ray_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                          redistribution, comm);
-    collect_z_and_distribute_xy_ray_unpack(grid_buffer_2, grid_buffer_1,
-                                           redistribution);
+    collect_z_and_distribute_xy_ray_unpack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                           redistribution, fft_stream);
 
     // Perform the third FFT (z,xy_d) -> (xy_d,z)
     fft_gpu_1d_local_device(true, npts_global[2], number_of_local_xy_rays, false, false,
-                 npts_global[2], npts_global[2], grid_buffer_1, grid_buffer_2);
+                 npts_global[2], npts_global[2], grid_buffer_dev_1, grid_buffer_dev_2);
 
+    FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
+                      (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(npts_gs_local, grid_gs, grid_buffer_2, scaling_factor,              \
                index_to_ray, my_process)
@@ -1653,47 +1765,52 @@ void fft_3d_gpu_fw_ray(const double complex *restrict grid_rs, bool is_complex,
   } else if (proc_grid[1] > 1) {
 
     if (is_complex) {
-      memcpy(grid_buffer_2, grid_rs,
-             product3(fft_sizes_rs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_2, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double complex));
     } else {
       const double *grid_rs_double = (const double *)grid_rs;
 #pragma omp parallel for default(none)                                         \
   shared(fft_sizes_rs, grid_buffer_2, grid_rs_double)
       for (int i = 0; i < product3(fft_sizes_rs); i++)
         grid_buffer_2[i] = CMPLX(grid_rs_double[i], 0.0);
+      FFT_H2D(grid_buffer_dev_2, grid_buffer_2,
+                        product3(fft_sizes_rs) * sizeof(double complex));
     }
 
     // Perform the first FFT (x,y_d,z_d) -> (y_d,z_d,x)
     fft_gpu_1d_local_device(true, npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                  true, false, fft_sizes_rs[1] * fft_sizes_rs[2],
-                 npts_global[0], grid_buffer_2, grid_buffer_1);
+                 npts_global[0], grid_buffer_dev_2, grid_buffer_dev_1);
 
     // Perform redistribution (y_d,z_d,x) -> (y,z_d,x_d)
-    collect_y_and_distribute_x_blocked_pack(grid_buffer_1, grid_buffer_2,
-                                            redistribution, proc2local_x_gs);
+    collect_y_and_distribute_x_blocked_pack_device(grid_buffer_dev_1, grid_buffer_dev_2,
+                                            redistribution, proc2local_x_gs, fft_stream);
 
     // Perform communication (y_d,z_d,x) -> (y,z_d,x_d)
-    collect_y_and_distribute_x_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_y_and_distribute_x_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[1]);
 
     // Perform the second FFT (y,z_d,x_d) -> (z_d,x_d,y)
     fft_gpu_1d_local_device(true, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
                  true, false, fft_sizes_ms[0] * fft_sizes_ms[2],
-                 npts_global[1], grid_buffer_1, grid_buffer_2);
+                 npts_global[1], grid_buffer_dev_1, grid_buffer_dev_2);
 
     // Perform second redistribution (z_d,x_d,y) -> (z,xy_d)
-    collect_z_and_distribute_xy_ray_pack(grid_buffer_2, grid_buffer_1,
-                                         redistribution);
-    collect_z_and_distribute_xy_ray_comm(grid_buffer_1, grid_buffer_2,
+    collect_z_and_distribute_xy_ray_pack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                         redistribution, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_z_and_distribute_xy_ray_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                          redistribution, comm);
-    collect_z_and_distribute_xy_ray_unpack(grid_buffer_2, grid_buffer_1,
-                                           redistribution);
+    collect_z_and_distribute_xy_ray_unpack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                           redistribution, fft_stream);
 
 
     // Perform the third FFT (z,xy_d) -> (xy_d,z)
     fft_gpu_1d_local_device(true, npts_global[2], number_of_local_xy_rays, false, false,
-                 npts_global[2], npts_global[2], grid_buffer_1, grid_buffer_2);
+                 npts_global[2], npts_global[2], grid_buffer_dev_1, grid_buffer_dev_2);
 
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none) shared(                                 \
         npts_gs_local, grid_gs, grid_buffer_2, scaling_factor, index_to_ray)
     for (int index = 0; index < npts_gs_local; index++) {
@@ -1701,17 +1818,20 @@ void fft_3d_gpu_fw_ray(const double complex *restrict grid_rs, bool is_complex,
     }
   } else {
     if (is_complex) {
-      memcpy(grid_buffer_2, grid_rs,
-             product3(fft_sizes_rs) * sizeof(double complex));
+      FFT_H2D(grid_buffer_dev_2, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double complex));
     } else {
       const double *grid_rs_double = (const double *)grid_rs;
 #pragma omp parallel for default(none)                                         \
     shared(fft_sizes_rs, grid_buffer_2, grid_rs_double)
       for (int i = 0; i < product3(fft_sizes_rs); i++)
         grid_buffer_2[i] = CMPLX(grid_rs_double[i], 0.0);
+      FFT_H2D(grid_buffer_dev_2, grid_buffer_2,
+                        product3(fft_sizes_rs) * sizeof(double complex));
     }
 
-    fft_gpu_3d_local_device(true, npts_global, 1, false, false, grid_buffer_2, grid_buffer_1);
+    fft_gpu_3d_local_device(true, npts_global, 1, false, false, grid_buffer_dev_2, grid_buffer_dev_1);
+FFT_D2H(grid_buffer_1, grid_buffer_dev_1, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none) shared(                                 \
         npts_gs_local, grid_gs, grid_buffer_1, scaling_factor, index_to_ray)
     for (int index = 0; index < npts_gs_local; index++) {
@@ -1749,8 +1869,11 @@ void fft_3d_gpu_fw_r2c_ray(const double *restrict grid_rs,
 
   const int my_process = cp_mpi_comm_rank(comm);
 
-  double complex *grid_buffer_1 = fft_gpu_get_buffer_1();
-  double complex *grid_buffer_2 = fft_gpu_get_buffer_2();
+  double complex *grid_buffer_1 = get_buffer_1();
+  double complex *grid_buffer_2 = get_buffer_2();
+  double complex *grid_buffer_dev_1 = fft_gpu_get_buffer_1();
+  double complex *grid_buffer_dev_2 = fft_gpu_get_buffer_2();
+  void *fft_stream = fft_gpu_get_stream();
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {proc2local_rs[my_process][0][1],
@@ -1782,42 +1905,45 @@ void fft_3d_gpu_fw_r2c_ray(const double *restrict grid_rs,
   // with all implementations of the FFTW interface
   if (proc_grid[0] > 1 && proc_grid[1] > 1) {
 
-    memcpy((double *)grid_buffer_2, grid_rs,
-           product3(fft_sizes_rs) * sizeof(double));
+    FFT_H2D(grid_buffer_dev_2, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double));
 
     // Perform the first FFT (x,y_d,z_d) -> (y_d,z_d,x)
     fft_gpu_1d_r2c_local_device(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], true,
                      false, fft_sizes_rs[1] * fft_sizes_rs[2],
-                     npts_global[0] / 2 + 1, (double *)grid_buffer_2,
-                     grid_buffer_1);
+                     npts_global[0] / 2 + 1, (double *)grid_buffer_dev_2,
+                     grid_buffer_dev_1);
 
     // Pack buffer for (y_d,z_d,x) -> (y,z_d,x_d)
-    collect_y_and_distribute_x_blocked_pack(grid_buffer_1, grid_buffer_2,
-                                            redistribution, proc2local_x_gs);
+    collect_y_and_distribute_x_blocked_pack_device(grid_buffer_dev_1, grid_buffer_dev_2,
+                                            redistribution, proc2local_x_gs, fft_stream);
 
     // Perform communication for (y_d,z_d,x) -> (y,z_d,x_d)
-    collect_y_and_distribute_x_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_y_and_distribute_x_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[1]);
 
     // Perform the second FFT (y,z_d,x_d) -> (z_d,x_d,y)
     fft_gpu_1d_local_device(true, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
                  true, false, fft_sizes_ms[0] * fft_sizes_ms[2],
-                 npts_global[1], grid_buffer_1, grid_buffer_2);
+                 npts_global[1], grid_buffer_dev_1, grid_buffer_dev_2);
 
     // Perform second redistribution (z_d,x_d,y) -> (z,xy_d)
-    collect_z_and_distribute_xy_ray_pack(grid_buffer_2, grid_buffer_1,
-                                         redistribution);
-    collect_z_and_distribute_xy_ray_comm(grid_buffer_1, grid_buffer_2,
+    collect_z_and_distribute_xy_ray_pack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                         redistribution, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_z_and_distribute_xy_ray_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                          redistribution, comm);
-    collect_z_and_distribute_xy_ray_unpack(grid_buffer_2, grid_buffer_1,
-                                           redistribution);
+    collect_z_and_distribute_xy_ray_unpack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                           redistribution, fft_stream);
 
     // Perform the third FFT (z,xy_d) -> (xy_d,z)
     fft_gpu_1d_local_device(true, npts_global[2], number_of_local_xy_rays, false, false,
-                 npts_global[2], npts_global[2], grid_buffer_1,
-                 grid_buffer_2);
+                 npts_global[2], npts_global[2], grid_buffer_dev_1,
+                 grid_buffer_dev_2);
 
 
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(number_of_positive_points, index_to_ray_pos, grid_gs,               \
                grid_buffer_2, scaling_factor)
@@ -1825,6 +1951,7 @@ void fft_3d_gpu_fw_r2c_ray(const double *restrict grid_rs,
       grid_gs[index_to_ray_pos[index][0]] =
           scaling_factor * grid_buffer_2[index_to_ray_pos[index][1]];
     }
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(number_of_negative_points, index_to_ray_neg, grid_gs,               \
                grid_buffer_2, scaling_factor)
@@ -1834,34 +1961,36 @@ void fft_3d_gpu_fw_r2c_ray(const double *restrict grid_rs,
     }
   } else if (proc_grid[0] > 1) {
 
-    memcpy((double *)grid_buffer_2, grid_rs,
-           product3(fft_sizes_rs) * sizeof(double));
+    FFT_H2D(grid_buffer_dev_2, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double));
 
     // The first two FFTs can be performed locally
     // FFTs (x,y,z_d) -> (y,z_d,x)
     fft_gpu_1d_r2c_local_device(npts_global[0], npts_global[1] * fft_sizes_ms[2], true,
                      false, npts_global[1] * fft_sizes_ms[2],
-                     npts_global[0] / 2 + 1, (double *)grid_buffer_2,
-                     grid_buffer_1);
+                     npts_global[0] / 2 + 1, (double *)grid_buffer_dev_2,
+                     grid_buffer_dev_1);
     // second FFT (y,z_d,x) -> (z_d,x,y)
     fft_gpu_1d_local_device(true, npts_global[1],
                  npts_global_gspace[0] * fft_sizes_ms[2], true, false,
                  npts_global_gspace[0] * fft_sizes_ms[2], npts_global[1],
-                 grid_buffer_1, grid_buffer_2);
+                 grid_buffer_dev_1, grid_buffer_dev_2);
 
 
     // but we need to redistribute to rays (z_d,x,y) -> (z,xy_d)
-    collect_z_and_distribute_xy_ray_pack(grid_buffer_2, grid_buffer_1,
-                                         redistribution);
-    collect_z_and_distribute_xy_ray_comm(grid_buffer_1, grid_buffer_2,
+    collect_z_and_distribute_xy_ray_pack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                         redistribution, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_z_and_distribute_xy_ray_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                          redistribution, comm);
-    collect_z_and_distribute_xy_ray_unpack(grid_buffer_2, grid_buffer_1,
-                                           redistribution);
+    collect_z_and_distribute_xy_ray_unpack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                           redistribution, fft_stream);
 
     // Perform the third FFT (z,xy_d) -> (xy_d,z)
     fft_gpu_1d_local_device(true, npts_global[2], number_of_local_xy_rays, false, false,
-                 npts_global[2], npts_global[2], grid_buffer_1, grid_buffer_2);
+                 npts_global[2], npts_global[2], grid_buffer_dev_1, grid_buffer_dev_2);
 
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(number_of_positive_points, index_to_ray_pos, grid_gs,               \
                grid_buffer_2, scaling_factor)
@@ -1869,6 +1998,7 @@ void fft_3d_gpu_fw_r2c_ray(const double *restrict grid_rs,
       grid_gs[index_to_ray_pos[index][0]] =
           scaling_factor * grid_buffer_2[index_to_ray_pos[index][1]];
     }
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(number_of_negative_points, index_to_ray_neg, grid_gs,               \
                grid_buffer_2, scaling_factor)
@@ -1878,42 +2008,45 @@ void fft_3d_gpu_fw_r2c_ray(const double *restrict grid_rs,
     }
   } else if (proc_grid[1] > 1) {
 
-    memcpy((double *)grid_buffer_2, grid_rs,
-           product3(fft_sizes_rs) * sizeof(double));
+    FFT_H2D(grid_buffer_dev_2, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double));
 
     // Perform the first FFT (x,y_d,z_d) -> (y_d,z_d,x)
     fft_gpu_1d_r2c_local_device(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], true,
                      false, fft_sizes_rs[1] * fft_sizes_rs[2],
-                     npts_global[0] / 2 + 1, (double *)grid_buffer_2,
-                     grid_buffer_1);
+                     npts_global[0] / 2 + 1, (double *)grid_buffer_dev_2,
+                     grid_buffer_dev_1);
 
     // Pack buffer for (y_d,z_d,x) -> (y,z_d,x_d)
-    collect_y_and_distribute_x_blocked_pack(grid_buffer_1, grid_buffer_2,
-                                            redistribution, proc2local_x_gs);
+    collect_y_and_distribute_x_blocked_pack_device(grid_buffer_dev_1, grid_buffer_dev_2,
+                                            redistribution, proc2local_x_gs, fft_stream);
 
     // Perform communication for (y_d,z_d,x) -> (y,z_d,x_d)
-    collect_y_and_distribute_x_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_y_and_distribute_x_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[1]);
 
     // Perform the second FFT (y,z_d,x_d) -> (z_d,x_d,y)
     fft_gpu_1d_local_device(true, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
                  true, false, fft_sizes_ms[0] * fft_sizes_ms[2],
-                 npts_global[1], grid_buffer_1, grid_buffer_2);
+                 npts_global[1], grid_buffer_dev_1, grid_buffer_dev_2);
 
     // Perform second redistribution (z_d,x_d,y) -> (z,xy_d)
-    collect_z_and_distribute_xy_ray_pack(grid_buffer_2, grid_buffer_1,
-                                         redistribution);
-    collect_z_and_distribute_xy_ray_comm(grid_buffer_1, grid_buffer_2,
+    collect_z_and_distribute_xy_ray_pack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                         redistribution, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_z_and_distribute_xy_ray_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                          redistribution, comm);
-    collect_z_and_distribute_xy_ray_unpack(grid_buffer_2, grid_buffer_1,
-                                           redistribution);
+    collect_z_and_distribute_xy_ray_unpack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                           redistribution, fft_stream);
 
     // Perform the third FFT (z,xy_d) -> (xy_d,z)
     fft_gpu_1d_local_device(true, npts_global[2], number_of_local_xy_rays, false, false,
-                 npts_global[2], npts_global[2], grid_buffer_1,
-                 grid_buffer_2);
+                 npts_global[2], npts_global[2], grid_buffer_dev_1,
+                 grid_buffer_dev_2);
 
 
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(number_of_positive_points, index_to_ray_pos, grid_gs,               \
                grid_buffer_2, scaling_factor)
@@ -1921,6 +2054,7 @@ void fft_3d_gpu_fw_r2c_ray(const double *restrict grid_rs,
       grid_gs[index_to_ray_pos[index][0]] =
           scaling_factor * grid_buffer_2[index_to_ray_pos[index][1]];
     }
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(number_of_negative_points, index_to_ray_neg, grid_gs,               \
                grid_buffer_2, scaling_factor)
@@ -1930,21 +2064,22 @@ void fft_3d_gpu_fw_r2c_ray(const double *restrict grid_rs,
     }
   } else {
 
-    memcpy((double *)grid_buffer_1, grid_rs,
-           product3(fft_sizes_rs) * sizeof(double));
+    FFT_H2D(grid_buffer_dev_1, grid_rs,
+                        product3(fft_sizes_rs) * sizeof(double));
 
     // FFTs (x,y,z_d) -> (y,z_d,x)
     fft_gpu_1d_r2c_local_device(npts_global[0], npts_global[1] * npts_global[2], true,
                      true, npts_global[1] * npts_global[2],
-                     npts_global[1] * npts_global[2], (double *)grid_buffer_1,
-                     grid_buffer_2);
+                     npts_global[1] * npts_global[2], (double *)grid_buffer_dev_1,
+                     grid_buffer_dev_2);
     // second FFT (y,z_d,x) -> (z_d,x,y)
     fft_gpu_2d_local_device(true, (const int[2]){npts_global[1], npts_global[2]},
-                 npts_global_gspace[0], false, false, grid_buffer_2,
-                 grid_buffer_1);
+                 npts_global_gspace[0], false, false, grid_buffer_dev_2,
+                 grid_buffer_dev_1);
 
 
 // Copy to the ray format
+FFT_D2H(grid_buffer_1, grid_buffer_dev_1, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(number_of_positive_points, index_to_ray_pos, grid_gs,               \
                grid_buffer_1, scaling_factor)
@@ -1952,6 +2087,7 @@ void fft_3d_gpu_fw_r2c_ray(const double *restrict grid_rs,
       grid_gs[index_to_ray_pos[index][0]] =
           scaling_factor * grid_buffer_1[index_to_ray_pos[index][1]];
     }
+FFT_D2H(grid_buffer_1, grid_buffer_dev_1, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(number_of_negative_points, index_to_ray_neg, grid_gs,               \
                grid_buffer_1, scaling_factor)
@@ -1988,8 +2124,11 @@ void fft_3d_gpu_bw_ray(const double complex *restrict grid_gs, int *index_to_ray
 
   const int my_process = cp_mpi_comm_rank(comm);
 
-  double complex *grid_buffer_1 = fft_gpu_get_buffer_1();
-  double complex *grid_buffer_2 = fft_gpu_get_buffer_2();
+  double complex *grid_buffer_1 = get_buffer_1();
+  double complex *grid_buffer_2 = get_buffer_2();
+  double complex *grid_buffer_dev_1 = fft_gpu_get_buffer_1();
+  double complex *grid_buffer_dev_2 = fft_gpu_get_buffer_2();
+  void *fft_stream = fft_gpu_get_stream();
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {proc2local_rs[my_process][0][1],
@@ -2019,42 +2158,49 @@ void fft_3d_gpu_bw_ray(const double complex *restrict grid_gs, int *index_to_ray
     for (int i = 0; i < number_of_local_gpts; i++) {
       grid_buffer_1[index_to_ray[i]] = grid_gs[i];
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1, number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
 
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_1d_local_device(false, npts_global[2], number_of_local_xy_rays, false, false,
-                 npts_global[2], npts_global[2], grid_buffer_1,
-                 grid_buffer_2);
+                 npts_global[2], npts_global[2], grid_buffer_dev_1,
+                 grid_buffer_dev_2);
 
     // Perform transpose (z,xy_d) -> (z_d,x_d,y)
-    collect_xy_and_distribute_z_ray_pack(grid_buffer_2, grid_buffer_1,
-                                         redistribution);
-    collect_xy_and_distribute_z_ray_comm(grid_buffer_1, grid_buffer_2,
+    collect_xy_and_distribute_z_ray_pack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                         redistribution, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_xy_and_distribute_z_ray_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                          redistribution, comm);
-    collect_xy_and_distribute_z_ray_unpack(grid_buffer_2, grid_buffer_1,
-                                           redistribution);
+    collect_xy_and_distribute_z_ray_unpack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                           redistribution, fft_stream);
 
     // Perform the second FFT (z_d,x_d,y) -> (y,z_d,x_d)
     fft_gpu_1d_local_device(false, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
                  false, true, npts_global[1],
-                 fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_1,
-                 grid_buffer_2);
+                 fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_dev_1,
+                 grid_buffer_dev_2);
 
     // Perform second transpose (y,z_d,x_d) -> (y_d,z_d,x)
-    collect_x_and_distribute_y_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_x_and_distribute_y_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[1]);
 
     // Perform second transpose (y,z_d,x_d) -> (y_d,z_d,x)
-    collect_x_and_distribute_y_blocked_unpack(
-        grid_buffer_1, grid_buffer_2, redistribution, proc2local_x_gs);
+    collect_x_and_distribute_y_blocked_unpack_device(
+        grid_buffer_dev_1, grid_buffer_dev_2, redistribution, proc2local_x_gs, fft_stream);
 
     // Perform the third FFT (y_d,z_d,x) -> (x,y_d,z_d)
-    fft_gpu_1d_local(false, npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
+    fft_gpu_1d_local_device(false, npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                  false, true, npts_global[0],
-                 fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_2,
-                 is_complex ? grid_rs : grid_buffer_1);
+                 fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_dev_2, grid_buffer_dev_1);
+if (is_complex) {
+  FFT_D2H(grid_rs, grid_buffer_dev_1,
+                    product3(fft_sizes_rs) * sizeof(double complex));
+}
 
     if (!is_complex) {
       double *grid_rs_double = (double *)grid_rs;
+FFT_D2H(grid_buffer_1, grid_buffer_dev_1, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
   shared(fft_sizes_rs, grid_rs_double, grid_buffer_1)
       for (int i = 0; i < product3(fft_sizes_rs); i++)
@@ -2069,24 +2215,30 @@ void fft_3d_gpu_bw_ray(const double complex *restrict grid_gs, int *index_to_ray
     for (int i = 0; i < number_of_local_gpts; i++) {
       grid_buffer_1[index_to_ray[i]] = grid_gs[i];
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1, number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_1d_local_device(false, npts_global[2], number_of_local_xy_rays, false, false,
-                 npts_global[2], npts_global[2], grid_buffer_1, grid_buffer_2);
+                 npts_global[2], npts_global[2], grid_buffer_dev_1, grid_buffer_dev_2);
 
     // Perform transpose (z,xy_d) -> (z_d,x,y)
-    collect_xy_and_distribute_z_ray_pack(grid_buffer_2, grid_buffer_1,
-                                         redistribution);
-    collect_xy_and_distribute_z_ray_comm(grid_buffer_1, grid_buffer_2,
+    collect_xy_and_distribute_z_ray_pack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                         redistribution, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_xy_and_distribute_z_ray_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                          redistribution, comm);
-    collect_xy_and_distribute_z_ray_unpack(grid_buffer_2, grid_buffer_1,
-                                           redistribution);
+    collect_xy_and_distribute_z_ray_unpack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                           redistribution, fft_stream);
 
     // Perform the second FFT
-    fft_gpu_2d_local(false, (const int[2]){npts_global[0], npts_global[1]},
-                 fft_sizes_rs[2], false, true, grid_buffer_1,
-                 is_complex ? grid_rs : grid_buffer_2);
+    fft_gpu_2d_local_device(false, (const int[2]){npts_global[0], npts_global[1]},
+                 fft_sizes_rs[2], false, true, grid_buffer_dev_1, grid_buffer_dev_2);
+if (is_complex) {
+  FFT_D2H(grid_rs, grid_buffer_dev_2,
+                    product3(fft_sizes_rs) * sizeof(double complex));
+}
     if (!is_complex) {
       double *grid_rs_double = (double *)grid_rs;
+FFT_D2H(grid_buffer_2, grid_buffer_dev_2, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(fft_sizes_rs, grid_rs_double, grid_buffer_2)
       for (int i = 0; i < product3(fft_sizes_rs); i++)
@@ -2100,41 +2252,48 @@ void fft_3d_gpu_bw_ray(const double complex *restrict grid_gs, int *index_to_ray
     for (int i = 0; i < number_of_local_gpts; i++) {
       grid_buffer_1[index_to_ray[i]] = grid_gs[i];
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1, number_of_local_xy_rays * npts_global[2] * sizeof(double complex));
 
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_1d_local_device(false, npts_global[2], number_of_local_xy_rays, false, false,
-                 npts_global[2], npts_global[2], grid_buffer_1,
-                 grid_buffer_2);
+                 npts_global[2], npts_global[2], grid_buffer_dev_1,
+                 grid_buffer_dev_2);
 
     // Perform transpose (z,xy_d) -> (z_d,x_d,y)
-    collect_xy_and_distribute_z_ray_pack(grid_buffer_2, grid_buffer_1,
-                                         redistribution);
-    collect_xy_and_distribute_z_ray_comm(grid_buffer_1, grid_buffer_2,
+    collect_xy_and_distribute_z_ray_pack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                         redistribution, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_xy_and_distribute_z_ray_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                          redistribution, comm);
-    collect_xy_and_distribute_z_ray_unpack(grid_buffer_2, grid_buffer_1,
-                                           redistribution);
+    collect_xy_and_distribute_z_ray_unpack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                           redistribution, fft_stream);
 
     // Perform the second FFT (z_d,x_d,y) -> (y,z_d,x_d)
     fft_gpu_1d_local_device(false, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
                  false, true, npts_global[1],
-                 fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_1,
-                 grid_buffer_2);
+                 fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_dev_1,
+                 grid_buffer_dev_2);
 
     // Perform second transpose (y,z_d,x_d) -> (y_d,z_d,x)
-    collect_x_and_distribute_y_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_x_and_distribute_y_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[1]);
 
     // Perform second transpose (y,z_d,x_d) -> (y_d,z_d,x)
-    collect_x_and_distribute_y_blocked_unpack(
-        grid_buffer_1, grid_buffer_2, redistribution, proc2local_x_gs);
+    collect_x_and_distribute_y_blocked_unpack_device(
+        grid_buffer_dev_1, grid_buffer_dev_2, redistribution, proc2local_x_gs, fft_stream);
 
     // Perform the third FFT (y_d,z_d,x) -> (x,y_d,z_d)
-    fft_gpu_1d_local(false, npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
+    fft_gpu_1d_local_device(false, npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2],
                  false, true, npts_global[0],
-                 fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_2,
-                 is_complex ? grid_rs : grid_buffer_1);
+                 fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_dev_2, grid_buffer_dev_1);
+if (is_complex) {
+  FFT_D2H(grid_rs, grid_buffer_dev_1,
+                    product3(fft_sizes_rs) * sizeof(double complex));
+}
     if (!is_complex) {
       double *grid_rs_double = (double *)grid_rs;
+FFT_D2H(grid_buffer_1, grid_buffer_dev_1, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
   shared(fft_sizes_rs, grid_rs_double, grid_buffer_1)
       for (int i = 0; i < product3(fft_sizes_rs); i++)
@@ -2149,13 +2308,17 @@ void fft_3d_gpu_bw_ray(const double complex *restrict grid_gs, int *index_to_ray
     for (int i = 0; i < number_of_local_gpts; i++) {
       grid_buffer_2[index_to_ray[i]] = grid_gs[i];
     }
+    FFT_H2D(grid_buffer_dev_2, grid_buffer_2,
+                      product3(npts_global) * sizeof(double complex));
 
     if (is_complex) {
-      fft_gpu_3d_local(false, npts_global, 1, false, false, grid_buffer_2, grid_rs);
+      fft_gpu_3d_local_device(false, npts_global, 1, false, false, grid_buffer_dev_2, grid_buffer_dev_1);
+FFT_D2H(grid_rs, grid_buffer_dev_1, product3(fft_sizes_rs) * sizeof(double complex));
     } else {
-      fft_gpu_3d_local_device(false, npts_global, 1, false, false, grid_buffer_2, grid_buffer_1);
+      fft_gpu_3d_local_device(false, npts_global, 1, false, false, grid_buffer_dev_2, grid_buffer_dev_1);
 
       double *grid_rs_double = (double *)grid_rs;
+FFT_D2H(grid_buffer_1, grid_buffer_dev_1, (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
 #pragma omp parallel for default(none)                                         \
     shared(fft_sizes_rs, grid_rs_double, grid_buffer_1)
       for (int i = 0; i < product3(fft_sizes_rs); i++)
@@ -2192,8 +2355,11 @@ void fft_3d_gpu_bw_c2r_ray(const double complex *restrict grid_gs,
 
   const int my_process = cp_mpi_comm_rank(comm);
 
-  double complex *grid_buffer_1 = fft_gpu_get_buffer_1();
-  double complex *grid_buffer_2 = fft_gpu_get_buffer_2();
+  double complex *grid_buffer_1 = get_buffer_1();
+  double complex *grid_buffer_2 = get_buffer_2();
+  double complex *grid_buffer_dev_1 = fft_gpu_get_buffer_1();
+  double complex *grid_buffer_dev_2 = fft_gpu_get_buffer_2();
+  void *fft_stream = fft_gpu_get_stream();
 
   // Collect the local sizes (for buffer sizes and FFT dimensions)
   int fft_sizes_rs[3] = {proc2local_rs[my_process][0][1],
@@ -2223,38 +2389,44 @@ void fft_3d_gpu_bw_c2r_ray(const double complex *restrict grid_gs,
     for (int i = 0; i < number_of_positive_points; i++) {
       grid_buffer_1[index_to_ray_pos[i][1]] = grid_gs[index_to_ray_pos[i][0]];
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
+                      number_of_local_xy_rays * npts_global[2] *
+                          sizeof(double complex));
 
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_1d_local_device(false, npts_global[2], number_of_local_xy_rays, false, false,
-                 npts_global[2], npts_global[2], grid_buffer_1,
-                 grid_buffer_2);
+                 npts_global[2], npts_global[2], grid_buffer_dev_1,
+                 grid_buffer_dev_2);
 
     // Perform transpose (z,xy_d) -> (z_d,x_d,y)
-    collect_xy_and_distribute_z_ray_pack(grid_buffer_2, grid_buffer_1,
-                                         redistribution);
-    collect_xy_and_distribute_z_ray_comm(grid_buffer_1, grid_buffer_2,
+    collect_xy_and_distribute_z_ray_pack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                         redistribution, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_xy_and_distribute_z_ray_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                          redistribution, comm);
-    collect_xy_and_distribute_z_ray_unpack(grid_buffer_2, grid_buffer_1,
-                                           redistribution);
+    collect_xy_and_distribute_z_ray_unpack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                           redistribution, fft_stream);
 
     // Perform the second FFT (z_d,x_d,y) -> (y,z_d,x_d)
     fft_gpu_1d_local_device(false, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
                  false, true, npts_global[1],
-                 fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_1,
-                 grid_buffer_2);
+                 fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_dev_1,
+                 grid_buffer_dev_2);
 
     // Perform second transpose (y,z_d,x_d) -> (y_d,z_d,x)
-    collect_x_and_distribute_y_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_x_and_distribute_y_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[1]);
     // Unpack the buffer
-    collect_x_and_distribute_y_blocked_unpack(
-        grid_buffer_1, grid_buffer_2, redistribution, proc2local_x_gs);
+    collect_x_and_distribute_y_blocked_unpack_device(
+        grid_buffer_dev_1, grid_buffer_dev_2, redistribution, proc2local_x_gs, fft_stream);
 
     // Perform the third FFT (y_d,z_d,x) -> (x,y_d,z_d)
-    fft_gpu_1d_c2r_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false,
+      FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
+                      (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
+fft_gpu_1d_c2r_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false,
                      true, npts_global[0] / 2 + 1,
-                     fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_2,
-                     grid_rs);
+                     fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_2, grid_rs);
 
   } else if (proc_grid[0] > 1) {
 
@@ -2265,29 +2437,34 @@ void fft_3d_gpu_bw_c2r_ray(const double complex *restrict grid_gs,
     for (int i = 0; i < number_of_positive_points; i++) {
       grid_buffer_1[index_to_ray_pos[i][1]] = grid_gs[index_to_ray_pos[i][0]];
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
+                      number_of_local_xy_rays * npts_global[2] *
+                          sizeof(double complex));
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_1d_local_device(false, npts_global[2], number_of_local_xy_rays, false, false,
-                 npts_global[2], npts_global[2], grid_buffer_1, grid_buffer_2);
+                 npts_global[2], npts_global[2], grid_buffer_dev_1, grid_buffer_dev_2);
 
     // Perform transpose (z,xy_d) -> (z_d,x,y)
-    collect_xy_and_distribute_z_ray_pack(grid_buffer_2, grid_buffer_1,
-                                         redistribution);
-    collect_xy_and_distribute_z_ray_comm(grid_buffer_1, grid_buffer_2,
+    collect_xy_and_distribute_z_ray_pack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                         redistribution, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_xy_and_distribute_z_ray_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                          redistribution, comm);
-    collect_xy_and_distribute_z_ray_unpack(grid_buffer_2, grid_buffer_1,
-                                           redistribution);
+    collect_xy_and_distribute_z_ray_unpack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                           redistribution, fft_stream);
 
 
     // second FFT (z_d,x,y) -> (y,z_d,x)
     fft_gpu_1d_local_device(false, npts_global[1],
                  npts_global_gspace[0] * fft_sizes_ms[2], false, true,
                  npts_global[1], npts_global_gspace[0] * fft_sizes_ms[2],
-                 grid_buffer_1, grid_buffer_2);
+                 grid_buffer_dev_1, grid_buffer_dev_2);
     // third FFT (y,z_d,x) -> (x,y,z_d)
-    fft_gpu_1d_c2r_local(npts_global[0], npts_global[1] * fft_sizes_ms[2], false,
+      FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
+                      (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
+fft_gpu_1d_c2r_local(npts_global[0], npts_global[1] * fft_sizes_ms[2], false,
                      true, npts_global[0] / 2 + 1,
-                     npts_global[1] * fft_sizes_ms[2], grid_buffer_2,
-                     grid_rs);
+                     npts_global[1] * fft_sizes_ms[2], grid_buffer_2, grid_rs);
 
   } else if (proc_grid[1] > 1) {
     memset(grid_buffer_1, 0,
@@ -2297,38 +2474,44 @@ void fft_3d_gpu_bw_c2r_ray(const double complex *restrict grid_gs,
     for (int i = 0; i < number_of_positive_points; i++) {
       grid_buffer_1[index_to_ray_pos[i][1]] = grid_gs[index_to_ray_pos[i][0]];
     }
+    FFT_H2D(grid_buffer_dev_1, grid_buffer_1,
+                      number_of_local_xy_rays * npts_global[2] *
+                          sizeof(double complex));
 
     // Perform the first FFT (xy_d,z) -> (z,xy_d)
     fft_gpu_1d_local_device(false, npts_global[2], number_of_local_xy_rays, false, false,
-                 npts_global[2], npts_global[2], grid_buffer_1,
-                 grid_buffer_2);
+                 npts_global[2], npts_global[2], grid_buffer_dev_1,
+                 grid_buffer_dev_2);
 
     // Perform transpose (z,xy_d) -> (z_d,x_d,y)
-    collect_xy_and_distribute_z_ray_pack(grid_buffer_2, grid_buffer_1,
-                                         redistribution);
-    collect_xy_and_distribute_z_ray_comm(grid_buffer_1, grid_buffer_2,
+    collect_xy_and_distribute_z_ray_pack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                         redistribution, fft_stream);
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_xy_and_distribute_z_ray_comm_device(grid_buffer_dev_1, grid_buffer_dev_2,
                                          redistribution, comm);
-    collect_xy_and_distribute_z_ray_unpack(grid_buffer_2, grid_buffer_1,
-                                           redistribution);
+    collect_xy_and_distribute_z_ray_unpack_device(grid_buffer_dev_2, grid_buffer_dev_1,
+                                           redistribution, fft_stream);
 
     // Perform the second FFT (z_d,x_d,y) -> (y,z_d,x_d)
     fft_gpu_1d_local_device(false, npts_global[1], fft_sizes_ms[0] * fft_sizes_ms[2],
                  false, true, npts_global[1],
-                 fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_1,
-                 grid_buffer_2);
+                 fft_sizes_ms[0] * fft_sizes_ms[2], grid_buffer_dev_1,
+                 grid_buffer_dev_2);
 
     // Perform second transpose (y,z_d,x_d) -> (y_d,z_d,x)
-    collect_x_and_distribute_y_blocked_comm(grid_buffer_2, grid_buffer_1,
+    offloadStreamSynchronize((offloadStream_t)fft_stream);
+    collect_x_and_distribute_y_blocked_comm_device(grid_buffer_dev_2, grid_buffer_dev_1,
                                             redistribution, sub_comm[1]);
     // Unpack the buffer
-    collect_x_and_distribute_y_blocked_unpack(
-        grid_buffer_1, grid_buffer_2, redistribution, proc2local_x_gs);
+    collect_x_and_distribute_y_blocked_unpack_device(
+        grid_buffer_dev_1, grid_buffer_dev_2, redistribution, proc2local_x_gs, fft_stream);
 
     // Perform the third FFT (y_d,z_d,x) -> (x,y_d,z_d)
-    fft_gpu_1d_c2r_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false,
+      FFT_D2H(grid_buffer_2, grid_buffer_dev_2,
+                      (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
+fft_gpu_1d_c2r_local(npts_global[0], fft_sizes_rs[1] * fft_sizes_rs[2], false,
                      true, npts_global[0] / 2 + 1,
-                     fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_2,
-                     grid_rs);
+                     fft_sizes_rs[1] * fft_sizes_rs[2], grid_buffer_2, grid_rs);
 
   } else {
     memset(grid_buffer_2, 0,
@@ -2338,13 +2521,17 @@ void fft_3d_gpu_bw_c2r_ray(const double complex *restrict grid_gs,
     for (int i = 0; i < number_of_positive_points; i++) {
       grid_buffer_2[index_to_ray_pos[i][1]] = grid_gs[index_to_ray_pos[i][0]];
     }
+    FFT_H2D(grid_buffer_dev_2, grid_buffer_2,
+                      product3(npts_global_gspace) * sizeof(double complex));
 
     // second FFT (z_d,x,y) -> (y,z_d,x)
     fft_gpu_2d_local_device(false, (const int[2]){npts_global[1], npts_global[2]},
-                 npts_global_gspace[0], false, false, grid_buffer_2,
-                 grid_buffer_1);
+                 npts_global_gspace[0], false, false, grid_buffer_dev_2,
+                 grid_buffer_dev_1);
     // third FFT (y,z_d,x) -> (x,y,z_d)
-    fft_gpu_1d_c2r_local(npts_global[0], npts_global[1] * npts_global[2], true,
+      FFT_D2H(grid_buffer_1, grid_buffer_dev_1,
+                      (size_t)fft_gpu_get_buffer_size() * sizeof(double complex));
+fft_gpu_1d_c2r_local(npts_global[0], npts_global[1] * npts_global[2], true,
                      true, npts_global[1] * npts_global[2],
                      npts_global[1] * npts_global[2], grid_buffer_1, grid_rs);
 

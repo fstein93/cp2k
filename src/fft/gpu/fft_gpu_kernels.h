@@ -45,6 +45,21 @@ void fft_gpu_launch_scatter(double *c, const double *pwcc, const double scale,
                             const int ngpts, const int nmaps,
                             const int *ghatmap, offloadStream_t stream);
 
+void fft_gpu_launch_ray_pack_z_xy(const double *grid, double *send_buffer,
+                                  const int *xy_to_proc, const int number_of_xy,
+                                  const int my_size_x_gs,
+                                  const int npts_global_y,
+                                  const int my_size_z_rs,
+                                  offloadStream_t stream);
+
+void fft_gpu_launch_ray_unpack_z_xy(const double *recv_buffer,
+                                    double *transposed, const int *xy_to_proc,
+                                    const int number_of_xy,
+                                    const int my_size_x_gs,
+                                    const int npts_global_y,
+                                    const int my_size_z_rs,
+                                    offloadStream_t stream);
+
 #ifdef __cplusplus
 }
 #endif

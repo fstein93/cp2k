@@ -211,6 +211,51 @@ static inline void offloadMemcpyAsyncDtoD(void *dst, const void *src,
 }
 
 /*******************************************************************************
+ * \brief Wrapper around cudaMemcpy(...,cudaMemcpyDeviceToDevice).
+ ******************************************************************************/
+static inline void offloadMemcpyDtoD(void *dst, const void *src,
+                                     const size_t size) {
+#if defined(__OFFLOAD_CUDA)
+  OFFLOAD_CHECK(cudaMemcpy(dst, src, size, cudaMemcpyDeviceToDevice));
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(hipMemcpy(dst, src, size, hipMemcpyDeviceToDevice));
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around cudaMemcpy2DAsync(...,cudaMemcpyDeviceToDevice).
+ ******************************************************************************/
+static inline void offloadMemcpy2DAsyncDtoD(void *dst, const size_t dpitch,
+                                            const void *src,
+                                            const size_t spitch,
+                                            const size_t width,
+                                            const size_t height,
+                                            const offloadStream_t stream) {
+#if defined(__OFFLOAD_CUDA)
+  OFFLOAD_CHECK(cudaMemcpy2DAsync(dst, dpitch, src, spitch, width, height,
+                                  cudaMemcpyDeviceToDevice, stream));
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(hipMemcpy2DAsync(dst, dpitch, src, spitch, width, height,
+                                 hipMemcpyDeviceToDevice, stream));
+#endif
+}
+
+/*******************************************************************************
+ * \brief Wrapper around cudaMemcpy2D(...,cudaMemcpyDeviceToDevice).
+ ******************************************************************************/
+static inline void offloadMemcpy2DDtoD(void *dst, const size_t dpitch,
+                                       const void *src, const size_t spitch,
+                                       const size_t width, const size_t height) {
+#if defined(__OFFLOAD_CUDA)
+  OFFLOAD_CHECK(cudaMemcpy2D(dst, dpitch, src, spitch, width, height,
+                             cudaMemcpyDeviceToDevice));
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(hipMemcpy2D(dst, dpitch, src, spitch, width, height,
+                            hipMemcpyDeviceToDevice));
+#endif
+}
+
+/*******************************************************************************
  * \brief Wrapper around cudaMemcpy(...,cudaMemcpyHostToDevice).
  ******************************************************************************/
 static inline void offloadMemcpyHtoD(void *ptr_dev, const void *ptr_hst,
@@ -361,20 +406,6 @@ static inline void offloadMalloc(void **ptr, size_t size) {
 #else
   cp_assert(NULL != ptr);
   *ptr = NULL;
-#endif
-}
-
-/*******************************************************************************
- * \brief Wrapper around cudaMallocManaged.
- ******************************************************************************/
-static inline void offloadMallocManaged(void **ptr, size_t size) {
-#if defined(__OFFLOAD_CUDA)
-  OFFLOAD_CHECK(cudaMallocManaged(ptr, size, cudaMemAttachGlobal));
-#elif defined(__OFFLOAD_HIP)
-  OFFLOAD_CHECK(hipMallocManaged(ptr, size, hipMemAttachGlobal));
-#else
-  cp_assert(NULL != ptr);
-  *ptr = malloc(size);
 #endif
 }
 

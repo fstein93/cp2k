@@ -29,6 +29,8 @@
 static double complex *driver_buffer_1 = NULL;
 static double complex *driver_buffer_2 = NULL;
 static int driver_buffer_size = 0;
+static int *map_buffer = NULL;
+static int map_buffer_size = 0;
 
 /*******************************************************************************
  * \brief Static variables for retaining objects that are expensive to create.
@@ -156,6 +158,11 @@ void fft_gpu_finalize(void) {
     driver_buffer_2 = NULL;
   }
   driver_buffer_size = 0;
+  if (map_buffer != NULL) {
+    offloadFree(map_buffer);
+    map_buffer = NULL;
+  }
+  map_buffer_size = 0;
   omp_destroy_lock(&cache_lock);
   is_initialized = false;
 #else
@@ -210,8 +217,8 @@ void fft_gpu_ensure_buffer_size(const int size) {
       offloadFree(driver_buffer_2);
     }
     const size_t bytes = (size_t)size * sizeof(double complex);
-    offloadMallocManaged((void **)&driver_buffer_1, bytes);
-    offloadMallocManaged((void **)&driver_buffer_2, bytes);
+    offloadMalloc((void **)&driver_buffer_1, bytes);
+    offloadMalloc((void **)&driver_buffer_2, bytes);
     driver_buffer_size = size;
   }
 }
@@ -228,12 +235,52 @@ double complex *fft_gpu_get_buffer_1(void) { return driver_buffer_1; }
  ******************************************************************************/
 double complex *fft_gpu_get_buffer_2(void) { return driver_buffer_2; }
 
+int fft_gpu_get_buffer_size(void) { return driver_buffer_size; }
+
+void *fft_gpu_get_stream(void) {
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+  ensure_thread_data();
+  return (void *)stream;
+#else
+  return NULL;
+#endif
+}
+
 #else
 void fft_gpu_ensure_buffer_size(const int size) { (void)size; }
 
 double complex *fft_gpu_get_buffer_1(void) { return NULL; }
 
 double complex *fft_gpu_get_buffer_2(void) { return NULL; }
+
+int fft_gpu_get_buffer_size(void) { return 0; }
+
+void *fft_gpu_get_stream(void) { return NULL; }
+#endif
+
+/*******************************************************************************
+ * \brief Ensures the central index-map buffer is large enough.
+ * \param size Requested number of integer elements.
+ * \author Frederick Stein
+ ******************************************************************************/
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+void fft_gpu_ensure_map_size(const int size) {
+  cp_assert(is_initialized);
+  if (size > map_buffer_size) {
+    offload_activate_chosen_device();
+    if (map_buffer != NULL) {
+      offloadFree(map_buffer);
+    }
+    offloadMalloc((void **)&map_buffer, (size_t)size * sizeof(int));
+    map_buffer_size = size;
+  }
+}
+
+int *fft_gpu_get_map_buffer(void) { return map_buffer; }
+#else
+void fft_gpu_ensure_map_size(const int size) { (void)size; }
+
+int *fft_gpu_get_map_buffer(void) { return NULL; }
 #endif
 
 /*******************************************************************************
@@ -1577,7 +1624,6 @@ void fft_gpu_1d_local_device(const bool dir, const int n, const int m,
   fft_gpu_1d(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, n, m,
              transpose_in, transpose_out, leading_dimension_in,
              leading_dimension_out, (const double *)zin, (double *)zout);
-  offloadStreamSynchronize(stream);
 #else
   (void)dir;
   (void)n;
@@ -1609,7 +1655,6 @@ void fft_gpu_1d_r2c_local_device(const int n, const int m,
   fft_gpu_r2c_1d(OFFLOAD_FFT_FORWARD, n, m, transpose_in, transpose_out,
                  leading_dimension_in, leading_dimension_out, zin,
                  (double *)zout);
-  offloadStreamSynchronize(stream);
 #else
   (void)n;
   (void)m;
@@ -1640,7 +1685,6 @@ void fft_gpu_1d_c2r_local_device(const int n, const int m,
   fft_gpu_r2c_1d(OFFLOAD_FFT_INVERSE, n, m, transpose_in, transpose_out,
                  leading_dimension_in, leading_dimension_out,
                  (const double *)zin, zout);
-  offloadStreamSynchronize(stream);
 #else
   (void)n;
   (void)m;
@@ -1667,7 +1711,6 @@ void fft_gpu_2d_local_device(const bool dir, const int n[2], const int m,
   offload_activate_chosen_device();
   fft_gpu_2d(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, n, m,
              transpose_in, transpose_out, (const double *)zin, (double *)zout);
-  offloadStreamSynchronize(stream);
 #else
   (void)dir;
   (void)n;
@@ -1695,7 +1738,6 @@ void fft_gpu_3d_local_device(const bool dir, const int *npts,
   fft_gpu_3d(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, npts[0], npts[1],
              npts[2], number_of_ffts, transpose_in, transpose_out,
              (double *)zin, (double *)zout);
-  offloadStreamSynchronize(stream);
 #else
   (void)dir;
   (void)npts;

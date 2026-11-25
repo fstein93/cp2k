@@ -47,6 +47,30 @@ double complex *fft_gpu_get_buffer_1(void);
 double complex *fft_gpu_get_buffer_2(void);
 
 /*******************************************************************************
+ * \brief Get the size of the GPU-resident driver buffers in elements.
+ * \author Frederick Stein
+ ******************************************************************************/
+int fft_gpu_get_buffer_size(void);
+
+/*******************************************************************************
+ * \brief Ensure the central index-map buffer is large enough.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_gpu_ensure_map_size(const int size);
+
+/*******************************************************************************
+ * \brief Get the central index-map device buffer.
+ * \author Frederick Stein
+ ******************************************************************************/
+int *fft_gpu_get_map_buffer(void);
+
+/*******************************************************************************
+ * \brief Get the GPU stream used by the FFT backend on the current thread.
+ * \author Frederick Stein
+ ******************************************************************************/
+void *fft_gpu_get_stream(void);
+
+/*******************************************************************************
  * \brief Allocate buffer of type double.
  * \author Frederick Stein
  ******************************************************************************/
