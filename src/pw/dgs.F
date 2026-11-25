@@ -861,7 +861,7 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER             :: c1d
+      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: c1d
       INTEGER                                            :: nd(3)
       TYPE(pw_c3d_rs_type)                               :: cd
 
@@ -909,7 +909,7 @@ CONTAINS
 
       COMPLEX(KIND=dp)                                   :: za, zb
       COMPLEX(KIND=dp), ALLOCATABLE, DIMENSION(:)        :: zs
-      COMPLEX(KIND=dp), DIMENSION(:), POINTER             :: c1d
+      COMPLEX(KIND=dp), DIMENSION(:), POINTER            :: c1d
       INTEGER                                            :: nd(3)
       TYPE(pw_c3d_rs_type)                               :: cd
 

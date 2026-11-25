@@ -12,7 +12,9 @@
 MODULE dg_rho0_types
 
    USE kinds,                           ONLY: dp
-   USE pw_grid_types,                   ONLY: pw_grid_map_neg, pw_grid_map_pos, pw_grid_type
+   USE pw_grid_types,                   ONLY: pw_grid_map_neg,&
+                                              pw_grid_map_pos,&
+                                              pw_grid_type
    USE pw_methods,                      ONLY: pw_zero
    USE pw_poisson_types,                ONLY: do_ewald_ewald,&
                                               do_ewald_none,&

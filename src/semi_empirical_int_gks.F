@@ -26,7 +26,8 @@ MODULE semi_empirical_int_gks
    USE mathconstants,                   ONLY: fourpi,&
                                               oorootpi
    USE multipole_types,                 ONLY: do_multipole_none
-   USE pw_grid_types,                   ONLY: pw_grid_map_neg, pw_grid_map_pos, pw_grid_type
+   USE pw_grid_types,                   ONLY: pw_grid_map_pos,&
+                                              pw_grid_type
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE semi_empirical_int_arrays,       ONLY: indexb,&
                                               rij_threshold

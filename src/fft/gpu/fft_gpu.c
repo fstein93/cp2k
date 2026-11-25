@@ -60,7 +60,6 @@ static int number_of_gpu_threads = 1;
 static gpu_thread_data *gpu_data = NULL;
 static bool is_initialized = false;
 
-
 #define GPU_THREAD_ID omp_get_thread_num()
 #define buffer_dev_1 (gpu_data[GPU_THREAD_ID].dev_buffer_1)
 #define buffer_dev_2 (gpu_data[GPU_THREAD_ID].dev_buffer_2)
@@ -1223,8 +1222,6 @@ void fft_gpu_register_2d_r2c_local(const bool dir, const int n[2], const int m,
 #endif
 }
 
-
-
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 3D-FFT on the GPU.
  * \param zin Input complex data.
@@ -1236,10 +1233,9 @@ void fft_gpu_register_2d_r2c_local(const bool dir, const int n[2], const int m,
  * \param transpose_out Whether the output array uses the transposed layout.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
-void fft_gpu_3d_local(const bool dir, const int *npts,
-                      const int number_of_ffts, const bool transpose_in,
-                      const bool transpose_out, const double complex *zin,
-                      double complex *zout) {
+void fft_gpu_3d_local(const bool dir, const int *npts, const int number_of_ffts,
+                      const bool transpose_in, const bool transpose_out,
+                      const double complex *zin, double complex *zout) {
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
   // Check inputs.
   if (npts[0] == 0 || npts[1] == 0 || npts[2] == 0 || number_of_ffts == 0) {
@@ -1329,10 +1325,6 @@ void fft_gpu_3d_r2c_local(const double *zin, double *zout, const bool dir,
 #endif
 }
 
-
-
-
-
 /*******************************************************************************
  * \brief   Performs a (double precision complex) 1D-FFT on the GPU.
  * \param zin Input complex data.
@@ -1412,8 +1404,8 @@ void fft_gpu_1d_local(const bool dir, const int n, const int m,
  * \param leading_dimension_out Leading dimension of the output array.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
-static void fft_gpu_1d_r2c_impl(const double *zin, double *zout,
-                                const bool dir, const int n, const int m,
+static void fft_gpu_1d_r2c_impl(const double *zin, double *zout, const bool dir,
+                                const int n, const int m,
                                 const bool transpose_in,
                                 const bool transpose_out,
                                 const int leading_dimension_in,
@@ -1604,8 +1596,6 @@ void fft_gpu_2d_r2c_local(const double *zin, double *zout, const bool dir,
   (void)transpose_out;
 #endif
 }
-
-
 
 /*******************************************************************************
  * \brief   Performs a 1D-FFT on the GPU using GPU-resident buffers.

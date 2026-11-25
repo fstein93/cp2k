@@ -1138,7 +1138,6 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief check FFT preferred library availability, if not switch
 !> \param globenv ...
-!> \param global_section ...
 !> \par History
 !>      2-Dec-2000 (JGH) added default fft library
 !>      Nov-2013 (MI) refactoring

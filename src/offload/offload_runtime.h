@@ -225,12 +225,10 @@ static inline void offloadMemcpyDtoD(void *dst, const void *src,
 /*******************************************************************************
  * \brief Wrapper around cudaMemcpy2DAsync(...,cudaMemcpyDeviceToDevice).
  ******************************************************************************/
-static inline void offloadMemcpy2DAsyncDtoD(void *dst, const size_t dpitch,
-                                            const void *src,
-                                            const size_t spitch,
-                                            const size_t width,
-                                            const size_t height,
-                                            const offloadStream_t stream) {
+static inline void
+offloadMemcpy2DAsyncDtoD(void *dst, const size_t dpitch, const void *src,
+                         const size_t spitch, const size_t width,
+                         const size_t height, const offloadStream_t stream) {
 #if defined(__OFFLOAD_CUDA)
   OFFLOAD_CHECK(cudaMemcpy2DAsync(dst, dpitch, src, spitch, width, height,
                                   cudaMemcpyDeviceToDevice, stream));
@@ -245,7 +243,8 @@ static inline void offloadMemcpy2DAsyncDtoD(void *dst, const size_t dpitch,
  ******************************************************************************/
 static inline void offloadMemcpy2DDtoD(void *dst, const size_t dpitch,
                                        const void *src, const size_t spitch,
-                                       const size_t width, const size_t height) {
+                                       const size_t width,
+                                       const size_t height) {
 #if defined(__OFFLOAD_CUDA)
   OFFLOAD_CHECK(cudaMemcpy2D(dst, dpitch, src, spitch, width, height,
                              cudaMemcpyDeviceToDevice));

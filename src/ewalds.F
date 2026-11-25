@@ -32,7 +32,8 @@ MODULE ewalds
                                               z_zero
    USE message_passing,                 ONLY: mp_comm_type
    USE particle_types,                  ONLY: particle_type
-   USE pw_grid_types,                   ONLY: pw_grid_map_neg, pw_grid_map_pos, pw_grid_type
+   USE pw_grid_types,                   ONLY: pw_grid_map_pos,&
+                                              pw_grid_type
    USE pw_poisson_types,                ONLY: do_ewald_none
    USE pw_pool_types,                   ONLY: pw_pool_type
    USE shell_potential_types,           ONLY: get_shell,&

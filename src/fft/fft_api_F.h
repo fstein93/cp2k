@@ -651,10 +651,8 @@ void fft_3d_c2r_local_inplace_F(const int fft_size[3], const int number_of_ffts,
 void fft_create_grid_F(fft_grid_layout **fft_grid, const int comm_F,
                        const int npts_global[3], const double dh_inv[3][3],
                        const bool use_halfspace, const double cutoff,
-                       const int *pgrid_guess,
-                       const int *external_local_bounds,
+                       const int *pgrid_guess, const int *external_local_bounds,
                        const bool use_ray_distribution);
-
 
 void fft_create_grid_from_reference_F(fft_grid_layout **fft_grid,
                                       const int npts_global[3],
@@ -690,34 +688,30 @@ int fft_grid_get_yzp_max_F(const fft_grid_layout *fft_grid);
 void fft_grid_get_yzp_F(const fft_grid_layout *fft_grid, int *yzp);
 int fft_grid_get_npts_gs_local_F(const fft_grid_layout *fft_grid);
 void fft_grid_get_index_to_g_F(const fft_grid_layout *fft_grid,
-                                int *index_to_g);
+                               int *index_to_g);
 void fft_grid_get_index_to_fft_F(const fft_grid_layout *fft_grid,
-                                  const int *g_hat, int *index_to_fft);
-void fft_grid_get_gsquared_F(const fft_grid_layout *fft_grid,
-                              double *gsquared);
+                                 const int *g_hat, int *index_to_fft);
+void fft_grid_get_gsquared_F(const fft_grid_layout *fft_grid, double *gsquared);
 void fft_grid_get_local_index_to_ref_grid_F(fft_grid_layout *fft_grid,
-                                              const fft_grid_layout *ref,
-                                              const int *g_hat,
-                                              const int *ref_g_hat,
-                                              int *index_to_ref_grid);
+                                            const fft_grid_layout *ref,
+                                            const int *g_hat,
+                                            const int *ref_g_hat,
+                                            int *index_to_ref_grid);
 
 void fft_grid_prepare_ray_mapping_F(fft_grid_layout *fft_grid,
-                                      const fft_grid_layout *ref);
+                                    const fft_grid_layout *ref);
 
 void fft_grid_set_spherical_F(fft_grid_layout *fft_grid, const bool spherical);
 
 void fft_grid_set_yz_mapping_F(fft_grid_layout *fft_grid,
-                                 const int *yz_to_process);
-
+                               const int *yz_to_process);
 
 int fft_grid_enable_ray_distribution_F(fft_grid_layout *fft_grid,
                                        const int *xy_to_process,
-                                       const int nlocal,
-                                       const int *index_to_g,
+                                       const int nlocal, const int *index_to_g,
                                        const double *gsquared);
 
-int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid,
-                                    int *rays);
+int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid, int *rays);
 
 int fft_grid_get_xy_to_process_F(const fft_grid_layout *fft_grid,
                                  int *xy_to_process);

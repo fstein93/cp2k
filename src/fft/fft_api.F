@@ -1573,7 +1573,7 @@ CONTAINS
 
       INTERFACE
          SUBROUTINE fft_create_grid_from_reference_c(layout, fft_size, cutoff, external_local_bounds, layout_ref, &
-                                                    use_ray_distribution) BIND(C, name="fft_create_grid_from_reference_F")
+                                                     use_ray_distribution) BIND(C, name="fft_create_grid_from_reference_F")
             IMPORT :: C_INT, C_PTR, C_DOUBLE, C_BOOL
             TYPE(C_PTR), INTENT(INOUT) :: layout
             INTEGER(C_INT), DIMENSION(3), INTENT(IN) :: fft_size

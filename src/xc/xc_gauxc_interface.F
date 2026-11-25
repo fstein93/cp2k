@@ -532,8 +532,8 @@ CONTAINS
 
       TYPE(cp_gauxc_molecule_type), INTENT(IN)           :: molecule
       TYPE(cp_gauxc_basisset_type), INTENT(in)           :: basis
-      CHARACTER(len=*)               :: grid_type, lb_exec_space, &
-                                        pruning_scheme, radial_quadrature
+      CHARACTER(len=*)                                   :: grid_type, radial_quadrature, &
+                                                            pruning_scheme, lb_exec_space
       INTEGER                                            :: batch_size
       REAL(c_double), INTENT(IN)                         :: device_runtime_fill_fraction
       TYPE(cp_gauxc_status_type), INTENT(OUT)            :: status

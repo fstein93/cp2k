@@ -9,9 +9,7 @@
 !> \brief FFT grid-size utility routines (radix selection and FFT direction constants).
 ! **************************************************************************************************
 MODULE fft_tools
-   USE kinds, ONLY: dp
 #include "../base/base_uses.f90"
-
    IMPLICIT NONE
 
    PRIVATE
@@ -29,6 +27,11 @@ MODULE fft_tools
 
 CONTAINS
 
+! **************************************************************************************************
+!> \brief ...
+!> \param DATA ...
+!> \param max_length ...
+! **************************************************************************************************
    SUBROUTINE fft_get_lengths(DATA, max_length)
 
       INTEGER, DIMENSION(:), INTENT(INOUT)               :: DATA

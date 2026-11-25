@@ -118,8 +118,7 @@ void grid_free_fft_grid_layout(fft_grid_layout *fft_grid);
  * \note If a grid layout was created using use_halfspace, only real-valued
  *grids in real-space can be created from this layout \author Frederick Stein
  ******************************************************************************/
-void grid_prepare_ray_mapping(fft_grid_layout *g,
-                              const fft_grid_layout *ref);
+void grid_prepare_ray_mapping(fft_grid_layout *g, const fft_grid_layout *ref);
 
 int grid_generate_g_space(fft_grid_layout *g);
 int grid_generate_local_g_space(fft_grid_layout *g);
@@ -131,31 +130,26 @@ void grid_get_index_to_fft(const fft_grid_layout *g, const int *g_hat,
                            int *index_to_fft);
 void grid_get_gsquared(const fft_grid_layout *g, double *gsquared);
 void grid_get_local_index_to_ref_grid(fft_grid_layout *g,
-                                       const fft_grid_layout *ref,
-                                       const int *g_hat, const int *ref_g_hat,
-                                       int *local_index_to_ref_grid);
+                                      const fft_grid_layout *ref,
+                                      const int *g_hat, const int *ref_g_hat,
+                                      int *local_index_to_ref_grid);
 
 void grid_set_yz_mapping(fft_grid_layout *g, const int *yz_to_process);
 void grid_set_spherical(fft_grid_layout *g, const bool spherical);
 
-
-int grid_enable_ray_distribution(fft_grid_layout *g,
-                                 const int *xy_to_process, const int nlocal,
-                                 const int (*index_to_g)[3],
+int grid_enable_ray_distribution(fft_grid_layout *g, const int *xy_to_process,
+                                 const int nlocal, const int (*index_to_g)[3],
                                  const double *gsquared);
 
 void fft_choose_proc_grid(const int number_of_processes,
                           const int npts_global[3], const int *pgrid_guess,
                           int proc_grid[2]);
 
-void grid_create_fft_grid_layout(fft_grid_layout **fft_grid,
-                                 const cp_mpi_comm_t comm,
-                                 const int npts_global[3],
-                                 const double dh_inv[3][3],
-                                 const bool use_halfspace, const double cutoff,
-                                 const int *pgrid_guess,
-                                 const int *external_local_bounds,
-                                 const bool use_ray_distribution);
+void grid_create_fft_grid_layout(
+    fft_grid_layout **fft_grid, const cp_mpi_comm_t comm,
+    const int npts_global[3], const double dh_inv[3][3],
+    const bool use_halfspace, const double cutoff, const int *pgrid_guess,
+    const int *external_local_bounds, const bool use_ray_distribution);
 
 /*******************************************************************************
  * \brief Print some information on a grid.

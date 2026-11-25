@@ -217,10 +217,9 @@ void fft_gpu_2d_r2c_local(const double *zin, double *zout, const bool dir,
  * \brief   Performs a (double precision complex) 3D-FFT on the GPU.
  * \author  Andreas Gloess, Ole Schuett
  ******************************************************************************/
-void fft_gpu_3d_local(const bool dir, const int *npts,
-                      const int number_of_ffts, const bool transpose_in,
-                      const bool transpose_out, const double complex *zin,
-                      double complex *zout);
+void fft_gpu_3d_local(const bool dir, const int *npts, const int number_of_ffts,
+                      const bool transpose_in, const bool transpose_out,
+                      const double complex *zin, double complex *zout);
 
 /*******************************************************************************
  * \brief   Performs a 3D-R2C/C2R-FFT, on the GPU.

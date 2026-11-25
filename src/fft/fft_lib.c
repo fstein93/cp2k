@@ -341,9 +341,9 @@ void fft_register_1d_r2c_local(const int fft_size, const int number_of_ffts,
                                       grid_in == (double *)grid_out ? "i" : "o",
                                       fft_size, number_of_ffts);
   FFT_DISPATCH_VOID(
-      (fft_gpu_register_1d_r2c_local(
-          fft_size, number_of_ffts, transpose_in, transpose_out,
-          leading_dimension_in, leading_dimension_out, grid_in, grid_out)),
+      (fft_gpu_register_1d_r2c_local(fft_size, number_of_ffts, transpose_in,
+                                     transpose_out, leading_dimension_in,
+                                     leading_dimension_out, grid_in, grid_out)),
       (fft_fftw_register_1d_r2c_local(
           fft_size, number_of_ffts, transpose_in, transpose_out,
           leading_dimension_in, leading_dimension_out, grid_in, grid_out)));
@@ -374,9 +374,9 @@ void fft_register_1d_c2r_local(const int fft_size, const int number_of_ffts,
                                       (double *)grid_in == grid_out ? "i" : "o",
                                       fft_size, number_of_ffts);
   FFT_DISPATCH_VOID(
-      (fft_gpu_register_1d_c2r_local(
-          fft_size, number_of_ffts, transpose_in, transpose_out,
-          leading_dimension_in, leading_dimension_out, grid_in, grid_out)),
+      (fft_gpu_register_1d_c2r_local(fft_size, number_of_ffts, transpose_in,
+                                     transpose_out, leading_dimension_in,
+                                     leading_dimension_out, grid_in, grid_out)),
       (fft_fftw_register_1d_c2r_local(
           fft_size, number_of_ffts, transpose_in, transpose_out,
           leading_dimension_in, leading_dimension_out, grid_in, grid_out)));
@@ -597,8 +597,7 @@ void fft_register_guru_r2c(int rank, const fft_iodim *dims, int howmany_rank,
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_guru_r2c");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "register_guru_r2c_%s_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_guru_r2c_%s_%i_%i",
            grid_in == (double *)grid_out ? "i" : "o", rank, howmany_rank);
   const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
@@ -626,8 +625,7 @@ void fft_register_guru_c2r(int rank, const fft_iodim *dims, int howmany_rank,
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_guru_c2r");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "register_guru_c2r_%s_%i_%i",
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_guru_c2r_%s_%i_%i",
            (double *)grid_in == grid_out ? "i" : "o", rank, howmany_rank);
   const int handle2 = fft_start_timer(routine_name);
   switch (fft_lib_choice) {
@@ -656,9 +654,8 @@ void fft_register_2d_distributed(const bool dir, const int npts_global[2],
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_2d_distributed");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "register_2d_distr_%s_%i_%i_%i", dir ? "fw" : "bw",
-           npts_global[0], npts_global[1], number_of_ffts);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_2d_distr_%s_%i_%i_%i",
+           dir ? "fw" : "bw", npts_global[0], npts_global[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
@@ -684,8 +681,7 @@ void fft_register_2d_r2c_distributed(const int npts_global[2],
                                      double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "register_2d_r2c_distributed");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_2d_r2c_distributed");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -716,8 +712,7 @@ void fft_register_2d_c2r_distributed(const int npts_global[2],
                                      double *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "register_2d_c2r_distributed");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_2d_c2r_distributed");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -750,9 +745,8 @@ void fft_register_3d_distributed(const bool dir, const int npts_global[3],
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_3d_distributed");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "register_3d_distr_%s_%i_%i_%i", dir ? "fw" : "bw",
-           npts_global[0], npts_global[1], npts_global[2]);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_3d_distr_%s_%i_%i_%i",
+           dir ? "fw" : "bw", npts_global[0], npts_global[1], npts_global[2]);
   const int handle2 = fft_start_timer(routine_name);
   cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
@@ -776,8 +770,7 @@ void fft_register_3d_r2c_distributed(const int npts_global[3],
                                      double complex *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "register_3d_r2c_distributed");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_3d_r2c_distributed");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -806,8 +799,7 @@ void fft_register_3d_c2r_distributed(const int npts_global[3],
                                      double *restrict grid_out) {
   char routine_name[FFT_MAX_STRING_LENGTH + 1];
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "register_3d_c2r_distributed");
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "register_3d_c2r_distributed");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
   snprintf(routine_name, FFT_MAX_STRING_LENGTH,
@@ -1252,9 +1244,8 @@ void fft_2d_distributed(const bool dir, const int npts_global[2],
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "2d_distributed");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "2d_distributed_%s_%i_%i_%i", dir ? "fw" : "bw", npts_global[0],
-           npts_global[1], number_of_ffts);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "2d_distributed_%s_%i_%i_%i",
+           dir ? "fw" : "bw", npts_global[0], npts_global[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
@@ -1281,9 +1272,8 @@ void fft_2d_r2c_distributed(const int npts_global[2], const int number_of_ffts,
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "2d_r2c_distributed");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "2d_r2c_distributed_%i_%i_%i", npts_global[0], npts_global[1],
-           number_of_ffts);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "2d_r2c_distributed_%i_%i_%i",
+           npts_global[0], npts_global[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
@@ -1311,9 +1301,8 @@ void fft_2d_c2r_distributed(const int npts_global[2], const int number_of_ffts,
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "2d_c2r_distributed");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "2d_c2r_distributed_%i_%i_%i", npts_global[0], npts_global[1],
-           number_of_ffts);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "2d_c2r_distributed_%i_%i_%i",
+           npts_global[0], npts_global[1], number_of_ffts);
   const int handle2 = fft_start_timer(routine_name);
   cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {
@@ -1341,9 +1330,8 @@ void fft_3d_distributed(const bool dir, const int npts_global[3],
   snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_distributed");
   const int handle = fft_start_timer(routine_name);
   memset(routine_name, '\0', FFT_MAX_STRING_LENGTH + 1);
-  snprintf(routine_name, FFT_MAX_STRING_LENGTH,
-           "3d_distributed_%s_%i_%i_%i", dir ? "fw" : "bw", npts_global[0],
-           npts_global[1], npts_global[2]);
+  snprintf(routine_name, FFT_MAX_STRING_LENGTH, "3d_distributed_%s_%i_%i_%i",
+           dir ? "fw" : "bw", npts_global[0], npts_global[1], npts_global[2]);
   const int handle2 = fft_start_timer(routine_name);
   cp_assert(fft_lib_use_mpi());
   switch (fft_lib_choice) {

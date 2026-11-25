@@ -178,19 +178,32 @@ __global__ void ray_unpack_z_xy(const double *recv_buffer, double *transposed,
   }
 }
 
-void fft_gpu_launch_ray_unpack_z_xy(const double *recv_buffer,
-                                    double *transposed, const int *xy_to_proc,
-                                    const int number_of_xy,
-                                    const int my_size_x_gs,
-                                    const int npts_global_y,
-                                    const int my_size_z_rs,
-                                    offloadStream_t stream) {
+void fft_gpu_launch_ray_unpack_z_xy(
+    const double *recv_buffer, double *transposed, const int *xy_to_proc,
+    const int number_of_xy, const int my_size_x_gs, const int npts_global_y,
+    const int my_size_z_rs, offloadStream_t stream) {
   const int threadsPerBlock = 256;
   const int total = number_of_xy * my_size_z_rs;
   const int numBlocks = (total + threadsPerBlock - 1) / threadsPerBlock;
   ray_unpack_z_xy<<<numBlocks, threadsPerBlock, 0, stream>>>(
       recv_buffer, transposed, xy_to_proc, number_of_xy, my_size_x_gs,
       npts_global_y, my_size_z_rs);
+}
+
+__global__ void scale_complex(double *data, const double scale,
+                              const int ngpts) {
+  const int igpt = blockIdx.x * blockDim.x + threadIdx.x;
+  if (igpt < ngpts) {
+    data[2 * igpt] *= scale;
+    data[2 * igpt + 1] *= scale;
+  }
+}
+
+void fft_gpu_launch_scale(double *data, const double scale, const int ngpts,
+                          offloadStream_t stream) {
+  const int threadsPerBlock = 1024;
+  const int numBlocks = (ngpts + threadsPerBlock - 1) / threadsPerBlock;
+  scale_complex<<<numBlocks, threadsPerBlock, 0, stream>>>(data, scale, ngpts);
 }
 
 #endif // defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)

@@ -2486,7 +2486,8 @@ void fft_fftw_register_3d_distributed(const bool direction,
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  cp_assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+  cp_assert(0 &&
+            "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 
@@ -2517,7 +2518,8 @@ void fft_fftw_register_3d_r2c_distributed(const int npts_global[3],
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  cp_assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+  cp_assert(0 &&
+            "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 
@@ -2548,7 +2550,8 @@ void fft_fftw_register_3d_c2r_distributed(const int npts_global[3],
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  cp_assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+  cp_assert(0 &&
+            "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 
@@ -3810,7 +3813,8 @@ void fft_fftw_3d_distributed(const bool direction, const int npts_global[3],
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  cp_assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+  cp_assert(0 &&
+            "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 
@@ -3846,7 +3850,8 @@ void fft_fftw_3d_r2c_distributed(const int npts_global[3],
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  cp_assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+  cp_assert(0 &&
+            "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 
@@ -3882,7 +3887,8 @@ void fft_fftw_3d_c2r_distributed(const int npts_global[3],
   (void)comm;
   (void)grid_in;
   (void)grid_out;
-  cp_assert(0 && "The grid library was not compiled with FFTW and MPI support.");
+  cp_assert(0 &&
+            "The grid library was not compiled with FFTW and MPI support.");
 #endif
 }
 

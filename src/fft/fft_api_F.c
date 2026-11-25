@@ -862,8 +862,7 @@ void fft_3d_c2r_local_inplace_F(const int fft_size[3], const int number_of_ffts,
 void fft_create_grid_F(fft_grid_layout **fft_grid, const int comm_F,
                        const int npts_global[3], const double dh_inv[3][3],
                        const bool use_halfspace, const double cutoff,
-                       const int *pgrid_guess,
-                       const int *external_local_bounds,
+                       const int *pgrid_guess, const int *external_local_bounds,
                        const bool use_ray_distribution) {
   int local_bounds[6];
   int *local_bounds_ptr = NULL;
@@ -885,7 +884,6 @@ void fft_create_grid_F(fft_grid_layout **fft_grid, const int comm_F,
       use_halfspace, cutoff, pgrid_guess, local_bounds_ptr,
       use_ray_distribution);
 }
-
 
 /*******************************************************************************
  * \brief Create a FFT grid layout from a reference grid layout.
@@ -979,10 +977,10 @@ void fft_grid_get_proc2local_gs_F(const fft_grid_layout *fft_grid,
 void fft_choose_proc_grid_F(const int npts_global[3],
                             const int number_of_processes,
                             const int *pgrid_guess, int proc_grid[2]) {
-  fft_choose_proc_grid(number_of_processes,
-                       (const int[3]){npts_global[2], npts_global[1],
-                                      npts_global[0]},
-                       pgrid_guess, proc_grid);
+  fft_choose_proc_grid(
+      number_of_processes,
+      (const int[3]){npts_global[2], npts_global[1], npts_global[0]},
+      pgrid_guess, proc_grid);
 }
 
 /*******************************************************************************
@@ -1003,16 +1001,13 @@ int fft_grid_is_ray_distributed_F(const fft_grid_layout *fft_grid) {
   return fft_grid->ray_distribution ? 1 : 0;
 }
 
-
-
 int fft_grid_enable_ray_distribution_F(fft_grid_layout *fft_grid,
                                        const int *xy_to_process,
-                                       const int nlocal,
-                                       const int *index_to_g,
+                                       const int nlocal, const int *index_to_g,
                                        const double *gsquared) {
   cp_assert(fft_grid != NULL);
-  return grid_enable_ray_distribution(
-      fft_grid, xy_to_process, nlocal, (const int(*)[3])index_to_g, gsquared);
+  return grid_enable_ray_distribution(fft_grid, xy_to_process, nlocal,
+                                      (const int (*)[3])index_to_g, gsquared);
 }
 
 int fft_grid_get_rays_per_process_F(const fft_grid_layout *fft_grid,
@@ -1044,25 +1039,25 @@ int fft_grid_get_npts_gs_local_F(const fft_grid_layout *fft_grid) {
 }
 
 void fft_grid_get_index_to_g_F(const fft_grid_layout *fft_grid,
-                                int *index_to_g) {
+                               int *index_to_g) {
   grid_get_index_to_g(fft_grid, index_to_g);
 }
 void fft_grid_get_index_to_fft_F(const fft_grid_layout *fft_grid,
-                                  const int *g_hat, int *index_to_fft) {
+                                 const int *g_hat, int *index_to_fft) {
   grid_get_index_to_fft(fft_grid, g_hat, index_to_fft);
 }
 
 void fft_grid_get_local_index_to_ref_grid_F(fft_grid_layout *fft_grid,
-                                              const fft_grid_layout *ref,
-                                              const int *g_hat,
-                                              const int *ref_g_hat,
-                                              int *index_to_ref_grid) {
+                                            const fft_grid_layout *ref,
+                                            const int *g_hat,
+                                            const int *ref_g_hat,
+                                            int *index_to_ref_grid) {
   grid_get_local_index_to_ref_grid(fft_grid, ref, g_hat, ref_g_hat,
                                    index_to_ref_grid);
 }
 
 void fft_grid_get_gsquared_F(const fft_grid_layout *fft_grid,
-                              double *gsquared) {
+                             double *gsquared) {
   grid_get_gsquared(fft_grid, gsquared);
 }
 
@@ -1076,19 +1071,18 @@ int fft_grid_generate_local_g_space_F(fft_grid_layout *fft_grid) {
 }
 
 void fft_grid_prepare_ray_mapping_F(fft_grid_layout *fft_grid,
-                                      const fft_grid_layout *ref) {
+                                    const fft_grid_layout *ref) {
   cp_assert(fft_grid != NULL);
   grid_prepare_ray_mapping(fft_grid, ref);
 }
 
-void fft_grid_set_spherical_F(fft_grid_layout *fft_grid,
-                               const bool spherical) {
+void fft_grid_set_spherical_F(fft_grid_layout *fft_grid, const bool spherical) {
   cp_assert(fft_grid != NULL);
   grid_set_spherical(fft_grid, spherical);
 }
 
 void fft_grid_set_yz_mapping_F(fft_grid_layout *fft_grid,
-                                const int *yz_to_process) {
+                               const int *yz_to_process) {
   cp_assert(fft_grid != NULL && yz_to_process != NULL);
   grid_set_yz_mapping(fft_grid, yz_to_process);
 }

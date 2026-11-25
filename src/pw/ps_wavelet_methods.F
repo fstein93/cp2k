@@ -164,14 +164,14 @@ CONTAINS
 
       CHARACTER(len=*), PARAMETER :: routineN = 'cp2k_distribution_to_z_slices'
 
-      INTEGER                                            :: dest, handle, i, ii, iproc, j, k, &
-                                                            local_z_dim, loz, m2, md2, nproc, rank, &
-                                                            zglobal, zstart
+      INTEGER                                            :: dest, handle, i, ii, iproc, j, k, lbx, &
+                                                            lby, lbz, local_z_dim, loz, m2, md2, &
+                                                            nproc, rank, ubx, uby, ubz, zglobal, &
+                                                            zstart
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount, rdispl, scount, sdispl
-      INTEGER, DIMENSION(2, 3)                           :: bounds_local
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_all
+      INTEGER, DIMENSION(2, 3)                           :: bounds_local
       INTEGER, DIMENSION(3)                              :: lb, ub
-      INTEGER                                            :: lbx, lby, lbz, ubx, uby, ubz
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rbuf, sbuf
 
       CALL timeset(routineN, handle)
@@ -272,12 +272,13 @@ CONTAINS
       TYPE(ps_wavelet_type), POINTER                     :: wavelet
       TYPE(pw_grid_type), POINTER                        :: pw_grid
 
-      INTEGER                                            :: dest, i, ii, iproc, j, k, local_z_dim, &
-                                                            loz, m2, md2, nproc, rank, zstart
+      INTEGER                                            :: dest, i, ii, iproc, j, k, lbx, lbxs, &
+                                                            lby, lbys, local_z_dim, loz, m2, md2, &
+                                                            nproc, rank, ubx, ubxs, uby, ubys, &
+                                                            zstart
       INTEGER, ALLOCATABLE, DIMENSION(:)                 :: rcount, rdispl, scount, sdispl
-      INTEGER, DIMENSION(2, 3)                           :: bounds_local
       INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: bounds_all
-      INTEGER                                            :: lbx, lby, ubx, uby, lbxs, lbys, ubxs, ubys
+      INTEGER, DIMENSION(2, 3)                           :: bounds_local
       REAL(KIND=dp), ALLOCATABLE, DIMENSION(:)           :: rbuf, sbuf
 
       CPASSERT(ASSOCIATED(wavelet))

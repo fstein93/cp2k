@@ -38,27 +38,14 @@ MODULE pw_grids
                                               C_LOC,&
                                               C_PTR,&
                                               C_SIZE_T
-   USE fft_api,                         ONLY: fft_create_grid,&
-                                              fft_free_grid,&
-                                              fft_grid_get_comm,&
-                                              fft_grid_get_proc2local_gs,&
-                                              fft_grid_get_proc2local_ms,&
-                                              fft_grid_get_proc2local_rs,&
-                                              fft_grid_get_rays_per_process,&
-                                              fft_grid_get_xy_to_process,&
-                                              fft_choose_proc_grid,&
-                                              fft_grid_get_proc_grid,&
-                                              fft_grid_is_ray_distributed,&
-                                              fft_grid_set_spherical,&
-                                              fft_grid_prepare_ray_mapping,&
-                                              fft_grid_generate_g_space,&
-                                              fft_grid_generate_local_g_space,&
-                                              fft_grid_get_npts_gs_local,&
-                                              fft_grid_get_index_to_g,&
-                                              fft_grid_get_index_to_fft,&
-                                              fft_grid_get_local_index_to_ref_grid,&
-                                              fft_grid_get_gsquared,&
-                                              fft_grid_get_yzp
+   USE fft_api,                         ONLY: &
+        fft_choose_proc_grid, fft_create_grid, fft_free_grid, fft_grid_generate_g_space, &
+        fft_grid_generate_local_g_space, fft_grid_get_comm, fft_grid_get_gsquared, &
+        fft_grid_get_index_to_fft, fft_grid_get_index_to_g, fft_grid_get_local_index_to_ref_grid, &
+        fft_grid_get_npts_gs_local, fft_grid_get_proc2local_gs, fft_grid_get_proc2local_ms, &
+        fft_grid_get_proc2local_rs, fft_grid_get_proc_grid, fft_grid_get_rays_per_process, &
+        fft_grid_get_yzp, fft_grid_is_ray_distributed, fft_grid_prepare_ray_mapping, &
+        fft_grid_set_spherical
    USE kinds,                           ONLY: dp,&
                                               int_8,&
                                               int_size
@@ -105,6 +92,7 @@ CONTAINS
 ! **************************************************************************************************
 !> \brief Initialize a PW grid with bounds only (used by some routines)
 !> \param pw_grid ...
+!> \param bounds ...
 !> \par History
 !>      JGH (21-Feb-2003) : initialize pw_grid%reference
 !> \author JGH (7-Feb-2001) & fawzi
@@ -548,6 +536,7 @@ CONTAINS
 !> \param blocked ...
 !> \param ref_grid ...
 !> \param iounit ...
+!> \param use_ray_distribution ...
 !> \par History
 !>      JGH (20-Dec-2000) : Adapted for parallel use
 !>      JGH (28-Feb-2001) : New optional argument fft_usage
@@ -586,7 +575,6 @@ CONTAINS
       IF (PRESENT(ref_grid)) THEN
          pw_grid%reference = ref_grid%id_nr
       END IF
-
 
       ! Check if reference grid is compatible
       IF (PRESENT(ref_grid)) THEN
@@ -661,6 +649,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Fetch the per-process number of yz rays.
+!> \param pw_grid ...
+!> \param nyzray ...
 ! **************************************************************************************************
    SUBROUTINE pw_grid_get_nyzray(pw_grid, nyzray)
 
@@ -687,6 +677,8 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Number of yz rays on the local process.
+!> \param pw_grid ...
+!> \return ...
 ! **************************************************************************************************
    INTEGER FUNCTION pw_grid_my_nyzray(pw_grid) RESULT(nyzray)
 
@@ -711,8 +703,8 @@ CONTAINS
       INTEGER, INTENT(IN)                                :: info
 
       INTEGER                                            :: i
-      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nyzray
       INTEGER(KIND=int_8)                                :: n(3)
+      INTEGER, ALLOCATABLE, DIMENSION(:)                 :: nyzray
       REAL(KIND=dp)                                      :: rv(3, 3)
 
 !------------------------------------------------------------------------------
@@ -823,16 +815,15 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Distribute grids in real and Fourier Space to the processors in group
-!> \param pw_grid ...
+!> \brief Decide whether the PW grid uses a blocked distribution from the
+!>        process grid and the user's blocking policy.
 !> \param blocked ...
+!> \param pgrid ...
+!> \return ...
 !> \par History
 !>      JGH (01-Mar-2001) optional reference grid
 !>      JGH (09-Sep-2003) reduce scaling for distribution
 !> \author JGH (22-12-2000)
-! **************************************************************************************************
-! **************************************************************************************************
-!> \brief Decide whether the PW grid uses a blocked distribution from the
-!>        process grid and the user's blocking policy.
 ! **************************************************************************************************
    LOGICAL FUNCTION blocked_local_for_ray(blocked, pgrid)
       INTEGER, INTENT(IN), OPTIONAL                      :: blocked
@@ -854,10 +845,10 @@ CONTAINS
       END SELECT
    END FUNCTION blocked_local_for_ray
 
-
 ! **************************************************************************************************
 !> \brief Fill the PW-grid distribution caches from the FFT layout.
 !> The FFT layout is the owner; these PW-grid arrays are read-only mirrors.
+!> \param pw_grid ...
 ! **************************************************************************************************
    SUBROUTINE pw_grid_update_distribution(pw_grid)
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
@@ -881,13 +872,14 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Verify that the PW-grid distribution caches still match the FFT layout.
+!> \param pw_grid ...
 ! **************************************************************************************************
    SUBROUTINE pw_grid_check_distribution(pw_grid)
       TYPE(pw_grid_type), INTENT(IN)                     :: pw_grid
 
       INTEGER                                            :: i
-      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)          :: reference
-      INTEGER, DIMENSION(2, 3)                          :: expected_bounds
+      INTEGER, ALLOCATABLE, DIMENSION(:, :, :)           :: reference
+      INTEGER, DIMENSION(2, 3)                           :: expected_bounds
 
       CPASSERT(ALLOCATED(pw_grid%para%bo))
       ALLOCATE (reference(2, 3, 0:pw_grid%para%group%num_pe - 1))
@@ -915,6 +907,12 @@ CONTAINS
       CPASSERT(ALL(pw_grid%npts_local == expected_bounds(2, :) - expected_bounds(1, :) + 1))
    END SUBROUTINE pw_grid_check_distribution
 
+! **************************************************************************************************
+!> \brief ...
+!> \param pw_grid ...
+!> \param blocked ...
+!> \param use_ray_distribution ...
+! **************************************************************************************************
    SUBROUTINE pw_grid_distribute(pw_grid, blocked, use_ray_distribution)
 
       TYPE(pw_grid_type), INTENT(INOUT)                  :: pw_grid
@@ -1017,7 +1015,6 @@ CONTAINS
 
    END SUBROUTINE pw_grid_distribute
 
-
 ! **************************************************************************************************
 !> \brief compute the length of g vectors
 !> \param h_inv ...
@@ -1065,6 +1062,9 @@ CONTAINS
 
 ! **************************************************************************************************
 !> \brief Convert a C-space index to the shifted Fortran frequency convention.
+!> \param c ...
+!> \param n ...
+!> \return ...
 ! **************************************************************************************************
    PURE INTEGER FUNCTION shifted_index_from_c(c, n) RESULT(s)
 
@@ -1079,13 +1079,10 @@ CONTAINS
 
    END FUNCTION shifted_index_from_c
 
-
-
 ! **************************************************************************************************
 !> \brief Allocate all (Pointer) Arrays in pw_grid
 !> \param pw_grid ...
 !> \param ng ...
-!> \param bounds ...
 !> \par History
 !>      JGH (20-12-2000) : Added status variable
 !>                         Bounds of arrays now from calling routine, this
@@ -1137,6 +1134,11 @@ CONTAINS
 
    END SUBROUTINE pw_grid_allocate
 
+! **************************************************************************************************
+!> \brief ...
+!> \param h_inv ...
+!> \param pw_grid ...
+! **************************************************************************************************
    SUBROUTINE pw_grid_assign(h_inv, pw_grid)
 
       REAL(KIND=dp), DIMENSION(3, 3), INTENT(IN)         :: h_inv
@@ -1246,7 +1248,6 @@ CONTAINS
       CALL timestop(handle)
 
    END SUBROUTINE pw_grid_sort
-
 
 ! **************************************************************************************************
 !> \brief Recalculate the g-vectors after a change of the box
