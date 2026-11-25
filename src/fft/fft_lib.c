@@ -215,6 +215,9 @@ void ensure_buffer_size(const int size) {
     fft_allocate_complex(size, &buffer_2);
     buffer_size = size;
   }
+  if (fft_lib_choice == FFT_LIB_GPU) {
+    fft_gpu_ensure_buffer_size(size);
+  }
 }
 
 /*******************************************************************************

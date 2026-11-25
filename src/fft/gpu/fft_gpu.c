@@ -24,6 +24,12 @@
 #include <string.h>
 
 #if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+
+// GPU-resident buffers used by the distributed GPU FFT driver.
+static double complex *driver_buffer_1 = NULL;
+static double complex *driver_buffer_2 = NULL;
+static int driver_buffer_size = 0;
+
 /*******************************************************************************
  * \brief Static variables for retaining objects that are expensive to create.
  * \author Ole Schuett
@@ -51,6 +57,7 @@ typedef struct {
 static int number_of_gpu_threads = 1;
 static gpu_thread_data *gpu_data = NULL;
 static bool is_initialized = false;
+
 
 #define GPU_THREAD_ID omp_get_thread_num()
 #define buffer_dev_1 (gpu_data[GPU_THREAD_ID].dev_buffer_1)
@@ -140,6 +147,15 @@ void fft_gpu_finalize(void) {
   }
   free(gpu_data);
   gpu_data = NULL;
+  if (driver_buffer_1 != NULL) {
+    offloadFree(driver_buffer_1);
+    driver_buffer_1 = NULL;
+  }
+  if (driver_buffer_2 != NULL) {
+    offloadFree(driver_buffer_2);
+    driver_buffer_2 = NULL;
+  }
+  driver_buffer_size = 0;
   omp_destroy_lock(&cache_lock);
   is_initialized = false;
 #else
@@ -175,6 +191,50 @@ void ensure_memory_sizes(const size_t requested_buffer_size,
   (void)requested_map_size;
 #endif
 }
+
+/*******************************************************************************
+ * \brief Checks the size of the GPU-resident driver buffers and re-allocates
+ *        them if necessary.
+ * \param size Requested buffer size in complex elements.
+ * \author Frederick Stein
+ ******************************************************************************/
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+void fft_gpu_ensure_buffer_size(const int size) {
+  cp_assert(is_initialized);
+  if (size > driver_buffer_size) {
+    offload_activate_chosen_device();
+    if (driver_buffer_1 != NULL) {
+      offloadFree(driver_buffer_1);
+    }
+    if (driver_buffer_2 != NULL) {
+      offloadFree(driver_buffer_2);
+    }
+    const size_t bytes = (size_t)size * sizeof(double complex);
+    offloadMallocManaged((void **)&driver_buffer_1, bytes);
+    offloadMallocManaged((void **)&driver_buffer_2, bytes);
+    driver_buffer_size = size;
+  }
+}
+
+/*******************************************************************************
+ * \brief Get the first GPU-resident driver buffer.
+ * \author Frederick Stein
+ ******************************************************************************/
+double complex *fft_gpu_get_buffer_1(void) { return driver_buffer_1; }
+
+/*******************************************************************************
+ * \brief Get the second GPU-resident driver buffer.
+ * \author Frederick Stein
+ ******************************************************************************/
+double complex *fft_gpu_get_buffer_2(void) { return driver_buffer_2; }
+
+#else
+void fft_gpu_ensure_buffer_size(const int size) { (void)size; }
+
+double complex *fft_gpu_get_buffer_1(void) { return NULL; }
+
+double complex *fft_gpu_get_buffer_2(void) { return NULL; }
+#endif
 
 /*******************************************************************************
  * \brief Allocate buffer of type double.
@@ -1499,5 +1559,152 @@ void fft_gpu_2d_r2c_local(const double *zin, double *zout, const bool dir,
 }
 
 
+
+/*******************************************************************************
+ * \brief   Performs a 1D-FFT on the GPU using GPU-resident buffers.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_1d_local_device(const bool dir, const int n, const int m,
+                             const bool transpose_in, const bool transpose_out,
+                             const int leading_dimension_in,
+                             const int leading_dimension_out,
+                             const double complex *zin, double complex *zout) {
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+  if (n == 0 || m == 0) {
+    return;
+  }
+  offload_activate_chosen_device();
+  fft_gpu_1d(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, n, m,
+             transpose_in, transpose_out, leading_dimension_in,
+             leading_dimension_out, (const double *)zin, (double *)zout);
+  offloadStreamSynchronize(stream);
+#else
+  (void)dir;
+  (void)n;
+  (void)m;
+  (void)transpose_in;
+  (void)transpose_out;
+  (void)leading_dimension_in;
+  (void)leading_dimension_out;
+  (void)zin;
+  (void)zout;
+#endif
+}
+
+/*******************************************************************************
+ * \brief   Performs an R2C 1D-FFT on the GPU using GPU-resident buffers.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_1d_r2c_local_device(const int n, const int m,
+                                 const bool transpose_in,
+                                 const bool transpose_out,
+                                 const int leading_dimension_in,
+                                 const int leading_dimension_out,
+                                 const double *zin, double complex *zout) {
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+  if (n == 0 || m == 0) {
+    return;
+  }
+  offload_activate_chosen_device();
+  fft_gpu_r2c_1d(OFFLOAD_FFT_FORWARD, n, m, transpose_in, transpose_out,
+                 leading_dimension_in, leading_dimension_out, zin,
+                 (double *)zout);
+  offloadStreamSynchronize(stream);
+#else
+  (void)n;
+  (void)m;
+  (void)transpose_in;
+  (void)transpose_out;
+  (void)leading_dimension_in;
+  (void)leading_dimension_out;
+  (void)zin;
+  (void)zout;
+#endif
+}
+
+/*******************************************************************************
+ * \brief   Performs a C2R 1D-FFT on the GPU using GPU-resident buffers.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_1d_c2r_local_device(const int n, const int m,
+                                 const bool transpose_in,
+                                 const bool transpose_out,
+                                 const int leading_dimension_in,
+                                 const int leading_dimension_out,
+                                 const double complex *zin, double *zout) {
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+  if (n == 0 || m == 0) {
+    return;
+  }
+  offload_activate_chosen_device();
+  fft_gpu_r2c_1d(OFFLOAD_FFT_INVERSE, n, m, transpose_in, transpose_out,
+                 leading_dimension_in, leading_dimension_out,
+                 (const double *)zin, zout);
+  offloadStreamSynchronize(stream);
+#else
+  (void)n;
+  (void)m;
+  (void)transpose_in;
+  (void)transpose_out;
+  (void)leading_dimension_in;
+  (void)leading_dimension_out;
+  (void)zin;
+  (void)zout;
+#endif
+}
+
+/*******************************************************************************
+ * \brief   Performs a 2D-FFT on the GPU using GPU-resident buffers.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_2d_local_device(const bool dir, const int n[2], const int m,
+                             const bool transpose_in, const bool transpose_out,
+                             const double complex *zin, double complex *zout) {
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+  if (n[0] == 0 || n[1] == 0 || m == 0) {
+    return;
+  }
+  offload_activate_chosen_device();
+  fft_gpu_2d(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, n, m,
+             transpose_in, transpose_out, (const double *)zin, (double *)zout);
+  offloadStreamSynchronize(stream);
+#else
+  (void)dir;
+  (void)n;
+  (void)m;
+  (void)transpose_in;
+  (void)transpose_out;
+  (void)zin;
+  (void)zout;
+#endif
+}
+
+/*******************************************************************************
+ * \brief   Performs a 3D-FFT on the GPU using GPU-resident buffers.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_3d_local_device(const bool dir, const int *npts,
+                             const int number_of_ffts, const bool transpose_in,
+                             const bool transpose_out,
+                             const double complex *zin, double complex *zout) {
+#if defined(__OFFLOAD) && !defined(__NO_OFFLOAD_FFT)
+  if (npts[0] == 0 || npts[1] == 0 || npts[2] == 0 || number_of_ffts == 0) {
+    return;
+  }
+  offload_activate_chosen_device();
+  fft_gpu_3d(dir ? OFFLOAD_FFT_FORWARD : OFFLOAD_FFT_INVERSE, npts[0], npts[1],
+             npts[2], number_of_ffts, transpose_in, transpose_out,
+             (double *)zin, (double *)zout);
+  offloadStreamSynchronize(stream);
+#else
+  (void)dir;
+  (void)npts;
+  (void)number_of_ffts;
+  (void)transpose_in;
+  (void)transpose_out;
+  (void)zin;
+  (void)zout;
+#endif
+}
 
 // EOF

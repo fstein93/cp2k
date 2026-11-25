@@ -365,6 +365,20 @@ static inline void offloadMalloc(void **ptr, size_t size) {
 }
 
 /*******************************************************************************
+ * \brief Wrapper around cudaMallocManaged.
+ ******************************************************************************/
+static inline void offloadMallocManaged(void **ptr, size_t size) {
+#if defined(__OFFLOAD_CUDA)
+  OFFLOAD_CHECK(cudaMallocManaged(ptr, size, cudaMemAttachGlobal));
+#elif defined(__OFFLOAD_HIP)
+  OFFLOAD_CHECK(hipMallocManaged(ptr, size, hipMemAttachGlobal));
+#else
+  cp_assert(NULL != ptr);
+  *ptr = malloc(size);
+#endif
+}
+
+/*******************************************************************************
  * \brief Wrapper around cudaFree.
  ******************************************************************************/
 static inline void offloadFree(void *ptr) {

@@ -28,6 +28,25 @@ void ensure_memory_sizes(const size_t requested_buffer_size,
                          const size_t requested_map_size);
 
 /*******************************************************************************
+ * \brief Checks the size of the GPU-resident driver buffers and re-allocates
+ *        them if necessary.
+ * \author Frederick Stein
+ ******************************************************************************/
+void fft_gpu_ensure_buffer_size(const int size);
+
+/*******************************************************************************
+ * \brief Get the first GPU-resident driver buffer.
+ * \author Frederick Stein
+ ******************************************************************************/
+double complex *fft_gpu_get_buffer_1(void);
+
+/*******************************************************************************
+ * \brief Get the second GPU-resident driver buffer.
+ * \author Frederick Stein
+ ******************************************************************************/
+double complex *fft_gpu_get_buffer_2(void);
+
+/*******************************************************************************
  * \brief Allocate buffer of type double.
  * \author Frederick Stein
  ******************************************************************************/
@@ -186,5 +205,54 @@ void fft_gpu_3d_local(const bool dir, const int *npts,
 void fft_gpu_3d_r2c_local(const double *zin, double *zout, const bool dir,
                           const int *npts, const int number_of_ffts,
                           const bool transpose_in, const bool transpose_out);
+
+/*******************************************************************************
+ * \brief   Performs a 1D-FFT on the GPU using GPU-resident buffers.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_1d_local_device(const bool dir, const int n, const int m,
+                             const bool transpose_in, const bool transpose_out,
+                             const int leading_dimension_in,
+                             const int leading_dimension_out,
+                             const double complex *zin, double complex *zout);
+
+/*******************************************************************************
+ * \brief   Performs an R2C 1D-FFT on the GPU using GPU-resident buffers.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_1d_r2c_local_device(const int n, const int m,
+                                 const bool transpose_in,
+                                 const bool transpose_out,
+                                 const int leading_dimension_in,
+                                 const int leading_dimension_out,
+                                 const double *zin, double complex *zout);
+
+/*******************************************************************************
+ * \brief   Performs a C2R 1D-FFT on the GPU using GPU-resident buffers.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_1d_c2r_local_device(const int n, const int m,
+                                 const bool transpose_in,
+                                 const bool transpose_out,
+                                 const int leading_dimension_in,
+                                 const int leading_dimension_out,
+                                 const double complex *zin, double *zout);
+
+/*******************************************************************************
+ * \brief   Performs a 2D-FFT on the GPU using GPU-resident buffers.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_2d_local_device(const bool dir, const int n[2], const int m,
+                             const bool transpose_in, const bool transpose_out,
+                             const double complex *zin, double complex *zout);
+
+/*******************************************************************************
+ * \brief   Performs a 3D-FFT on the GPU using GPU-resident buffers.
+ * \author  Frederick Stein
+ ******************************************************************************/
+void fft_gpu_3d_local_device(const bool dir, const int *npts,
+                             const int number_of_ffts, const bool transpose_in,
+                             const bool transpose_out,
+                             const double complex *zin, double complex *zout);
 
 // EOF
